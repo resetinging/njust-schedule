@@ -903,11 +903,23 @@ def api_eval_form():
         seq = seq_input.get("value", "") if seq_input else ""
 
         # 第二个 td: radio 选项 + 隐藏分值字段交替排列
-        # 结构: <input type="radio" ...> 标签文字 <input type="hidden" name="pj0601fz_*"> ...
+        # 结构: <input type="radio" ...> 标签文字 <input type="hidden" name="pj0601fz_SEQ_UUID" value="分数"> ...
+        # 先构建分值映射: {radio_uuid: score}
+        fz_map = {}
+        for inp in tds[1].find_all("input", type="hidden"):
+            fz_name = inp.get("name", "")
+            fz_value = inp.get("value", "")
+            if fz_name.startswith("pj0601fz_"):
+                # pj0601fz_10_UUID → 最后一段是 UUID
+                parts = fz_name.rsplit("_", 1)
+                if len(parts) == 2:
+                    fz_map[parts[1]] = fz_value
+
         options = []
         for radio in tds[1].find_all("input", type="radio"):
             opt_name = radio.get("name", "")
             opt_value = radio.get("value", "")
+            opt_score = fz_map.get(opt_value, "")
             # 直接取 radio 后面的 NavigableString 文本节点
             opt_label = ""
             sib = radio.next_sibling
@@ -919,12 +931,12 @@ def api_eval_form():
                 except Exception:
                     pass
             if not opt_label:
-                # 回退：从 radio 的父元素的完整文本中查找
                 opt_label = radio.parent.get_text().strip() if radio.parent else ""
             options.append({
                 "name": opt_name,
                 "value": opt_value,
                 "label": opt_label.strip(),
+                "score": opt_score,
             })
         indicators.append({"seq": seq, "label": label, "options": options})
 

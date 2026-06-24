@@ -988,6 +988,57 @@ a:hover { text-decoration: underline; }
 }
 
 /* ============================================================
+   自动填写工具栏
+   ============================================================ */
+.eval-autofill-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #f0f4ff, #faf5ff);
+    border: 1px dashed var(--primary-light);
+    border-radius: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.eval-autofill-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.eval-target-input {
+    width: 70px;
+    padding: 5px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    text-align: center;
+    font-weight: 600;
+}
+.eval-target-input:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary-bg);
+}
+
+.eval-autofill-hint {
+    font-size: 0.78rem;
+    color: var(--text-light);
+}
+
+.eval-score-badge {
+    font-size: 0.7rem;
+    background: var(--primary-bg);
+    color: var(--primary);
+    padding: 1px 5px;
+    border-radius: 8px;
+    margin-left: 2px;
+    font-weight: 600;
+}
+
+/* ============================================================
    评教课程列表
    ============================================================ */
 .eval-course-list {

@@ -366,8 +366,21 @@ function renderEvalForm(container, data) {
     }
 
     // 返回按钮
-    html += `<div style="margin-bottom:12px;">
+    html += `<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="backToCourseList()">← 返回课程列表</button>
+    </div>`;
+
+    // 自动填写工具栏
+    html += `<div class="eval-autofill-bar">
+        <span class="eval-autofill-label">🎯 期望分数:</span>
+        <input type="number" id="eval-target-score" class="eval-target-input"
+               min="0" max="100" step="1" placeholder="如 85"
+               onkeydown="if(event.key==='Enter')autoFillEval()">
+        <span class="eval-autofill-hint">（满分 ${calcMaxScore(indicators)}）</span>
+        <button type="button" class="btn btn-primary btn-sm" onclick="autoFillEval()">
+            ✨ 自动填写
+        </button>
+        <span id="eval-fill-result" style="display:none;font-size:0.85rem;font-weight:600;"></span>
     </div>`;
 
     // 课程标题
@@ -382,10 +395,11 @@ function renderEvalForm(container, data) {
             <div class="eval-indicator-label">${escapeHtml(ind.label)}</div>
             <div class="eval-options">`;
         for (const opt of (ind.options || [])) {
+            const scoreBadge = opt.score ? `<span class="eval-score-badge">${escapeHtml(opt.score)}分</span>` : '';
             html += `
                 <label class="eval-option">
                     <input type="radio" name="${escapeHtml(opt.name)}" value="${escapeHtml(opt.value)}">
-                    <span class="eval-option-label">${escapeHtml(opt.label)}</span>
+                    <span class="eval-option-label">${escapeHtml(opt.label)}${scoreBadge}</span>
                 </label>`;
         }
         html += '</div></div>';
@@ -465,6 +479,142 @@ async function submitEval(submitType) {
         hideLoading();
         showToast('❌ 提交失败: ' + e.message, 'error');
     }
+}
+
+// ============================================================
+// 自动填写算法：根据期望分数自动选择选项
+// ============================================================
+
+// 计算满分
+function calcMaxScore(indicators) {
+    let total = 0;
+    for (const ind of indicators) {
+        let max = 0;
+        for (const opt of (ind.options || [])) {
+            const s = parseFloat(opt.score);
+            if (s > max) max = s;
+        }
+        total += max;
+    }
+    return Math.round(total);
+}
+
+// 计算当前已选总分
+function calcCurrentScore(indicators) {
+    let total = 0;
+    for (const ind of indicators) {
+        for (const opt of (ind.options || [])) {
+            const radio = document.querySelector(`input[name="${opt.name}"]:checked`);
+            if (radio) {
+                total += parseFloat(opt.score) || 0;
+                break;
+            }
+        }
+    }
+    return Math.round(total * 10) / 10;
+}
+
+// 自动填写
+function autoFillEval() {
+    const input = document.getElementById('eval-target-score');
+    const targetRaw = input.value.trim();
+    if (!targetRaw) {
+        showToast('❌ 请输入期望分数', 'error');
+        input.focus();
+        return;
+    }
+    const target = parseFloat(targetRaw);
+    if (isNaN(target) || target < 0 || target > 100) {
+        showToast('❌ 请输入 0~100 的分数', 'error');
+        return;
+    }
+
+    const indicators = currentEvalForm.indicators || [];
+    if (indicators.length === 0) {
+        showToast('❌ 无评价指标', 'error');
+        return;
+    }
+
+    const maxScore = calcMaxScore(indicators);
+
+    // 步骤 1: 每条指标选最接近目标比例的选项
+    const selections = [];  // [{ind, colIndex, score}]
+    for (const ind of indicators) {
+        const opts = ind.options || [];
+        if (opts.length === 0) continue;
+
+        // 该指标的满分
+        let indMax = 0;
+        for (const o of opts) {
+            const s = parseFloat(o.score) || 0;
+            if (s > indMax) indMax = s;
+        }
+
+        // 目标分数按比例分配到该指标
+        const indTarget = maxScore > 0 ? (target / maxScore) * indMax : 0;
+
+        // 选最接近的
+        let bestIdx = 0;
+        let bestDist = Infinity;
+        for (let i = 0; i < opts.length; i++) {
+            const s = parseFloat(opts[i].score) || 0;
+            const dist = Math.abs(s - indTarget);
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIdx = i;
+            }
+        }
+        selections.push({ ind, colIndex: bestIdx, score: parseFloat(opts[bestIdx].score) || 0 });
+    }
+
+    // 步骤 2: 防作弊 — 不能所有指标选同一列
+    const allSameColumn = selections.every(s => s.colIndex === selections[0].colIndex);
+    if (allSameColumn && selections.length > 1) {
+        const currentTotal = selections.reduce((sum, s) => sum + s.score, 0);
+        let bestSwap = null;
+        let minPenalty = Infinity;
+        for (let i = 0; i < selections.length; i++) {
+            const opts = selections[i].ind.options || [];
+            for (let j = 0; j < opts.length; j++) {
+                if (j === selections[i].colIndex) continue;
+                const newScore = parseFloat(opts[j].score) || 0;
+                const newTotal = currentTotal - selections[i].score + newScore;
+                const penalty = Math.abs(newTotal - currentTotal);
+                if (penalty < minPenalty) {
+                    minPenalty = penalty;
+                    bestSwap = { selIdx: i, newCol: j, score: newScore };
+                }
+            }
+        }
+        if (bestSwap) {
+            selections[bestSwap.selIdx].colIndex = bestSwap.newCol;
+            selections[bestSwap.selIdx].score = bestSwap.score;
+        }
+    }
+
+    // 步骤 3: 应用选择
+    for (const sel of selections) {
+        const opts = sel.ind.options || [];
+        if (sel.colIndex < opts.length) {
+            const radio = document.querySelector(`input[name="${opts[sel.colIndex].name}"][value="${opts[sel.colIndex].value}"]`);
+            if (radio) radio.checked = true;
+        }
+    }
+
+    // 显示结果
+    const actualScore = calcCurrentScore(indicators);
+    const resultEl = document.getElementById('eval-fill-result');
+    if (resultEl) {
+        resultEl.style.display = 'inline';
+        const diff = Math.abs(actualScore - target);
+        const color = diff <= 1 ? 'var(--success)' : (diff <= 3 ? '#e6a817' : 'var(--danger)');
+        resultEl.style.color = color;
+        resultEl.textContent = `→ 实际总分: ${actualScore}（偏离 ${diff.toFixed(1)} 分）`;
+    }
+
+    // 滚动到第一个未选中的指标（以防万一）
+    const firstUnchecked = document.querySelector('.eval-indicator-card input[type="radio"]:not(:checked)');
+    // 全部已选时不需要滚动
 }
 
 function closeEvalModal() {
