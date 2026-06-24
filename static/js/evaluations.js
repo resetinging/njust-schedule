@@ -458,14 +458,14 @@ async function submitEval(submitType) {
         }
     }
 
-    // 手动收集选中的 radio 值（避免 FormData 可能的跨浏览器问题）
+    // 手动收集选中的 radio 值（每个指标一组 radio，名字相同）
     for (const ind of currentEvalForm.indicators) {
-        for (const opt of (ind.options || [])) {
-            const radio = document.querySelector(`input[name="${opt.name}"]:checked`);
-            if (radio) {
-                payload[opt.name] = opt.value;
-                break; // 每组只取选中的
-            }
+        const opts = ind.options || [];
+        if (opts.length === 0) continue;
+        const groupName = opts[0].name;          // 同一组 radio 共用 name
+        const checkedRadio = document.querySelector(`input[name="${groupName}"]:checked`);
+        if (checkedRadio) {
+            payload[groupName] = checkedRadio.value;  // 用 DOM 元素的 value，不是 opt.value
         }
     }
 
