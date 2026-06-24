@@ -51,6 +51,16 @@ def start_flask():
 if __name__ == "__main__":
     init_db()
 
+    # 尝试自动登录（使用已保存的凭据）
+    try:
+        from app import _auto_login
+        if _auto_login():
+            print("[启动] 自动登录成功")
+        else:
+            print("[启动] 未找到已保存凭据，请手动登录")
+    except Exception as e:
+        print(f"[启动] 自动登录失败: {e}")
+
     # 启动 Flask 后台线程
     flask_thread = threading.Thread(target=start_flask, daemon=True)
     flask_thread.start()

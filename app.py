@@ -384,7 +384,7 @@ def api_login():
         success = jwc_client.login(student_id, password)
 
     if success:
-        return _on_login_success(student_id)
+        return _on_login_success(student_id, password)
     else:
         return jsonify({
             "success": False,
@@ -412,7 +412,7 @@ def api_login_manual():
         )
 
     if success:
-        return _on_login_success(student_id)
+        return _on_login_success(student_id, password)
     else:
         return jsonify({
             "success": False,
@@ -420,9 +420,38 @@ def api_login_manual():
         }), 401
 
 
-def _on_login_success(student_id: str):
+def _encode_pwd(pwd: str) -> str:
+    """简单编码密码（本地存储，非安全加密）"""
+    import base64 as b64
+    return b64.b64encode(pwd.encode()).decode()
+
+
+def _decode_pwd(encoded: str) -> str:
+    """解码密码"""
+    import base64 as b64
+    try:
+        return b64.b64decode(encoded.encode()).decode()
+    except Exception:
+        return ""
+
+
+def _auto_login() -> bool:
+    """尝试用存储的凭据自动登录"""
+    if jwc_client.logged_in:
+        return True
+    sid = get_setting("student_id")
+    pwd = _decode_pwd(get_setting("password_enc", ""))
+    if not sid or not pwd:
+        return False
+    jwc_client.login(sid, pwd)
+    return jwc_client.logged_in
+
+
+def _on_login_success(student_id: str, password: str = ""):
     """登录成功后的公共处理"""
     set_setting("student_id", student_id)
+    if password:
+        set_setting("password_enc", _encode_pwd(password))
     if jwc_client.student_name:
         set_setting("student_name", jwc_client.student_name)
 
@@ -444,14 +473,15 @@ def _on_login_success(student_id: str):
 # ============================================================
 
 def _require_login():
-    """检查登录状态，未登录返回错误响应，已登录返回 None"""
+    """检查登录状态，未登录时尝试自动重登，仍失败则返回错误"""
     if not jwc_client.logged_in:
-        student_id = get_setting("student_id")
-        if not student_id:
-            return jsonify({
-                "success": False,
-                "message": "尚未登录，请先在设置页面登录教务系统",
-            }), 401
+        if not _auto_login():
+            student_id = get_setting("student_id")
+            if not student_id:
+                return jsonify({
+                    "success": False,
+                    "message": "尚未登录，请先在设置页面登录教务系统",
+                }), 401
     return None
 
 
