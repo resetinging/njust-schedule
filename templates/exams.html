@@ -1,0 +1,49 @@
+﻿{% extends "base.html" %}
+{% block title %}考试安排 - 南理工课表管理{% endblock %}
+{% block nav_exams %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>📝 考试安排</h1>
+        <span class="semester-badge" id="semester-badge">加载中...</span>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="refreshExams()" id="btn-refresh">
+            🔄 刷新考试安排
+        </button>
+    </div>
+</div>
+
+<!-- 加载提示 -->
+<div class="loading-overlay" id="loading-overlay" style="display:none;">
+    <div class="loading-spinner"></div>
+    <p id="loading-text">正在加载...</p>
+</div>
+
+<!-- 倒计时卡片 -->
+<div class="countdown-row" id="countdown-row" style="display:none;">
+    <!-- JS 动态生成 -->
+</div>
+
+<!-- 考试列表 -->
+<div class="exam-container">
+    <div class="schedule-empty" id="exam-empty" style="display:none;">
+        <div class="empty-icon">📭</div>
+        <h3>暂无考试安排</h3>
+        <p id="empty-exam-message">请先在「设置」页面登录教务系统，然后刷新考试安排</p>
+        <button class="btn btn-primary" onclick="window.location.href='/settings'">
+            前往设置
+        </button>
+    </div>
+
+    <div class="exam-list" id="exam-list">
+        <!-- JS 动态生成 -->
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/exams.js"></script>
+{% endblock %}

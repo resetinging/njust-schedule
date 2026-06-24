@@ -1,0 +1,28 @@
+# Python bytecode cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+*.spec
+
+# Release distributions
+release/
+*.zip
+*.exe
+
+# Runtime data (auto-generated)
+schedule.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

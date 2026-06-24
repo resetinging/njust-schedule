@@ -1,0 +1,142 @@
+﻿{% extends "base.html" %}
+{% block title %}设置 - 南理工课表管理{% endblock %}
+{% block nav_settings %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>⚙️ 设置</h1>
+</div>
+
+<div class="settings-container">
+    <!-- 教务系统登录 -->
+    <div class="settings-card">
+        <h2>🔐 教务系统登录</h2>
+        <p class="settings-desc">
+            登录南京理工大学教务系统以自动获取课表和考试安排。
+            请确保已连接校园网 i-Zijin 或南理工 VPN。
+        </p>
+
+        <form id="login-form" class="settings-form">
+            <div class="form-group">
+                <label for="student-id">学号</label>
+                <input type="text" id="student-id" placeholder="请输入12位学号"
+                       maxlength="20" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" placeholder="请输入教务系统密码"
+                       required autocomplete="current-password">
+            </div>
+
+            <!-- 手动验证码区域（默认隐藏，自动登录失败后显示） -->
+            <div id="captcha-area" class="captcha-area" style="display:none;">
+                <div class="captcha-row">
+                    <img id="captcha-img" src="" alt="验证码" class="captcha-img"
+                         style="display:none;">
+                    <button type="button" class="btn btn-sm btn-secondary"
+                            onclick="loadCaptcha()" id="btn-load-captcha"
+                            style="display:none;">
+                        🔍 获取验证码
+                    </button>
+                </div>
+                <div class="form-group" id="captcha-input-group" style="display:none;">
+                    <label for="captcha-input">请输入验证码（4位）</label>
+                    <div class="captcha-input-row">
+                        <input type="text" id="captcha-input" placeholder="请输入图片中的验证码"
+                               maxlength="6" autocomplete="off">
+                        <button type="button" class="btn btn-sm btn-secondary"
+                                onclick="loadCaptcha()">
+                            🔄 换一张
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="testConnection()">
+                    🔗 测试连接
+                </button>
+                <button type="submit" class="btn btn-primary" id="btn-login">
+                    🔑 登录
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-load-captcha-2"
+                        onclick="loadCaptchaAndShow()">
+                    🖼️ 显示验证码
+                </button>
+            </div>
+        </form>
+
+        <div class="login-info" id="login-info" style="display:none;">
+            <div class="info-row">
+                <span class="info-label">状态：</span>
+                <span class="info-value" id="info-status">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">学号：</span>
+                <span class="info-value" id="info-student-id">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">姓名：</span>
+                <span class="info-value" id="info-student-name">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">登录方式：</span>
+                <span class="info-value" id="info-login-method">-</span>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="logout()" style="margin-top:12px;">
+                退出登录
+            </button>
+        </div>
+    </div>
+
+    <!-- 学期与数据管理 -->
+    <div class="settings-card">
+        <h2>📆 学期管理</h2>
+        <form id="semester-form" class="settings-form">
+            <div class="form-group">
+                <label for="semester-select">当前学期</label>
+                <select id="semester-select">
+                    <!-- JS 动态填充 -->
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">切换学期</button>
+        </form>
+    </div>
+
+    <!-- 数据操作 -->
+    <div class="settings-card">
+        <h2>🔄 数据管理</h2>
+        <div class="data-actions">
+            <button class="btn btn-primary" onclick="refreshAll()">
+                📥 一键刷新全部数据
+            </button>
+            <button class="btn btn-danger" onclick="clearData()">
+                🗑️ 清除当前学期数据
+            </button>
+        </div>
+        <div class="data-stats" id="data-stats">
+            加载中...
+        </div>
+    </div>
+
+    <!-- 使用说明 -->
+    <div class="settings-card">
+        <h2>📖 使用说明</h2>
+        <div class="help-content">
+            <ol>
+                <li><strong>环境要求</strong>：连接校园网 i-Zijin 或南理工 VPN</li>
+                <li><strong>登录</strong>：输入学号和教务系统密码，系统会自动尝试多种登录方式</li>
+                <li><strong>获取课表</strong>：登录后回到「课表」页面点击刷新</li>
+                <li><strong>获取考试</strong>：在「考试」页面点击刷新获取考试安排</li>
+                <li><strong>多设备访问</strong>：手机连接同一 WiFi，浏览器访问本机局域网 IP</li>
+                <li><strong>数据存储</strong>：所有数据保存在本地 <code>schedule.db</code> 文件中</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/settings.js"></script>
+{% endblock %}

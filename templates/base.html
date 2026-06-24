@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}南理工课表管理{% endblock %}</title>
+    <!-- PWA -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#1a5276">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="南理工课表">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="/static/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">📅 南理工课表</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link {% block nav_index %}{% endblock %}">课表</a>
+                <a href="/exams" class="nav-link {% block nav_exams %}{% endblock %}">考试</a>
+                <a href="/settings" class="nav-link {% block nav_settings %}{% endblock %}">设置</a>
+            </div>
+            <div class="nav-status" id="nav-status">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">加载中...</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="main-container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 底部信息 -->
+    <footer class="footer">
+        <p>南京理工大学课表管理系统 · 数据来自教务系统</p>
+        <p class="footer-hint">📱 手机访问: http://{{ lan_ip }}:{{ port }}（同一WiFi下打开后添加到主屏幕）</p>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+    {% block scripts %}{% endblock %}
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/sw.js');
+    }
+    </script>
+</body>
+</html>

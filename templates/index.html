@@ -1,0 +1,68 @@
+﻿{% extends "base.html" %}
+{% block title %}课表 - 南理工课表管理{% endblock %}
+{% block nav_index %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>📅 课程表</h1>
+        <span class="semester-badge" id="semester-badge">加载中...</span>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-secondary" onclick="prevWeek()">◀</button>
+        <span class="week-label" id="week-label">第 1 周</span>
+        <button class="btn btn-secondary" onclick="nextWeek()">▶</button>
+        <button class="btn btn-primary" onclick="refreshSchedule()" id="btn-refresh">
+            🔄 刷新课表
+        </button>
+    </div>
+</div>
+
+<!-- 加载提示 -->
+<div class="loading-overlay" id="loading-overlay" style="display:none;">
+    <div class="loading-spinner"></div>
+    <p id="loading-text">正在加载...</p>
+</div>
+
+<!-- 课表表格 -->
+<div class="schedule-container">
+    <div class="schedule-empty" id="schedule-empty" style="display:none;">
+        <div class="empty-icon">📋</div>
+        <h3>暂无课表数据</h3>
+        <p id="empty-message">请先在「设置」页面登录教务系统，然后刷新课表</p>
+        <button class="btn btn-primary" onclick="window.location.href='/settings'">
+            前往设置
+        </button>
+    </div>
+
+    <div class="table-wrapper" id="schedule-table-wrapper">
+        <table class="schedule-table" id="schedule-table">
+            <thead>
+                <tr>
+                    <th class="time-col">节次</th>
+                    <th>周一</th>
+                    <th>周二</th>
+                    <th>周三</th>
+                    <th>周四</th>
+                    <th>周五</th>
+                    <th>周六</th>
+                    <th>周日</th>
+                </tr>
+            </thead>
+            <tbody id="schedule-body">
+                <!-- JS 动态生成 -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 课表列表视图（手机端） -->
+<div class="schedule-list" id="schedule-list">
+    <!-- JS 动态生成 -->
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/schedule.js"></script>
+{% endblock %}
