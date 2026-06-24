@@ -227,7 +227,7 @@ async function refreshEvaluations() {
 }
 
 // ============================================================
-// 评教模态窗口（原生表单，非 iframe）
+// 评教模态窗口 — 两级导航：课程列表 → 评价表单
 // ============================================================
 
 function escapeHtml(str) {
@@ -235,31 +235,123 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-let currentEvalForm = null; // 当前评教表单数据
+let currentEvalForm = null;   // 当前评价表单数据 (indicators + hidden_fields)
+let currentBatchData = null;  // 当前批次课程列表数据 (courses + hidden_fields)
+let currentView = 'courses';  // 'courses' | 'form'
 
+// 第一步：点击批次 → 加载课程列表
 async function openEvalModal(title, itemUrl) {
     const modal = document.getElementById('eval-modal');
     const titleEl = document.getElementById('eval-modal-title');
     const body = document.getElementById('eval-modal-body');
 
     titleEl.textContent = '加载中...';
-    body.innerHTML = '<div style="padding:40px;text-align:center;"><div class="loading-spinner"></div><p>正在加载评教表单...</p></div>';
+    body.innerHTML = '<div style="padding:40px;text-align:center;"><div class="loading-spinner"></div><p>正在加载课程列表...</p></div>';
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    currentView = 'courses';
 
     try {
-        const resp = await fetch('/api/eval-form?url=' + encodeURIComponent(itemUrl.replace('/proxy/jw/', '/')));
+        const resp = await fetch('/api/eval-courses?url=' + encodeURIComponent(itemUrl.replace('/proxy/jw/', '/')));
         const data = await resp.json();
         if (!data.success) {
-            body.innerHTML = `<div style="padding:40px;text-align:center;color:red;"><p>${data.message}</p></div>`;
+            body.innerHTML = `<div style="padding:40px;text-align:center;color:red;"><p>❌ ${data.message}</p></div>`;
             return;
         }
-        currentEvalForm = data;
-        titleEl.textContent = '📝 ' + (data.course_name || title);
-        renderEvalForm(body, data);
+        currentBatchData = data;
+        titleEl.textContent = '📋 ' + (data.batch_title || title);
+        renderCourseList(body, data);
     } catch (e) {
         body.innerHTML = `<div style="padding:40px;text-align:center;color:red;"><p>加载失败: ${e.message}</p></div>`;
     }
+}
+
+// 渲染课程列表
+function renderCourseList(container, data) {
+    const courses = data.courses || [];
+    let html = '<div class="eval-course-list">';
+
+    for (const c of courses) {
+        const statusIcon = c.submitted ? '✅' : (c.evaluated ? '💾' : '📝');
+        const statusText = c.submitted ? '已提交' : (c.evaluated ? '已保存' : '待评价');
+        const canEvaluate = !c.submitted;
+        const btnDisabled = canEvaluate ? '' : 'disabled';
+        const btnStyle = canEvaluate ? '' : 'style="opacity:0.4;cursor:default;"';
+
+        html += `
+        <div class="eval-course-card">
+            <div class="eval-course-card-header">
+                <span class="eval-course-card-name">${statusIcon} ${escapeHtml(c.name)}</span>
+                <span class="eval-course-card-status">${statusText}</span>
+            </div>
+            <div class="eval-course-card-info">
+                <span>📖 ${escapeHtml(c.code)}</span>
+                <span>👨‍🏫 ${escapeHtml(c.teacher)}</span>
+                ${c.score !== '0' ? `<span>⭐ ${escapeHtml(c.score)}分</span>` : ''}
+            </div>
+            <div class="eval-course-card-action">
+                <button class="btn btn-primary btn-sm" ${btnStyle}
+                        onclick="openEvalForm('${escapeHtml(c.eval_url)}', '${escapeHtml(c.name)}', '${escapeHtml(c.teacher)}')"
+                        ${btnDisabled}>
+                    ${c.submitted ? '✅ 已提交' : (c.evaluated ? '📝 继续评价' : '📝 开始评价')}
+                </button>
+            </div>
+        </div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// 第二步：点击课程 → 加载评价表单
+async function openEvalForm(evalUrl, courseName, teacherName) {
+    if (!evalUrl) {
+        showToast('❌ 该课程评价链接无效', 'error');
+        return;
+    }
+
+    const titleEl = document.getElementById('eval-modal-title');
+    const body = document.getElementById('eval-modal-body');
+
+    titleEl.textContent = '加载中...';
+    body.innerHTML = '<div style="padding:40px;text-align:center;"><div class="loading-spinner"></div><p>正在加载评价表单...</p></div>';
+    currentView = 'form';
+
+    try {
+        const resp = await fetch('/api/eval-form?url=' + encodeURIComponent(evalUrl));
+        const data = await resp.json();
+        if (!data.success) {
+            body.innerHTML = `<div style="padding:40px;text-align:center;color:red;">
+                <p>❌ ${data.message}</p>
+                <button class="btn btn-secondary" onclick="backToCourseList()" style="margin-top:16px;">← 返回课程列表</button>
+            </div>`;
+            return;
+        }
+        currentEvalForm = data;
+        titleEl.textContent = '📝 ' + (data.course_name || courseName);
+        if (teacherName) {
+            titleEl.textContent += ' — ' + teacherName;
+        }
+        renderEvalForm(body, data);
+    } catch (e) {
+        body.innerHTML = `<div style="padding:40px;text-align:center;color:red;">
+            <p>加载失败: ${e.message}</p>
+            <button class="btn btn-secondary" onclick="backToCourseList()" style="margin-top:16px;">← 返回课程列表</button>
+        </div>`;
+    }
+}
+
+// 返回课程列表
+function backToCourseList() {
+    if (!currentBatchData) {
+        closeEvalModal();
+        return;
+    }
+    const titleEl = document.getElementById('eval-modal-title');
+    const body = document.getElementById('eval-modal-body');
+    titleEl.textContent = '📋 ' + (currentBatchData.batch_title || '评教课程');
+    renderCourseList(body, currentBatchData);
+    currentEvalForm = null;
+    currentView = 'courses';
 }
 
 function renderEvalForm(container, data) {
@@ -272,6 +364,11 @@ function renderEvalForm(container, data) {
     for (const [k, v] of Object.entries(hf)) {
         html += `<input type="hidden" name="${escapeHtml(k)}" value="${escapeHtml(v)}">`;
     }
+
+    // 返回按钮
+    html += `<div style="margin-bottom:12px;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="backToCourseList()">← 返回课程列表</button>
+    </div>`;
 
     // 课程标题
     if (data.course_name) {
@@ -328,10 +425,18 @@ async function submitEval(submitType) {
         }
     }
 
-    // 收集表单数据
+    // 收集表单数据（合并表单页隐藏字段）
     const form = document.getElementById('eval-native-form');
     const formData = new FormData(form);
     const payload = {};
+
+    // 先加入课程列表页的隐藏字段（如 cj0701id）
+    if (currentBatchData && currentBatchData.hidden_fields) {
+        for (const [k, v] of Object.entries(currentBatchData.hidden_fields)) {
+            payload[k] = v;
+        }
+    }
+    // 再加入表单页隐藏字段和用户选择
     for (const [k, v] of formData.entries()) {
         payload[k] = v;
     }
@@ -344,14 +449,18 @@ async function submitEval(submitType) {
             body: JSON.stringify({
                 form_data: payload,
                 submit_type: submitType,
-                action: currentEvalForm.hidden_fields.action || '/njlgdx/xspj/xspj_save.do',
+                action: currentEvalForm.action || '/njlgdx/xspj/xspj_save.do',
             }),
         });
         const data = await resp.json();
         hideLoading();
-        showToast(data.success ? '✅ ' + data.message : '❌ ' + data.message,
-                  data.success ? 'success' : 'error');
-        if (data.success) closeEvalModal();
+        if (data.success) {
+            showToast('✅ ' + data.message, 'success');
+            // 返回课程列表
+            backToCourseList();
+        } else {
+            showToast('❌ ' + data.message, 'error');
+        }
     } catch (e) {
         hideLoading();
         showToast('❌ 提交失败: ' + e.message, 'error');
@@ -362,12 +471,30 @@ function closeEvalModal() {
     document.getElementById('eval-modal').style.display = 'none';
     document.getElementById('eval-modal-body').innerHTML = '';
     currentEvalForm = null;
+    currentBatchData = null;
+    currentView = 'courses';
     document.body.style.overflow = '';
 }
 
 document.addEventListener('click', function(e) {
-    if (e.target.id === 'eval-modal') closeEvalModal();
+    if (e.target.id === 'eval-modal') {
+        if (currentView === 'form' && currentBatchData) {
+            if (confirm('关闭将丢失已选择的评分，确定关闭？')) {
+                closeEvalModal();
+            }
+        } else {
+            closeEvalModal();
+        }
+    }
 });
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeEvalModal();
+    if (e.key === 'Escape') {
+        if (currentView === 'form' && currentBatchData) {
+            if (confirm('关闭将丢失已选择的评分，确定关闭？')) {
+                closeEvalModal();
+            }
+        } else {
+            closeEvalModal();
+        }
+    }
 });

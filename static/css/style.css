@@ -987,6 +987,59 @@ a:hover { text-decoration: underline; }
     margin-top: 20px;
 }
 
+/* ============================================================
+   评教课程列表
+   ============================================================ */
+.eval-course-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.eval-course-card {
+    background: #fafbfc;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color 0.2s;
+}
+.eval-course-card:hover {
+    border-color: var(--primary-light);
+}
+
+.eval-course-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.eval-course-card-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text);
+}
+
+.eval-course-card-status {
+    font-size: 0.8rem;
+    padding: 2px 10px;
+    border-radius: 12px;
+    background: #e8eaed;
+    color: #666;
+}
+
+.eval-course-card-info {
+    display: flex;
+    gap: 16px;
+    font-size: 0.82rem;
+    color: var(--text-light);
+    margin-bottom: 10px;
+}
+
+.eval-course-card-action {
+    text-align: right;
+}
+
 /* 评教模态滚动 */
 .eval-modal-body {
     overflow-y: auto;

@@ -750,9 +750,94 @@ def api_refresh_evaluations():
     })
 
 
+@app.route("/api/eval-courses")
+def api_eval_courses():
+    """解析评教课程列表页（批次点击后的第二级页面）"""
+    url = request.args.get("url", "")
+    if not url:
+        return jsonify({"success": False, "message": "缺少 URL"}), 400
+    if not jwc_client.logged_in:
+        return jsonify({"success": False, "message": "请先登录"}), 401
+
+    target = f"http://202.119.81.112:9080{url}" if url.startswith("/") else url
+
+    eval_headers = {
+        "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
+        "Host": "202.119.81.112:9080",
+        "Origin": "http://202.119.81.112:9080",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "Cache-Control": "max-age=0",
+    }
+
+    try:
+        jwc_client.session.get(
+            "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
+            headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
+            timeout=10)
+        resp = jwc_client.session.get(target, headers=eval_headers, timeout=15)
+        if "非法访问" in resp.text or "非法操作" in resp.text:
+            return jsonify({"success": False, "message": "教务系统拒绝了请求"}), 403
+        soup = BeautifulSoup(resp.text, "lxml")
+    except Exception as e:
+        return jsonify({"success": False, "message": f"请求失败: {e}"}), 500
+
+    # 提取批次标题
+    title_el = soup.select_one(".Nsb_r_title")
+    batch_title = title_el.get_text(strip=True) if title_el else "评教课程"
+
+    # 提取 Form1 中的隐藏字段（后续提交需要）
+    form = soup.find("form", id="Form1")
+    hidden_fields = {}
+    if form:
+        for inp in form.find_all("input", type="hidden"):
+            name = inp.get("name", "")
+            value = inp.get("value", "")
+            if name:
+                hidden_fields[name] = value
+
+    # 解析课程列表 (#dataList)
+    courses = []
+    data_table = soup.find("table", id="dataList")
+    if data_table:
+        for row in data_table.find_all("tr")[1:]:  # 跳过表头
+            cells = row.find_all("td")
+            if len(cells) < 8:
+                continue
+            # 提取评价链接（javascript:openWindow('...',1000,700)）
+            eval_url = ""
+            eval_link = cells[7].find("a")
+            if eval_link:
+                href = eval_link.get("href", "")
+                m = __import__("re").search(r"openWindow\('([^']+)'", href)
+                if m:
+                    eval_url = m.group(1)
+
+            courses.append({
+                "seq": cells[0].get_text(strip=True),
+                "code": cells[1].get_text(strip=True),
+                "name": cells[2].get_text(strip=True),
+                "teacher": cells[3].get_text(strip=True),
+                "score": cells[4].get_text(strip=True),
+                "evaluated": cells[5].get_text(strip=True) == "是",
+                "submitted": cells[6].get_text(strip=True) == "是",
+                "eval_url": eval_url,
+            })
+
+    if not courses:
+        return jsonify({"success": False, "message": "未找到课程列表"}), 500
+
+    return jsonify({
+        "success": True,
+        "batch_title": batch_title,
+        "courses": courses,
+        "hidden_fields": hidden_fields,
+    })
+
+
 @app.route("/api/eval-form")
 def api_eval_form():
-    """解析评教表单为结构化 JSON"""
+    """解析评教表单为结构化 JSON（xspj_edit.do 页面）"""
     url = request.args.get("url", "")
     if not url:
         return jsonify({"success": False, "message": "缺少评教 URL"}), 400
@@ -785,14 +870,14 @@ def api_eval_form():
     except Exception as e:
         return jsonify({"success": False, "message": f"请求失败: {e}"}), 500
 
-    # 提取课程信息
+    # 提取课程信息（教务用 &nbsp; 分隔字段）
     th = soup.find("th", class_="Nsb_r_list_thb")
-    course_info = th.get_text(strip=True) if th else ""
+    course_info = th.get_text() if th else ""
     course_name = ""
-    for part in course_info.split("；"):
-        if "课程名称" in part:
-            course_name = part.replace("课程名称：", "").strip()
-            break
+    # 用正则从 "课程名称：XXX  评教大类：XXX  总评分: XX" 中提取
+    m = __import__("re").search(r'课程名称[：:]\s*(.+?)(?:\s{2,}|\xa0|$)', course_info)
+    if m:
+        course_name = m.group(1).strip()
 
     # 提取隐藏字段
     form = soup.find("form", id="Form1")
@@ -810,17 +895,31 @@ def api_eval_form():
         tds = row.find_all("td")
         if len(tds) < 2:
             continue
+        # 第一个 td: 指标标签 + <input type="hidden" name="pj06xh">
         label = tds[0].get_text(strip=True)
         if not label or "评价指标" in label:
             continue
         seq_input = tds[0].find("input", attrs={"name": "pj06xh"})
         seq = seq_input.get("value", "") if seq_input else ""
+
+        # 第二个 td: radio 选项 + 隐藏分值字段交替排列
+        # 结构: <input type="radio" ...> 标签文字 <input type="hidden" name="pj0601fz_*"> ...
         options = []
         for radio in tds[1].find_all("input", type="radio"):
             opt_name = radio.get("name", "")
             opt_value = radio.get("value", "")
-            opt_label = radio.next_sibling.string if radio.next_sibling else ""
+            # 直接取 radio 后面的 NavigableString 文本节点
+            opt_label = ""
+            sib = radio.next_sibling
+            if sib:
+                try:
+                    txt = str(sib).strip()
+                    if txt:
+                        opt_label = txt
+                except Exception:
+                    pass
             if not opt_label:
+                # 回退：从 radio 的父元素的完整文本中查找
                 opt_label = radio.parent.get_text().strip() if radio.parent else ""
             options.append({
                 "name": opt_name,
@@ -829,15 +928,18 @@ def api_eval_form():
             })
         indicators.append({"seq": seq, "label": label, "options": options})
 
-    # 如果既没有课程名也没有指标，说明解析失败（可能是教务页面结构变化）
     if not course_name and not indicators:
-        return jsonify({"success": False, "message": "无法解析评教表单，教务页面结构可能已变化"}), 500
+        return jsonify({"success": False, "message": "未找到评价表单内容，请返回课程列表重试"}), 500
+
+    # 提取表单 action URL
+    form_action = form.get("action", "") if form else ""
 
     return jsonify({
         "success": True,
         "course_name": course_name,
         "hidden_fields": hidden_fields,
         "indicators": indicators,
+        "action": form_action,
     })
 
 
