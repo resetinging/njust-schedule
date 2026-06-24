@@ -760,8 +760,27 @@ def api_eval_form():
         return jsonify({"success": False, "message": "请先登录"}), 401
 
     target = f"http://202.119.81.112:9080{url}" if url.startswith("/") else url
+
+    # 模拟浏览器请求头（与 proxy_jw 保持一致，避免教务拒绝）
+    eval_headers = {
+        "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
+        "Host": "202.119.81.112:9080",
+        "Origin": "http://202.119.81.112:9080",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "Cache-Control": "max-age=0",
+    }
+
     try:
-        resp = jwc_client.session.get(target, timeout=15)
+        # 先访问评价列表页建立会话状态
+        jwc_client.session.get(
+            "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
+            headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
+            timeout=10)
+        resp = jwc_client.session.get(target, headers=eval_headers, timeout=15)
+        # 检查教务是否拒绝请求
+        if "非法访问" in resp.text or "非法操作" in resp.text:
+            return jsonify({"success": False, "message": "教务系统拒绝了请求，请重新登录后重试"}), 403
         soup = BeautifulSoup(resp.text, "lxml")
     except Exception as e:
         return jsonify({"success": False, "message": f"请求失败: {e}"}), 500
@@ -810,6 +829,10 @@ def api_eval_form():
             })
         indicators.append({"seq": seq, "label": label, "options": options})
 
+    # 如果既没有课程名也没有指标，说明解析失败（可能是教务页面结构变化）
+    if not course_name and not indicators:
+        return jsonify({"success": False, "message": "无法解析评教表单，教务页面结构可能已变化"}), 500
+
     return jsonify({
         "success": True,
         "course_name": course_name,
@@ -831,9 +854,23 @@ def api_submit_eval():
     form_data["issubmit"] = submit_type
     target_url = f"http://202.119.81.112:9080{action_path}"
 
+    # 完整的浏览器模拟头部
+    submit_headers = {
+        "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
+        "Host": "202.119.81.112:9080",
+        "Origin": "http://202.119.81.112:9080",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "Cache-Control": "max-age=0",
+    }
+
     try:
-        resp = jwc_client.session.post(target_url, data=form_data, timeout=15,
-                                       headers={"Referer": "http://202.119.81.112:9080/njlgdx/"})
+        # 先访问评价列表页建立会话状态
+        jwc_client.session.get(
+            "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
+            headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
+            timeout=10)
+        resp = jwc_client.session.post(target_url, data=form_data, headers=submit_headers, timeout=15)
         if "评价成功" in resp.text or "提交成功" in resp.text or "保存成功" in resp.text:
             return jsonify({"success": True, "message": "评教提交成功！"})
         return jsonify({"success": True, "message": "已提交（请返回教务确认）"})
