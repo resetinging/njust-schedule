@@ -1009,6 +1009,19 @@ def api_submit_eval():
     }
 
     try:
+        # 调试：记录收到的 form_data 中有多少 radio 值
+        radio_keys = [k for k in form_data if k.startswith("pj0601id_")]
+        import os as _os, json as _json
+        debug_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "debug_submit.json")
+        with open(debug_path, "w", encoding="utf-8") as f:
+            _json.dump({
+                "radio_count": len(radio_keys),
+                "radio_keys": radio_keys,
+                "radio_values": {k: form_data[k] for k in radio_keys},
+                "total_keys": len(form_data),
+                "all_keys": list(form_data.keys()),
+            }, f, ensure_ascii=False, indent=2)
+
         # 先访问评价列表页建立会话状态
         jwc_client.session.get(
             "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",

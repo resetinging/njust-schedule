@@ -476,6 +476,11 @@ async function submitEval(submitType) {
         }
     }
 
+    // 调试：输出所有 radio 键值对
+    const radioKeys = Object.keys(payload).filter(k => k.startsWith('pj0601id_'));
+    console.log('提交评教 — radio 组数:', radioKeys.length, radioKeys);
+    console.log('提交评教 — 完整 payload 键数:', Object.keys(payload).length);
+
     showLoading('正在提交评教...');
     try {
         const resp = await fetch('/api/submit-eval', {
@@ -485,6 +490,7 @@ async function submitEval(submitType) {
                 form_data: payload,
                 submit_type: submitType,
                 action: currentEvalForm.action || '/njlgdx/xspj/xspj_save.do',
+                _debug_radio_count: radioKeys.length,
             }),
         });
         const data = await resp.json();
