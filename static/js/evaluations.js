@@ -398,10 +398,11 @@ function renderEvalForm(container, data) {
             <div class="eval-options">`;
         for (const opt of (ind.options || [])) {
             const scoreBadge = opt.score ? `<span class="eval-score-badge">${escapeHtml(opt.score)}分</span>` : '';
+            const checked = opt.checked ? ' checked' : '';
             html += `
                 <label class="eval-option">
                     <input type="radio" name="${escapeHtml(opt.name)}" value="${escapeHtml(opt.value)}"
-                           onchange="updateLiveScore()">
+                           onchange="updateLiveScore()"${checked}>
                     <span class="eval-option-label">${escapeHtml(opt.label)}${scoreBadge}</span>
                 </label>`;
         }

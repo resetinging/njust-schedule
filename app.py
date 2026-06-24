@@ -945,6 +945,7 @@ def api_eval_form():
             opt_name = radio.get("name", "")
             opt_value = radio.get("value", "")
             opt_score = fz_map.get(opt_value, "")
+            opt_checked = radio.has_attr("checked")  # 教务默认选中项
             # 直接取 radio 后面的 NavigableString 文本节点
             opt_label = ""
             sib = radio.next_sibling
@@ -962,6 +963,7 @@ def api_eval_form():
                 "value": opt_value,
                 "label": opt_label.strip(),
                 "score": opt_score,
+                "checked": opt_checked,
             })
         indicators.append({"seq": seq, "label": label, "options": options})
 
