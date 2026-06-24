@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 from config import (
     JW_BASE_8080, JW_BASE_9080, JW_PATH_PREFIX,
     JW_LOGON_PAGE, JW_SCHEDULE_URL, JW_EXAM_QUERY, JW_EXAM_LIST,
-    JW_APP_DO, JW_CAPTCHA_URLS, BIG_PERIOD_MAP,
+    JW_EVAL_PAGE, JW_APP_DO, JW_CAPTCHA_URLS, BIG_PERIOD_MAP,
     HTTP_TIMEOUT, HTTP_HEADERS,
 )
 
@@ -30,6 +30,7 @@ URL_APP_DO = JW_APP_DO
 URL_SCHEDULE_HTML = JW_SCHEDULE_URL
 URL_EXAM_QUERY = JW_EXAM_QUERY
 URL_EXAM_LIST = JW_EXAM_LIST
+URL_EVAL_PAGE = JW_EVAL_PAGE
 URL_MAIN_PAGE = f"{BASE_9080}{JW_PATH_PREFIX}/framework/main.jsp"
 URL_CAPTCHA_CANDIDATES = JW_CAPTCHA_URLS
 HEADERS = HTTP_HEADERS
@@ -892,6 +893,62 @@ class JWCClient:
         except Exception:
             by = 2025
         return [f"{y}-{y+1}-{s}" for y in range(by-2, by+3) for s in (1, 2)]
+
+    # ================================================================
+    # 教学评价
+    # ================================================================
+
+    def get_evaluations(self, semester: str = "") -> list[dict]:
+        """获取教学评价列表"""
+        if not self.logged_in:
+            self.last_error = "未登录"
+            return []
+        return self._eval_html(semester)
+
+    def _eval_html(self, semester: str = "") -> list[dict]:
+        """解析教学评价页面
+        表格结构：序号 | 学年学期 | 评价分类 | 评价批次 | 开始时间 | 结束时间 | 是否已完成 | 操作
+        """
+        try:
+            resp = self.session.get(URL_EVAL_PAGE, timeout=TIMEOUT)
+            soup = BeautifulSoup(resp.text, "lxml")
+            table = soup.find("table", class_="Nsb_r_list")
+            if not table:
+                self.last_error = "评价页面未找到数据表格"
+                return []
+            rows = table.find_all("tr")[1:]
+            evals = []
+            for row in rows:
+                cells = row.find_all("td")
+                if len(cells) < 7:
+                    continue
+                texts = [c.get_text(strip=True) for c in cells]
+                batch_name = texts[3] if len(texts) > 3 else ""
+                if not batch_name:
+                    continue
+                start_date = texts[4] if len(texts) > 4 else ""
+                end_date = texts[5] if len(texts) > 5 else ""
+                is_done = texts[6] if len(texts) > 6 else ""
+                items = []
+                if len(cells) > 7:
+                    for a in cells[7].find_all("a"):
+                        items.append({
+                            "name": a.get_text(strip=True),
+                            "url": a.get("href", ""),
+                        })
+                evals.append({
+                    "semester": texts[1] if len(texts) > 1 else "",
+                    "category": texts[2] if len(texts) > 2 else "",
+                    "batch": batch_name,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "is_done": is_done == "是",
+                    "items": items,
+                })
+            return evals
+        except Exception as e:
+            self.last_error = f"评价解析失败: {e}"
+            return []
 
     def test_connection(self) -> Tuple[bool, str]:
         try:

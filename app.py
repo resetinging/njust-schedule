@@ -16,8 +16,9 @@ import threading
 from datetime import datetime
 from flask import (
     Flask, render_template, request, jsonify, g,
-    redirect, url_for,
+    redirect, url_for, Response,
 )
+import requests as req_lib
 
 from jwc_client import JWCClient
 from config import HOST, PORT, DB_FILENAME
@@ -89,6 +90,18 @@ def init_db():
             seat TEXT DEFAULT '',
             exam_type TEXT DEFAULT '期末考试',
             semester TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS evaluations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            semester TEXT DEFAULT '',
+            category TEXT DEFAULT '',
+            batch TEXT DEFAULT '',
+            start_date TEXT DEFAULT '',
+            end_date TEXT DEFAULT '',
+            is_done INTEGER DEFAULT 0,
+            items_json TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -185,6 +198,28 @@ def save_exams_to_db(exams: list[dict], semester: str):
 # 页面路由
 # ============================================================
 
+def save_evaluations_to_db(evaluations: list[dict], semester: str):
+    """将评价数据保存到数据库"""
+    db = get_db()
+    db.execute("DELETE FROM evaluations WHERE semester = ?", (semester,))
+    for e in evaluations:
+        db.execute(
+            """INSERT INTO evaluations
+               (semester, category, batch, start_date, end_date, is_done, items_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                e.get("semester", ""),
+                e.get("category", ""),
+                e.get("batch", ""),
+                e.get("start_date", ""),
+                e.get("end_date", ""),
+                1 if e.get("is_done") else 0,
+                json.dumps(e.get("items", []), ensure_ascii=False),
+            ),
+        )
+    db.commit()
+
+
 @app.route("/")
 def index():
     """课表主页"""
@@ -195,6 +230,29 @@ def index():
 def exams_page():
     """考试安排页面"""
     return render_template("exams.html")
+
+
+@app.route("/evaluations")
+def evaluations_page():
+    """教学评价页面"""
+    return render_template("evaluations.html")
+
+
+@app.route("/proxy/jw/<path:target_path>")
+def proxy_jw(target_path):
+    """代理教务系统页面，解决跨域和 Cookie 问题"""
+    if not jwc_client.logged_in:
+        return "请先登录教务系统", 401
+    target_url = f"http://202.119.81.112:9080/njlgdx/{target_path}"
+    qs = request.query_string.decode()
+    if qs:
+        target_url += "?" + qs
+    try:
+        resp = jwc_client.session.get(target_url, timeout=15)
+    except Exception as e:
+        return f"代理请求失败: {e}", 502
+    return Response(resp.content, status=resp.status_code,
+                    content_type=resp.headers.get("content-type", "text/html"))
 
 
 @app.route("/settings")
@@ -549,6 +607,69 @@ def api_set_semester():
 
     set_setting("semester", semester)
     return jsonify({"success": True, "message": f"已切换到学期: {semester}"})
+
+
+@app.route("/api/evaluations")
+def api_get_evaluations():
+    """获取已存储的教学评价"""
+    semester = request.args.get(
+        "semester", get_setting("semester", jwc_client._current_semester())
+    )
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM evaluations WHERE semester = ? ORDER BY end_date",
+        (semester,),
+    ).fetchall()
+
+    evals = []
+    for r in rows:
+        evals.append({
+            "id": r["id"],
+            "semester": r["semester"],
+            "category": r["category"],
+            "batch": r["batch"],
+            "start_date": r["start_date"],
+            "end_date": r["end_date"],
+            "is_done": bool(r["is_done"]),
+            "items": json.loads(r["items_json"]) if r["items_json"] else [],
+        })
+
+    return jsonify({
+        "semester": semester,
+        "count": len(evals),
+        "evaluations": evals,
+    })
+
+
+@app.route("/api/refresh-evaluations", methods=["POST"])
+def api_refresh_evaluations():
+    """刷新教学评价数据"""
+    semester = get_setting("semester", jwc_client._current_semester())
+
+    err = _require_login()
+    if err:
+        return err
+
+    with jwc_lock:
+        evals = jwc_client.get_evaluations(semester)
+
+    if not evals and jwc_client.last_error:
+        return jsonify({
+            "success": False,
+            "message": jwc_client.last_error or "获取评价数据失败",
+        }), 500
+
+    save_evaluations_to_db(evals, semester)
+
+    undone = sum(1 for e in evals if not e.get("is_done"))
+    return jsonify({
+        "success": True,
+        "message": f"成功获取 {len(evals)} 条评价" + (
+            f"，{undone} 条待完成" if undone > 0 else "，全部已完成"
+        ),
+        "count": len(evals),
+        "undone": undone,
+    })
 
 
 @app.route("/api/clear-data", methods=["POST"])

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}教学评价 - 南理工课表管理{% endblock %}
+{% block nav_evaluations %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>📝 教学评价</h1>
+        <span class="semester-badge" id="semester-badge">加载中...</span>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="refreshEvaluations()" id="btn-refresh">
+            🔄 刷新评价数据
+        </button>
+    </div>
+</div>
+
+<div class="loading-overlay" id="loading-overlay" style="display:none;">
+    <div class="loading-spinner"></div>
+    <p id="loading-text">正在加载...</p>
+</div>
+
+<!-- 倒计时卡片 -->
+<div class="countdown-row" id="countdown-row" style="display:none;"></div>
+
+<!-- 评价列表 -->
+<div class="schedule-empty" id="eval-empty" style="display:none;">
+    <div class="empty-icon">📋</div>
+    <h3>暂无评价数据</h3>
+    <p id="empty-eval-message">请先登录教务系统，然后点击「刷新评价数据」</p>
+    <button class="btn btn-primary" onclick="window.location.href='/settings'">前往设置</button>
+</div>
+
+<div class="exam-list" id="eval-list"></div>
+
+<!-- 评教模态窗口 -->
+<div class="eval-modal-overlay" id="eval-modal" style="display:none;">
+    <div class="eval-modal">
+        <div class="eval-modal-header">
+            <span id="eval-modal-title">评教</span>
+            <button class="eval-modal-close" onclick="closeEvalModal()">✕</button>
+        </div>
+        <div class="eval-modal-body">
+            <iframe id="eval-iframe" src="" frameborder="0"></iframe>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/evaluations.js"></script>
+{% endblock %}
