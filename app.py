@@ -19,6 +19,7 @@ from flask import (
     redirect, url_for, Response,
 )
 import requests as req_lib
+from bs4 import BeautifulSoup
 
 from jwc_client import JWCClient
 from config import HOST, PORT, DB_FILENAME
@@ -747,6 +748,97 @@ def api_refresh_evaluations():
         "count": len(evals),
         "undone": undone,
     })
+
+
+@app.route("/api/eval-form")
+def api_eval_form():
+    """解析评教表单为结构化 JSON"""
+    url = request.args.get("url", "")
+    if not url:
+        return jsonify({"success": False, "message": "缺少评教 URL"}), 400
+    if not jwc_client.logged_in:
+        return jsonify({"success": False, "message": "请先登录"}), 401
+
+    target = f"http://202.119.81.112:9080{url}" if url.startswith("/") else url
+    try:
+        resp = jwc_client.session.get(target, timeout=15)
+        soup = BeautifulSoup(resp.text, "lxml")
+    except Exception as e:
+        return jsonify({"success": False, "message": f"请求失败: {e}"}), 500
+
+    # 提取课程信息
+    th = soup.find("th", class_="Nsb_r_list_thb")
+    course_info = th.get_text(strip=True) if th else ""
+    course_name = ""
+    for part in course_info.split("；"):
+        if "课程名称" in part:
+            course_name = part.replace("课程名称：", "").strip()
+            break
+
+    # 提取隐藏字段
+    form = soup.find("form", id="Form1")
+    hidden_fields = {}
+    if form:
+        for inp in form.find_all("input", type="hidden"):
+            name = inp.get("name", "")
+            value = inp.get("value", "")
+            if name:
+                hidden_fields[name] = value
+
+    # 提取评价指标
+    indicators = []
+    for row in soup.select("#table1 tr"):
+        tds = row.find_all("td")
+        if len(tds) < 2:
+            continue
+        label = tds[0].get_text(strip=True)
+        if not label or "评价指标" in label:
+            continue
+        seq_input = tds[0].find("input", attrs={"name": "pj06xh"})
+        seq = seq_input.get("value", "") if seq_input else ""
+        options = []
+        for radio in tds[1].find_all("input", type="radio"):
+            opt_name = radio.get("name", "")
+            opt_value = radio.get("value", "")
+            opt_label = radio.next_sibling.string if radio.next_sibling else ""
+            if not opt_label:
+                opt_label = radio.parent.get_text().strip() if radio.parent else ""
+            options.append({
+                "name": opt_name,
+                "value": opt_value,
+                "label": opt_label.strip(),
+            })
+        indicators.append({"seq": seq, "label": label, "options": options})
+
+    return jsonify({
+        "success": True,
+        "course_name": course_name,
+        "hidden_fields": hidden_fields,
+        "indicators": indicators,
+    })
+
+
+@app.route("/api/submit-eval", methods=["POST"])
+def api_submit_eval():
+    """提交评教数据到教务系统"""
+    if not jwc_client.logged_in:
+        return jsonify({"success": False, "message": "请先登录"}), 401
+    data = request.get_json()
+    form_data = data.get("form_data", {})
+    submit_type = data.get("submit_type", "0")
+    action_path = data.get("action", "/njlgdx/xspj/xspj_save.do")
+
+    form_data["issubmit"] = submit_type
+    target_url = f"http://202.119.81.112:9080{action_path}"
+
+    try:
+        resp = jwc_client.session.post(target_url, data=form_data, timeout=15,
+                                       headers={"Referer": "http://202.119.81.112:9080/njlgdx/"})
+        if "评价成功" in resp.text or "提交成功" in resp.text or "保存成功" in resp.text:
+            return jsonify({"success": True, "message": "评教提交成功！"})
+        return jsonify({"success": True, "message": "已提交（请返回教务确认）"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"提交失败: {e}"}), 500
 
 
 @app.route("/api/clear-data", methods=["POST"])

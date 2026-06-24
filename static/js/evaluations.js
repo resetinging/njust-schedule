@@ -180,9 +180,8 @@ function renderEvaluations(evals) {
         if (evalItem.items && evalItem.items.length > 0) {
             itemsHtml = '<div class="exam-info-row eval-items-row">';
             for (const item of evalItem.items) {
-                const proxyUrl = `/proxy/jw/${item.url.replace('/njlgdx/', '')}`;
                 itemsHtml += `
-                    <span class="eval-item-link" onclick="openEvalModal('${escapeHtml(item.name)}', '${escapeHtml(proxyUrl)}')">
+                    <span class="eval-item-link" onclick="openEvalModal('${escapeHtml(item.name)}', '${escapeHtml(item.url)}')">
                         📋 ${item.name}
                     </span>`;
             }
@@ -228,7 +227,7 @@ async function refreshEvaluations() {
 }
 
 // ============================================================
-// 评教模态窗口
+// 评教模态窗口（原生表单，非 iframe）
 // ============================================================
 
 function escapeHtml(str) {
@@ -236,25 +235,139 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function openEvalModal(title, url) {
-    document.getElementById('eval-modal-title').textContent = title;
-    document.getElementById('eval-iframe').src = url;
-    document.getElementById('eval-modal').style.display = 'flex';
+let currentEvalForm = null; // 当前评教表单数据
+
+async function openEvalModal(title, itemUrl) {
+    const modal = document.getElementById('eval-modal');
+    const titleEl = document.getElementById('eval-modal-title');
+    const body = document.getElementById('eval-modal-body');
+
+    titleEl.textContent = '加载中...';
+    body.innerHTML = '<div style="padding:40px;text-align:center;"><div class="loading-spinner"></div><p>正在加载评教表单...</p></div>';
+    modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+
+    try {
+        const resp = await fetch('/api/eval-form?url=' + encodeURIComponent(itemUrl.replace('/proxy/jw/', '/')));
+        const data = await resp.json();
+        if (!data.success) {
+            body.innerHTML = `<div style="padding:40px;text-align:center;color:red;"><p>${data.message}</p></div>`;
+            return;
+        }
+        currentEvalForm = data;
+        titleEl.textContent = '📝 ' + (data.course_name || title);
+        renderEvalForm(body, data);
+    } catch (e) {
+        body.innerHTML = `<div style="padding:40px;text-align:center;color:red;"><p>加载失败: ${e.message}</p></div>`;
+    }
+}
+
+function renderEvalForm(container, data) {
+    const indicators = data.indicators || [];
+    const hf = data.hidden_fields || {};
+
+    let html = `<form id="eval-native-form" class="eval-native-form">`;
+
+    // 隐藏字段
+    for (const [k, v] of Object.entries(hf)) {
+        html += `<input type="hidden" name="${escapeHtml(k)}" value="${escapeHtml(v)}">`;
+    }
+
+    // 课程标题
+    if (data.course_name) {
+        html += `<div class="eval-course-title">📖 ${escapeHtml(data.course_name)}</div>`;
+    }
+
+    // 评价指标
+    html += '<div class="eval-indicators">';
+    for (const ind of indicators) {
+        html += `<div class="eval-indicator-card">
+            <div class="eval-indicator-label">${escapeHtml(ind.label)}</div>
+            <div class="eval-options">`;
+        for (const opt of (ind.options || [])) {
+            html += `
+                <label class="eval-option">
+                    <input type="radio" name="${escapeHtml(opt.name)}" value="${escapeHtml(opt.value)}">
+                    <span class="eval-option-label">${escapeHtml(opt.label)}</span>
+                </label>`;
+        }
+        html += '</div></div>';
+    }
+    html += '</div>';
+
+    // 操作按钮
+    html += `
+        <div class="eval-form-actions">
+            <button type="button" class="btn btn-secondary" onclick="submitEval('0')">
+                💾 保存
+            </button>
+            <button type="button" class="btn btn-primary" onclick="submitEval('1')">
+                ✅ 提交（不可修改）
+            </button>
+        </div>`;
+    html += '</form>';
+    container.innerHTML = html;
+}
+
+async function submitEval(submitType) {
+    if (submitType === '1') {
+        if (!confirm('提交后不能修改，确认提交？')) return;
+    }
+
+    // 检查是否所有指标都已选择
+    const indicators = currentEvalForm.indicators || [];
+    for (const ind of indicators) {
+        const opts = ind.options || [];
+        if (opts.length > 0) {
+            const name = opts[0].name;
+            const checked = document.querySelector(`input[name="${name}"]:checked`);
+            if (!checked) {
+                showToast('❌ 请完成所有评价指标', 'error');
+                return;
+            }
+        }
+    }
+
+    // 收集表单数据
+    const form = document.getElementById('eval-native-form');
+    const formData = new FormData(form);
+    const payload = {};
+    for (const [k, v] of formData.entries()) {
+        payload[k] = v;
+    }
+
+    showLoading('正在提交评教...');
+    try {
+        const resp = await fetch('/api/submit-eval', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                form_data: payload,
+                submit_type: submitType,
+                action: currentEvalForm.hidden_fields.action || '/njlgdx/xspj/xspj_save.do',
+            }),
+        });
+        const data = await resp.json();
+        hideLoading();
+        showToast(data.success ? '✅ ' + data.message : '❌ ' + data.message,
+                  data.success ? 'success' : 'error');
+        if (data.success) closeEvalModal();
+    } catch (e) {
+        hideLoading();
+        showToast('❌ 提交失败: ' + e.message, 'error');
+    }
 }
 
 function closeEvalModal() {
     document.getElementById('eval-modal').style.display = 'none';
-    document.getElementById('eval-iframe').src = '';
+    document.getElementById('eval-modal-body').innerHTML = '';
+    currentEvalForm = null;
     document.body.style.overflow = '';
 }
 
-// 点击遮罩关闭
 document.addEventListener('click', function(e) {
     if (e.target.id === 'eval-modal') closeEvalModal();
 });
-
-// ESC 关闭
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeEvalModal();
 });
