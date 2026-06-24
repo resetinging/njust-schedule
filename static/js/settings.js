@@ -21,6 +21,11 @@ async function loadSettings() {
         const data = await resp.json();
         document.getElementById('student-id').value = data.student_id || '';
         document.getElementById('semester-select').value = data.semester || data.current_semester || '';
+        // 显示密码保存状态
+        const badge = document.getElementById('password-saved-badge');
+        if (badge) {
+            badge.style.display = data.has_password ? 'inline' : 'none';
+        }
         updateDataStats(data);
     } catch (e) {
         console.error('加载设置失败:', e);

@@ -689,6 +689,9 @@ def api_settings():
         # 补充 semester 列表
         settings["semester_list"] = jwc_client.get_semester_list()
         settings["current_semester"] = jwc_client._current_semester()
+        # 标记密码是否已保存（不返回原始密码）
+        settings["has_password"] = bool(settings.get("password_enc", ""))
+        settings.pop("password_enc", None)  # 不暴露编码密码到前端
         return jsonify(settings)
 
     else:
