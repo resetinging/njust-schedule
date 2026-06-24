@@ -568,31 +568,75 @@ function autoFillEval() {
     }
 
     // 步骤 2: 防作弊 — 不能所有指标选同一列
+    // 如果触发防作弊，则全面重新计算：从所有列组合中找到最接近目标分的方案
     const allSameColumn = selections.every(s => s.colIndex === selections[0].colIndex);
     if (allSameColumn && selections.length > 1) {
+        // 取消步骤 1 的贪心结果，改为全局搜索最佳组合
+        // 策略：每列选一个"牺牲者"，让它选次优列 → 找总分最接近目标分的组合
         const currentTotal = selections.reduce((sum, s) => sum + s.score, 0);
+        let bestCombo = null;
+        let bestPenalty = Math.abs(currentTotal - target); // 基准：不做任何调整的偏离
+
+        for (let sacrificeIdx = 0; sacrificeIdx < selections.length; sacrificeIdx++) {
+            const opts = selections[sacrificeIdx].ind.options || [];
+            for (let altCol = 0; altCol < opts.length; altCol++) {
+                if (altCol === selections[sacrificeIdx].colIndex) continue;
+                const altScore = parseFloat(opts[altCol].score) || 0;
+                const newTotal = currentTotal - selections[sacrificeIdx].score + altScore;
+                const penalty = Math.abs(newTotal - target); // 修正：用目标分做参考
+                if (penalty < bestPenalty) {
+                    bestPenalty = penalty;
+                    bestCombo = { sacrificeIdx, altCol, altScore, newTotal };
+                }
+            }
+        }
+
+        if (bestCombo) {
+            selections[bestCombo.sacrificeIdx].colIndex = bestCombo.altCol;
+            selections[bestCombo.sacrificeIdx].score = bestCombo.altScore;
+        }
+    }
+
+    // 步骤 3: 微调 — 在满足防作弊的前提下，继续换指标让总分更接近目标
+    for (let round = 0; round < 5; round++) {
+        const currentTotal = selections.reduce((sum, s) => sum + s.score, 0);
+        const currentPenalty = Math.abs(currentTotal - target);
+        if (currentPenalty < 0.5) break; // 足够接近了
+
         let bestSwap = null;
-        let minPenalty = Infinity;
+        let bestPenalty = currentPenalty;
+
         for (let i = 0; i < selections.length; i++) {
             const opts = selections[i].ind.options || [];
             for (let j = 0; j < opts.length; j++) {
                 if (j === selections[i].colIndex) continue;
                 const newScore = parseFloat(opts[j].score) || 0;
                 const newTotal = currentTotal - selections[i].score + newScore;
-                const penalty = Math.abs(newTotal - currentTotal);
-                if (penalty < minPenalty) {
-                    minPenalty = penalty;
-                    bestSwap = { selIdx: i, newCol: j, score: newScore };
+                const newPenalty = Math.abs(newTotal - target);
+
+                // 检查是否仍然满足防作弊（不能换完后全员又同列）
+                const testSelections = selections.map((s, idx) =>
+                    idx === i ? { ...s, colIndex: j } : { ...s }
+                );
+                const testAllSame = testSelections.every(s => s.colIndex === testSelections[0].colIndex);
+                if (testAllSame) continue;
+
+                if (newPenalty < bestPenalty) {
+                    bestPenalty = newPenalty;
+                    bestSwap = { idx: i, col: j, score: newScore };
                 }
             }
         }
+
         if (bestSwap) {
-            selections[bestSwap.selIdx].colIndex = bestSwap.newCol;
-            selections[bestSwap.selIdx].score = bestSwap.score;
+            selections[bestSwap.idx].colIndex = bestSwap.col;
+            selections[bestSwap.idx].score = bestSwap.score;
+        } else {
+            break; // 无法继续优化
         }
     }
 
-    // 步骤 3: 应用选择
+    // 步骤 4: 应用选择
     for (const sel of selections) {
         const opts = sel.ind.options || [];
         if (sel.colIndex < opts.length) {
