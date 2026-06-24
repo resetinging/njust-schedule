@@ -333,6 +333,16 @@ def api_status():
         has_courses = course_count > 0
         has_exams = exam_count > 0
 
+    # 如果未登录且已保存凭据，尝试自动登录（30秒冷却）
+    import time as _time
+    auto_login_error = ""
+    if not jwc_client.logged_in and student_id:
+        if not _auto_login_attempted or (_time.time() - _last_auto_login_time) > 30:
+            if _auto_login():
+                auto_login_error = ""  # 成功
+            else:
+                auto_login_error = jwc_client.last_error or "登录失败，请检查验证码或网络"
+
     return jsonify({
         "logged_in": jwc_client.logged_in,
         "student_id": student_id,
@@ -341,6 +351,8 @@ def api_status():
         "has_courses": has_courses,
         "has_exams": has_exams,
         "login_method": jwc_client.login_method or "",
+        "auto_login_attempted": _auto_login_attempted,
+        "auto_login_error": auto_login_error,
         "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     })
 
@@ -436,8 +448,15 @@ def _decode_pwd(encoded: str) -> str:
         return ""
 
 
+_auto_login_attempted = False  # 全局标记：是否已尝试过自动登录（给前端展示用）
+_last_auto_login_time = 0.0   # 上次自动登录尝试时间戳（避免频繁重试）
+
 def _auto_login() -> bool:
     """尝试用存储的凭据自动登录"""
+    global _auto_login_attempted, _last_auto_login_time
+    import time as _time
+    _auto_login_attempted = True
+    _last_auto_login_time = _time.time()
     if jwc_client.logged_in:
         return True
     sid = get_setting("student_id")
@@ -476,13 +495,19 @@ def _on_login_success(student_id: str, password: str = ""):
 def _require_login():
     """检查登录状态，未登录时尝试自动重登，仍失败则返回错误"""
     if not jwc_client.logged_in:
-        if not _auto_login():
-            student_id = get_setting("student_id")
-            if not student_id:
-                return jsonify({
-                    "success": False,
-                    "message": "尚未登录，请先在设置页面登录教务系统",
-                }), 401
+        auto_ok = _auto_login()
+        student_id = get_setting("student_id")
+        if not student_id:
+            return jsonify({
+                "success": False,
+                "message": "尚未登录，请先在设置页面登录教务系统",
+            }), 401
+        if not auto_ok:
+            err = jwc_client.last_error or "教务系统不可达"
+            return jsonify({
+                "success": False,
+                "message": f"自动登录失败: {err}，请前往设置手动登录",
+            }), 401
     return None
 
 

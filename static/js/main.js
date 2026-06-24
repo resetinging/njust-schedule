@@ -44,6 +44,8 @@ function hideLoading() {
 }
 
 // --- 导航状态更新 ---
+let _autoLoginToastShown = false; // 只弹一次
+
 function updateNavStatus(data) {
     const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
@@ -51,9 +53,20 @@ function updateNavStatus(data) {
     if (data.logged_in) {
         dot.className = 'status-dot online';
         text.textContent = data.student_name || '已登录';
+        // 自动登录成功提示（仅首次）
+        if (data.auto_login_attempted && !_autoLoginToastShown) {
+            _autoLoginToastShown = true;
+            showToast('✅ 已自动登录 — ' + (data.student_name || data.student_id), 'success');
+        }
     } else {
         dot.className = 'status-dot offline';
         text.textContent = '未登录';
+        // 自动登录失败提示（仅首次）
+        if (data.auto_login_attempted && !_autoLoginToastShown) {
+            _autoLoginToastShown = true;
+            const reason = data.auto_login_error || '凭证无效或教务系统不可达';
+            showToast('⚠️ 自动登录失败: ' + reason + '，请前往设置手动登录', 'warning');
+        }
     }
 }
 
