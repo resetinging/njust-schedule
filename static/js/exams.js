@@ -1,25 +1,9 @@
 ﻿let allExams = [];
-let currentSemester = '';
-let isLoggedIn = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadStatus();
     loadExams();
 });
-
-// 日期解析：兼容多种格式 "2024-01-15" "2024年01月15日" "2024/01/15"
-// 使用本地时间解析，避免 UTC 时区偏移导致天数差一天
-function parseDate(str) {
-    if (!str) return null;
-    const cleaned = str.replace(/[年月]/g, '-').replace(/[日号]/g, '').replace(/\//g, '-').trim();
-    const m = cleaned.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (m) {
-        return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
-    }
-    const d = new Date(cleaned);
-    if (!isNaN(d.getTime())) return d;
-    return null;
-}
 
 // 从考试时间字符串中提取开始时间 "15:50~17:50" → "15:50"
 function parseStartTime(timeStr) {
@@ -71,33 +55,13 @@ function timeUntil(targetDate) {
     return { text: `还有 ${totalDays} 天`, cls: '' };
 }
 
-// 格式化日期为统一显示格式
-function formatDate(str) {
-    const d = parseDate(str);
-    if (!d) return str || '日期待定';
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-async function loadStatus() {
-    try {
-        const resp = await fetch('/api/status');
-        const data = await resp.json();
-        currentSemester = data.semester;
-        isLoggedIn = data.logged_in;
-        document.getElementById('semester-badge').textContent = data.semester;
-        updateNavStatus(data);
-    } catch (e) {
-        console.error('获取状态失败:', e);
-    }
-}
-
 async function loadExams() {
     showLoading('正在加载考试安排...');
     try {
         const resp = await fetch('/api/exams');
         const data = await resp.json();
         allExams = data.exams || [];
-        currentSemester = data.semester;
+        window.currentSemester = data.semester;
         document.getElementById('semester-badge').textContent = data.semester;
 
         if (allExams.length === 0) {
@@ -105,7 +69,7 @@ async function loadExams() {
             document.getElementById('exam-list').style.display = 'none';
             document.getElementById('countdown-row').style.display = 'none';
             // 根据登录状态显示不同提示
-            if (isLoggedIn) {
+            if (window.isLoggedIn) {
                 document.getElementById('empty-exam-message').textContent =
                     '本学期暂无考试安排，或请点击「刷新考试安排」从教务系统获取最新数据';
             } else {

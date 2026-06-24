@@ -213,6 +213,8 @@ a:hover { text-decoration: underline; }
     justify-content: center;
     z-index: 2000;
     gap: 16px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
 
 .loading-spinner {
@@ -863,7 +865,8 @@ a:hover { text-decoration: underline; }
 
 .eval-modal-body {
     flex: 1;
-    overflow: hidden;
+    overflow-y: auto;
+    padding: 8px;
 }
 
 .eval-modal-body iframe {
@@ -1104,11 +1107,20 @@ a:hover { text-decoration: underline; }
     text-align: right;
 }
 
-/* 评教模态滚动 */
-.eval-modal-body {
-    overflow-y: auto;
-    padding: 8px;
+/* --- 评教通用工具类 --- */
+.eval-modal-message {
+    padding: 40px;
+    text-align: center;
 }
+.eval-modal-message.error { color: #e74c3c; }
+.eval-form-toolbar {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.mt-16 { margin-top: 16px; }
 
 @media (max-width: 640px) {
     .eval-options {

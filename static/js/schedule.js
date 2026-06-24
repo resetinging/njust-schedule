@@ -16,7 +16,6 @@ const DAY_NAMES = ['', '周一', '周二', '周三', '周四', '周五', '周六
 let currentWeek = 1; // 默认显示第1周
 
 let allCourses = [];
-let currentSemester = '';
 
 // 页面加载
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,25 +23,13 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSchedule();
 });
 
-async function loadStatus() {
-    try {
-        const resp = await fetch('/api/status');
-        const data = await resp.json();
-        currentSemester = data.semester;
-        document.getElementById('semester-badge').textContent = data.semester;
-        updateNavStatus(data);
-    } catch (e) {
-        console.error('获取状态失败:', e);
-    }
-}
-
 async function loadSchedule() {
     showLoading('正在加载课表...');
     try {
         const resp = await fetch('/api/courses');
         const data = await resp.json();
         allCourses = data.courses || [];
-        currentSemester = data.semester;
+        window.currentSemester = data.semester;
         document.getElementById('semester-badge').textContent = data.semester;
 
         if (allCourses.length === 0) {

@@ -11,6 +11,9 @@
 import sqlite3
 import json
 import os
+import re
+import time
+import base64
 import socket
 import threading
 from datetime import datetime
@@ -22,7 +25,7 @@ import requests as req_lib
 from bs4 import BeautifulSoup
 
 from jwc_client import JWCClient
-from config import HOST, PORT, DB_FILENAME
+from config import HOST, PORT, DB_FILENAME, DEBUG_EVAL
 
 # ============================================================
 # 配置
@@ -38,6 +41,24 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 # 全局教务客户端（线程不安全，操作时需加锁）
 jwc_client = JWCClient()
 jwc_lock = threading.Lock()
+
+# 评教相关请求的公共头部（避免教务拦截）
+EVAL_HEADERS = {
+    "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
+    "Host": "202.119.81.112:9080",
+    "Origin": "http://202.119.81.112:9080",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9",
+    "Cache-Control": "max-age=0",
+}
+
+
+def _warm_eval_session():
+    """访问评教列表页建立会话状态，避免后续请求被教务拒绝"""
+    jwc_client.session.get(
+        "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
+        headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
+        timeout=10)
 
 
 # ============================================================
@@ -195,10 +216,6 @@ def save_exams_to_db(exams: list[dict], semester: str):
     db.commit()
 
 
-# ============================================================
-# 页面路由
-# ============================================================
-
 def save_evaluations_to_db(evaluations: list[dict], semester: str):
     """将评价数据保存到数据库"""
     db = get_db()
@@ -220,6 +237,10 @@ def save_evaluations_to_db(evaluations: list[dict], semester: str):
         )
     db.commit()
 
+
+# ============================================================
+# 页面路由
+# ============================================================
 
 @app.route("/")
 def index():
@@ -250,27 +271,13 @@ def proxy_jw(target_path):
     if qs:
         target_url += "?" + qs
 
-    # 模拟浏览器请求头
-    proxy_headers = {
-        "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-        "Host": "202.119.81.112:9080",
-        "Origin": "http://202.119.81.112:9080",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9",
-        "Cache-Control": "max-age=0",
-    }
-
     try:
         if request.method == "POST":
             resp = jwc_client.session.post(target_url, data=request.form,
-                                           headers=proxy_headers, timeout=15)
+                                           headers=EVAL_HEADERS, timeout=15)
         else:
-            # 先访问评价列表页建立会话状态
-            jwc_client.session.get(
-                "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-                headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
-                timeout=10)
-            resp = jwc_client.session.get(target_url, headers=proxy_headers, timeout=15)
+            _warm_eval_session()
+            resp = jwc_client.session.get(target_url, headers=EVAL_HEADERS, timeout=15)
     except Exception as e:
         return f"代理请求失败: {e}", 502
 
@@ -334,10 +341,9 @@ def api_status():
         has_exams = exam_count > 0
 
     # 如果未登录且已保存凭据，尝试自动登录（30秒冷却）
-    import time as _time
     auto_login_error = ""
     if not jwc_client.logged_in and student_id:
-        if not _auto_login_attempted or (_time.time() - _last_auto_login_time) > 30:
+        if not _auto_login_attempted or (time.time() - _last_auto_login_time) > 30:
             if _auto_login():
                 auto_login_error = ""  # 成功
             else:
@@ -435,15 +441,13 @@ def api_login_manual():
 
 def _encode_pwd(pwd: str) -> str:
     """简单编码密码（本地存储，非安全加密）"""
-    import base64 as b64
-    return b64.b64encode(pwd.encode()).decode()
+    return base64.b64encode(pwd.encode()).decode()
 
 
 def _decode_pwd(encoded: str) -> str:
     """解码密码"""
-    import base64 as b64
     try:
-        return b64.b64decode(encoded.encode()).decode()
+        return base64.b64decode(encoded.encode()).decode()
     except Exception:
         return ""
 
@@ -454,17 +458,20 @@ _last_auto_login_time = 0.0   # 上次自动登录尝试时间戳（避免频繁
 def _auto_login() -> bool:
     """尝试用存储的凭据自动登录"""
     global _auto_login_attempted, _last_auto_login_time
-    import time as _time
     _auto_login_attempted = True
-    _last_auto_login_time = _time.time()
+    _last_auto_login_time = time.time()
+
     if jwc_client.logged_in:
         return True
+
     sid = get_setting("student_id")
     pwd = _decode_pwd(get_setting("password_enc", ""))
     if not sid or not pwd:
         return False
+
     jwc_client.login(sid, pwd)
     return jwc_client.logged_in
+
 
 
 def _on_login_success(student_id: str, password: str = ""):
@@ -789,21 +796,9 @@ def api_eval_courses():
 
     target = f"http://202.119.81.112:9080{url}" if url.startswith("/") else url
 
-    eval_headers = {
-        "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-        "Host": "202.119.81.112:9080",
-        "Origin": "http://202.119.81.112:9080",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9",
-        "Cache-Control": "max-age=0",
-    }
-
     try:
-        jwc_client.session.get(
-            "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-            headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
-            timeout=10)
-        resp = jwc_client.session.get(target, headers=eval_headers, timeout=15)
+        _warm_eval_session()
+        resp = jwc_client.session.get(target, headers=EVAL_HEADERS, timeout=15)
         if "非法访问" in resp.text or "非法操作" in resp.text:
             return jsonify({"success": False, "message": "教务系统拒绝了请求"}), 403
         soup = BeautifulSoup(resp.text, "lxml")
@@ -837,7 +832,7 @@ def api_eval_courses():
             eval_link = cells[7].find("a")
             if eval_link:
                 href = eval_link.get("href", "")
-                m = __import__("re").search(r"openWindow\('([^']+)'", href)
+                m = re.search(r"openWindow\('([^']+)'", href)
                 if m:
                     eval_url = m.group(1)
 
@@ -874,23 +869,9 @@ def api_eval_form():
 
     target = f"http://202.119.81.112:9080{url}" if url.startswith("/") else url
 
-    # 模拟浏览器请求头（与 proxy_jw 保持一致，避免教务拒绝）
-    eval_headers = {
-        "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-        "Host": "202.119.81.112:9080",
-        "Origin": "http://202.119.81.112:9080",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9",
-        "Cache-Control": "max-age=0",
-    }
-
     try:
-        # 先访问评价列表页建立会话状态
-        jwc_client.session.get(
-            "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-            headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
-            timeout=10)
-        resp = jwc_client.session.get(target, headers=eval_headers, timeout=15)
+        _warm_eval_session()
+        resp = jwc_client.session.get(target, headers=EVAL_HEADERS, timeout=15)
         # 检查教务是否拒绝请求
         if "非法访问" in resp.text or "非法操作" in resp.text:
             return jsonify({"success": False, "message": "教务系统拒绝了请求，请重新登录后重试"}), 403
@@ -903,7 +884,7 @@ def api_eval_form():
     course_info = th.get_text() if th else ""
     course_name = ""
     # 用正则从 "课程名称：XXX  评教大类：XXX  总评分: XX" 中提取
-    m = __import__("re").search(r'课程名称[：:]\s*(.+?)(?:\s{2,}|\xa0|$)', course_info)
+    m = re.search(r'课程名称[：:]\s*(.+?)(?:\s{2,}|\xa0|$)', course_info)
     if m:
         course_name = m.group(1).strip()
 
@@ -999,53 +980,94 @@ def api_submit_eval():
     target_url = f"http://202.119.81.112:9080{action_path}"
 
     # 完整的浏览器模拟头部
-    submit_headers = {
-        "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-        "Host": "202.119.81.112:9080",
-        "Origin": "http://202.119.81.112:9080",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9",
-        "Cache-Control": "max-age=0",
-    }
+    submit_headers = dict(EVAL_HEADERS)  # 与 eval_headers 相同
 
     try:
-        # 调试：记录收到的 form_data 中有多少 radio 值
+        # 调试：记录收到的 form_data 中有多少 radio 值（仅在 DEBUG_EVAL 开启时）
         radio_keys = [k for k in form_data if k.startswith("pj0601id_")]
-        import os as _os, json as _json
-        debug_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "debug_submit.json")
-        with open(debug_path, "w", encoding="utf-8") as f:
-            _json.dump({
-                "radio_count": len(radio_keys),
-                "radio_keys": radio_keys,
-                "radio_values": {k: form_data[k] for k in radio_keys},
-                "total_keys": len(form_data),
-                "all_keys": list(form_data.keys()),
-            }, f, ensure_ascii=False, indent=2)
+        if DEBUG_EVAL:
+            debug_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug_submit.json")
+            with open(debug_path, "w", encoding="utf-8") as f:
+                json.dump({
+                    "radio_count": len(radio_keys),
+                    "radio_keys": radio_keys,
+                    "radio_values": {k: form_data[k] for k in radio_keys},
+                    "total_keys": len(form_data),
+                    "all_keys": list(form_data.keys()),
+                }, f, ensure_ascii=False, indent=2)
 
-        # 先访问评价列表页建立会话状态
-        jwc_client.session.get(
-            "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-            headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
-            timeout=10)
-        resp = jwc_client.session.post(target_url, data=form_data, headers=submit_headers, timeout=15)
+        _warm_eval_session()
 
-        # 调试：记录教务响应
-        import os as _os2, json as _json2
-        debug_path2 = _os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "debug_submit.json")
-        try:
-            with open(debug_path2, "r", encoding="utf-8") as f:
-                dbg = _json2.load(f)
-        except Exception:
-            dbg = {}
-        dbg["jw_status"] = resp.status_code
-        dbg["jw_response_len"] = len(resp.text)
-        dbg["jw_response_preview"] = resp.text[:500]
-        # 检查各种可能的关键字
-        for kw in ["评价成功", "提交成功", "保存成功", "alert", "错误", "失败", "成功", "不能", "必须"]:
-            if kw in resp.text:
-                dbg.setdefault("jw_keywords_found", {})[kw] = True
-        with open(debug_path2, "w", encoding="utf-8") as f:
-            _json2.dump(dbg, f, ensure_ascii=False, indent=2)
+        # ============================================================
+        # 重构 POST 数据，模拟浏览器原生表单提交顺序。
+        # 教务原始表单每个指标行都有 <input name="pj06xh" value="N">，
+        # 浏览器会提交 12 个 pj06xh=N。但 JS 端 FormData 构建时，
+        # 后端 hidden_fields 用 dict 存储，同名 key 被覆盖只剩最后一个。
+        # 教务服务器可能用 pj06xh 作为行分隔符来定位指标数据，
+        # 只看到一个 pj06xh=12 就只保存最后一项。
+        # ============================================================
+
+        # 按指标序号分组：{seq: [(key, value), ...]}
+        indicator_groups = {}
+        form_level_pairs = []  # 非指标级字段（表单头部、尾部）
+
+        for k, v in form_data.items():
+            if k.startswith("pj0601fz_"):
+                # pj0601fz_SEQ_UUID → 按 SEQ 分组
+                parts = k.split("_", 2)
+                if len(parts) >= 2:
+                    seq = parts[1]
+                    indicator_groups.setdefault(seq, []).append((k, v))
+                    continue
+            elif k.startswith("pj0601id_"):
+                seq = k.replace("pj0601id_", "")
+                indicator_groups.setdefault(seq, []).append((k, v))
+                continue
+            elif k == "pj06xh":
+                continue  # 丢弃（只有一个，需为每个指标重新生成）
+            else:
+                form_level_pairs.append((k, v))
+
+        # 按 seq 数值排序（确保 1,2,3... 而非 1,10,11,12,2,3...）
+        sorted_seqs = sorted(indicator_groups.keys(), key=int)
+
+        # 构建 POST 数据：表单头部 → 每个指标(pj06xh + 分值 + radio) → 尾部(issubmit等)
+        post_data = []
+        # 表单头部字段（除 issubmit 外，它放尾部）
+        head_keys = {"issubmit"}
+        for k, v in form_level_pairs:
+            if k not in head_keys:
+                post_data.append((k, v))
+        # 逐指标插入
+        for seq in sorted_seqs:
+            post_data.append(("pj06xh", seq))
+            for k, v in indicator_groups[seq]:
+                post_data.append((k, v))
+        # 尾部
+        for k, v in form_level_pairs:
+            if k in head_keys:
+                post_data.append((k, v))
+
+        resp = jwc_client.session.post(target_url, data=post_data, headers=submit_headers, timeout=15)
+
+        # 调试：记录教务响应（仅在 DEBUG_EVAL 开启时）
+        if DEBUG_EVAL:
+            debug_path2 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug_submit.json")
+            try:
+                with open(debug_path2, "r", encoding="utf-8") as f:
+                    dbg = json.load(f)
+            except Exception:
+                dbg = {}
+            dbg["post_param_order"] = [k for k, v in post_data]  # POST 参数顺序
+            dbg["jw_status"] = resp.status_code
+            dbg["jw_response_len"] = len(resp.text)
+            dbg["jw_response_preview"] = resp.text[:500]
+            # 检查各种可能的关键字
+            for kw in ["评价成功", "提交成功", "保存成功", "alert", "错误", "失败", "成功", "不能", "必须"]:
+                if kw in resp.text:
+                    dbg.setdefault("jw_keywords_found", {})[kw] = True
+            with open(debug_path2, "w", encoding="utf-8") as f:
+                json.dump(dbg, f, ensure_ascii=False, indent=2)
 
         if "评价成功" in resp.text or "提交成功" in resp.text or "保存成功" in resp.text:
             return jsonify({"success": True, "message": "评教提交成功！"})

@@ -1,28 +1,11 @@
 /* 南理工课表管理 - 教学评价页面逻辑 */
 
 let allEvaluations = [];
-let currentSemester = '';
-let isLoggedIn = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadStatus();
     loadEvaluations();
 });
-
-// 日期解析（本地时间）
-function parseDate(str) {
-    if (!str) return null;
-    const cleaned = str.replace(/[年月]/g, '-').replace(/[日号]/g, '').replace(/\//g, '-').trim();
-    const m = cleaned.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
-    return null;
-}
-
-function formatDate(str) {
-    const d = parseDate(str);
-    if (!d) return str || '';
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
 
 // 计算距截止日期的可读时间
 function timeUntilDeadline(endDateStr) {
@@ -49,33 +32,20 @@ function timeUntilDeadline(endDateStr) {
     return { text: `还有 ${totalDays} 天`, cls: '' };
 }
 
-async function loadStatus() {
-    try {
-        const resp = await fetch('/api/status');
-        const data = await resp.json();
-        currentSemester = data.semester;
-        isLoggedIn = data.logged_in;
-        document.getElementById('semester-badge').textContent = data.semester;
-        updateNavStatus(data);
-    } catch (e) {
-        console.error('获取状态失败:', e);
-    }
-}
-
 async function loadEvaluations() {
     showLoading('正在加载评价数据...');
     try {
         const resp = await fetch('/api/evaluations');
         const data = await resp.json();
         allEvaluations = data.evaluations || [];
-        currentSemester = data.semester;
+        window.currentSemester = data.semester;
         document.getElementById('semester-badge').textContent = data.semester;
 
         if (allEvaluations.length === 0) {
             document.getElementById('eval-empty').style.display = 'flex';
             document.getElementById('eval-list').style.display = 'none';
             document.getElementById('countdown-row').style.display = 'none';
-            if (isLoggedIn) {
+            if (window.isLoggedIn) {
                 document.getElementById('empty-eval-message').textContent =
                     '暂无评价数据，请点击「刷新评价数据」获取最新信息';
             } else {
@@ -237,6 +207,7 @@ function escapeHtml(str) {
 
 let currentEvalForm = null;   // 当前评价表单数据 (indicators + hidden_fields)
 let currentBatchData = null;  // 当前批次课程列表数据 (courses + hidden_fields)
+let currentBatchUrl = '';     // 当前批次的教务 URL，用于提交后重新拉取
 let currentView = 'courses';  // 'courses' | 'form'
 
 // 第一步：点击批次 → 加载课程列表
@@ -245,24 +216,25 @@ async function openEvalModal(title, itemUrl) {
     const titleEl = document.getElementById('eval-modal-title');
     const body = document.getElementById('eval-modal-body');
 
+    currentBatchUrl = itemUrl.replace('/proxy/jw/', '/');
     titleEl.textContent = '加载中...';
-    body.innerHTML = '<div style="padding:40px;text-align:center;"><div class="loading-spinner"></div><p>正在加载课程列表...</p></div>';
+    body.innerHTML = '<div class="eval-modal-message"><div class="loading-spinner"></div><p>正在加载课程列表...</p></div>';
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     currentView = 'courses';
 
     try {
-        const resp = await fetch('/api/eval-courses?url=' + encodeURIComponent(itemUrl.replace('/proxy/jw/', '/')));
+        const resp = await fetch('/api/eval-courses?url=' + encodeURIComponent(currentBatchUrl));
         const data = await resp.json();
         if (!data.success) {
-            body.innerHTML = `<div style="padding:40px;text-align:center;color:red;"><p>❌ ${data.message}</p></div>`;
+            body.innerHTML = `<div class="eval-modal-message error"><p>❌ ${data.message}</p></div>`;
             return;
         }
         currentBatchData = data;
         titleEl.textContent = '📋 ' + (data.batch_title || title);
         renderCourseList(body, data);
     } catch (e) {
-        body.innerHTML = `<div style="padding:40px;text-align:center;color:red;"><p>加载失败: ${e.message}</p></div>`;
+        body.innerHTML = `<div class="eval-modal-message"><p>加载失败: ${e.message}</p></div>`;
     }
 }
 
@@ -271,15 +243,14 @@ function renderCourseList(container, data) {
     const courses = data.courses || [];
     let html = '<div class="eval-course-list">';
 
-    for (const c of courses) {
+    for (let i = 0; i < courses.length; i++) {
+        const c = courses[i];
         const statusIcon = c.submitted ? '✅' : (c.evaluated ? '💾' : '📝');
         const statusText = c.submitted ? '已提交' : (c.evaluated ? '已保存' : '待评价');
-        const canEvaluate = !c.submitted;
-        const btnDisabled = canEvaluate ? '' : 'disabled';
-        const btnStyle = canEvaluate ? '' : 'style="opacity:0.4;cursor:default;"';
+        const btnDisabled = c.submitted ? 'disabled' : '';
 
         html += `
-        <div class="eval-course-card">
+        <div class="eval-course-card" id="eval-course-${i}" data-submitted="${c.submitted ? '1' : '0'}">
             <div class="eval-course-card-header">
                 <span class="eval-course-card-name">${statusIcon} ${escapeHtml(c.name)}</span>
                 <span class="eval-course-card-status">${statusText}</span>
@@ -290,7 +261,7 @@ function renderCourseList(container, data) {
                 ${c.score !== '0' ? `<span>⭐ ${escapeHtml(c.score)}分</span>` : ''}
             </div>
             <div class="eval-course-card-action">
-                <button class="btn btn-primary btn-sm" ${btnStyle}
+                <button class="btn btn-primary btn-sm"
                         onclick="openEvalForm('${escapeHtml(c.eval_url)}', '${escapeHtml(c.name)}', '${escapeHtml(c.teacher)}')"
                         ${btnDisabled}>
                     ${c.submitted ? '✅ 已提交' : (c.evaluated ? '📝 继续评价' : '📝 开始评价')}
@@ -313,16 +284,16 @@ async function openEvalForm(evalUrl, courseName, teacherName) {
     const body = document.getElementById('eval-modal-body');
 
     titleEl.textContent = '加载中...';
-    body.innerHTML = '<div style="padding:40px;text-align:center;"><div class="loading-spinner"></div><p>正在加载评价表单...</p></div>';
+    body.innerHTML = '<div class="eval-modal-message"><div class="loading-spinner"></div><p>正在加载评价表单...</p></div>';
     currentView = 'form';
 
     try {
         const resp = await fetch('/api/eval-form?url=' + encodeURIComponent(evalUrl));
         const data = await resp.json();
         if (!data.success) {
-            body.innerHTML = `<div style="padding:40px;text-align:center;color:red;">
+            body.innerHTML = `<div class="eval-modal-message">
                 <p>❌ ${data.message}</p>
-                <button class="btn btn-secondary" onclick="backToCourseList()" style="margin-top:16px;">← 返回课程列表</button>
+                <button class="btn btn-secondary" onclick="backToCourseList()" class="mt-16">← 返回课程列表</button>
             </div>`;
             return;
         }
@@ -333,14 +304,14 @@ async function openEvalForm(evalUrl, courseName, teacherName) {
         }
         renderEvalForm(body, data);
     } catch (e) {
-        body.innerHTML = `<div style="padding:40px;text-align:center;color:red;">
+        body.innerHTML = `<div class="eval-modal-message">
             <p>加载失败: ${e.message}</p>
-            <button class="btn btn-secondary" onclick="backToCourseList()" style="margin-top:16px;">← 返回课程列表</button>
+            <button class="btn btn-secondary" onclick="backToCourseList()" class="mt-16">← 返回课程列表</button>
         </div>`;
     }
 }
 
-// 返回课程列表
+// 返回课程列表（使用已有数据，不重新请求）
 function backToCourseList() {
     if (!currentBatchData) {
         closeEvalModal();
@@ -352,6 +323,51 @@ function backToCourseList() {
     renderCourseList(body, currentBatchData);
     currentEvalForm = null;
     currentView = 'courses';
+}
+
+// 重新拉取课程列表（提交/保存后刷新状态）
+async function refreshCourseList() {
+    if (!currentBatchUrl) {
+        closeEvalModal();
+        return;
+    }
+    const titleEl = document.getElementById('eval-modal-title');
+    const body = document.getElementById('eval-modal-body');
+    // 锁定当前高度防止刷新时跳变
+    body.style.minHeight = body.scrollHeight + 'px';
+    currentEvalForm = null;
+    currentView = 'courses';
+
+    try {
+        const resp = await fetch('/api/eval-courses?url=' + encodeURIComponent(currentBatchUrl));
+        const data = await resp.json();
+        if (data.success) {
+            currentBatchData = data;
+            titleEl.textContent = '📋 ' + (data.batch_title || '评教课程');
+            renderCourseList(body, data);
+            scrollToNextUnsubmitted(body);
+        } else {
+            titleEl.textContent = '📋 ' + (currentBatchData ? currentBatchData.batch_title || '评教课程' : '评教课程');
+            renderCourseList(body, currentBatchData);
+        }
+    } catch (e) {
+        console.error('刷新课程列表失败:', e);
+        if (currentBatchData) {
+            renderCourseList(body, currentBatchData);
+        }
+    }
+    body.style.minHeight = '';
+}
+
+// 滚动到第一个未提交（待评价）的课程卡片
+function scrollToNextUnsubmitted(container) {
+    // 等 DOM 渲染完成再滚动
+    setTimeout(() => {
+        const nextCard = container.querySelector('.eval-course-card[data-submitted="0"]');
+        if (nextCard) {
+            nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 100);
 }
 
 function renderEvalForm(container, data) {
@@ -366,7 +382,7 @@ function renderEvalForm(container, data) {
     }
 
     // 返回按钮
-    html += `<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    html += `<div class="eval-form-toolbar">
         <button type="button" class="btn btn-secondary btn-sm" onclick="backToCourseList()">← 返回课程列表</button>
     </div>`;
 
@@ -446,33 +462,35 @@ async function submitEval(submitType) {
         }
     }
 
-    // 收集表单数据
+    // 收集表单数据 — 用 FormData 自然顺序（即 DOM 顺序），
+    // 确保 hidden 字段在前、radio 值在后，与浏览器原生提交顺序一致。
+    // 旧教务 Java 系统可能对参数顺序敏感。
     const form = document.getElementById('eval-native-form');
     const formData = new FormData(form);
     const payload = {};
 
-    // 先加入课程列表页的隐藏字段（如 cj0701id）
+    // 第一步：FormData 顺序（hidden 在前，checked radio 在后）作为基础
+    for (const [k, v] of formData.entries()) {
+        payload[k] = v;
+    }
+
+    // 第二步：补上课程列表页的隐藏字段（不在表单内，如 cj0701id）
     if (currentBatchData && currentBatchData.hidden_fields) {
         for (const [k, v] of Object.entries(currentBatchData.hidden_fields)) {
-            payload[k] = v;
+            if (!(k in payload)) {
+                payload[k] = v;
+            }
         }
     }
 
-    // 手动收集选中的 radio 值（每个指标一组 radio，名字相同）
+    // 第三步：用 DOM 实际 checked 状态覆盖 radio 值（理论上与 FormData 一致，但以防万一）
     for (const ind of currentEvalForm.indicators) {
         const opts = ind.options || [];
         if (opts.length === 0) continue;
-        const groupName = opts[0].name;          // 同一组 radio 共用 name
+        const groupName = opts[0].name;
         const checkedRadio = document.querySelector(`input[name="${groupName}"]:checked`);
         if (checkedRadio) {
-            payload[groupName] = checkedRadio.value;  // 用 DOM 元素的 value，不是 opt.value
-        }
-    }
-
-    // 加入表单隐藏字段（pj0601fz_*, pj09id 等），跳过已经在 payload 中的
-    for (const [k, v] of formData.entries()) {
-        if (!(k in payload)) {
-            payload[k] = v;
+            payload[groupName] = checkedRadio.value;  // 覆盖为 DOM 确认值
         }
     }
 
@@ -497,8 +515,8 @@ async function submitEval(submitType) {
         hideLoading();
         if (data.success) {
             showToast('✅ ' + data.message, 'success');
-            // 返回课程列表
-            backToCourseList();
+            // 重新拉取课程列表，刷新已提交/已保存状态
+            await refreshCourseList();
         } else {
             showToast('❌ ' + data.message, 'error');
         }

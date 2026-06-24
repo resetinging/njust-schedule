@@ -1,15 +1,16 @@
-﻿document.addEventListener('DOMContentLoaded', () => {
-    loadStatus();
-    loadSettings();
+﻿document.addEventListener('DOMContentLoaded', async () => {
+    await loadStatus();                  // main.js 共享版本
+    await loadSettingsAndLoginInfo();    // 补充登录信息面板
     loadSemesters();
 });
 
-async function loadStatus() {
+// 加载设置 + 更新登录状态面板（settings 页面特有）
+async function loadSettingsAndLoginInfo() {
     try {
         const resp = await fetch('/api/status');
         const data = await resp.json();
-        updateNavStatus(data);
         updateLoginInfo(data);
+        await loadSettings();
     } catch (e) {
         console.error('获取状态失败:', e);
     }

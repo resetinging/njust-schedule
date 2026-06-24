@@ -5,6 +5,7 @@ NJUST 教务路径前缀: /njlgdx/（不是 /jsxsd/）
 登录: 8080/Logon.do → POST 9080/LoginToXk?method=jwxt
 """
 
+import logging
 import requests
 import re
 import json
@@ -12,6 +13,8 @@ import base64
 import time
 from typing import Optional, Tuple
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 from config import (
     JW_BASE_8080, JW_BASE_9080, JW_PATH_PREFIX,
@@ -35,7 +38,6 @@ URL_MAIN_PAGE = f"{BASE_9080}{JW_PATH_PREFIX}/framework/main.jsp"
 URL_CAPTCHA_CANDIDATES = JW_CAPTCHA_URLS
 HEADERS = HTTP_HEADERS
 TIMEOUT = HTTP_TIMEOUT
-_active_captcha_url = URL_CAPTCHA_CANDIDATES[0]
 
 
 class JWCClient:
@@ -49,6 +51,7 @@ class JWCClient:
         self.login_method = ""
         self.last_error = ""
         self._captcha_ready = False
+        self._active_captcha_url = URL_CAPTCHA_CANDIDATES[0]
 
     # ================================================================
     # 登录入口
@@ -162,13 +165,13 @@ class JWCClient:
                     self.login_method = "web-auto"
                     return True
 
-            self.last_error = "OCR 未能识别正确验证码，请使用手动输入"
+            self.last_error = "验证码自动识别失败，请使用手动输入（点「显示验证码」）"
             return False
         except ImportError:
             self.last_error = "缺少 ddddocr"
             return False
         except requests.exceptions.ConnectionError:
-            self.last_error = "无法连接"
+            self.last_error = "无法连接教务服务器（请检查校园网/VPN）"
             return False
         except Exception as e:
             self.last_error = str(e)
@@ -229,7 +232,6 @@ class JWCClient:
             pass
 
     def _detect_captcha_url_from_page(self):
-        global _active_captcha_url
         try:
             resp = self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
             m = re.search(
@@ -237,19 +239,18 @@ class JWCClient:
                 resp.text, re.IGNORECASE)
             if m:
                 src = m.group(1)
-                _active_captcha_url = src if src.startswith("http") else f"{BASE_URL}{src}"
-                print(f"[CaptchaURL] {_active_captcha_url}")
+                self._active_captcha_url = src if src.startswith("http") else f"{BASE_URL}{src}"
+                logger.debug("CaptchaURL: %s", self._active_captcha_url)
         except Exception:
             pass
 
     def _fetch_captcha(self) -> bytes:
-        global _active_captcha_url
-        for url in [_active_captcha_url] + URL_CAPTCHA_CANDIDATES:
+        for url in [self._active_captcha_url] + URL_CAPTCHA_CANDIDATES:
             try:
                 r = self.session.get(url, timeout=TIMEOUT)
                 self._dedupe_cookies()
                 if r.status_code == 200 and len(r.content) > 100:
-                    _active_captcha_url = url
+                    self._active_captcha_url = url
                     return r.content
             except Exception:
                 continue
@@ -290,22 +291,6 @@ class JWCClient:
             if kw in t:
                 return True
         return URL_LOGON_PAGE.rstrip("/") not in resp.url.rstrip("/")
-
-    def _verify_by_schedule(self) -> bool:
-        try:
-            r = self.session.get(URL_SCHEDULE_HTML, timeout=TIMEOUT, allow_redirects=True)
-            print(f"[Verify] 课表页 GET → status={r.status_code} len={len(r.text)}")
-            if any(k in r.text for k in ["课程表", "课表", "上课时间", "我的课表",
-                                          "学期理论课表", "学生个人中心", "肖"]):
-                self._extract_name(r.text)
-                return True
-            if "logon" in r.url.lower() or "Logon" in r.url:
-                print(f"[Verify] 被重定向到登录页!")
-                return False
-            return False
-        except Exception as e:
-            print(f"[Verify] 异常: {e}")
-            return False
 
     def _page_title(self, resp) -> str:
         m = re.search(r'<title>([^<]*)</title>', resp.text)
