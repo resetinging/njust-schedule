@@ -1028,6 +1028,25 @@ def api_submit_eval():
             headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
             timeout=10)
         resp = jwc_client.session.post(target_url, data=form_data, headers=submit_headers, timeout=15)
+
+        # 调试：记录教务响应
+        import os as _os2, json as _json2
+        debug_path2 = _os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "debug_submit.json")
+        try:
+            with open(debug_path2, "r", encoding="utf-8") as f:
+                dbg = _json2.load(f)
+        except Exception:
+            dbg = {}
+        dbg["jw_status"] = resp.status_code
+        dbg["jw_response_len"] = len(resp.text)
+        dbg["jw_response_preview"] = resp.text[:500]
+        # 检查各种可能的关键字
+        for kw in ["评价成功", "提交成功", "保存成功", "alert", "错误", "失败", "成功", "不能", "必须"]:
+            if kw in resp.text:
+                dbg.setdefault("jw_keywords_found", {})[kw] = True
+        with open(debug_path2, "w", encoding="utf-8") as f:
+            _json2.dump(dbg, f, ensure_ascii=False, indent=2)
+
         if "评价成功" in resp.text or "提交成功" in resp.text or "保存成功" in resp.text:
             return jsonify({"success": True, "message": "评教提交成功！"})
         return jsonify({"success": True, "message": "已提交（请返回教务确认）"})
