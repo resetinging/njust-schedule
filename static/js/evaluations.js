@@ -371,16 +371,18 @@ function renderEvalForm(container, data) {
     </div>`;
 
     // 自动填写工具栏
+    const maxScore = calcMaxScore(indicators);
     html += `<div class="eval-autofill-bar">
         <span class="eval-autofill-label">🎯 期望分数:</span>
         <input type="number" id="eval-target-score" class="eval-target-input"
                min="0" max="100" step="1" placeholder="如 85"
                onkeydown="if(event.key==='Enter')autoFillEval()">
-        <span class="eval-autofill-hint">（满分 ${calcMaxScore(indicators)}）</span>
+        <span class="eval-autofill-hint">（满分 ${maxScore}）</span>
         <button type="button" class="btn btn-primary btn-sm" onclick="autoFillEval()">
             ✨ 自动填写
         </button>
-        <span id="eval-fill-result" style="display:none;font-size:0.85rem;font-weight:600;"></span>
+        <span class="eval-fill-divider">|</span>
+        <span class="eval-live-score">📊 当前总分: <strong id="eval-live-total">—</strong></span>
     </div>`;
 
     // 课程标题
@@ -398,7 +400,8 @@ function renderEvalForm(container, data) {
             const scoreBadge = opt.score ? `<span class="eval-score-badge">${escapeHtml(opt.score)}分</span>` : '';
             html += `
                 <label class="eval-option">
-                    <input type="radio" name="${escapeHtml(opt.name)}" value="${escapeHtml(opt.value)}">
+                    <input type="radio" name="${escapeHtml(opt.name)}" value="${escapeHtml(opt.value)}"
+                           onchange="updateLiveScore()">
                     <span class="eval-option-label">${escapeHtml(opt.label)}${scoreBadge}</span>
                 </label>`;
         }
@@ -418,6 +421,9 @@ function renderEvalForm(container, data) {
         </div>`;
     html += '</form>';
     container.innerHTML = html;
+
+    // 渲染后立即更新当前分数（显示教务默认选中项的分值）
+    setTimeout(updateLiveScore, 50);
 }
 
 async function submitEval(submitType) {
@@ -645,20 +651,29 @@ function autoFillEval() {
         }
     }
 
-    // 显示结果
-    const actualScore = calcCurrentScore(indicators);
-    const resultEl = document.getElementById('eval-fill-result');
-    if (resultEl) {
-        resultEl.style.display = 'inline';
+    showFillResult(actualScore, target);
+}
+
+// 实时更新当前总分显示
+function updateLiveScore() {
+    const indicators = currentEvalForm ? currentEvalForm.indicators : [];
+    const total = calcCurrentScore(indicators);
+    const el = document.getElementById('eval-live-total');
+    if (el) {
+        el.textContent = total > 0 ? total : '—';
+        el.style.color = 'var(--primary)';
+    }
+}
+
+// 显示自动填写结果
+function showFillResult(actualScore, target) {
+    const el = document.getElementById('eval-live-total');
+    if (el) {
+        el.textContent = actualScore;
         const diff = Math.abs(actualScore - target);
         const color = diff <= 1 ? 'var(--success)' : (diff <= 3 ? '#e6a817' : 'var(--danger)');
-        resultEl.style.color = color;
-        resultEl.textContent = `→ 实际总分: ${actualScore}（偏离 ${diff.toFixed(1)} 分）`;
+        el.style.color = color;
     }
-
-    // 滚动到第一个未选中的指标（以防万一）
-    const firstUnchecked = document.querySelector('.eval-indicator-card input[type="radio"]:not(:checked)');
-    // 全部已选时不需要滚动
 }
 
 function closeEvalModal() {

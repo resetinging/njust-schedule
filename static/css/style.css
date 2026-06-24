@@ -1028,6 +1028,19 @@ a:hover { text-decoration: underline; }
     color: var(--text-light);
 }
 
+.eval-fill-divider {
+    color: var(--border);
+    font-size: 1rem;
+}
+
+.eval-live-score {
+    font-size: 0.85rem;
+    color: var(--text);
+}
+.eval-live-score strong {
+    font-size: 0.95rem;
+}
+
 .eval-score-badge {
     font-size: 0.7rem;
     background: var(--primary-bg);
