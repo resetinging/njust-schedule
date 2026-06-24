@@ -446,7 +446,7 @@ async function submitEval(submitType) {
         }
     }
 
-    // 收集表单数据（合并表单页隐藏字段）
+    // 收集表单数据
     const form = document.getElementById('eval-native-form');
     const formData = new FormData(form);
     const payload = {};
@@ -457,9 +457,23 @@ async function submitEval(submitType) {
             payload[k] = v;
         }
     }
-    // 再加入表单页隐藏字段和用户选择
+
+    // 手动收集选中的 radio 值（避免 FormData 可能的跨浏览器问题）
+    for (const ind of currentEvalForm.indicators) {
+        for (const opt of (ind.options || [])) {
+            const radio = document.querySelector(`input[name="${opt.name}"]:checked`);
+            if (radio) {
+                payload[opt.name] = opt.value;
+                break; // 每组只取选中的
+            }
+        }
+    }
+
+    // 加入表单隐藏字段（pj0601fz_*, pj09id 等），跳过已经在 payload 中的
     for (const [k, v] of formData.entries()) {
-        payload[k] = v;
+        if (!(k in payload)) {
+            payload[k] = v;
+        }
     }
 
     showLoading('正在提交评教...');
@@ -652,6 +666,8 @@ function autoFillEval() {
         }
     }
 
+    // 从 selections 计算实际总分（DOM 的 checked 已同步）
+    const actualScore = Math.round(selections.reduce((sum, s) => sum + s.score, 0) * 10) / 10;
     showFillResult(actualScore, target);
 }
 
