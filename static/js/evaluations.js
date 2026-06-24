@@ -180,7 +180,7 @@ function renderEvaluations(evals) {
         if (evalItem.items && evalItem.items.length > 0) {
             itemsHtml = '<div class="exam-info-row eval-items-row">';
             for (const item of evalItem.items) {
-                const proxyUrl = `/proxy/jw/xspj/${item.url.split('/njlgdx/').pop() || item.url}`;
+                const proxyUrl = `/proxy/jw/${item.url.replace('/njlgdx/', '')}`;
                 itemsHtml += `
                     <span class="eval-item-link" onclick="openEvalModal('${escapeHtml(item.name)}', '${escapeHtml(proxyUrl)}')">
                         📋 ${item.name}
