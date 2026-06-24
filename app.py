@@ -238,7 +238,7 @@ def evaluations_page():
     return render_template("evaluations.html")
 
 
-@app.route("/proxy/jw/<path:target_path>")
+@app.route("/proxy/jw/<path:target_path>", methods=["GET", "POST"])
 def proxy_jw(target_path):
     """代理教务系统页面，解决跨域和 Cookie 问题"""
     if not jwc_client.logged_in:
@@ -247,10 +247,30 @@ def proxy_jw(target_path):
     qs = request.query_string.decode()
     if qs:
         target_url += "?" + qs
+    proxy_headers = {
+        "Referer": "http://202.119.81.112:9080/njlgdx/",
+        "Origin": "http://202.119.81.112:9080",
+    }
     try:
-        resp = jwc_client.session.get(target_url, timeout=15)
+        if request.method == "POST":
+            resp = jwc_client.session.post(target_url, data=request.form,
+                                           headers=proxy_headers, timeout=15)
+        else:
+            resp = jwc_client.session.get(target_url, headers=proxy_headers, timeout=15)
     except Exception as e:
         return f"代理请求失败: {e}", 502
+    if "text/html" in (resp.headers.get("content-type") or ""):
+        content = resp.text
+        content = content.replace('src="/njlgdx/', 'src="/proxy/jw/')
+        content = content.replace('href="/njlgdx/', 'href="/proxy/jw/')
+        content = content.replace("src='/njlgdx/", "src='/proxy/jw/")
+        content = content.replace("href='/njlgdx/", "href='/proxy/jw/")
+        content = content.replace('action="/njlgdx/', 'action="/proxy/jw/')
+        content = content.replace("action='/njlgdx/", "action='/proxy/jw/")
+        content = content.replace('"/njlgdx/js/', '"/proxy/jw/js/')
+        content = content.replace("'/njlgdx/js/", "'/proxy/jw/js/")
+        return Response(content, status=resp.status_code,
+                        content_type="text/html; charset=utf-8")
     return Response(resp.content, status=resp.status_code,
                     content_type=resp.headers.get("content-type", "text/html"))
 
