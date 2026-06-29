@@ -1,0 +1,80 @@
+<!-- 设置/登录页面 -->
+<view class="container">
+
+  <!-- ============================================================ -->
+  <!-- 已登录状态 -->
+  <!-- ============================================================ -->
+  <view wx:if="{{isLoggedIn}}">
+
+    <!-- 用户信息卡片 -->
+    <view class="user-card card">
+      <view class="avatar">👤</view>
+      <view class="user-info">
+        <text class="user-name">{{studentName || '未设置'}}</text>
+        <text class="user-id">{{studentId}}</text>
+        <text class="user-semester">当前学期: {{semester || '未知'}}</text>
+      </view>
+    </view>
+
+    <!-- 快捷操作 -->
+    <view class="action-list">
+      <view class="action-item" bindtap="onRefreshAll">
+        <text>🔄 一键刷新课表+考试</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="action-item" bindtap="onClearData">
+        <text>🗑 清除缓存数据</text>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 退出登录 -->
+    <view class="logout-area">
+      <button class="btn-danger" bindtap="onLogout">退出登录</button>
+    </view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!-- 未登录状态 -->
+  <!-- ============================================================ -->
+  <view wx:if="{{!isLoggedIn}}">
+    <!-- 登录表单 -->
+    <view class="login-card card">
+      <view class="login-title">登录教务系统</view>
+
+      <!-- 学号 -->
+      <view class="form-group">
+        <text class="form-label">学号</text>
+        <input class="form-input" placeholder="请输入学号"
+               value="{{studentId}}" bindinput="onStudentIdInput" />
+      </view>
+
+      <!-- 密码 -->
+      <view class="form-group">
+        <text class="form-label">密码</text>
+        <input class="form-input" placeholder="请输入教务密码"
+               password="{{true}}" value="{{password}}"
+               bindinput="onPasswordInput" />
+      </view>
+
+      <!-- 验证码 -->
+      <view class="form-group">
+        <text class="form-label">验证码</text>
+        <captcha-input src="{{captchaSrc}}" value="{{captcha}}"
+                       bind:input="onCaptchaInput" bind:refresh="onRefreshCaptcha" />
+      </view>
+
+      <!-- 登录按钮 -->
+      <button class="btn-primary login-btn" bindtap="onLogin"
+              disabled="{{!canLogin || loggingIn}}">
+        {{loggingIn ? '登录中…' : '登录'}}
+      </button>
+    </view>
+
+    <!-- 提示 -->
+    <view class="login-tip">
+      <text>需要连接校园网或 NJUST VPN</text>
+    </view>
+  </view>
+
+</view>

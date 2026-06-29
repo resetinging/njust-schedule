@@ -1,0 +1,10 @@
+<!-- 验证码输入组件 -->
+<view class="captcha-input">
+  <input class="input" placeholder="输入验证码" maxlength="6"
+         value="{{value}}" bindinput="onInput" />
+  <image class="img" src="{{src}}" mode="aspectFit"
+         bindtap="onRefresh" wx:if="{{src}}" />
+  <view class="placeholder" bindtap="onRefresh" wx:if="{{!src}}">
+    <text>点击获取</text>
+  </view>
+</view>

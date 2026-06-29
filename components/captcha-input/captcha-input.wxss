@@ -1,0 +1,35 @@
+.captcha-input {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.input {
+  flex: 1;
+  height: 80rpx;
+  padding: 0 20rpx;
+  border: 2rpx solid var(--border);
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  background: #FAFAFA;
+}
+
+.img {
+  width: 200rpx;
+  height: 80rpx;
+  border: 1rpx solid var(--border);
+  border-radius: 8rpx;
+}
+
+.placeholder {
+  width: 200rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  border: 1rpx dashed var(--border);
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  color: var(--primary);
+}

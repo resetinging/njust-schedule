@@ -1,0 +1,73 @@
+<!-- 课表页面 -->
+<view class="container">
+
+  <!-- 顶部信息栏 -->
+  <view class="header">
+    <view class="semester-row">
+      <picker mode="selector" range="{{semesters}}" bindchange="onSemesterChange">
+        <view class="semester-picker">
+          <text>{{semester || '选择学期'}}</text>
+          <text class="arrow">▼</text>
+        </view>
+      </picker>
+      <view class="week-info">
+        <text>第 {{currentWeek}} 周</text>
+        <view class="week-nav">
+          <text class="week-btn" bindtap="prevWeek">◀</text>
+          <text class="week-btn" bindtap="nextWeek">▶</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 课程网格 -->
+  <view class="grid-wrapper" wx:if="{{!loading && courses.length > 0}}">
+    <week-grid
+      courses="{{filteredCourses}}"
+      currentWeek="{{currentWeek}}"
+      bind:coursetap="onCourseTap"
+    />
+  </view>
+
+  <!-- 加载中 -->
+  <view class="empty-state" wx:if="{{loading}}">
+    <view class="icon">⏳</view>
+    <view class="text">加载中…</view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && courses.length === 0}}">
+    <view class="icon">📅</view>
+    <view class="text">暂无课表数据</view>
+    <button class="btn-primary" style="margin-top:32rpx" bindtap="onRefresh">获取课表</button>
+  </view>
+
+  <!-- 课程详情弹窗 -->
+  <view class="modal-mask" wx:if="{{showDetail}}" bindtap="closeDetail">
+    <view class="modal-card" catchtap="">
+      <view class="modal-title">{{detailCourse.name}}</view>
+      <view class="modal-row">
+        <text class="label">教师</text>
+        <text>{{detailCourse.teacher || '未指定'}}</text>
+      </view>
+      <view class="modal-row">
+        <text class="label">教室</text>
+        <text>{{detailCourse.classroom || '未指定'}}</text>
+      </view>
+      <view class="modal-row">
+        <text class="label">时间</text>
+        <text>周{{detailCourse.day}} 第{{detailCourse.start}}-{{detailCourse.end}}节</text>
+      </view>
+      <view class="modal-row">
+        <text class="label">周次</text>
+        <text>{{detailCourse.weeks || '1-18周'}}</text>
+      </view>
+      <view class="modal-row" wx:if="{{detailCourse.credits}}">
+        <text class="label">学分</text>
+        <text>{{detailCourse.credits}}</text>
+      </view>
+      <button class="btn-primary" style="margin-top:24rpx" bindtap="closeDetail">关闭</button>
+    </view>
+  </view>
+
+</view>

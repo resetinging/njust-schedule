@@ -1,0 +1,6 @@
+{
+  "usingComponents": {
+    "captcha-input": "../../components/captcha-input/captcha-input"
+  },
+  "enablePullDownRefresh": false
+}

@@ -1,0 +1,49 @@
+{
+  "pages": [
+    "pages/schedule/schedule",
+    "pages/exams/exams",
+    "pages/eval/eval",
+    "pages/settings/settings"
+  ],
+  "window": {
+    "navigationBarTitleText": "南理工课表",
+    "navigationBarBackgroundColor": "#5B3CC4",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F5F5F5",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#5B3CC4",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/schedule/schedule",
+        "text": "课表",
+        "iconPath": "static/icons/schedule.png",
+        "selectedIconPath": "static/icons/schedule-active.png"
+      },
+      {
+        "pagePath": "pages/exams/exams",
+        "text": "考试",
+        "iconPath": "static/icons/exam.png",
+        "selectedIconPath": "static/icons/exam-active.png"
+      },
+      {
+        "pagePath": "pages/eval/eval",
+        "text": "评教",
+        "iconPath": "static/icons/eval.png",
+        "selectedIconPath": "static/icons/eval-active.png"
+      },
+      {
+        "pagePath": "pages/settings/settings",
+        "text": "我的",
+        "iconPath": "static/icons/settings.png",
+        "selectedIconPath": "static/icons/settings-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

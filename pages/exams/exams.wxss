@@ -1,0 +1,71 @@
+/* 考试页面样式 */
+
+.container {
+  padding-bottom: 40rpx;
+}
+
+.summary-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 32rpx;
+  font-size: 24rpx;
+  color: var(--text-hint);
+}
+
+.refresh-btn {
+  color: var(--primary);
+  font-size: 24rpx;
+}
+
+.exam-card {
+  margin: 12rpx 20rpx;
+}
+
+.exam-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.exam-date {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.date-text {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.time-text {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.exam-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-bottom: 12rpx;
+}
+
+.exam-info {
+  border-top: 1rpx solid var(--border);
+  padding-top: 12rpx;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 6rpx 0;
+  font-size: 26rpx;
+}
+
+.info-row .label {
+  color: var(--text-hint);
+  min-width: 100rpx;
+}

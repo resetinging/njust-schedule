@@ -1,0 +1,211 @@
+/* 评教页面样式 */
+
+.container {
+  padding-bottom: 60rpx;
+}
+
+.summary-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 32rpx;
+  font-size: 24rpx;
+  color: var(--text-hint);
+  background: #fff;
+  border-bottom: 1rpx solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.batch-btn {
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* 批次卡片 */
+.batch-card {
+  margin: 12rpx 20rpx;
+}
+
+.batch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.batch-title {
+  font-size: 30rpx;
+  font-weight: bold;
+}
+
+.batch-info {
+  font-size: 24rpx;
+  color: var(--text-hint);
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+/* 课程卡片 */
+.course-card {
+  margin: 12rpx 20rpx;
+}
+
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.course-main {
+  flex: 1;
+}
+
+.course-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  display: block;
+}
+
+.course-teacher {
+  font-size: 24rpx;
+  color: var(--text-hint);
+}
+
+.course-status {
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.course-status.done {
+  background: #E8F5E9;
+  color: var(--success);
+}
+
+.course-status.pending {
+  background: #FFF3E0;
+  color: var(--warning);
+}
+
+.course-actions {
+  margin-top: 12rpx;
+  text-align: right;
+}
+
+.small-btn {
+  display: inline-block;
+  padding: 8rpx 24rpx !important;
+  font-size: 24rpx !important;
+}
+
+/* 评价表单 */
+.form-course-name {
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.form-scroll {
+  height: calc(100vh - 200rpx);
+  padding: 12rpx 0;
+}
+
+.indicator-card {
+  margin: 12rpx 20rpx;
+}
+
+.indicator-label {
+  font-size: 28rpx;
+  font-weight: 500;
+  margin-bottom: 12rpx;
+}
+
+.indicator-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.option-item {
+  padding: 10rpx 24rpx;
+  border: 2rpx solid var(--border);
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.option-item.option-checked {
+  border-color: var(--primary);
+  background: #EDE7F6;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.form-actions {
+  display: flex;
+  gap: 16rpx;
+  padding: 16rpx 20rpx;
+  background: #fff;
+  border-top: 1rpx solid var(--border);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+}
+
+.form-actions button {
+  flex: 1;
+  font-size: 28rpx;
+}
+
+/* 分数滑块弹窗 */
+.slider-wrapper {
+  padding: 24rpx 0;
+}
+
+.slider-value {
+  text-align: center;
+  font-size: 72rpx;
+  font-weight: bold;
+  color: var(--primary);
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 22rpx;
+  color: var(--text-hint);
+}
+
+/* 批量评教结果列表 */
+.batch-results {
+  max-height: 400rpx;
+  margin-top: 12rpx;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 8rpx 0;
+  font-size: 24rpx;
+}
+
+.result-icon {
+  font-size: 28rpx;
+}
+
+.result-name {
+  flex: 1;
+}
+
+.result-error {
+  color: var(--danger);
+  font-size: 20rpx;
+}
+

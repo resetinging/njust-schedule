@@ -1,0 +1,24 @@
+<!-- 加载/进度弹窗组件 -->
+<view class="modal-mask" wx:if="{{visible}}">
+  <view class="modal-card">
+    <text class="title">{{title}}</text>
+
+    <view class="progress-bar" wx:if="{{showProgress}}">
+      <progress percent="{{percent}}" stroke-width="6"
+                activeColor="#5B3CC4" backgroundColor="#E0E0E0" />
+    </view>
+
+    <text class="message">{{message}}</text>
+
+    <view class="spinner" wx:if="{{spinning}}">
+      <view class="dot"></view>
+      <view class="dot"></view>
+      <view class="dot"></view>
+    </view>
+
+    <slot></slot>
+
+    <button class="btn-primary" wx:if="{{done}}"
+            style="margin-top:24rpx" bindtap="onClose">{{doneText}}</button>
+  </view>
+</view>

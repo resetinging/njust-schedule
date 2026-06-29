@@ -1,0 +1,36 @@
+<!-- 周课表网格组件 -->
+<view class="week-grid">
+
+  <!-- 表头：星期 -->
+  <view class="grid-header">
+    <view class="header-cell period-header"></view>
+    <view class="header-cell" wx:for="{{weekdays}}" wx:key="*this">
+      <text>{{item}}</text>
+    </view>
+  </view>
+
+  <!-- 节次行 -->
+  <view class="grid-body">
+    <view class="period-row" wx:for="{{periods}}" wx:key="*this">
+      <!-- 节次标签 -->
+      <view class="period-label">
+        <text>{{item}}</text>
+      </view>
+      <!-- 每天的这一节 -->
+      <view class="day-cell" wx:for="{{weekSlots}}" wx:for-item="slot" wx:key="*this">
+        <!-- 课程块：仅在课程起始格显示 -->
+        <view
+          wx:if="{{slot[item]}}"
+          class="course-block"
+          style="height: {{slot[item]._height}}rpx; background: {{slot[item]._color}}"
+          bindtap="onCourseTap"
+          data-course="{{slot[item]}}"
+        >
+          <text class="course-name">{{slot[item].name}}</text>
+          <text class="course-room" wx:if="{{slot[item].classroom}}">{{slot[item].classroom}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+</view>

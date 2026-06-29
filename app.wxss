@@ -1,0 +1,160 @@
+/* ============================================================
+   南理工课表 — 全局样式
+   NJUST 主题色: 紫色 #5B3CC4
+   ============================================================ */
+
+page {
+  --primary: #5B3CC4;
+  --primary-light: #7C5FE8;
+  --primary-dark: #3E2A8A;
+  --success: #4CAF50;
+  --danger: #E53935;
+  --warning: #FF9800;
+  --text-primary: #212121;
+  --text-secondary: #757575;
+  --text-hint: #9E9E9E;
+  --bg-page: #F5F5F5;
+  --bg-card: #FFFFFF;
+  --border: #E0E0E0;
+  --overlay: rgba(0, 0, 0, 0.5);
+
+  font-family: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   通用组件样式
+   ============================================================ */
+
+/* 卡片 */
+.card {
+  margin: 20rpx;
+  padding: 24rpx;
+  background: var(--bg-card);
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+/* 按钮 */
+.btn-primary {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-radius: 12rpx !important;
+  font-size: 30rpx !important;
+}
+
+.btn-outline {
+  background: #fff !important;
+  color: var(--primary) !important;
+  border: 2rpx solid var(--primary) !important;
+  border-radius: 12rpx !important;
+}
+
+.btn-danger {
+  background: var(--danger) !important;
+  color: #fff !important;
+  border-radius: 12rpx !important;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 40rpx;
+}
+
+.empty-state .icon {
+  font-size: 120rpx;
+  color: var(--text-hint);
+  margin-bottom: 24rpx;
+}
+
+.empty-state .text {
+  font-size: 28rpx;
+  color: var(--text-hint);
+}
+
+/* 分隔线 */
+.divider {
+  height: 1rpx;
+  background: var(--border);
+  margin: 16rpx 0;
+}
+
+/* 标签 */
+.tag {
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+  font-size: 22rpx;
+}
+
+.tag-primary {
+  background: #EDE7F6;
+  color: var(--primary);
+}
+
+.tag-success {
+  background: #E8F5E9;
+  color: var(--success);
+}
+
+.tag-warning {
+  background: #FFF3E0;
+  color: var(--warning);
+}
+
+/* 加载更多 */
+.loading-more {
+  text-align: center;
+  padding: 20rpx;
+  color: var(--text-hint);
+  font-size: 24rpx;
+}
+
+/* ============================================================
+   弹窗通用样式
+   ============================================================ */
+
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-card {
+  width: 600rpx;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  overflow-y: auto;
+}
+
+.modal-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  margin-bottom: 16rpx;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.modal-buttons button {
+  flex: 1;
+}

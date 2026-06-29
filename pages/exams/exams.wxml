@@ -1,0 +1,48 @@
+<!-- 考试安排页面 -->
+<view class="container">
+
+  <!-- 加载中 -->
+  <view class="empty-state" wx:if="{{loading}}">
+    <view class="icon">⏳</view>
+    <view class="text">加载中…</view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && exams.length === 0}}">
+    <view class="icon">📝</view>
+    <view class="text">暂无考试安排</view>
+    <button class="btn-primary" style="margin-top:32rpx" bindtap="onRefresh">获取考试安排</button>
+  </view>
+
+  <!-- 考试列表 -->
+  <view class="list" wx:if="{{!loading && exams.length > 0}}">
+    <view class="summary-bar">
+      <text>共 {{exams.length}} 场考试</text>
+      <text class="refresh-btn" bindtap="onRefresh">刷新</text>
+    </view>
+
+    <view class="exam-card card" wx:for="{{exams}}" wx:key="id">
+      <view class="exam-header">
+        <view class="exam-date">
+          <text class="date-text">{{item.date}}</text>
+          <text class="time-text">{{item.time}}</text>
+        </view>
+        <view class="tag tag-primary">{{item.type || '期末考试'}}</view>
+      </view>
+
+      <view class="exam-name">{{item.course_name}}</view>
+
+      <view class="exam-info">
+        <view class="info-row">
+          <text class="label">📍 教室</text>
+          <text>{{item.location || '待定'}}</text>
+        </view>
+        <view class="info-row" wx:if="{{item.seat}}">
+          <text class="label">💺 座位</text>
+          <text>{{item.seat}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+</view>
