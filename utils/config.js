@@ -8,8 +8,8 @@
 // 云服务器: https://your-domain.com
 const API_BASE = 'https://flask-5da7-276116-7-1448570339.sh.run.tcloudbase.com'
 
-// 请求超时（毫秒）
-const REQUEST_TIMEOUT = 15000
+// 请求超时（毫秒）— 云托管冷启动较慢，给 30s 余量
+const REQUEST_TIMEOUT = 30000
 
 // 轮询间隔（批量评教进度查询）
 const POLL_INTERVAL = 2000
