@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# 桌面程序（云托管不需要）
+main.py
+run.bat
+setup.bat
+build.bat
+njust_schedule.spec
+
+# 构建产物
+dist/
+build/
+*.spec
+*.db
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 调试文件
+debug_*.json
+
+# 文档
+README.md
+PLAN.md
+
+# 临时文件
+nul
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store

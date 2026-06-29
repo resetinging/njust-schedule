@@ -8,3 +8,9 @@ MarkupSafe==2.0.1
 PyMySQL==1.0.2
 SQLAlchemy==1.4.29
 Werkzeug==2.0.2
+# NJUST 教务爬虫依赖
+requests>=2.25
+beautifulsoup4>=4.9
+lxml>=4.6
+ddddocr>=1.0
+Pillow>=11.0

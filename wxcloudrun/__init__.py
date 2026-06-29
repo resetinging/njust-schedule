@@ -1,24 +1,29 @@
+"""
+微信云托管 Flask 应用初始化
+===========================
+SQLAlchemy + MySQL + NJUST 路由
+"""
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import pymysql
 import config
 
-# 因MySQLDB不支持Python3，使用pymysql扩展库代替MySQLDB库
+# 适配 Python 3 MySQL 驱动
 pymysql.install_as_MySQLdb()
 
-# 初始化web应用
+# 创建 Flask 应用
 app = Flask(__name__, instance_relative_config=True)
 app.config['DEBUG'] = config.DEBUG
+app.config['JSON_AS_ASCII'] = False
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
-# 设定数据库链接
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://{}:{}@{}/flask_demo'.format(config.username, config.password,
-                                                                             config.db_address)
+# MySQL 连接（云托管自动注入 MYSQL_USERNAME/PASSWORD/ADDRESS 环境变量）
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://{}:{}@{}/flask_demo'.format(
+    config.MYSQL_USERNAME, config.MYSQL_PASSWORD, config.MYSQL_ADDRESS)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 初始化DB操作对象
+# 初始化 SQLAlchemy
 db = SQLAlchemy(app)
 
-# 加载控制器
-from wxcloudrun import views
-
-# 加载配置
-app.config.from_object('config')
+# 加载 NJUST 路由（必须在 db 初始化之后导入，避免循环引用）
+from wxcloudrun import views  # noqa: E402, F401
