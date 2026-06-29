@@ -21,17 +21,25 @@ logger = logging.getLogger(__name__)
 class _DedupCookieJar(RequestsCookieJar):
     """自定义 CookieJar：遇到重复 cookie 时保留最后一个，不抛异常。
     NJUST 教务系统会返回多个同名 JSESSIONID，导致默认 jar 崩溃。"""
-    def _find_no_duplicates(self, name):
-        try:
-            return super()._find_no_duplicates(name)
-        except requests.cookies.CookieConflictError:
-            # 删除旧的，保留新的
-            for cookie in list(self):
-                if cookie.name == name:
-                    self.clear(cookie.domain, cookie.path, cookie.name)
-            return super()._find_no_duplicates(name) if any(
-                c.name == name for c in self
-            ) else None
+    def _find_no_duplicates(self, name, domain=None, path=None):
+        """完全重写：手动查找，自动去重，永不抛 CookieConflictError"""
+        matches = []
+        for cookie in self:
+            if cookie.name != name:
+                continue
+            if domain is not None and cookie.domain != domain:
+                continue
+            if path is not None and cookie.path != path:
+                continue
+            matches.append(cookie)
+        if len(matches) > 1:
+            # 保留最后一个，删除其余的
+            for c in matches[:-1]:
+                self.clear(c.domain, c.path, c.name)
+            return matches[-1]
+        if len(matches) == 1:
+            return matches[0]
+        return None
 
 from config import (
     JW_BASE_8080, JW_BASE_9080, JW_PATH_PREFIX,
