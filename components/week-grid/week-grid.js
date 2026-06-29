@@ -65,7 +65,7 @@ Component({
       for (let day = 1; day <= 7; day++) {
         const slot = {}
         visible
-          .filter(c => c.day === day)
+          .filter(c => (c.day || c.day_of_week) === day)
           .forEach(c => {
             const start = c.start || c.start_period || 1
             const end = c.end || c.end_period || 2

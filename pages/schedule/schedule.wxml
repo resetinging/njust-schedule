@@ -56,7 +56,7 @@
       </view>
       <view class="modal-row">
         <text class="label">时间</text>
-        <text>周{{detailCourse.day}} 第{{detailCourse.start}}-{{detailCourse.end}}节</text>
+        <text>周{{detailCourse.day_of_week || detailCourse.day}} 第{{detailCourse.start_period || detailCourse.start}}-{{detailCourse.end_period || detailCourse.end}}节</text>
       </view>
       <view class="modal-row">
         <text class="label">周次</text>
