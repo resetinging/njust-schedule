@@ -48,7 +48,7 @@ function remove(key) {
 function getToken() { return get(STORAGE_KEYS.TOKEN, '') }
 function setToken(t) { set(STORAGE_KEYS.TOKEN, t) }
 function clearToken() { remove(STORAGE_KEYS.TOKEN) }
-function isLoggedIn() { return !!getToken() }
+function isLoggedIn() { return !!getStudentId() }
 
 // ============================================================
 // 用户信息

@@ -20,12 +20,6 @@ const storage = require('./storage')
  */
 function request(method, path, data = {}, auth = true) {
   const header = { 'Content-Type': 'application/json' }
-  if (auth) {
-    const token = storage.getToken()
-    if (token) {
-      header['Authorization'] = `Bearer ${token}`
-    }
-  }
 
   return new Promise((resolve, reject) => {
     wx.request({
@@ -37,10 +31,6 @@ function request(method, path, data = {}, auth = true) {
       success(res) {
         if (res.statusCode === 200) {
           resolve(res.data)
-        } else if (res.statusCode === 401) {
-          // token 过期，清除并提示
-          storage.clearToken()
-          resolve({ success: false, message: '登录已过期，请重新登录' })
         } else {
           resolve({
             success: false,
@@ -75,7 +65,6 @@ function login(studentId, password, captcha) {
     captcha: captcha
   }, false).then(res => {
     if (res.success) {
-      storage.setToken(res.token || '')
       storage.setStudentId(studentId)
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
