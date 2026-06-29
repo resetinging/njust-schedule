@@ -36,7 +36,27 @@
             <span id="eval-modal-title">评教</span>
             <button class="eval-modal-close" onclick="closeEvalModal()">✕</button>
         </div>
-        <div class="eval-modal-body" id="eval-modal-body"></div>
+        <div class="eval-modal-body" id="eval-modal-body">
+            <!-- 批量评教进度（默认隐藏） -->
+            <div class="batch-progress" id="batch-progress" style="display:none;">
+                <div class="batch-progress-header">
+                    <h3>🚀 一键评教进行中...</h3>
+                    <span class="batch-progress-count" id="batch-progress-count"></span>
+                </div>
+                <div class="batch-progress-bar">
+                    <div class="batch-progress-fill" id="batch-progress-fill"></div>
+                </div>
+                <p class="batch-progress-status" id="batch-progress-status"></p>
+                <div class="batch-progress-results" id="batch-progress-results"></div>
+                <div class="batch-progress-actions" id="batch-progress-actions" style="display:none;">
+                    <button class="btn btn-primary" onclick="refreshCourseList()">
+                        ✅ 完成，返回课程列表
+                    </button>
+                </div>
+            </div>
+            <!-- 普通内容区 -->
+            <div id="eval-modal-content"></div>
+        </div>
     </div>
 </div>
 

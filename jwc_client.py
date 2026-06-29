@@ -167,8 +167,8 @@ class JWCClient:
 
             self.last_error = "验证码自动识别失败，请使用手动输入（点「显示验证码」）"
             return False
-        except ImportError:
-            self.last_error = "缺少 ddddocr"
+        except ImportError as e:
+            self.last_error = f"OCR 模块加载失败: {e}"
             return False
         except requests.exceptions.ConnectionError:
             self.last_error = "无法连接教务服务器（请检查校园网/VPN）"

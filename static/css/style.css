@@ -1054,6 +1054,47 @@ a:hover { text-decoration: underline; }
     font-weight: 600;
 }
 
+/* --- 只读评分摘要（已提交查看） --- */
+.eval-score-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    background: #eafaf1;
+    border: 1px solid #a3d9b1;
+    border-radius: 10px;
+    flex-wrap: wrap;
+}
+.eval-summary-icon {
+    font-size: 1.3rem;
+}
+.eval-summary-text {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text);
+}
+.eval-summary-text strong {
+    font-size: 1.1rem;
+    color: var(--success);
+}
+.eval-summary-hint {
+    font-size: 0.78rem;
+    color: var(--text-light);
+    margin-left: auto;
+}
+
+/* 只读模式下已选中选项高亮 */
+.eval-option-checked {
+    background: var(--success-bg);
+    border-color: var(--success) !important;
+    border-radius: 8px;
+}
+.eval-option-checked .eval-option-label {
+    font-weight: 600;
+    color: var(--success);
+}
+
 /* ============================================================
    评教课程列表
    ============================================================ */
@@ -1120,7 +1161,131 @@ a:hover { text-decoration: underline; }
     align-items: center;
     flex-wrap: wrap;
 }
+.eval-toolbar-sep {
+    color: var(--border);
+    font-size: 1rem;
+    user-select: none;
+}
+.eval-toolbar-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+}
 .mt-16 { margin-top: 16px; }
+
+/* ============================================================
+   批量评教（一键评教）工具栏和进度
+   ============================================================ */
+.batch-eval-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, #e8f4fd 0%, #f0f9e8 100%);
+    border: 1px solid #c8e0c0;
+    border-radius: 10px;
+    flex-wrap: wrap;
+}
+.batch-eval-info {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+.batch-eval-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.batch-target-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-light);
+}
+.batch-target-input {
+    width: 56px;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    text-align: center;
+    font-weight: 600;
+}
+.batch-target-input:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary-bg);
+}
+
+/* --- 批量评教进度 --- */
+.batch-progress {
+    padding: 20px 16px;
+}
+.batch-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+.batch-progress-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--text);
+}
+.batch-progress-count {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+.batch-progress-bar {
+    height: 10px;
+    background: #e8eaed;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+.batch-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-light), var(--success));
+    border-radius: 5px;
+    transition: width 0.4s ease;
+    width: 0%;
+}
+.batch-progress-status {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    text-align: center;
+    margin-bottom: 12px;
+}
+.batch-progress-results {
+    max-height: 220px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+.batch-progress-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+.batch-progress-item.success {
+    color: var(--success);
+}
+.batch-progress-item.failed {
+    color: var(--danger);
+}
+.batch-progress-item-detail {
+    font-size: 0.78rem;
+    opacity: 0.8;
+}
+.batch-progress-actions {
+    text-align: center;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
 
 @media (max-width: 640px) {
     .eval-options {

@@ -3,18 +3,23 @@
 ================================
 使用 pywebview 将 Flask 应用嵌入原生桌面窗口。
 支持 PyInstaller 打包为独立 EXE。
+
+启动方式:
+  - 开发模式: python main.py
+  - 仅后端:   python app.py  (浏览器打开 http://127.0.0.1:5000)
+  - 打包后:   直接运行 EXE
 """
 
 import os
 import sys
 import threading
+import multiprocessing
 import webview
 
 
 def _get_base_dir():
     """获取应用根目录（兼容开发模式和 PyInstaller 打包模式）"""
     if getattr(sys, 'frozen', False):
-        # PyInstaller 打包后，EXE 所在目录
         return os.path.dirname(sys.executable)
     else:
         return os.path.dirname(os.path.abspath(__file__))
@@ -23,7 +28,6 @@ def _get_base_dir():
 def _get_resource_dir():
     """获取资源目录（模板、静态文件）"""
     if getattr(sys, 'frozen', False):
-        # PyInstaller 临时解压目录
         return sys._MEIPASS
     else:
         return os.path.dirname(os.path.abspath(__file__))
@@ -33,7 +37,6 @@ def _get_resource_dir():
 BASE_DIR = _get_base_dir()
 RESOURCE_DIR = _get_resource_dir()
 
-# 设置数据库路径（EXE 同目录，不放在临时解压目录）
 os.environ.setdefault("NJUST_DB_DIR", BASE_DIR)
 
 from app import app, init_db
@@ -49,10 +52,8 @@ def start_flask():
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     init_db()
-
-    # 不再在这里调用 _auto_login() —— 没有 Flask 请求上下文
-    # 时 get_db() 会崩溃。改为等 Flask 启动后由 /api/status 触发。
 
     # 启动 Flask 后台线程
     flask_thread = threading.Thread(target=start_flask, daemon=True)

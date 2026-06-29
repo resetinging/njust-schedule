@@ -1,5 +1,6 @@
 # 南理工课表管理系统 - Python 依赖
 # 安装命令: pip install -r requirements.txt
+# 构建 EXE: 运行 build.bat（会自动安装 pyinstaller）
 
 Flask~=3.1
 requests~=2.32
@@ -8,3 +9,7 @@ ddddocr~=1.0
 lxml~=5.3
 Pillow~=11.1
 pywebview>=5.0
+pythonnet>=3.0
+
+# 以下为打包构建依赖（开发环境需要）
+pyinstaller>=6.0
