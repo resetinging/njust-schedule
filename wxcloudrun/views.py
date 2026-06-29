@@ -406,6 +406,17 @@ def api_settings():
         return jsonify({"success": True, "message": "设置已保存"})
 
 
+@app.route('/api/semesters')
+def api_get_semesters():
+    """获取可用学期列表"""
+    try:
+        semesters = jwc_client.get_semester_list()
+        current = jwc_client._current_semester()
+        return jsonify({"success": True, "semesters": semesters, "current": current})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/api/semester', methods=['POST'])
 def api_set_semester():
     data = request.get_json()
