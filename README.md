@@ -1,145 +1,124 @@
-# 📅 南理工课表管理系统
+# wxcloudrun-flask
+[![GitHub license](https://img.shields.io/github/license/WeixinCloud/wxcloudrun-express)](https://github.com/WeixinCloud/wxcloudrun-express)
+![GitHub package.json dependency version (prod)](https://img.shields.io/badge/python-3.7.3-green)
 
-自动从南京理工大学教务系统（强智）获取课表和考试安排，以漂亮网页形式展示。支持电脑和手机同时访问。
+微信云托管 python Flask 框架模版，实现简单的计数器读写接口，使用云托管 MySQL 读写、记录计数值。
 
-## ✨ 功能
+![](https://qcloudimg.tencent-cloud.cn/raw/be22992d297d1b9a1a5365e606276781.png)
 
-- 🔐 **自动登录教务系统** — 支持验证码自动识别（ddddocr）
-- 📅 **课表自动抓取** — 获取完整课表，含上课时间、地点、教师、周次
-- 📝 **考试安排获取** — 自动同步考试时间、地点、座位号
-- 📊 **可视化展示** — 课表色彩标注（单双周不同色）、考试倒计时
-- 🔄 **一键刷新** — 数据随时从教务系统更新
-- 📱 **多设备访问** — 手机连同一 WiFi 即可查看
-- 💾 **本地存储** — SQLite 存储，数据持久化
 
-## 🚀 快速开始
+## 快速开始
+前往 [微信云托管快速开始页面](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/basic/guide.html)，选择相应语言的模板，根据引导完成部署。
 
-### 第一步：安装 Python
+## 本地调试
+下载代码在本地调试，请参考[微信云托管本地调试指南](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/guide/debug/)
 
-确保电脑已安装 **Python 3.9 或更高版本**。
+## 实时开发
+代码变动时，不需要重新构建和启动容器，即可查看变动后的效果。请参考[微信云托管实时开发指南](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/guide/debug/dev.html)
 
-- 下载地址：https://www.python.org/downloads/
-- ⚠️ 安装时勾选 **"Add Python to PATH"**
+## Dockerfile最佳实践
+请参考[如何提高项目构建效率](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/scene/build/speed.html)
 
-验证安装：
-```bash
-python --version
+## 目录结构说明
+
+~~~
+.
+├── Dockerfile dockerfile       dockerfile
+├── README.md README.md         README.md文件
+├── container.config.json       模板部署「服务设置」初始化配置（二开请忽略）
+├── requirements.txt            依赖包文件
+├── config.py                   项目的总配置文件  里面包含数据库 web应用 日志等各种配置
+├── run.py                      flask项目管理文件 与项目进行交互的命令行工具集的入口
+└── wxcloudrun                  app目录
+    ├── __init__.py             python项目必带  模块化思想
+    ├── dao.py                  数据库访问模块
+    ├── model.py                数据库对应的模型
+    ├── response.py             响应结构构造
+    ├── templates               模版目录,包含主页index.html文件
+    └── views.py                执行响应的代码所在模块  代码逻辑处理主要地点  项目大部分代码在此编写
+~~~
+
+
+
+## 服务 API 文档
+
+### `GET /api/count`
+
+获取当前计数
+
+#### 请求参数
+
+无
+
+#### 响应结果
+
+- `code`：错误码
+- `data`：当前计数值
+
+##### 响应结果示例
+
+```json
+{
+  "code": 0,
+  "data": 42
+}
 ```
 
-### 第二步：安装依赖
-
-双击运行 `setup.bat`，自动完成所有依赖安装。
-
-或手动执行：
-```bash
-pip install -r requirements.txt
-```
-
-### 第三步：启动
-
-双击 `run.bat`，看到以下输出表示启动成功：
+#### 调用示例
 
 ```
-==================================================
-  南京理工大学 课表管理系统
-==================================================
-
-  本机访问: http://127.0.0.1:5000
-  手机访问: http://192.168.x.x:5000
-  其他设备: http://192.168.x.x:5000
-
-  请确保所有设备连接在同一 WiFi 下
-==================================================
+curl https://<云托管服务域名>/api/count
 ```
 
-### 第四步：使用
 
-1. 打开浏览器访问 `http://127.0.0.1:5000`
-2. 进入「设置」页面，输入学号和密码登录教务系统
-3. 登录成功后，切换到「课表」或「考试」页面
-4. 点击「刷新」按钮获取最新数据
 
-## 📱 手机访问
+### `POST /api/count`
 
-确保手机和电脑连接 **同一 WiFi**，然后在手机浏览器输入：
+更新计数，自增或者清零
 
-```
-http://电脑IP:5000
-```
+#### 请求参数
 
-电脑 IP 在启动时会显示。也可以在命令行输入 `ipconfig` 查看。
+- `action`：`string` 类型，枚举值
+  - 等于 `"inc"` 时，表示计数加一
+  - 等于 `"clear"` 时，表示计数重置（清零）
 
-## ⚠️ 使用前提
-
-- **必须连接校园网 i-Zijin 或南理工 VPN**
-- 教务系统地址（校内）：http://202.119.81.113:8080/
-- 如果在校外，请先通过 VPN 连接到校园网
-
-## 📁 项目结构
+##### 请求参数示例
 
 ```
-njust-schedule/
-├── app.py              # Flask Web 主应用
-├── jwc_client.py       # 教务系统爬虫客户端
-├── requirements.txt    # Python 依赖列表
-├── setup.bat           # 一键安装脚本
-├── run.bat             # 一键启动脚本
-├── templates/          # HTML 页面模板
-│   ├── base.html       # 基础布局
-│   ├── index.html      # 课表页
-│   ├── exams.html      # 考试页
-│   └── settings.html   # 设置页
-├── static/             # 静态资源
-│   ├── css/style.css   # 样式
-│   └── js/main.js      # JS 工具函数
-├── schedule.db         # SQLite 数据库（自动生成）
-└── README.md           # 本文件
+{
+  "action": "inc"
+}
 ```
 
-## 🔧 常见问题
+#### 响应结果
 
-### Q: 无法连接教务系统？
+- `code`：错误码
+- `data`：当前计数值
 
-- 确认已连接校园网 i-Zijin
-- 或确认 VPN 已连接
-- 在设置页点击「测试连接」按钮检查
+##### 响应结果示例
 
-### Q: 登录失败？
+```json
+{
+  "code": 0,
+  "data": 42
+}
+```
 
-- 检查学号和密码是否正确
-- 验证码自动识别有概率失败，系统会自动重试
-- 如果多次失败，可能教务系统暂时维护中
+#### 调用示例
 
-### Q: 课表数据为空？
+```
+curl -X POST -H 'content-type: application/json' -d '{"action": "inc"}' https://<云托管服务域名>/api/count
+```
 
-- 确认已在设置页登录成功
-- 确认已选择正确的学期
-- 确认当前学期已有排课数据
+## 使用注意
+如果不是通过微信云托管控制台部署模板代码，而是自行复制/下载模板代码后，手动新建一个服务并部署，需要在「服务设置」中补全以下环境变量，才可正常使用，否则会引发无法连接数据库，进而导致部署失败。
+- MYSQL_ADDRESS
+- MYSQL_PASSWORD
+- MYSQL_USERNAME
+以上三个变量的值请按实际情况填写。如果使用云托管内MySQL，可以在控制台MySQL页面获取相关信息。
 
-### Q: 手机无法访问？
 
-- 确认手机和电脑在同一 WiFi
-- 确认防火墙没有阻止 5000 端口
-- Windows 防火墙会弹出提示，请选择「允许访问」
 
-### Q: 如何更改端口？
+## License
 
-编辑 `app.py` 最后的 `PORT = 5000` 改为其他端口。
-
-## 🛠️ 技术栈
-
-| 技术 | 用途 |
-|------|------|
-| Python 3.9+ | 后端语言 |
-| Flask | Web 框架 |
-| SQLite | 数据存储 |
-| requests | HTTP 请求 |
-| ddddocr | 验证码识别 |
-| BeautifulSoup4 | HTML 解析 |
-| HTML/CSS/JS | 前端界面 |
-
-## 📝 参考项目
-
-- [NJUST-JWC-API](https://github.com/Inetgeek/NJUST-JWC-API) — 南理工教务 API
-- [classCrawl](https://github.com/inannan423/classCrawl) — 强智教务课表爬虫
-- [南理工教务增强助手](https://greasyfork.org/zh-CN/scripts/541627) — 浏览器增强脚本
+[MIT](./LICENSE)
