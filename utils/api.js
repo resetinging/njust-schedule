@@ -224,9 +224,14 @@ function clearData() {
 // 学期接口
 // ============================================================
 
-/** 获取可用学期列表 */
+/** 获取可用学期列表（从 settings 接口获取，避免额外路由依赖） */
 function getSemesters() {
-  return request('GET', '/api/semesters')
+  return request('GET', '/api/settings', {}, false).then(res => {
+    if (res.semester_list) {
+      return { success: true, semesters: res.semester_list, current: res.current_semester }
+    }
+    return { success: false, semesters: [], current: '' }
+  })
 }
 
 module.exports = {
