@@ -25,5 +25,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # 初始化 SQLAlchemy
 db = SQLAlchemy(app)
 
+# 确保数据表存在（container.config.json 的 executeSQLs 可能未执行）
+from wxcloudrun import model  # noqa: E402
+with app.app_context():
+    db.create_all()
+
 # 加载 NJUST 路由（必须在 db 初始化之后导入，避免循环引用）
 from wxcloudrun import views  # noqa: E402, F401
