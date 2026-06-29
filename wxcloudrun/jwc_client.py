@@ -7,6 +7,7 @@ NJUST 教务路径前缀: /njlgdx/（不是 /jsxsd/）
 
 import logging
 import requests
+from requests.cookies import RequestsCookieJar
 import re
 import json
 import base64
@@ -15,6 +16,22 @@ from typing import Optional, Tuple
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
+
+class _DedupCookieJar(RequestsCookieJar):
+    """自定义 CookieJar：遇到重复 cookie 时保留最后一个，不抛异常。
+    NJUST 教务系统会返回多个同名 JSESSIONID，导致默认 jar 崩溃。"""
+    def _find_no_duplicates(self, name):
+        try:
+            return super()._find_no_duplicates(name)
+        except requests.cookies.CookieConflictError:
+            # 删除旧的，保留新的
+            for cookie in list(self):
+                if cookie.name == name:
+                    self.clear(cookie.domain, cookie.path, cookie.name)
+            return super()._find_no_duplicates(name) if any(
+                c.name == name for c in self
+            ) else None
 
 from config import (
     JW_BASE_8080, JW_BASE_9080, JW_PATH_PREFIX,
@@ -43,6 +60,7 @@ TIMEOUT = HTTP_TIMEOUT
 class JWCClient:
     def __init__(self):
         self.session = requests.Session()
+        self.session.cookies = _DedupCookieJar()
         self.session.headers.update(HEADERS)
         self.token = None
         self.student_id = None
@@ -64,6 +82,7 @@ class JWCClient:
         self.token = None
         self._captcha_ready = False
         self.session = requests.Session()
+        self.session.cookies = _DedupCookieJar()
         self.session.headers.update(HEADERS)
 
         # 8080 端口 Web 登录 + OCR
@@ -184,6 +203,7 @@ class JWCClient:
     def get_captcha_base64(self) -> Tuple[str, str]:
         self._captcha_ready = False
         self.session = requests.Session()
+        self.session.cookies = _DedupCookieJar()
         self.session.headers.update(HEADERS)
         try:
             self._init_logon_session()
@@ -953,4 +973,5 @@ class JWCClient:
         self.token = None
         self.student_name = None
         self.session = requests.Session()
+        self.session.cookies = _DedupCookieJar()
         self.session.headers.update(HEADERS)
