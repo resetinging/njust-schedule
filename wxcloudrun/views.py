@@ -402,6 +402,7 @@ def api_get_courses():
     semester = request.args.get("semester", dao.get_setting("semester", jwc_client._current_semester()))
     courses = dao.get_courses(semester)
     return jsonify({
+        "success": True,
         "semester": semester,
         "count": len(courses),
         "courses": courses,
@@ -413,6 +414,7 @@ def api_get_exams():
     semester = request.args.get("semester", dao.get_setting("semester", jwc_client._current_semester()))
     exams = dao.get_exams(semester)
     return jsonify({
+        "success": True,
         "semester": semester,
         "count": len(exams),
         "exams": exams,
@@ -468,6 +470,7 @@ def api_get_evaluations():
     semester = request.args.get("semester", dao.get_setting("semester", jwc_client._current_semester()))
     evals = dao.get_evaluations(semester)
     return jsonify({
+        "success": True,
         "semester": semester,
         "count": len(evals),
         "evaluations": evals,
