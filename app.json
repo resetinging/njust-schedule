@@ -6,7 +6,7 @@
     "pages/settings/settings"
   ],
   "window": {
-    "navigationBarTitleText": "南理工课表",
+    "navigationBarTitleText": "课表助手",
     "navigationBarBackgroundColor": "#5B3CC4",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#F5F5F5",

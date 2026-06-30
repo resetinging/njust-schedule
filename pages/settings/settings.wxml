@@ -73,7 +73,7 @@
 
     <!-- 提示 -->
     <view class="login-tip">
-      <text>需要连接校园网或 NJUST VPN</text>
+      <text>需要连接校园网或学校 VPN</text>
     </view>
   </view>
 

@@ -1,5 +1,5 @@
 {
-  "description": "南理工课表管理",
+  "description": "课表管理工具，支持课程查看、考试安排、教学评价",
   "packOptions": {
     "ignore": [
       {
@@ -57,7 +57,7 @@
     "disableSWC": true
   },
   "compileType": "miniprogram",
-  "libVersion": "3.5.0",
+  "libVersion": "3.16.1",
   "appid": "wx1d76c0631bdeebac",
   "projectname": "njust-schedule",
   "condition": {},
