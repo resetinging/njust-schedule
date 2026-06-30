@@ -91,7 +91,8 @@ function getCourses(semester) {
 function refreshSchedule() {
   return request('POST', '/api/refresh-schedule').then(res => {
     if (res.success) {
-      storage.setCached('cached_courses', res.courses || [])
+      // 刷新接口不返回课程数据，只确认刷新成功
+      // 后续 loadFromServer() 会通过 GET /api/courses 获取最新数据
       storage.setSemester(res.semester || '')
     }
     return res
@@ -111,7 +112,7 @@ function getExams(semester) {
 function refreshExams() {
   return request('POST', '/api/refresh-exams').then(res => {
     if (res.success) {
-      storage.setCached('cached_exams', res.exams || [])
+      // 刷新接口不返回考试数据，后续通过 GET /api/exams 获取
     }
     return res
   })
