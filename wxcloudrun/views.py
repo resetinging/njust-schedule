@@ -289,25 +289,27 @@ def _require_login():
 
 
 def _retry_with_relogin(fetch_func, error_msg: str):
-    """执行数据获取，若失败则重新登录后重试一次"""
+    """执行数据获取，若失败则重新登录后重试一次。
+    返回 (data, error_tuple)，成功时 error_tuple 为 None，
+    失败时 data 为 []，error_tuple 为 (flask_response, status_code)。"""
     result = fetch_func()
     if result:
         return result, None
     # 失败 → 强制重新登录
     jwc_client.logged_in = False
     if not _auto_login():
-        return [], jsonify({
+        return [], (jsonify({
             "success": False,
             "message": f"{error_msg}: 自动重新登录失败 — {jwc_client.last_error}",
-        }), 500
+        }), 500)
     # 重试
     result = fetch_func()
     if result:
         return result, None
-    return [], jsonify({
+    return [], (jsonify({
         "success": False,
         "message": jwc_client.last_error or error_msg,
-    }), 500
+    }), 500)
 
 
 @app.route('/api/refresh-schedule', methods=['POST'])
