@@ -179,8 +179,11 @@ def _auto_login() -> bool:
     global _auto_login_attempted, _last_auto_login_time
     _auto_login_attempted = True
     _last_auto_login_time = time.time()
-    if jwc_client.logged_in:
+    # 检查 Session 是否真实有效（而非仅信任 logged_in 标志位）
+    if jwc_client.logged_in and jwc_client.is_session_valid():
         return True
+    # Session 已过期或未登录 → 强制重新登录
+    jwc_client.logged_in = False
     sid = dao.get_setting("student_id")
     pwd = _decode_pwd(dao.get_setting("password_enc", ""))
     if not sid or not pwd:
@@ -267,7 +270,8 @@ def api_login_manual():
 # API — 数据刷新
 # ============================================================
 def _require_login():
-    if not jwc_client.logged_in:
+    if not jwc_client.logged_in or not jwc_client.is_session_valid():
+        jwc_client.logged_in = False
         auto_ok = _auto_login()
         student_id = dao.get_setting("student_id")
         if not student_id:
@@ -284,6 +288,28 @@ def _require_login():
     return None
 
 
+def _retry_with_relogin(fetch_func, error_msg: str):
+    """执行数据获取，若失败则重新登录后重试一次"""
+    result = fetch_func()
+    if result:
+        return result, None
+    # 失败 → 强制重新登录
+    jwc_client.logged_in = False
+    if not _auto_login():
+        return [], jsonify({
+            "success": False,
+            "message": f"{error_msg}: 自动重新登录失败 — {jwc_client.last_error}",
+        }), 500
+    # 重试
+    result = fetch_func()
+    if result:
+        return result, None
+    return [], jsonify({
+        "success": False,
+        "message": jwc_client.last_error or error_msg,
+    }), 500
+
+
 @app.route('/api/refresh-schedule', methods=['POST'])
 def api_refresh_schedule():
     semester = dao.get_setting("semester", jwc_client._current_semester())
@@ -291,12 +317,12 @@ def api_refresh_schedule():
     if err:
         return err
     with jwc_lock:
-        courses = jwc_client.get_schedule(semester)
-    if not courses:
-        return jsonify({
-            "success": False,
-            "message": jwc_client.last_error or "获取课表失败",
-        }), 500
+        courses, retry_err = _retry_with_relogin(
+            lambda: jwc_client.get_schedule(semester),
+            "获取课表失败",
+        )
+    if retry_err:
+        return retry_err
     dao.save_courses(courses, semester)
     dao.set_setting("semester", semester)
     return jsonify({
@@ -314,12 +340,12 @@ def api_refresh_exams():
     if err:
         return err
     with jwc_lock:
-        exams = jwc_client.get_exams(semester)
-    if not exams and jwc_client.last_error:
-        return jsonify({
-            "success": False,
-            "message": jwc_client.last_error or "获取考试失败",
-        }), 500
+        exams, retry_err = _retry_with_relogin(
+            lambda: jwc_client.get_exams(semester),
+            "获取考试失败",
+        )
+    if retry_err:
+        return retry_err
     dao.save_exams(exams, semester)
     return jsonify({
         "success": True,
@@ -336,18 +362,26 @@ def api_refresh_all():
         return err
     results = {"schedule": None, "exams": None}
     with jwc_lock:
-        courses = jwc_client.get_schedule(semester)
-        if courses:
+        courses, sched_err = _retry_with_relogin(
+            lambda: jwc_client.get_schedule(semester),
+            "获取课表失败",
+        )
+        if not sched_err:
             dao.save_courses(courses, semester)
             results["schedule"] = {"count": len(courses), "ok": True}
         else:
             results["schedule"] = {"count": 0, "ok": False, "error": jwc_client.last_error}
-        exams = jwc_client.get_exams(semester)
-        if exams:
+
+        exams, exam_err = _retry_with_relogin(
+            lambda: jwc_client.get_exams(semester),
+            "获取考试失败",
+        )
+        if not exam_err:
             dao.save_exams(exams, semester)
             results["exams"] = {"count": len(exams), "ok": True}
         else:
             results["exams"] = {"count": 0, "ok": False, "error": jwc_client.last_error}
+
     dao.set_setting("semester", semester)
     return jsonify({
         "success": True,
@@ -445,12 +479,12 @@ def api_refresh_evaluations():
     if err:
         return err
     with jwc_lock:
-        evals = jwc_client.get_evaluations(semester)
-    if not evals and jwc_client.last_error:
-        return jsonify({
-            "success": False,
-            "message": jwc_client.last_error or "获取评价数据失败",
-        }), 500
+        evals, retry_err = _retry_with_relogin(
+            lambda: jwc_client.get_evaluations(semester),
+            "获取评价数据失败",
+        )
+    if retry_err:
+        return retry_err
     dao.save_evaluations(evals, semester)
     undone = sum(1 for e in evals if not e.get("is_done"))
     return jsonify({

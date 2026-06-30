@@ -963,6 +963,23 @@ class JWCClient:
             self.last_error = f"评价解析失败: {e}"
             return []
 
+    def is_session_valid(self) -> bool:
+        """检测 NJUST 教务 Session 是否仍然有效（轻量级检查）"""
+        if not self.logged_in:
+            return False
+        try:
+            resp = self.session.get(URL_MAIN_PAGE, timeout=10, allow_redirects=True)
+            self._dedupe_cookies()
+            # 如果页面包含登录表单关键字，说明 session 已过期
+            if resp.status_code != 200:
+                return False
+            t = resp.text.lower()
+            if "logon.do" in t or "userrname" in t or "randmcode" in t:
+                return False
+            return True
+        except Exception:
+            return False
+
     def test_connection(self) -> Tuple[bool, str]:
         try:
             r = self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
