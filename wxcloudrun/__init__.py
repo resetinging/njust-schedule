@@ -22,6 +22,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://{}:{}@{}/flask_demo'.format(
     config.MYSQL_USERNAME, config.MYSQL_PASSWORD, config.MYSQL_ADDRESS)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# 防止 MySQL 连接空闲超时断开（云数据库默认 8 小时，但容器冷启后旧连接失效）
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,   # 每次使用前检测连接是否存活
+    'pool_recycle': 3600,    # 每小时回收连接，避免 MySQL wait_timeout
+}
+
 # 初始化 SQLAlchemy
 db = SQLAlchemy(app)
 
