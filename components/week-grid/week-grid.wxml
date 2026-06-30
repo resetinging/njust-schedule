@@ -17,7 +17,7 @@
         <text>{{item}}</text>
       </view>
       <!-- 每天的这一节 -->
-      <view class="day-cell" wx:for="{{weekSlots}}" wx:for-item="slot" wx:key="*this">
+      <view class="day-cell" wx:for="{{weekSlots}}" wx:for-item="slot" wx:key="_day">
         <!-- 课程块：仅在课程起始格显示 -->
         <view
           wx:if="{{slot[item]}}"

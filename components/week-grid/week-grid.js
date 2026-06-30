@@ -60,10 +60,10 @@ Component({
       })
 
       // 构建 7天 × 13节 的插槽映射
-      // weekSlots: [{ periodNum: { courseObj with _height, _color } }]
+      // weekSlots: [{ periodNum: { courseObj with _height, _color }, _day: N }]
       const weekSlots = []
       for (let day = 1; day <= 7; day++) {
-        const slot = {}
+        const slot = { _day: day }
         visible
           .filter(c => (c.day || c.day_of_week) === day)
           .forEach(c => {
