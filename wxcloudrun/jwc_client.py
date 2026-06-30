@@ -149,8 +149,11 @@ class JWCClient:
                     timeout=TIMEOUT, allow_redirects=True,
                 )
                 self._dedupe_cookies()
-                print(f"[Login] 登录成功! cookies: "
-                      f"{ {c.name: c.value for c in self.session.cookies} }")
+                # 详细打印 cookie（含域名），方便排查跨服务器 cookie 问题
+                ck_detail = [(c.name, c.value, c.domain) for c in self.session.cookies]
+                print(f"[Login] 登录成功! 共 {len(ck_detail)} 个 cookie:")
+                for name, val, dom in ck_detail:
+                    print(f"[Login]   {name}={val[:20] if len(val)>20 else val}... domain={dom}")
                 return True
 
             # 检查响应中的错误提示
@@ -285,12 +288,21 @@ class JWCClient:
         return b""
 
     def _dedupe_cookies(self):
+        """按域名去重 JSESSIONID：每个 (domain, path) 只保留最后一个。
+        之前 jar.clear() 全清的写法会误删不同服务器的 cookie，
+        导致 .112 和 .113 的 JSESSIONID 被合并成只剩一个。"""
         jar = self.session.cookies
-        js = [c for c in jar if c.name == "JSESSIONID"]
-        if len(js) > 1:
-            last = js[-1]
-            jar.clear()
-            jar.set_cookie(last)
+        # 按 (domain, path) 分组
+        groups = {}
+        for c in jar:
+            if c.name == "JSESSIONID":
+                key = (c.domain or "", c.path or "")
+                groups.setdefault(key, []).append(c)
+        for key, cookies in groups.items():
+            if len(cookies) > 1:
+                # 每个 (domain, path) 只保留最后一个
+                for c in cookies[:-1]:
+                    jar.clear(c.domain, c.path, c.name)
 
     def _ocr_with_preprocess(self, ocr, data: bytes) -> str:
         cands = [data]
@@ -361,8 +373,9 @@ class JWCClient:
     def _schedule_html(self, semester: str) -> list[dict]:
         """NJUST 课表 HTML 解析 — 从主页链接获取正确的 Ves632DSdyV 参数"""
         try:
-            # Debug: 看看当前 cookie 状态
-            print(f"[课表] 请求前 cookies: {dict(self.session.cookies)}")
+            # Debug: 看看当前 cookie 状态（含域名）
+            cks = [(c.name, c.value[:16], c.domain) for c in self.session.cookies]
+            print(f"[课表] 请求前 cookies ({len(cks)}个): {cks}")
 
             # 先访问主页，提取课表链接中的 Ves632DSdyV 参数
             main_resp = self.session.get(
