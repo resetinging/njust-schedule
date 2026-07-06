@@ -1,33 +1,52 @@
-<!-- 周课表网格组件 -->
+<!-- 周课表网格组件 — 大节分组布局 -->
 <view class="week-grid">
 
   <!-- 表头：星期 -->
   <view class="grid-header">
-    <view class="header-cell period-header"></view>
+    <view class="header-cell period-header">节次</view>
     <view class="header-cell" wx:for="{{weekdays}}" wx:key="*this">
       <text>{{item}}</text>
     </view>
   </view>
 
-  <!-- 节次行 -->
+  <!-- 大节行 -->
   <view class="grid-body">
-    <view class="period-row" wx:for="{{periods}}" wx:key="*this">
+    <view
+      class="big-period-row"
+      wx:for="{{bigPeriodRows}}"
+      wx:key="label"
+      wx:for-item="row"
+      style="min-height: {{row.height}}rpx"
+    >
       <!-- 节次标签 -->
-      <view class="period-label">
-        <text>{{item}}</text>
+      <view class="period-label" style="min-height: {{row.height}}rpx">
+        <text class="period-name">{{row.label}}</text>
+        <text class="period-time">{{row.time}}</text>
       </view>
-      <!-- 每天的这一节 -->
-      <view class="day-cell" wx:for="{{weekSlots}}" wx:for-item="slot" wx:key="_day">
-        <!-- 课程块：仅在课程起始格显示 -->
+
+      <!-- 每天的这一大节 -->
+      <view
+        class="day-cell"
+        wx:for="{{row.days}}"
+        wx:key="index"
+        wx:for-item="dayCell"
+      >
+        <!-- 课程块 -->
         <view
-          wx:if="{{slot[item]}}"
-          class="course-block"
-          style="height: {{slot[item]._height}}rpx; background: {{slot[item]._color}}"
+          wx:for="{{dayCell.courses}}"
+          wx:key="name"
+          wx:for-item="course"
+          class="course-block {{course._cssClass}}"
+          style="height: {{course._height}}rpx; background: {{course._color}}"
           bindtap="onCourseTap"
-          data-course="{{slot[item]}}"
+          data-course="{{course}}"
         >
-          <text class="course-name">{{slot[item].name}}</text>
-          <text class="course-room" wx:if="{{slot[item].classroom}}">{{slot[item].classroom}}</text>
+          <text class="course-name">{{course.name}}</text>
+          <text class="course-teacher" wx:if="{{course.teacher && course._isFirst}}">{{course.teacher}}</text>
+          <text class="course-room" wx:if="{{course.classroom && course._isFirst}}">{{course.classroom}}</text>
+          <!-- 单双周角标 -->
+          <text class="week-badge" wx:if="{{course.week_type === 1 && course._isFirst}}">单</text>
+          <text class="week-badge even" wx:if="{{course.week_type === 2 && course._isFirst}}">双</text>
         </view>
       </view>
     </view>

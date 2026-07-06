@@ -1,9 +1,10 @@
 /**
- * 南理工课表 — 小程序入口
+ * 课表助手 — 小程序入口
  */
 
 const api = require('./utils/api')
 const storage = require('./utils/storage')
+const config = require('./utils/config')
 
 App({
   globalData: {
@@ -13,7 +14,15 @@ App({
   },
 
   onLaunch() {
-    // 启动时检查是否有已保存的 token
+    // 初始化微信云开发（用于云托管免域名调用）
+    if (wx.cloud) {
+      wx.cloud.init({
+        env: config.CLOUD_ENV,
+        traceUser: false
+      })
+    }
+
+    // 启动时检查是否有已保存的登录态
     const token = storage.getToken()
     if (token) {
       this.globalData.isLoggedIn = true

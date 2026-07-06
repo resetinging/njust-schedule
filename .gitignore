@@ -7,3 +7,20 @@
 
 # 临时文件
 *.log
+
+# Python
+__pycache__/
+
+# 构建产物
+build/
+dist/
+
+# 调试文件
+debug_*.json
+
+# 数据库
+*.db
+
+# 其他
+nul
+.claude/

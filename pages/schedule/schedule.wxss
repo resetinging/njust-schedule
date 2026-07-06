@@ -1,4 +1,4 @@
-/* 课表页面样式 */
+/* 课表页面样式 — 参考桌面端 static/css/ 设计 */
 
 .container {
   display: flex;
@@ -10,7 +10,7 @@
 /* 顶部信息栏 */
 .header {
   background: #fff;
-  padding: 16rpx 24rpx;
+  padding: 12rpx 24rpx 8rpx;
   border-bottom: 1rpx solid var(--border);
 }
 
@@ -52,11 +52,175 @@
   font-size: 24rpx;
 }
 
-/* 课程详情弹窗 */
+/* 视图切换 */
+.view-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+  margin-top: 10rpx;
+}
+
+.toggle-btn {
+  font-size: 24rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 20rpx;
+  color: #666;
+  background: #F5F5F5;
+  transition: all 0.2s;
+}
+
+.toggle-btn.active {
+  color: #fff;
+  background: var(--primary);
+  font-weight: bold;
+}
+
+/* ==============================
+   列表视图（参考桌面端 renderListView）
+   ============================== */
+
+.list-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12rpx 16rpx 24rpx;
+}
+
+.day-group {
+  margin-bottom: 24rpx;
+}
+
+.day-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+  padding: 8rpx 4rpx 12rpx;
+  border-bottom: 2rpx solid #EEE;
+  margin-bottom: 12rpx;
+}
+
+.course-card {
+  background: #fff;
+  border-radius: 10rpx;
+  padding: 16rpx;
+  margin-bottom: 12rpx;
+  box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.06);
+  /* 单双周左边框 — 参考桌面端 type-1/type-2 */
+}
+
+.course-card.type-odd {
+  border-left: 6rpx solid #FF9800;
+}
+
+.course-card.type-even {
+  border-left: 6rpx solid #2196F3;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.card-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #222;
+}
+
+.card-periods {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.card-body {
+  display: flex;
+  gap: 24rpx;
+  font-size: 24rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.card-weeks {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.card-badge {
+  font-size: 20rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
+  background: #FFF3E0;
+  color: #E65100;
+  font-weight: bold;
+}
+
+.card-badge.even {
+  background: #E3F2FD;
+  color: #1565C0;
+}
+
+/* ==============================
+   课程详情弹窗（桌面端无弹窗，此为小程序特有增强）
+   ============================== */
+
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  width: 85vw;
+  max-width: 580rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);
+}
+
+.modal-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  margin-bottom: 20rpx;
+  color: #222;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.modal-badge {
+  font-size: 22rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 10rpx;
+  background: #FFF3E0;
+  color: #E65100;
+  font-weight: bold;
+}
+
+.modal-badge.even {
+  background: #E3F2FD;
+  color: #1565C0;
+}
+
 .modal-row {
   display: flex;
   justify-content: space-between;
-  padding: 12rpx 0;
+  align-items: flex-start;
+  padding: 14rpx 0;
   font-size: 28rpx;
   border-bottom: 1rpx solid var(--border);
 }
@@ -64,5 +228,59 @@
 .modal-row .label {
   color: var(--text-hint);
   min-width: 80rpx;
+  flex-shrink: 0;
 }
 
+.weeks-text {
+  text-align: right;
+  color: #333;
+  word-break: break-all;
+}
+
+/* ==============================
+   空状态 & 加载
+   ============================== */
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-hint);
+}
+
+.empty-state .icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-state .text {
+  font-size: 28rpx;
+}
+
+/* ==============================
+   网格视图容器
+   ============================== */
+
+.grid-wrapper {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ==============================
+   全局按钮
+   ============================== */
+
+.btn-primary {
+  display: block;
+  width: 70%;
+  margin: 0 auto;
+  padding: 20rpx;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  text-align: center;
+  border: none;
+}

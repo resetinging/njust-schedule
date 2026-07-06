@@ -1,14 +1,33 @@
-/* 评教页面样式 */
+/* 评教页面样式 — 参考桌面端 evaluations 设计 */
 
 .container {
-  padding-bottom: 60rpx;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-page);
+}
+
+/* 顶部操作栏 */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 28rpx;
+  font-size: 24rpx;
+  color: var(--text-hint);
+  background: #fff;
+}
+
+.refresh-btn {
+  color: var(--primary);
+  font-weight: bold;
 }
 
 .summary-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16rpx 32rpx;
+  padding: 16rpx 28rpx;
   font-size: 24rpx;
   color: var(--text-hint);
   background: #fff;
@@ -23,9 +42,89 @@
   font-weight: bold;
 }
 
-/* 批次卡片 */
+/* ==============================
+   倒计时卡片
+   ============================== */
+
+.countdown-scroll {
+  white-space: nowrap;
+  padding: 0 16rpx 12rpx;
+  background: #fff;
+}
+
+.countdown-row {
+  display: inline-flex;
+  gap: 16rpx;
+  padding: 4rpx 0;
+}
+
+.countdown-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 200rpx;
+  padding: 20rpx 20rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  white-space: normal;
+}
+
+.countdown-card.urgent {
+  background: linear-gradient(135deg, #FFF5F5, #FFEBEE);
+  border: 2rpx solid #EF5350;
+}
+
+.countdown-card.warning {
+  background: linear-gradient(135deg, #FFFDE7, #FFF9C4);
+  border: 2rpx solid #FFA726;
+}
+
+.cd-bignum {
+  font-size: 52rpx;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.countdown-card.urgent .cd-bignum { color: #D32F2F; }
+.countdown-card.warning .cd-bignum { color: #E65100; }
+
+.cd-label {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+.countdown-card.urgent .cd-label { color: #D32F2F; }
+.countdown-card.warning .cd-label { color: #E65100; }
+
+.cd-course {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #333;
+  margin-top: 10rpx;
+  text-align: center;
+  max-width: 240rpx;
+}
+
+/* ==============================
+   批次卡片
+   ============================== */
+
 .batch-card {
   margin: 12rpx 20rpx;
+}
+
+.batch-card.batch-urgent {
+  border-left: 6rpx solid #EF5350;
+}
+
+.batch-card.batch-warning {
+  border-left: 6rpx solid #FFA726;
+}
+
+.batch-card.batch-done {
+  opacity: 0.6;
 }
 
 .batch-header {
@@ -33,6 +132,16 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8rpx;
+}
+
+.batch-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.batch-icon {
+  font-size: 28rpx;
 }
 
 .batch-title {
@@ -48,70 +157,200 @@
   gap: 4rpx;
 }
 
-/* 课程卡片 */
+.batch-link-hint {
+  color: var(--primary);
+  font-size: 22rpx;
+  margin-top: 4rpx;
+}
+
+.tag {
+  font-size: 22rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 20rpx;
+  font-weight: bold;
+}
+
+.tag-done { background: #E8F5E9; color: #2E7D32; }
+.tag-pending { background: #F5F5F5; color: #666; }
+.tag-urgent { background: #FFEBEE; color: #D32F2F; }
+.tag-warning { background: #FFF8E1; color: #E65100; }
+
+/* ==============================
+   课程列表卡片
+   ============================== */
+
+.course-scroll {
+  flex: 1;
+  padding: 0 4rpx 24rpx;
+}
+
 .course-card {
   margin: 12rpx 20rpx;
+}
+
+.course-card.course-done {
+  opacity: 0.65;
+}
+
+.course-card.course-saved {
+  border-left: 4rpx solid #FFA726;
 }
 
 .course-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .course-main {
   flex: 1;
 }
 
+.course-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.status-icon {
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+
 .course-name {
   font-size: 28rpx;
   font-weight: 500;
-  display: block;
 }
 
-.course-teacher {
-  font-size: 24rpx;
+.course-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx 20rpx;
+  margin-top: 6rpx;
+  font-size: 22rpx;
   color: var(--text-hint);
 }
 
 .course-status {
   font-size: 22rpx;
   padding: 4rpx 12rpx;
-  border-radius: 6rpx;
+  border-radius: 20rpx;
+  font-weight: bold;
+  flex-shrink: 0;
 }
 
 .course-status.done {
   background: #E8F5E9;
-  color: var(--success);
+  color: #2E7D32;
+}
+
+.course-status.saved {
+  background: #FFF8E1;
+  color: #E65100;
 }
 
 .course-status.pending {
-  background: #FFF3E0;
-  color: var(--warning);
+  background: #F3E5F5;
+  color: #7B1FA2;
 }
 
 .course-actions {
-  margin-top: 12rpx;
-  text-align: right;
+  margin-top: 14rpx;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12rpx;
 }
 
 .small-btn {
-  display: inline-block;
-  padding: 8rpx 24rpx !important;
+  padding: 8rpx 28rpx !important;
   font-size: 24rpx !important;
 }
 
-/* 评价表单 */
+.view-btn {
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* ==============================
+   评价表单
+   ============================== */
+
 .form-course-name {
   font-weight: bold;
   color: var(--primary);
+  flex: 1;
+  text-align: center;
 }
 
 .form-scroll {
-  height: calc(100vh - 200rpx);
-  padding: 12rpx 0;
+  flex: 1;
+  padding: 8rpx 0;
 }
 
+/* 只读模式提示 */
+.readonly-banner {
+  margin: 12rpx 20rpx;
+  padding: 14rpx 20rpx;
+  background: #E3F2FD;
+  border-radius: 10rpx;
+  font-size: 24rpx;
+  color: #1565C0;
+  text-align: center;
+}
+
+/* 自动填写工具栏 */
+.autofill-bar {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin: 8rpx 20rpx 4rpx;
+  padding: 14rpx 16rpx;
+  background: #F5F5F5;
+  border-radius: 10rpx;
+  flex-wrap: wrap;
+}
+
+.autofill-label {
+  font-size: 24rpx;
+  color: #333;
+  white-space: nowrap;
+}
+
+.autofill-input {
+  width: 100rpx;
+  height: 52rpx;
+  border: 2rpx solid var(--border);
+  border-radius: 8rpx;
+  padding: 0 8rpx;
+  font-size: 26rpx;
+  text-align: center;
+  background: #fff;
+}
+
+.autofill-hint {
+  font-size: 20rpx;
+  color: #999;
+}
+
+.autofill-btn {
+  padding: 8rpx 20rpx !important;
+  font-size: 22rpx !important;
+  flex-shrink: 0;
+}
+
+.live-score {
+  font-size: 24rpx;
+  color: #666;
+  margin-left: auto;
+}
+
+.live-score-num {
+  font-weight: bold;
+  color: var(--primary);
+  font-size: 28rpx;
+}
+
+/* 评价指标 */
 .indicator-card {
   margin: 12rpx 20rpx;
 }
@@ -134,6 +373,9 @@
   border-radius: 8rpx;
   font-size: 24rpx;
   color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
 }
 
 .option-item.option-checked {
@@ -143,16 +385,27 @@
   font-weight: 500;
 }
 
+.option-item.option-readonly {
+  pointer-events: none;
+}
+
+.option-score {
+  font-size: 20rpx;
+  color: #999;
+}
+
+.option-checked .option-score {
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* 表单操作栏 */
 .form-actions {
   display: flex;
   gap: 16rpx;
   padding: 16rpx 20rpx;
   background: #fff;
   border-top: 1rpx solid var(--border);
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   z-index: 10;
 }
 
@@ -161,9 +414,37 @@
   font-size: 28rpx;
 }
 
-/* 分数滑块弹窗 */
+/* ==============================
+   分数滑块弹窗
+   ============================== */
+
+.modal-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  width: 80vw;
+  max-width: 560rpx;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20rpx;
+}
+
 .slider-wrapper {
-  padding: 24rpx 0;
+  padding: 16rpx 0;
 }
 
 .slider-value {
@@ -182,7 +463,20 @@
   color: var(--text-hint);
 }
 
-/* 批量评教结果列表 */
+.modal-buttons {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.modal-buttons button {
+  flex: 1;
+}
+
+/* ==============================
+   批量结果
+   ============================== */
+
 .batch-results {
   max-height: 400rpx;
   margin-top: 12rpx;
@@ -209,3 +503,46 @@
   font-size: 20rpx;
 }
 
+/* ==============================
+   公共
+   ============================== */
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-hint);
+}
+
+.empty-state .icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-state .text {
+  font-size: 28rpx;
+}
+
+.btn-primary {
+  display: block;
+  padding: 20rpx;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  text-align: center;
+  border: none;
+}
+
+.btn-outline {
+  display: block;
+  padding: 20rpx;
+  background: #fff;
+  color: var(--primary);
+  border: 2rpx solid var(--primary);
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  text-align: center;
+}

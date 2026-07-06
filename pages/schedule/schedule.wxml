@@ -18,15 +18,63 @@
         </view>
       </view>
     </view>
+
+    <!-- 视图切换 -->
+    <view class="view-toggle">
+      <text
+        class="toggle-btn {{viewMode === 'grid' ? 'active' : ''}}"
+        data-mode="grid"
+        bindtap="switchView"
+      >📅 网格</text>
+      <text
+        class="toggle-btn {{viewMode === 'list' ? 'active' : ''}}"
+        data-mode="list"
+        bindtap="switchView"
+      >📋 列表</text>
+    </view>
   </view>
 
-  <!-- 课程网格 -->
-  <view class="grid-wrapper" wx:if="{{!loading && courses.length > 0}}">
+  <!-- 网格视图 -->
+  <view class="grid-wrapper" wx:if="{{viewMode === 'grid' && !loading && filteredCourses.length > 0}}">
     <week-grid
       courses="{{filteredCourses}}"
       currentWeek="{{currentWeek}}"
       bind:coursetap="onCourseTap"
     />
+  </view>
+
+  <!-- 列表视图 -->
+  <view class="list-wrapper" wx:if="{{viewMode === 'list' && !loading}}">
+    <block wx:if="{{listDayGroups.length > 0}}">
+      <view class="day-group" wx:for="{{listDayGroups}}" wx:key="day" wx:for-item="group">
+        <view class="day-title">{{group.dayName}}</view>
+        <view
+          wx:for="{{group.courses}}"
+          wx:key="index"
+          wx:for-item="c"
+          class="course-card {{c.week_type === 1 ? 'type-odd' : ''}} {{c.week_type === 2 ? 'type-even' : ''}}"
+          bindtap="onCourseTap"
+          data-course="{{c}}"
+        >
+            <view class="card-header">
+              <text class="card-name">{{c.name}}</text>
+              <text class="card-periods">{{c.start || c.start_period}}-{{c.end || c.end_period}}节</text>
+            </view>
+            <view class="card-body">
+              <text wx:if="{{c.teacher}}">👨‍🏫 {{c.teacher}}</text>
+              <text wx:if="{{c.classroom}}">📍 {{c.classroom}}</text>
+            </view>
+            <view class="card-footer">
+              <text class="card-weeks">📅 {{c.weeks || '1-18周'}}</text>
+              <text class="card-badge" wx:if="{{c.week_type === 1}}">单周</text>
+              <text class="card-badge even" wx:if="{{c.week_type === 2}}">双周</text>
+            </view>
+        </view>
+      </view>
+    </block>
+    <view class="empty-state" wx:else>
+      <text>本周暂无课程</text>
+    </view>
   </view>
 
   <!-- 加载中 -->
@@ -45,7 +93,11 @@
   <!-- 课程详情弹窗 -->
   <view class="modal-mask" wx:if="{{showDetail}}" bindtap="closeDetail">
     <view class="modal-card" catchtap="">
-      <view class="modal-title">{{detailCourse.name}}</view>
+      <view class="modal-title">
+        {{detailCourse.name}}
+        <text class="modal-badge" wx:if="{{detailCourse.week_type === 1}}">单周</text>
+        <text class="modal-badge even" wx:if="{{detailCourse.week_type === 2}}">双周</text>
+      </view>
       <view class="modal-row">
         <text class="label">教师</text>
         <text>{{detailCourse.teacher || '未指定'}}</text>
@@ -60,11 +112,15 @@
       </view>
       <view class="modal-row">
         <text class="label">周次</text>
-        <text>{{detailCourse.weeks || '1-18周'}}</text>
+        <text class="weeks-text">{{detailCourse.weeks || '1-18周'}}</text>
       </view>
       <view class="modal-row" wx:if="{{detailCourse.credits}}">
         <text class="label">学分</text>
         <text>{{detailCourse.credits}}</text>
+      </view>
+      <view class="modal-row" wx:if="{{detailCourse.type}}">
+        <text class="label">类型</text>
+        <text>{{detailCourse.type}}</text>
       </view>
       <button class="btn-primary" style="margin-top:24rpx" bindtap="closeDetail">关闭</button>
     </view>

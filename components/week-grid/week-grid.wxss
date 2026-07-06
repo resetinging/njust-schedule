@@ -1,4 +1,4 @@
-/* 周课表网格组件 */
+/* 周课表网格组件 — 大节分组布局 */
 
 .week-grid {
   background: #fff;
@@ -14,14 +14,14 @@
   background: #F5F5F5;
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 10;
 }
 
 .header-cell {
   flex: 1;
   text-align: center;
-  padding: 14rpx 4rpx;
-  font-size: 22rpx;
+  padding: 16rpx 4rpx;
+  font-size: 24rpx;
   font-weight: bold;
   color: var(--text-secondary);
   border-right: 1rpx solid #EEE;
@@ -32,40 +32,54 @@
 }
 
 .period-header {
-  flex: 0 0 60rpx;
-  min-width: 60rpx;
+  flex: 0 0 80rpx;
+  min-width: 80rpx;
 }
 
-/* 节次行 */
+/* 大节行 */
 .grid-body {
   overflow-y: auto;
   max-height: calc(100vh - 200rpx);
 }
 
-.period-row {
+.big-period-row {
   display: flex;
-  border-bottom: 1rpx solid #F0F0F0;
-  min-height: 64rpx;
+  border-bottom: 2rpx solid #E0E0E0;
   position: relative;
 }
 
+/* 节次标签 */
 .period-label {
-  flex: 0 0 60rpx;
-  min-width: 60rpx;
+  flex: 0 0 80rpx;
+  min-width: 80rpx;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 20rpx;
-  color: var(--text-hint);
   background: #FAFAFA;
-  border-right: 1rpx solid #EEE;
+  border-right: 1rpx solid #E0E0E0;
+  padding: 6rpx;
+  box-sizing: border-box;
 }
 
+.period-name {
+  font-size: 24rpx;
+  font-weight: bold;
+  color: #333;
+  line-height: 1.3;
+}
+
+.period-time {
+  font-size: 20rpx;
+  color: #999;
+  line-height: 1.3;
+}
+
+/* 每天格 */
 .day-cell {
   flex: 1;
-  border-right: 1rpx solid #F5F5F5;
-  position: relative;
-  min-height: 56rpx;
+  min-width: 0;
+  border-right: 1rpx solid #F0F0F0;
 }
 
 .day-cell:last-child {
@@ -74,35 +88,70 @@
 
 /* 课程块 */
 .course-block {
-  position: absolute;
-  left: 2rpx;
-  right: 2rpx;
-  top: 0;
-  border-radius: 6rpx;
-  padding: 4rpx;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  border-radius: 8rpx;
+  padding: 6rpx 8rpx;
   overflow: hidden;
-  z-index: 2;
-  box-shadow: 0 1rpx 4rpx rgba(0,0,0,0.1);
+  box-shadow: 0 1rpx 3rpx rgba(0, 0, 0, 0.12);
+  margin: 2rpx;
+  box-sizing: border-box;
+}
+
+/* 单双周左边框标识 */
+.course-block.type-odd {
+  border-left: 5rpx solid #FF9800;
+}
+
+.course-block.type-even {
+  border-left: 5rpx solid #2196F3;
 }
 
 .course-name {
-  font-size: 20rpx;
-  font-weight: 500;
+  font-size: 24rpx;
+  font-weight: 600;
   color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1.2;
+  line-height: 1.4;
 }
 
-.course-room {
-  font-size: 18rpx;
-  color: rgba(255,255,255,0.8);
+.course-teacher {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.85);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1.2;
+  line-height: 1.3;
+}
+
+.course-room {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.75);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+/* 单双周角标 */
+.week-badge {
+  position: absolute;
+  top: 2rpx;
+  right: 2rpx;
+  font-size: 18rpx;
+  color: #fff;
+  background: #FF9800;
+  border-radius: 50%;
+  width: 32rpx;
+  height: 32rpx;
+  text-align: center;
+  line-height: 32rpx;
+  font-weight: bold;
+}
+
+.week-badge.even {
+  background: #2196F3;
 }

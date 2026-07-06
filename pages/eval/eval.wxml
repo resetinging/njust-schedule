@@ -1,4 +1,4 @@
-<!-- 教学评价页面 -->
+<!-- 教学评价页面 — 参考桌面端 evaluations.html + evaluations.js -->
 <view class="container">
 
   <!-- 加载中 -->
@@ -18,24 +18,42 @@
   <!-- 评教批次列表 -->
   <!-- ============================================================ -->
   <view wx:if="{{!batchCourses.length && !showForm}}">
-    <view class="summary-bar" wx:if="{{batches.length > 0}}">
+    <view class="top-bar" wx:if="{{batches.length > 0}}">
       <text>{{batches.length}} 个批次</text>
-      <text class="refresh-btn" bindtap="onRefresh">刷新</text>
+      <text class="refresh-btn" bindtap="onRefresh">🔄 刷新</text>
     </view>
 
-    <view class="batch-card card" wx:for="{{batches}}" wx:key="id"
-          bindtap="openBatch" data-index="{{index}}">
-      <view class="batch-header">
-        <text class="batch-title">{{item.category || '评教批次'}}</text>
-        <view class="tag {{item.is_done ? 'tag-success' : 'tag-warning'}}">
-          {{item.is_done ? '已完成' : '待评教'}}
+    <!-- 倒计时卡片 -->
+    <scroll-view scroll-x class="countdown-scroll" wx:if="{{countdowns.length > 0}}">
+      <view class="countdown-row">
+        <view class="countdown-card {{item.cardClass}}" wx:for="{{countdowns}}" wx:key="course_name">
+          <view class="cd-bignum">{{item.bigNum}}</view>
+          <view class="cd-label">{{item.bigLabel}}</view>
+          <view class="cd-course">{{item.course_name}}</view>
         </view>
       </view>
-      <view class="batch-info">
-        <text wx:if="{{item.batch}}">{{item.batch}}</text>
-        <text wx:if="{{item.start_date}}">{{item.start_date}} ~ {{item.end_date}}</text>
+    </scroll-view>
+
+    <!-- 批次卡片列表 -->
+    <block wx:for="{{batches}}" wx:key="batch">
+      <view class="batch-card card {{item.is_done ? 'batch-done' : ''}} {{!item.is_done && item._urgency === 'urgent' ? 'batch-urgent' : ''}} {{!item.is_done && item._urgency === 'warning' ? 'batch-warning' : ''}}"
+            bindtap="openBatch" data-index="{{index}}">
+        <view class="batch-header">
+          <view class="batch-title-row">
+            <text class="batch-icon">{{item.is_done ? '✅' : '📝'}}</text>
+            <text class="batch-title">{{item.category || '评教批次'}}</text>
+          </view>
+          <view class="tag {{item.is_done ? 'tag-done' : (item._urgency === 'urgent' ? 'tag-urgent' : (item._urgency === 'warning' ? 'tag-warning' : 'tag-pending'))}}">
+            {{item.is_done ? '已完成' : (item._deadlineText || '待评教')}}
+          </view>
+        </view>
+        <view class="batch-info">
+          <text wx:if="{{item.batch}}">{{item.batch}}</text>
+          <text wx:if="{{item.start_date}}">📅 {{item.start_date}} ~ {{item.end_date}}</text>
+          <text wx:if="{{item.items && item.items.length}}" class="batch-link-hint">点击查看课程 →</text>
+        </view>
       </view>
-    </view>
+    </block>
   </view>
 
   <!-- ============================================================ -->
@@ -48,20 +66,35 @@
       <text class="batch-btn" bindtap="showBatchDialog">⚡ 一键评教</text>
     </view>
 
-    <view class="course-card card" wx:for="{{batchCourses}}" wx:key="seq">
-      <view class="course-header">
-        <view class="course-main">
-          <text class="course-name">{{item.name}}</text>
-          <text class="course-teacher">{{item.teacher}}</text>
+    <scroll-view scroll-y class="course-scroll">
+      <view class="course-card card {{item.submitted ? 'course-done' : (item.evaluated ? 'course-saved' : '')}}"
+            wx:for="{{batchCourses}}" wx:key="seq" wx:for-item="item">
+        <view class="course-header">
+          <view class="course-main">
+            <view class="course-name-row">
+              <text class="status-icon">{{item.submitted ? '✅' : (item.evaluated ? '💾' : '📝')}}</text>
+              <text class="course-name">{{item.name}}</text>
+            </view>
+            <view class="course-meta">
+              <text wx:if="{{item.code}}">📖 {{item.code}}</text>
+              <text wx:if="{{item.teacher}}">👨‍🏫 {{item.teacher}}</text>
+              <text wx:if="{{item.score && item.score !== '0'}}">⭐ {{item.score}}分</text>
+            </view>
+          </view>
+          <view class="course-status {{item.submitted ? 'done' : (item.evaluated ? 'saved' : 'pending')}}">
+            {{item.submitted ? '已提交' : (item.evaluated ? '已保存' : '待评价')}}
+          </view>
         </view>
-        <view class="course-status {{item.submitted ? 'done' : 'pending'}}">
-          {{item.submitted ? '✓ 已提交' : '待评价'}}
+        <view class="course-actions">
+          <button class="btn-outline small-btn" wx:if="{{!item.submitted}}" bindtap="openEvalForm" data-index="{{index}}">
+            {{item.evaluated ? '继续评价' : '开始评价'}}
+          </button>
+          <button class="btn-outline small-btn view-btn" wx:if="{{item.submitted}}" bindtap="viewScores" data-index="{{index}}">
+            📊 查看评分
+          </button>
         </view>
       </view>
-      <view class="course-actions" wx:if="{{!item.submitted}}">
-        <button class="btn-outline small-btn" bindtap="openEvalForm" data-index="{{index}}">手动评教</button>
-      </view>
-    </view>
+    </scroll-view>
   </view>
 
   <!-- ============================================================ -->
@@ -71,24 +104,49 @@
     <view class="summary-bar">
       <text bindtap="backToCourses">← 返回课程</text>
       <text class="form-course-name">{{formCourseName}}</text>
+      <text></text>
     </view>
 
     <scroll-view scroll-y class="form-scroll">
+      <!-- 只读模式提示 -->
+      <view class="readonly-banner" wx:if="{{formReadonly}}">
+        📊 已提交 — 仅查看评分，总分为 {{liveTotal}} / {{maxTotal}}
+      </view>
+
+      <!-- 自动填写工具栏（非只读模式） -->
+      <view class="autofill-bar" wx:if="{{!formReadonly}}">
+        <text class="autofill-label">🎯 期望分数:</text>
+        <input class="autofill-input" type="digit" placeholder="如 85"
+               value="{{autoFillScore}}" bindinput="onAutoFillScoreInput"
+               confirm-type="done" bindconfirm="onAutoFill"/>
+        <text class="autofill-hint">（满分 {{maxTotal}}）</text>
+        <button class="btn-primary autofill-btn" bindtap="onAutoFill">✨ 自动填写</button>
+        <text class="live-score" wx:if="{{liveTotal > 0}}">📊 <text class="live-score-num">{{liveTotal}}</text> 分</text>
+      </view>
+
+      <!-- 评价指标 -->
       <view class="indicator-card card" wx:for="{{indicators}}" wx:key="seq">
         <view class="indicator-label">{{index + 1}}. {{item.label}}</view>
         <view class="indicator-options">
-          <view class="option-item {{opt.checked ? 'option-checked' : ''}}"
+          <view class="option-item {{opt.checked ? 'option-checked' : ''}} {{formReadonly ? 'option-readonly' : ''}}"
                 wx:for="{{item.options}}" wx:for-item="opt" wx:key="value"
-                bindtap="selectOption" data-seq="{{item.seq}}" data-value="{{opt.value}}">
+                bindtap="{{formReadonly ? '' : 'selectOption'}}"
+                data-seq="{{item.seq}}" data-value="{{opt.value}}">
             <text>{{opt.label || opt.value}}</text>
+            <text class="option-score" wx:if="{{opt.score}}">{{opt.score}}分</text>
           </view>
         </view>
       </view>
     </scroll-view>
 
-    <view class="form-actions">
+    <!-- 操作按钮（非只读模式） -->
+    <view class="form-actions" wx:if="{{!formReadonly}}">
       <button class="btn-outline" bindtap="onSaveEval">保存</button>
       <button class="btn-primary" bindtap="onSubmitEval">提交评价</button>
+    </view>
+    <!-- 操作按钮（只读模式） -->
+    <view class="form-actions" wx:else>
+      <button class="btn-outline" bindtap="backToCourses">返回课程列表</button>
     </view>
   </view>
 
@@ -129,7 +187,6 @@
     doneText="完成"
     bind:close="closeBatchProgress"
   >
-    <!-- 结果列表 -->
     <scroll-view scroll-y class="batch-results" wx:if="{{batchResults.length > 0}}">
       <view class="result-item" wx:for="{{batchResults}}" wx:key="course">
         <text class="result-icon">{{item.status === 'success' ? '✅' : '❌'}}</text>

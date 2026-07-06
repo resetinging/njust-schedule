@@ -11,22 +11,23 @@ const storage = require('./storage')
 // ============================================================
 
 /**
- * 发起 HTTP 请求
+ * 发起 HTTP 请求（通过云托管内网，免域名白名单）
  * @param {string} method - GET | POST
  * @param {string} path - API 路径 (如 '/api/get-captcha')
  * @param {object} data - 请求参数
- * @param {boolean} auth - 是否需要 token
+ * @param {boolean} auth - 是否需要登录态（预留）
  * @returns {Promise<object>} { success, data, message }
  */
 function request(method, path, data = {}, auth = true) {
   const header = { 'Content-Type': 'application/json' }
 
-  return new Promise((resolve, reject) => {
-    wx.request({
-      url: config.API_BASE + path,
+  return new Promise((resolve) => {
+    wx.cloud.callContainer({
+      config: { env: config.CLOUD_ENV, service: config.CLOUD_SERVICE },
+      path,
       method,
-      data,
       header,
+      data,
       timeout: config.REQUEST_TIMEOUT,
       success(res) {
         if (res.statusCode === 200) {

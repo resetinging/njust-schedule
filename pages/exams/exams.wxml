@@ -1,8 +1,8 @@
-<!-- 考试安排页面 -->
+<!-- 考试安排页面 — 参考桌面端 exams.html + exams.js -->
 <view class="container">
 
   <!-- 加载中 -->
-  <view class="empty-state" wx:if="{{loading}}">
+  <view class="empty-state" wx:if="{{loading && exams.length === 0}}">
     <view class="icon">⏳</view>
     <view class="text">加载中…</view>
   </view>
@@ -14,35 +14,48 @@
     <button class="btn-primary" style="margin-top:32rpx" bindtap="onRefresh">获取考试安排</button>
   </view>
 
-  <!-- 考试列表 -->
-  <view class="list" wx:if="{{!loading && exams.length > 0}}">
-    <view class="summary-bar">
+  <!-- 有数据 -->
+  <block wx:if="{{exams.length > 0}}">
+    <!-- 顶部操作栏 -->
+    <view class="top-bar">
       <text>共 {{exams.length}} 场考试</text>
-      <text class="refresh-btn" bindtap="onRefresh">刷新</text>
+      <text class="refresh-btn" bindtap="onRefresh">🔄 刷新</text>
     </view>
 
-    <view class="exam-card card" wx:for="{{exams}}" wx:key="id">
-      <view class="exam-header">
-        <view class="exam-date">
-          <text class="date-text">{{item.date}}</text>
-          <text class="time-text">{{item.time}}</text>
-        </view>
-        <view class="tag tag-primary">{{item.type || '期末考试'}}</view>
-      </view>
-
-      <view class="exam-name">{{item.course_name}}</view>
-
-      <view class="exam-info">
-        <view class="info-row">
-          <text class="label">📍 教室</text>
-          <text>{{item.location || '待定'}}</text>
-        </view>
-        <view class="info-row" wx:if="{{item.seat}}">
-          <text class="label">💺 座位</text>
-          <text>{{item.seat}}</text>
+    <!-- 倒计时卡片 -->
+    <scroll-view scroll-x class="countdown-scroll" wx:if="{{countdowns.length > 0}}">
+      <view class="countdown-row">
+        <view class="countdown-card {{item.cardClass}}" wx:for="{{countdowns}}" wx:key="date">
+          <view class="cd-bignum">{{item.bigNum}}</view>
+          <view class="cd-label">{{item.bigLabel}}</view>
+          <view class="cd-course">{{item.course_name}}</view>
+          <view class="cd-date">{{item.date}} {{item.time || ''}}</view>
         </view>
       </view>
-    </view>
-  </view>
+    </scroll-view>
+
+    <!-- 按日期分组的考试列表 -->
+    <scroll-view scroll-y class="exam-scroll">
+      <block wx:for="{{dayGroups}}" wx:key="date" wx:for-item="group">
+        <!-- 日期头部 -->
+        <view class="date-header">
+          <text class="date-title">📅 {{group.date}} {{group.weekday}}</text>
+          <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>
+        </view>
+
+        <!-- 考试卡片 -->
+        <view class="exam-card {{group.urgency === 'urgent' ? 'exam-urgent' : ''}} {{group.urgency === 'warning' ? 'exam-warning' : ''}}"
+              wx:for="{{group.exams}}" wx:key="course_name" wx:for-item="exam">
+          <view class="exam-course">{{exam.course_name}}</view>
+          <view class="exam-meta">
+            <text class="meta-item">⏰ {{exam.time || '待定'}}</text>
+            <text class="meta-item">📍 {{exam.location || '待定'}}</text>
+            <text class="meta-item" wx:if="{{exam.seat}}">💺 {{exam.seat}}</text>
+            <text class="meta-item">📋 {{exam.type || '期末考试'}}</text>
+          </view>
+        </view>
+      </block>
+    </scroll-view>
+  </block>
 
 </view>

@@ -40,13 +40,151 @@ function weekToChinese(w) {
   return map[w] || `第${w}周`
 }
 
+/**
+ * 判断给定周次是否在 weeks 字符串范围内
+ * 支持三种格式:
+ *   "1-16"          → 连续区间
+ *   "1-8,10-17"     → 分段区间
+ *   "1,3,5,7,9"     → 离散周次
+ * @param {number} week - 待判断的周次
+ * @param {string} weeksStr - 周次描述字符串
+ * @returns {boolean}
+ */
+function isWeekInRange(week, weeksStr) {
+  const weeks = weeksStr || '1-18'
+  const segments = weeks.split(',')
+  for (const seg of segments) {
+    const trimmed = seg.trim()
+    if (trimmed.includes('-')) {
+      const parts = trimmed.split('-')
+      const start = parseInt(parts[0]) || 1
+      const end = parseInt(parts[1]) || 18
+      if (week >= start && week <= end) return true
+    } else {
+      if (parseInt(trimmed) === week) return true
+    }
+  }
+  return false
+}
+
+/**
+ * 从 weeks 字符串中提取所有区间的最大、最小时段
+ * 用于估算当前学期所处的周次
+ * @param {string} weeksStr
+ * @returns {{ min: number, max: number }}
+ */
+function getWeekBounds(weeksStr) {
+  const weeks = weeksStr || '1-18'
+  let min = Infinity
+  let max = -Infinity
+  const segments = weeks.split(',')
+  for (const seg of segments) {
+    const trimmed = seg.trim()
+    if (trimmed.includes('-')) {
+      const parts = trimmed.split('-')
+      const s = parseInt(parts[0]) || 1
+      const e = parseInt(parts[1]) || 18
+      if (s < min) min = s
+      if (e > max) max = e
+    } else {
+      const n = parseInt(trimmed)
+      if (n < min) min = n
+      if (n > max) max = n
+    }
+  }
+  return { min: min === Infinity ? 1 : min, max: max === -Infinity ? 18 : max }
+}
+
 /** 星期几转中文 */
 const WEEKDAY_NAMES = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+
+/**
+ * 计算距目标日期的可读时间差
+ * 参考桌面端 static/js/exams.js timeUntil()
+ * @param {string} dateStr - 目标日期 "YYYY-MM-DD"
+ * @param {string} timeStr - 可选时间段 "HH:mm~HH:mm"，取开始时间
+ * @returns {{ text: string, cls: string }} cls: 'urgent' | 'warning' | 'done' | ''
+ */
+function timeUntil(dateStr, timeStr) {
+  if (!dateStr) return { text: '', cls: '' }
+  const parts = dateStr.split('-')
+  if (parts.length !== 3) return { text: '', cls: '' }
+  const target = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+
+  // 如果有时间段，取开始时间
+  if (timeStr) {
+    const m = timeStr.match(/(\d{1,2}):(\d{2})/)
+    if (m) {
+      target.setHours(parseInt(m[1]), parseInt(m[2]), 0, 0)
+    }
+  }
+
+  const now = new Date()
+  const diffMs = target - now
+  const totalHours = diffMs / (1000 * 60 * 60)
+  const totalDays = Math.floor(totalHours / 24)
+  const remainHours = Math.floor(totalHours % 24)
+
+  if (totalHours < 0) {
+    const pastHours = Math.abs(totalHours)
+    if (pastHours < 1) return { text: '刚刚结束', cls: 'done' }
+    if (pastHours < 24) return { text: Math.floor(pastHours) + '小时前', cls: 'done' }
+    return { text: Math.floor(pastHours / 24) + '天前', cls: 'done' }
+  }
+  if (totalHours < 1) {
+    const mins = Math.floor(totalHours * 60)
+    return { text: '还有 ' + mins + ' 分钟', cls: 'urgent' }
+  }
+  if (totalHours < 24) {
+    return { text: '还有 ' + Math.floor(totalHours) + ' 小时', cls: 'urgent' }
+  }
+  if (totalDays <= 3) {
+    return { text: '还有 ' + totalDays + '天' + remainHours + '小时', cls: 'urgent' }
+  }
+  if (totalDays <= 7) {
+    return { text: '还有 ' + totalDays + '天' + remainHours + '小时', cls: 'warning' }
+  }
+  return { text: '还有 ' + totalDays + ' 天', cls: '' }
+}
+
+/**
+ * 计算距截止日期的可读时间（用于评教）
+ * 参考桌面端 static/js/evaluations.js timeUntilDeadline()
+ */
+function timeUntilDeadline(endDateStr) {
+  if (!endDateStr) return { text: '', cls: '' }
+  const end = parseDateStr(endDateStr)
+  if (!end) return { text: '', cls: '' }
+  end.setHours(23, 59, 59, 0)
+  const now = new Date()
+  const diffMs = end - now
+  const totalHours = diffMs / (1000 * 60 * 60)
+  const totalDays = Math.floor(totalHours / 24)
+
+  if (totalHours < 0) return { text: '已截止', cls: 'done' }
+  if (totalHours < 24) return { text: Math.floor(totalHours) + '小时后截止', cls: 'urgent' }
+  if (totalDays <= 3) return { text: '还有 ' + totalDays + ' 天截止', cls: 'urgent' }
+  if (totalDays <= 7) return { text: '还有 ' + totalDays + ' 天', cls: 'warning' }
+  return { text: '还有 ' + totalDays + ' 天', cls: '' }
+}
+
+/** 解析日期字符串 "YYYY-MM-DD" → Date */
+function parseDateStr(str) {
+  if (!str) return null
+  const parts = str.split('-')
+  if (parts.length !== 3) return null
+  return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+}
 
 module.exports = {
   getCurrentWeek,
   formatDate,
   formatTime,
   weekToChinese,
+  isWeekInRange,
+  getWeekBounds,
+  timeUntil,
+  timeUntilDeadline,
+  parseDateStr,
   WEEKDAY_NAMES
 }
