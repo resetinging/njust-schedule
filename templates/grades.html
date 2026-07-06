@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}成绩查询 - 南理工课表管理{% endblock %}
+{% block nav_grades %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>📊 成绩查询</h1>
+        <span class="semester-badge" id="semester-badge">加载中...</span>
+        <select id="semester-select" class="semester-select" onchange="onSemesterChange()" style="display:none;">
+        </select>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="refreshGrades()" id="btn-refresh">
+            🔄 刷新成绩
+        </button>
+    </div>
+</div>
+
+<!-- 绩点汇总 -->
+<div class="grade-summary" id="grade-summary" style="display:none;">
+    <div class="stat-card">
+        <div class="stat-value" id="stat-gpa">---</div>
+        <div class="stat-label">平均绩点</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-credits">---</div>
+        <div class="stat-label">已获学分</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-count">---</div>
+        <div class="stat-label">课程数</div>
+    </div>
+</div>
+
+<!-- 成绩列表 -->
+<div class="grade-container">
+    <div class="schedule-empty" id="grade-empty" style="display:none;">
+        <div class="empty-icon">📊</div>
+        <h3>暂无成绩数据</h3>
+        <p id="empty-grade-message">请先在「设置」页面登录教务系统，然后刷新成绩</p>
+        <button class="btn btn-primary" onclick="window.location.href='/settings'">
+            前往设置
+        </button>
+    </div>
+
+    <div class="grade-table-wrapper" id="grade-table-wrapper" style="display:none;">
+        <table class="grade-table" id="grade-table">
+            <thead>
+                <tr>
+                    <th>课程名称</th>
+                    <th>成绩</th>
+                    <th>学分</th>
+                    <th>绩点</th>
+                    <th>课程属性</th>
+                    <th>考试类型</th>
+                </tr>
+            </thead>
+            <tbody id="grade-body">
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/grades.js"></script>
+{% endblock %}
