@@ -131,6 +131,22 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS grades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academic_year TEXT DEFAULT '',
+            semester TEXT DEFAULT '',
+            course_code TEXT DEFAULT '',
+            course_name TEXT NOT NULL,
+            score TEXT DEFAULT '',
+            credit REAL DEFAULT 0,
+            grade_point REAL DEFAULT 0,
+            course_type TEXT DEFAULT '',
+            exam_type TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_grades_semester
+            ON grades(academic_year, semester);
+
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT DEFAULT ''
@@ -242,6 +258,34 @@ def save_evaluations_to_db(evaluations: list[dict], semester: str):
     db.commit()
 
 
+def save_grades_to_db(grades: list[dict], academic_year: str, semester: str):
+    """将成绩数据保存到数据库"""
+    db = get_db()
+    db.execute(
+        "DELETE FROM grades WHERE academic_year = ? AND semester = ?",
+        (academic_year, semester),
+    )
+    for g in grades:
+        db.execute(
+            """INSERT INTO grades
+               (academic_year, semester, course_code, course_name,
+                score, credit, grade_point, course_type, exam_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                g.get("academic_year", academic_year),
+                g.get("semester", semester),
+                g.get("course_code", ""),
+                g.get("course_name", ""),
+                str(g.get("score", "")),
+                float(g.get("credit", 0) or 0),
+                float(g.get("grade_point", 0) or 0),
+                g.get("course_type", ""),
+                g.get("exam_type", "正常考试"),
+            ),
+        )
+    db.commit()
+
+
 # ============================================================
 # 页面路由
 # ============================================================
@@ -262,6 +306,12 @@ def exams_page():
 def evaluations_page():
     """教学评价页面"""
     return render_template("evaluations.html")
+
+
+@app.route("/grades")
+def grades_page():
+    """成绩查询页面"""
+    return render_template("grades.html")
 
 
 @app.route("/proxy/jw/<path:target_path>", methods=["GET", "POST"])
@@ -552,6 +602,81 @@ def _exam_row_to_dict(row) -> dict:
     }
 
 
+def _grade_row_to_dict(row) -> dict:
+    """数据库行 → 成绩 JSON"""
+    return {
+        "id": row["id"],
+        "academic_year": row["academic_year"],
+        "semester": row["semester"],
+        "course_code": row["course_code"],
+        "course_name": row["course_name"],
+        "score": row["score"],
+        "credit": row["credit"],
+        "grade_point": row["grade_point"],
+        "course_type": row["course_type"],
+        "exam_type": row["exam_type"],
+    }
+
+
+# 非正式成绩状态（不参与绩点计算）
+_NON_GRADE_STATUS = {"缓考", "缺考", "免修", "作弊", "违纪", "取消", "旷考", "休学"}
+
+
+def _score_to_gp(score) -> float:
+    """将百分制成绩或等级制成绩转换为绩点（NJUST 4.0 量表）
+
+    返回值：
+    - 正数 / 0：有效绩点（0 = 不及格，仍计入加权平均）
+    - -1：非正式成绩（缓考/缺考/免修等，不参与计算）
+    """
+    # 文字等级
+    level_map = {"优": 4.0, "良": 3.0, "中": 2.0, "及格": 1.0, "通过": 1.0,
+                 "不及格": 0, "不通过": 0}
+    s = str(score).strip()
+    if s in level_map:
+        return level_map[s]
+    # 非正式成绩状态 → 排除
+    if s in _NON_GRADE_STATUS:
+        return -1.0
+    # 百分制 → 绩点（NJUST 官方换算表，.0/.5 精度）
+    try:
+        v = float(s)
+    except (ValueError, TypeError):
+        return -1.0  # 无法识别的文字（如教务系统特殊标记），排除
+    if v >= 90:  return 4.0   # 90.0~100.0 → 优
+    if v >= 85:  return 3.7   # 85.0~89.5  → 优-
+    if v >= 82:  return 3.3   # 82.0~84.5  → 良+
+    if v >= 78:  return 3.0   # 78.0~81.5  → 良
+    if v >= 75:  return 2.7   # 75.0~77.5  → 良-
+    if v >= 72:  return 2.3   # 72.0~74.5  → 中+
+    if v >= 68:  return 2.0   # 68.0~71.5  → 中
+    if v >= 64:  return 1.5   # 64.0~67.5  → 中-
+    if v >= 60:  return 1.0   # 60.0~63.5  → 及格
+    return 0                   # < 60.0     → 不及格
+
+
+def _calc_gpa(grades: list[dict]) -> float:
+    """计算加权平均绩点 ∑(学分×绩点) / ∑学分
+
+    不及格课程（绩点=0）计入分母，拉低平均；
+    缓考/缺考/免修等非正式成绩（绩点=-1）不计入。
+    """
+    total_weighted = 0.0
+    total_credits = 0.0
+    for g in grades:
+        credit = float(g.get("credit", 0) or 0)
+        if credit <= 0:
+            continue
+        gp = float(g.get("grade_point", 0) or 0)
+        if gp == 0:
+            # 数据库无绩点，从成绩换算（可能返回 -1 表示排除）
+            gp = _score_to_gp(g.get("score", ""))
+        if gp >= 0:
+            total_weighted += credit * gp
+            total_credits += credit
+    return round(total_weighted / total_credits, 2) if total_credits > 0 else 0.0
+
+
 @app.route("/api/refresh-schedule", methods=["POST"])
 def api_refresh_schedule():
     """刷新课表数据"""
@@ -687,6 +812,90 @@ def api_get_exams():
         "semester": semester,
         "count": len(exams),
         "exams": exams,
+    })
+
+
+@app.route("/api/grades")
+def api_get_grades():
+    """获取已存储的成绩数据"""
+    semester = request.args.get(
+        "semester", get_setting("semester", jwc_client._current_semester())
+    )
+    # 解析学期格式 "2024-2025-1" → academic_year="2024-2025", semester="1"
+    parts = semester.split("-") if semester else []
+    academic_year = f"{parts[0]}-{parts[1]}" if len(parts) >= 2 else ""
+    sem = parts[2] if len(parts) >= 3 else ""
+
+    db = get_db()
+    if academic_year and sem:
+        rows = db.execute(
+            """SELECT * FROM grades
+               WHERE academic_year = ? AND semester = ?
+               ORDER BY course_type, course_name""",
+            (academic_year, sem),
+        ).fetchall()
+    else:
+        rows = db.execute(
+            "SELECT * FROM grades ORDER BY academic_year DESC, semester DESC, course_type, course_name"
+        ).fetchall()
+
+    grades = [_grade_row_to_dict(r) for r in rows]
+
+    # 补充绩点（教务系统无此字段，从成绩换算）
+    for g in grades:
+        if float(g.get("grade_point", 0) or 0) == 0:
+            g["grade_point"] = _score_to_gp(g.get("score", ""))
+
+    # 获取已有成绩的学期列表
+    available = db.execute(
+        "SELECT DISTINCT academic_year, semester FROM grades ORDER BY academic_year DESC, semester DESC"
+    ).fetchall()
+    available_semesters = [f"{r['academic_year']}-{r['semester']}" for r in available]
+
+    return jsonify({
+        "semester": semester,
+        "count": len(grades),
+        "grades": grades,
+        "available_semesters": available_semesters,
+        "total_credits": round(sum(
+            float(g.get("credit", 0) or 0) for g in grades
+        ), 1),
+        "gpa": _calc_gpa(grades) if grades else 0,
+    })
+
+
+@app.route("/api/refresh-grades", methods=["POST"])
+def api_refresh_grades():
+    """刷新成绩数据（从教务系统拉取）"""
+    err = _require_login()
+    if err:
+        return err
+
+    with jwc_lock:
+        grades = jwc_client.get_grades("")
+
+    if not grades and jwc_client.last_error:
+        return jsonify({
+            "success": False,
+            "message": jwc_client.last_error or "获取成绩失败，请检查网络连接和登录状态",
+        }), 500
+
+    # 成绩可能跨多个学期，按学期分组保存
+    from collections import defaultdict
+    grouped = defaultdict(list)
+    for g in grades:
+        key = (g.get("academic_year", ""), g.get("semester", ""))
+        grouped[key].append(g)
+
+    total_count = 0
+    for (ay, s), group in grouped.items():
+        save_grades_to_db(group, ay, s)
+        total_count += len(group)
+
+    return jsonify({
+        "success": True,
+        "message": f"成功获取 {total_count} 条成绩记录（{len(grouped)} 个学期）",
+        "count": total_count,
     })
 
 

@@ -1295,3 +1295,134 @@ a:hover { text-decoration: underline; }
         justify-content: center;
     }
 }
+
+/* ============================================================
+   成绩查询页面
+   ============================================================ */
+
+/* 绩点汇总卡片 */
+.grade-summary {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.stat-card {
+    flex: 1;
+    min-width: 120px;
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 20px 16px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    border-top: 4px solid var(--primary-light);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-top: 4px;
+}
+
+/* 学期选择器 */
+.semester-select {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: var(--text);
+    background: var(--card-bg);
+    margin-left: 12px;
+    cursor: pointer;
+}
+
+/* 成绩表格 */
+.grade-table-wrapper {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.grade-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.grade-table th {
+    background: var(--primary-bg);
+    color: var(--primary);
+    font-weight: 600;
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--border);
+}
+
+.grade-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+    vertical-align: top;
+}
+
+.grade-table tbody tr:hover {
+    background: var(--primary-bg);
+}
+
+.grade-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.grade-course-name {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.grade-course-code {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+/* 成绩颜色 */
+.score-high { color: var(--success); font-weight: 700; }
+.score-pass { color: var(--text); }
+.score-fail { color: var(--danger); font-weight: 700; }
+
+/* 成绩页响应式 */
+@media (max-width: 768px) {
+    .grade-summary {
+        flex-direction: column;
+    }
+    .stat-card {
+        min-width: auto;
+    }
+    .grade-table th,
+    .grade-table td {
+        padding: 8px 6px;
+        font-size: 0.8rem;
+    }
+    .grade-table th:nth-child(5),
+    .grade-table td:nth-child(5),
+    .grade-table th:nth-child(6),
+    .grade-table td:nth-child(6) {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .grade-table th:nth-child(4),
+    .grade-table td:nth-child(4) {
+        display: none;
+    }
+}
