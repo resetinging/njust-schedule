@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 from config import (
     JW_BASE_8080, JW_BASE_9080, JW_PATH_PREFIX,
     JW_LOGON_PAGE, JW_SCHEDULE_URL, JW_EXAM_QUERY, JW_EXAM_LIST,
-    JW_EVAL_PAGE, JW_GRADE_QUERY, JW_GRADE_LIST,
+    JW_EVAL_PAGE, JW_GRADE_QUERY, JW_GRADE_LIST, JW_CET_LIST,
     JW_APP_DO, JW_CAPTCHA_URLS, BIG_PERIOD_MAP,
     HTTP_TIMEOUT, HTTP_HEADERS,
 )
@@ -38,6 +38,7 @@ URL_EXAM_LIST = JW_EXAM_LIST
 URL_EVAL_PAGE = JW_EVAL_PAGE
 URL_GRADE_QUERY = JW_GRADE_QUERY
 URL_GRADE_LIST = JW_GRADE_LIST
+URL_CET_LIST = JW_CET_LIST
 URL_MAIN_PAGE = f"{BASE_9080}{JW_PATH_PREFIX}/framework/main.jsp"
 URL_CAPTCHA_CANDIDATES = JW_CAPTCHA_URLS
 HEADERS = HTTP_HEADERS
@@ -264,9 +265,9 @@ class JWCClient:
         jar = self.session.cookies
         js = [c for c in jar if c.name == "JSESSIONID"]
         if len(js) > 1:
-            last = js[-1]
-            jar.clear()
-            jar.set_cookie(last)
+            # 只清除多余的 JSESSIONID，保留最后一个及其他 cookie
+            for c in js[:-1]:
+                jar.clear(c.domain or "", c.path or "", c.name)
 
     def _ocr_with_preprocess(self, ocr, data: bytes) -> str:
         cands = [data]
@@ -970,6 +971,8 @@ class JWCClient:
                         col["grade_point"] = i
                     elif txt == "课程属性":
                         col["course_type"] = i
+                    elif txt == "课程性质":
+                        col["course_nature"] = i
                     elif txt in ("考核方式", "考试类型", "考试性质"):
                         col["exam_type"] = i
                     elif txt in ("开课学期", "学年学期"):
@@ -980,7 +983,7 @@ class JWCClient:
                 if "course_name" not in col:
                     col = {"course_name": 3, "score": 4, "credit": 6,
                            "grade_point": None, "course_type": 9, "exam_type": 8,
-                           "course_code": 2, "semester": 1}
+                           "course_nature": 10, "course_code": 2, "semester": 1}
                     print(f"[成绩] {label} 表头匹配失败，使用固定位置")
                 else:
                     print(f"[成绩] {label} 表头映射: {col}")
@@ -1036,6 +1039,7 @@ class JWCClient:
                     "credit": self._to_float(_get("credit")),
                     "grade_point": self._to_float(_get("grade_point")),
                     "course_type": _get("course_type"),
+                    "course_nature": _get("course_nature"),
                     "exam_type": _get("exam_type") or "正常考试",
                 })
 
@@ -1157,6 +1161,89 @@ class JWCClient:
             return float(val)
         except (ValueError, TypeError):
             return 0
+
+    # ================================================================
+    # 等级考试（四六级）
+    # ================================================================
+
+    def get_cet_scores(self) -> list[dict]:
+        """获取四六级成绩
+
+        从 /njlgdx/kscj/djkscj_list 页面抓取等级考试成绩，
+        解析 #dataList 表格，提取 CET4/CET6 的最高分。
+
+        返回: [{type: "CET4"/"CET6", score: float, exam_date: str}, ...]
+        """
+        import re
+        try:
+            resp = self.session.get(URL_CET_LIST, timeout=TIMEOUT)
+            if resp.status_code != 200:
+                print(f"[CET] 请求失败: {resp.status_code}")
+                return []
+            print(f"[CET] GET {URL_CET_LIST} → status={resp.status_code} len={len(resp.text)}")
+        except Exception as e:
+            print(f"[CET] 请求异常: {e}")
+            return []
+
+        soup = BeautifulSoup(resp.text, "lxml")
+        table = soup.find("table", id="dataList")
+        if not table:
+            print("[CET] 未找到 #dataList 表格")
+            return []
+
+        rows = table.find_all("tr")
+        if len(rows) < 3:  # 2行表头 + 至少1行数据
+            print(f"[CET] 表格行数不足: {len(rows)}")
+            return []
+
+        cet_records = []  # [(type, score, date), ...]
+
+        for row in rows[2:]:  # 跳过前2行表头
+            cells = row.find_all("td")
+            if len(cells) < 9:
+                continue
+
+            course_name = cells[1].get_text(strip=True)  # 考级课程(等级)
+            total_score_text = cells[4].get_text(strip=True)  # 分数类 > 总成绩
+            exam_date = cells[8].get_text(strip=True)  # 考级时间
+
+            # 识别 CET4/CET6
+            if "CET6" in course_name:
+                cet_type = "CET6"
+            elif "CET4" in course_name:
+                cet_type = "CET4"
+            else:
+                continue  # 跳过英语分级考试等
+
+            try:
+                score = float(total_score_text)
+            except (ValueError, TypeError):
+                continue
+
+            if score <= 0:
+                continue  # 0分表示未参加
+
+            cet_records.append((cet_type, score, exam_date))
+            print(f"[CET]   解析: {cet_type} {score}分 {exam_date}")
+
+        if not cet_records:
+            print("[CET] 未找到有效四六级成绩")
+            return []
+
+        # 取每种类型的最高分
+        best = {}
+        for t, s, d in cet_records:
+            if t not in best or s > best[t][0]:
+                best[t] = (s, d)
+
+        result = []
+        for cet_type in ("CET4", "CET6"):
+            if cet_type in best:
+                s, d = best[cet_type]
+                result.append({"type": cet_type, "score": s, "exam_date": d})
+
+        print(f"[CET] 汇总: {result}")
+        return result
 
     # ================================================================
     # 工具

@@ -200,11 +200,6 @@ async function refreshEvaluations() {
 // 评教模态窗口 — 两级导航：课程列表 → 评价表单
 // ============================================================
 
-function escapeHtml(str) {
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
 let currentEvalForm = null;   // 当前评价表单数据 (indicators + hidden_fields)
 let currentBatchData = null;  // 当前批次课程列表数据 (courses + hidden_fields)
 let currentBatchUrl = '';     // 当前批次的教务 URL，用于提交后重新拉取
@@ -978,5 +973,13 @@ document.addEventListener('keydown', function(e) {
         } else {
             closeEvalModal();
         }
+    }
+});
+
+// 页面关闭/离开前清理轮询定时器，防止泄漏
+window.addEventListener('beforeunload', function() {
+    if (batchPollTimer) {
+        clearInterval(batchPollTimer);
+        batchPollTimer = null;
     }
 });

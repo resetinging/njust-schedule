@@ -27,3 +27,4 @@ schedule.db
 Thumbs.db
 desktop.ini
 debug_*.json
+debug_*.html

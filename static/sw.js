@@ -7,6 +7,7 @@ const ASSETS = [
     "/static/js/schedule.js",
     "/static/js/exams.js",
     "/static/js/evaluations.js",
+    "/static/js/grades.js",
     "/static/js/settings.js",
     "/static/manifest.json",
     "/static/icon-192.png",

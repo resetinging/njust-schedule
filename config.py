@@ -35,6 +35,7 @@ JW_EVAL_PAGE = f"{JW_BASE_9080}{JW_PATH_PREFIX}/xspj/xspj_find.do?Ves632DSdyV=NE
 # 成绩查询 URL
 JW_GRADE_QUERY = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kscj/cjcx_query?Ves632DSdyV=NEW_XSD_XJCJ"
 JW_GRADE_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kscj/cjcx_list"
+JW_CET_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kscj/djkscj_list"
 
 # API 端点
 JW_APP_DO = f"{JW_BASE_9080}{JW_PATH_PREFIX}/app.do"
