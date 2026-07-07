@@ -9,7 +9,6 @@ echo.
 
 :: ---- 找 Python ----
 set "PY="
-if exist "C:\Users\a\AppData\Local\Python\bin\python.exe" set "PY=C:\Users\a\AppData\Local\Python\bin\python.exe"
 if "%PY%"=="" (py --version >nul 2>&1 && set "PY=py")
 if "%PY%"=="" (python --version >nul 2>&1 && set "PY=python")
 

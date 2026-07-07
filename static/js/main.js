@@ -2,6 +2,13 @@
    南理工课表管理系统 - 全局 JavaScript
    ============================================================ */
 
+// --- HTML 转义（防 XSS） ---
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 // --- Toast 消息 ---
 function showToast(message, type = 'info') {
     let container = document.querySelector('.toast-container');

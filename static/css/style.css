@@ -194,6 +194,12 @@ a:hover { text-decoration: underline; }
 }
 .btn-danger:hover { background: #c0392b; }
 
+.btn-success {
+    background: #27ae60;
+    color: white;
+}
+.btn-success:hover { background: #219a52; }
+
 .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
 
 .btn:disabled {
@@ -1394,10 +1400,165 @@ a:hover { text-decoration: underline; }
     margin-top: 2px;
 }
 
+/* 不计入绩点的课程行 */
+.grade-table tbody tr.row-excluded {
+    opacity: 0.55;
+    background: #fafafa;
+}
+.gpa-excluded-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    color: #999;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0px 5px;
+    margin-left: 5px;
+    vertical-align: middle;
+    font-weight: 400;
+}
+.gpa-note {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--text-light);
+    display: block;
+    margin-top: 2px;
+}
+
+/* --- 四六级成绩栏 --- */
+.cet-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    background: #f0f7ff;
+    border: 1px solid #cce0ff;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+}
+.cet-bar-title { font-weight: 700; color: var(--primary); }
+.cet-item { margin-right: 12px; }
+.cet-bar-best { margin-left: auto; color: var(--success); font-weight: 600; }
+
+/* --- GPA 模式切换 --- */
+.gpa-mode-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 6px 0;
+}
+.gpa-mode-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-right: 4px;
+}
+.gpa-mode-btn {
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.gpa-mode-btn.active {
+    background: var(--primary-light);
+    color: white;
+    border-color: var(--primary-light);
+}
+.gpa-mode-btn:not(.active):hover { background: var(--bg); }
+
+/* "已替换"标签（保研模式英语课） */
+.cet-replaced {
+    color: #e67e22;
+    border-color: #e67e22;
+}
+
 /* 成绩颜色 */
 .score-high { color: var(--success); font-weight: 700; }
 .score-pass { color: var(--text); }
 .score-fail { color: var(--danger); font-weight: 700; }
+
+/* 绩点颜色级别 */
+.gpa-high { color: var(--success); }
+.gpa-mid { color: var(--warning); }
+.gpa-low { color: var(--danger); }
+
+/* --- 各学期绩点明细 --- */
+.semester-gpa-section {
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    color: var(--primary);
+    margin-bottom: 4px;
+}
+
+.section-desc {
+    font-size: 0.82rem;
+    color: var(--text-light);
+    margin-bottom: 14px;
+}
+
+.semester-gpa-grid {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.semester-gpa-card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 14px 18px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--border);
+    min-width: 140px;
+    flex: 1;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.semester-gpa-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+    border-left-color: var(--primary-light);
+}
+
+.semester-gpa-card.active {
+    border-left-color: var(--primary-light);
+    background: var(--primary-bg);
+}
+
+.sgpa-semester {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-bottom: 4px;
+}
+
+.sgpa-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.sgpa-detail {
+    font-size: 0.78rem;
+    color: var(--text-light);
+    margin-top: 6px;
+    display: flex;
+    gap: 4px;
+}
+
+@media (max-width: 768px) {
+    .semester-gpa-grid {
+        flex-direction: column;
+    }
+    .semester-gpa-card {
+        min-width: auto;
+    }
+}
 
 /* 成绩页响应式 */
 @media (max-width: 768px) {
