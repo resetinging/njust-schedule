@@ -52,7 +52,7 @@ python --version
 
 ### 第二步：安装依赖
 
-双击运行 `setup.bat`，自动完成所有依赖安装。
+双击运行 `scripts\setup.bat`，自动完成所有依赖安装。
 
 或手动执行：
 ```bash
@@ -63,7 +63,7 @@ pip install -r requirements.txt
 
 **方式 1：Web 模式**（推荐日常使用）
 
-双击 `run.bat`，或执行：
+双击 `scripts\run.bat`，或执行：
 ```bash
 python app.py
 ```
@@ -143,10 +143,11 @@ njust-schedule-desktop/
 │   └── android-build-guide.md  # Android APK 构建指南
 │
 ├── requirements.txt        # Python 依赖
-├── build.bat               # EXE 构建脚本
-├── setup.bat               # 一键安装脚本
-├── run.bat                 # 一键启动脚本
-├── run.pyw                 # 无控制台启动入口
+├── scripts/
+│   ├── build.bat            # EXE 构建脚本
+│   ├── setup.bat            # 一键安装脚本
+│   ├── run.bat              # 一键启动脚本
+│   └── run.pyw              # 无控制台启动入口
 ├── njust_schedule.spec     # PyInstaller 打包配置
 └── README.md               # 本文件
 ```
@@ -235,7 +236,7 @@ $$\text{百分制} = \frac{\text{CET分数} - 425}{285} \times 40 + 60$$
 pip install pyinstaller
 
 # 一键构建
-build.bat
+scripts\build.bat
 
 # 或手动
 pyinstaller njust_schedule.spec --clean --noconfirm

@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo ==========================================
 echo   NJUST Schedule Manager - Setup
@@ -45,7 +45,7 @@ if errorlevel 1 (
 
 echo.
 echo ==========================================
-echo   Setup complete! Double-click run.bat
+echo   Setup complete! Double-click scripts\run.bat
 echo ==========================================
 echo.
 pause

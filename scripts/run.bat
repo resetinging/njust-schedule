@@ -1,5 +1,5 @@
 @echo off
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 :: Find Python, prefer pythonw (no console)
 set "PY="
@@ -14,4 +14,4 @@ if "%PY%"=="" (
 )
 
 :: Launch without keeping CMD window open
-start "" "%PY%" "%~dp0main.py"
+start "" "%PY%" "%~dp0..\main.py"
