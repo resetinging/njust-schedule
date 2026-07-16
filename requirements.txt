@@ -10,6 +10,7 @@ lxml~=5.3
 Pillow~=11.1
 pywebview>=5.0
 pythonnet>=3.0
+pycryptodome>=3.20
 
 # 以下为打包构建依赖（开发环境需要）
 pyinstaller>=6.0

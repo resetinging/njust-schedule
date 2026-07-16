@@ -3,7 +3,9 @@
 =============================
 HTML 页面渲染和教务页面代理。
 """
-from flask import Blueprint, render_template, request, Response
+import os
+
+from flask import Blueprint, render_template, request, Response, jsonify, current_app
 
 from routes import jwc_client, jwc_lock
 from eval_helpers import EVAL_HEADERS, warm_eval_session
@@ -39,6 +41,24 @@ def grades_page():
 def settings_page():
     """设置页面"""
     return render_template("settings.html")
+
+
+@pages_bp.route("/gallery")
+def gallery_page():
+    """校历 & 照片墙"""
+    return render_template("gallery.html")
+
+
+@pages_bp.route("/api/gallery-images")
+def api_gallery_images():
+    """返回 static/gallery/ 中的所有图片文件名"""
+    gallery_dir = os.path.join(current_app.static_folder, "gallery")
+    images = []
+    if os.path.isdir(gallery_dir):
+        for f in sorted(os.listdir(gallery_dir)):
+            if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")):
+                images.append(f)
+    return jsonify({"images": images})
 
 
 @pages_bp.route("/proxy/jw/<path:target_path>", methods=["GET", "POST"])

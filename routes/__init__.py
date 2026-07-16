@@ -28,6 +28,23 @@ _batch_progress_lock = threading.Lock()
 _auto_login_attempted = False
 _last_auto_login_time = 0.0
 
+# 网络状态缓存（30 秒有效期）
+_network_status = {"reachable": False, "method": "", "latency_ms": 0,
+                   "label": "检测中...", "hint": "", "checked_at": 0.0}
+_NETWORK_CACHE_TTL = 30  # 秒
+
+
+def check_network() -> dict:
+    """获取网络状态（带缓存，避免每次请求都测网络）"""
+    global _network_status
+    now = time.time()
+    if now - _network_status.get("checked_at", 0) < _NETWORK_CACHE_TTL:
+        return dict(_network_status)
+    status = jwc_client.check_connectivity()
+    status["checked_at"] = now
+    _network_status = status
+    return dict(status)
+
 
 # ============================================================
 # 密码编码（本地存储，非安全加密）
@@ -57,8 +74,16 @@ def _auto_login() -> bool:
     if jwc_client.logged_in:
         return True
 
+    # ★ 如果用户正在进行 WebVPN 手动验证码流程，跳过自动登录
+    # （自动登录会调用 login() 重置 session，导致验证码 session 丢失）
+    if jwc_client._webvpn_manual_ready:
+        return False
+
     sid = get_setting("student_id")
-    pwd = _decode_pwd(get_setting("password_enc", ""))
+    # 优先用教务密码，fallback 到智慧理工/旧密码（向后兼容）
+    jwc_pwd = _decode_pwd(get_setting("jwc_password_enc", ""))
+    sso_pwd = _decode_pwd(get_setting("password_enc", ""))
+    pwd = jwc_pwd or sso_pwd
     if not sid or not pwd:
         return False
 
@@ -94,6 +119,9 @@ def _on_login_success(student_id: str, password: str = ""):
         set_setting("password_enc", _encode_pwd(password))
     if jwc_client.student_name:
         set_setting("student_name", jwc_client.student_name)
+    else:
+        # 换人登录时名字可能提取失败，用学号兜底，覆盖旧名字
+        set_setting("student_name", "")
 
     semester = get_setting("semester")
     if not semester:
@@ -183,5 +211,6 @@ __all__ = [
     "_encode_pwd", "_decode_pwd",
     "_auto_login", "_require_login", "_on_login_success",
     "_course_row_to_dict", "_exam_row_to_dict", "_grade_row_to_dict",
+    "check_network",
     "get_lan_ip",
 ]

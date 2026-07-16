@@ -81,7 +81,7 @@ BIG_PERIOD_MAP = {
 DB_FILENAME = "schedule.db"
 
 # ============================================================
-# WebVPN 配置（校外通过 webvpn.njust.edu.cn 访问教务）
+# WebVPN 配置（智慧理工 SSO 登录模式备用）
 # ============================================================
 WEBVPN_BASE = "https://webvpn.njust.edu.cn"
 

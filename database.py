@@ -112,7 +112,8 @@ def init_db():
             ('student_name', ''),
             ('semester', ''),
             ('auto_refresh', 'false'),
-            ('refresh_interval', '3600');
+            ('refresh_interval', '3600'),
+            ('jwc_password_enc', '');
     """)
     db.commit()
     db.close()
