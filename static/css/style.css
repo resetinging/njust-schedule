@@ -353,6 +353,20 @@ a:hover { text-decoration: underline; }
     color: var(--text-light);
 }
 
+/* --- 日期行 --- */
+.schedule-table thead tr:first-child th {
+    background: var(--primary);
+    color: rgba(255,255,255,0.85);
+    font-weight: 400;
+    font-size: 0.8rem;
+    padding: 4px 4px;
+}
+
+/* --- 今日列格底金色 --- */
+.course-cell.today-col {
+    background: #fffde7;
+}
+
 /* --- 课程块 --- */
 .course-block {
     overflow: hidden;
@@ -383,6 +397,7 @@ a:hover { text-decoration: underline; }
     background: #fff3e0;
     border-left-color: #ffa726;
 }
+
 
 
 .course-name {

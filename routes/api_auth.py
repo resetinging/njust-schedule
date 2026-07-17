@@ -11,12 +11,24 @@ from routes import (
     jwc_client, jwc_lock,
     _auto_login_attempted, _last_auto_login_time,
     _auto_login, _on_login_success,
-    _encode_pwd,
+    _encode_pwd, _decode_pwd,
     check_network,
 )
 from database import get_db, get_setting, set_setting
 
 auth_bp = Blueprint("api_auth", __name__)
+
+
+def _resolve_password(student_id: str, provided: str) -> str:
+    """Resolve password: use provided one, or fall back to saved."""
+    if provided:
+        return provided
+    saved_sid = get_setting("student_id")
+    if saved_sid == student_id:
+        jwc = _decode_pwd(get_setting("jwc_password_enc", ""))
+        sso = _decode_pwd(get_setting("password_enc", ""))
+        return jwc or sso
+    return ""
 
 
 @auth_bp.route("/api/status")
@@ -105,7 +117,7 @@ def api_login():
     """登录教务系统（自动OCR识别验证码）"""
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
-    password = data.get("password") or ""
+    password = _resolve_password(student_id, data.get("password") or "")
 
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
@@ -128,7 +140,7 @@ def api_login_manual():
     """使用手动输入的验证码登录"""
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
-    password = data.get("password") or ""
+    password = _resolve_password(student_id, data.get("password") or "")
     captcha_text = (data.get("captcha") or "").strip()
 
     if not student_id or not password:
@@ -160,7 +172,7 @@ def api_get_webvpn_captcha():
     """
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
-    password = data.get("password") or ""
+    password = _resolve_password(student_id, data.get("password") or "")
 
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
@@ -202,7 +214,7 @@ def api_login_webvpn_manual():
     """使用手动输入的验证码完成 WebVPN 教务登录"""
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
-    password = data.get("password") or ""
+    password = _resolve_password(student_id, data.get("password") or "")
     captcha_text = (data.get("captcha") or "").strip()
 
     if not student_id or not password:
@@ -233,7 +245,7 @@ def api_login_webvpn():
     """通过智慧理工 WebVPN SSO 登录（校外可用）"""
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
-    password = data.get("password") or ""
+    password = _resolve_password(student_id, data.get("password") or "")
 
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400

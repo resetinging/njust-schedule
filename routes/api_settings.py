@@ -32,7 +32,7 @@ def api_settings():
         data = request.get_json()
         for key, value in data.items():
             if key in ("student_id", "student_name", "semester",
-                        "auto_refresh", "refresh_interval"):
+                        "auto_refresh", "refresh_interval", "first_week_date"):
                 set_setting(key, str(value))
         return jsonify({"success": True, "message": "设置已保存"})
 

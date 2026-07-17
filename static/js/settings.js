@@ -95,6 +95,7 @@ async function loadSettings() {
         const data = await resp.json();
         document.getElementById('student-id').value = data.student_id || '';
         document.getElementById('semester-select').value = data.semester || data.current_semester || '';
+        document.getElementById('first-week-date').value = data.first_week_date || '';
         // 显示密码保存状态
         const badge = document.getElementById('password-saved-badge');
         if (badge) {
@@ -104,6 +105,9 @@ async function loadSettings() {
         if (jwcBadge) {
             jwcBadge.style.display = data.has_jwc_password ? 'inline' : 'none';
         }
+        // 标记密码是否已保存（登录时空密码也能提交）
+        window._hasSavedPassword = data.has_password;
+        window._hasSavedJwcPassword = data.has_jwc_password;
         updateDataStats(data);
     } catch (e) {
         console.error('加载设置失败:', e);
@@ -197,8 +201,13 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
     const captchaInput = document.getElementById('captcha-input').value.trim();
 
-    if (!studentId || !password) {
-        showToast('❌ 请输入学号和密码', 'error');
+    if (!studentId) {
+        showToast('❌ 请输入学号', 'error');
+        return;
+    }
+    // 密码为空但已保存 → 允许提交，后端用已存密码
+    if (!password && !window._hasSavedPassword) {
+        showToast('❌ 请输入密码', 'error');
         return;
     }
 
@@ -254,9 +263,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
         if (data.success) {
             showToast('✅ ' + data.message, 'success');
-            document.getElementById('password').value = '';
             document.getElementById('password').disabled = false;
-            document.getElementById('jwc-password').value = '';
             document.getElementById('captcha-input').value = '';
             document.getElementById('captcha-area').style.display = 'none';
             resetPasswordLabel();
@@ -300,6 +307,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 document.getElementById('semester-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const semester = document.getElementById('semester-select').value;
+    const firstWeekDate = document.getElementById('first-week-date').value;
 
     try {
         const resp = await fetch('/api/semester', {
@@ -310,6 +318,14 @@ document.getElementById('semester-form').addEventListener('submit', async (e) =>
         const data = await resp.json();
         showToast(data.success ? '✅ ' + data.message : '❌ ' + data.message,
                   data.success ? 'success' : 'error');
+        // 同时保存第一周日期
+        if (firstWeekDate) {
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ first_week_date: firstWeekDate }),
+            });
+        }
     } catch (e) {
         showToast('❌ 切换失败: ' + e.message, 'error');
     }
@@ -360,6 +376,21 @@ async function logout() {
         showToast('退出失败: ' + e.message, 'error');
     }
 }
+
+// 第一周日期变更时自动保存
+document.getElementById('first-week-date').addEventListener('change', async function () {
+    const date = this.value;
+    try {
+        await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ first_week_date: date }),
+        });
+        showToast('✅ 第一周日期已保存，回到课表页面将自动跳转', 'success');
+    } catch (e) {
+        showToast('❌ 保存失败: ' + e.message, 'error');
+    }
+});
 
 // 加载并显示验证码
 async function loadCaptchaAndShow() {

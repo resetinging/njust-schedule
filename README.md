@@ -109,51 +109,52 @@ njust-schedule-desktop/
 ├── config.py               # 集中配置（教务URL、端口、大节映射、WebVPN）
 ├── database.py             # SQLite 数据库管理（建表、迁移、CRUD）
 ├── gpa.py                  # 绩点计算（NJUST 4.0 量表、CET折算、保研模式、学期汇总）
-├── jwc_client.py           # 教务系统爬虫客户端（直连/SSO登录、课表/考试/成绩/CET/评教）
 ├── eval_helpers.py         # 评教辅助（表单解析、自动评分算法、POST构建）
 ├── main.py                 # 桌面窗口入口（pywebview + Flask 后台线程）
 ├── VERSION                 # 版本号
 │
-├── routes/                 # Flask 蓝图路由（按功能域拆分）
-│   ├── __init__.py         # 共享状态、工具函数（JWC客户端、自动登录、网络检测）
-│   ├── pages.py            # HTML 页面路由 + 教务代理 + 图片列表
-│   ├── api_auth.py         # 认证 API（直连登录/SSO登录/验证码/状态/网络检测）
-│   ├── api_data.py         # 数据 API（课表/考试/成绩/CET/一键刷新/学期绩点）
-│   ├── api_eval.py         # 评教 API（列表/表单/提交/批量/进度轮询）
-│   └── api_settings.py     # 设置 API（学期切换/配置读写/数据清除）
+├── jwc/                    # 教务客户端包（v1.3 重构：Mixin 拆分）
+│   ├── __init__.py         # JWCClient 组合类
+│   ├── _base.py            # 核心基础设施（HTTP、Session、连通性）
+│   ├── _auth.py            # 认证模块（直连/SSO/OCR/验证码）
+│   └── _parsers.py         # 数据解析（课表/考试/成绩/CET/评教）
+│
+├── routes/                 # Flask 蓝图路由
+│   ├── __init__.py         # 包入口（re-export）
+│   ├── shared.py           # 共享状态（JWC客户端、锁、进度追踪）
+│   ├── helpers.py          # 工具函数（自动登录、密码编码、行转换）
+│   ├── pages.py            # HTML 页面路由 + 教务代理
+│   ├── api_auth.py         # 认证 API（5种登录方式、验证码、状态）
+│   ├── api_data.py         # 数据 API（课表/考试/成绩/CET/刷新）
+│   ├── api_eval.py         # 评教 API（列表/表单/提交/批量）
+│   └── api_settings.py     # 设置 API（学期/配置/数据清除）
 │
 ├── templates/              # Jinja2 HTML 模板
 │   ├── base.html           # 基础布局（导航栏、页脚、Toast/Loading）
-│   ├── index.html          # 课表页（表格 + 列表双视图）
-│   ├── exams.html          # 考试页（倒计时卡片 + 列表）
-│   ├── grades.html         # 成绩页（GPA 汇总卡片 + 各学期绩点网格 + 成绩表格）
+│   ├── index.html          # 课表页（表格 + 列表双视图、日期行、今日高亮）
+│   ├── exams.html          # 考试页（倒计时卡片）
+│   ├── grades.html         # 成绩页（GPA 卡片 + 学期绩点网格）
 │   ├── evaluations.html    # 评教页
-│   ├── settings.html       # 设置页（双模式登录、学期管理、数据操作）
-│   └── gallery.html        # 校历 & 照片墙（横向滚动 + Lightbox）
+│   ├── settings.html       # 设置页（登录、学期、第一周日期）
+│   └── gallery.html        # 校历 & 照片墙
 │
 ├── static/                 # 静态资源
 │   ├── css/style.css       # 全局样式
-│   ├── js/
-│   │   ├── main.js         # 公共函数（escapeHtml、Toast、Loading、状态栏）
-│   │   ├── schedule.js     # 课表逻辑（大节渲染、周筛选、列表视图）
-│   │   ├── exams.js        # 考试逻辑（倒计时卡片、时间解析）
-│   │   ├── grades.js       # 成绩逻辑（GPA模式切换、CET展示、学期绩点卡片）
-│   │   ├── evaluations.js  # 评教逻辑（批量提交、进度轮询）
-│   │   ├── settings.js     # 设置逻辑（双模式登录、验证码）
-│   │   └── gallery.js      # 照片墙逻辑（横向滚轮、Lightbox、键盘导航）
-│   ├── gallery/            # 校历 & 照片墙图片（放入即可显示）
+│   ├── js/                 # 页面脚本（每页一个）
+│   ├── gallery/            # 校历图片
 │   ├── manifest.json       # PWA 清单
-│   ├── sw.js               # Service Worker（离线缓存）
+│   ├── sw.js               # Service Worker
 │   └── *.png / *.ico       # 图标
 │
-├── docs/
-│   ├── bug-log-2026-07-09.md   # WebVPN 调试日志（已废弃）
-│   └── android-build-guide.md  # Android APK 构建指南
+├── docs/                   # 文档
+│   ├── ngrok-deploy-guide.md       # 内网穿透部署方案
+│   ├── android-build-guide.md      # Android APK 构建指南
+│   └── bug-log-2026-07-09.md       # WebVPN 调试日志（已废弃）
 │
 ├── scripts/
 │   ├── build.bat           # EXE 构建脚本
 │   ├── setup.bat           # 一键安装脚本
-│   ├── run.bat             # 一键启动脚本（桌面模式）
+│   ├── run.bat             # 一键启动脚本
 │   └── run.pyw             # 无控制台启动入口
 ├── njust_schedule.spec     # PyInstaller 打包配置
 └── requirements.txt        # Python 依赖

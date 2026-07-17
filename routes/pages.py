@@ -9,6 +9,7 @@ from flask import Blueprint, render_template, request, Response, jsonify, curren
 
 from routes import jwc_client, jwc_lock
 from eval_helpers import EVAL_HEADERS, warm_eval_session
+from database import get_setting
 
 pages_bp = Blueprint("pages", __name__)
 
@@ -16,7 +17,8 @@ pages_bp = Blueprint("pages", __name__)
 @pages_bp.route("/")
 def index():
     """课表主页"""
-    return render_template("index.html")
+    first_week = get_setting("first_week_date", "")
+    return render_template("index.html", first_week_date=first_week)
 
 
 @pages_bp.route("/exams")
