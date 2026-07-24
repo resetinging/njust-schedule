@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo ==========================================
 echo   NJUST Schedule Manager - Setup
@@ -9,7 +9,6 @@ echo.
 
 :: Find Python
 set "PY="
-if exist "C:\Users\a\AppData\Local\Python\bin\python.exe" set "PY=C:\Users\a\AppData\Local\Python\bin\python.exe"
 if "%PY%"=="" (py --version >nul 2>&1 && set "PY=py")
 if "%PY%"=="" (python --version >nul 2>&1 && set "PY=python")
 
@@ -46,7 +45,7 @@ if errorlevel 1 (
 
 echo.
 echo ==========================================
-echo   Setup complete! Double-click run.bat
+echo   Setup complete! Double-click scripts\run.bat
 echo ==========================================
 echo.
 pause

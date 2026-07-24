@@ -2,6 +2,13 @@
    南理工课表管理系统 - 全局 JavaScript
    ============================================================ */
 
+// --- HTML 转义（防 XSS） ---
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 // --- Toast 消息 ---
 function showToast(message, type = 'info') {
     let container = document.querySelector('.toast-container');
@@ -62,17 +69,29 @@ function updateNavStatus(data) {
     const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
 
+    // 优先显示登录状态
     if (data.logged_in) {
         dot.className = 'status-dot online';
         text.textContent = data.student_name || '已登录';
+        text.title = (data.login_method === 'webvpn')
+            ? '🌐 智慧理工登录' : '🏫 教务直连';
         // 自动登录成功提示（同窗口仅首次）
         if (data.auto_login_attempted && !sessionStorage.getItem(AUTO_LOGIN_TOAST_KEY)) {
             sessionStorage.setItem(AUTO_LOGIN_TOAST_KEY, '1');
             showToast('✅ 已自动登录 — ' + (data.student_name || data.student_id), 'success');
         }
     } else {
-        dot.className = 'status-dot offline';
-        text.textContent = '未登录';
+        // 未登录时显示网络状态
+        const net = data.network || {};
+        if (net.reachable) {
+            dot.className = 'status-dot online';
+            text.textContent = net.label || '教务在线';
+            text.title = net.latency_ms ? Math.round(net.latency_ms) + 'ms' : '';
+        } else {
+            dot.className = 'status-dot offline';
+            text.textContent = '离线';
+            text.title = net.hint || '请检查教务系统连接';
+        }
         // 自动登录失败提示（同窗口仅首次）
         if (data.auto_login_attempted && !sessionStorage.getItem(AUTO_LOGIN_TOAST_KEY)) {
             sessionStorage.setItem(AUTO_LOGIN_TOAST_KEY, '1');

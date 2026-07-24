@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}校历 - 南理工课表管理{% endblock %}
+{% block nav_gallery %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <h1>🖼️ 校历 & 照片墙</h1>
+        <span class="semester-badge" id="gallery-count">加载中...</span>
+    </div>
+    <div class="header-actions">
+        <span style="font-size:0.85rem;color:var(--text-light);">
+            💡 点击图片查看大图 · 滚轮横向滑动 · ← → 切换
+        </span>
+    </div>
+</div>
+
+<!-- 横向滚动照片墙 -->
+<div class="gallery-scroll" id="gallery-scroll">
+    <!-- JS 动态渲染 -->
+</div>
+
+<!-- 空状态 -->
+<div class="schedule-empty" id="gallery-empty" style="display:none;">
+    <div class="empty-icon">🖼️</div>
+    <h3>暂无照片</h3>
+    <p>将图片文件放入 <code>static/gallery/</code> 目录即可在此显示</p>
+</div>
+
+<!-- Lightbox 全屏查看 -->
+<div class="lightbox-overlay" id="lightbox" style="display:none;">
+    <button class="lightbox-close" onclick="closeLightbox()" title="关闭">✕</button>
+    <button class="lightbox-nav lightbox-prev" onclick="navigateLightbox(-1)" title="上一张">‹</button>
+    <img class="lightbox-img" id="lightbox-img" src="" alt="">
+    <button class="lightbox-nav lightbox-next" onclick="navigateLightbox(1)" title="下一张">›</button>
+    <div class="lightbox-counter" id="lightbox-counter"></div>
+    <div class="lightbox-filename" id="lightbox-filename"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/gallery.js"></script>
+{% endblock %}

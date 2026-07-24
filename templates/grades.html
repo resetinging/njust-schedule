@@ -14,14 +14,35 @@
         <button class="btn btn-primary" onclick="refreshGrades()" id="btn-refresh">
             🔄 刷新成绩
         </button>
+        <button class="btn btn-secondary" onclick="refreshCet()" id="btn-refresh-cet">
+            🏆 刷新四六级
+        </button>
     </div>
+</div>
+
+<!-- 四六级成绩 -->
+<div class="cet-bar" id="cet-bar" style="display:none;">
+    <span class="cet-bar-title">🏆 四六级</span>
+    <span id="cet-items"></span>
+    <span class="cet-bar-best" id="cet-best"></span>
+</div>
+
+<!-- GPA 模式切换 -->
+<div class="gpa-mode-bar" id="gpa-mode-bar" style="display:none;">
+    <span class="gpa-mode-label">绩点算法：</span>
+    <button class="btn btn-sm gpa-mode-btn active" data-mode="" onclick="switchGpaMode('')">
+        📋 奖学金/综测
+    </button>
+    <button class="btn btn-sm gpa-mode-btn" data-mode="baoyan" onclick="switchGpaMode('baoyan')" id="btn-mode-baoyan">
+        🎓 保研推免
+    </button>
 </div>
 
 <!-- 绩点汇总 -->
 <div class="grade-summary" id="grade-summary" style="display:none;">
     <div class="stat-card">
         <div class="stat-value" id="stat-gpa">---</div>
-        <div class="stat-label">平均绩点</div>
+        <div class="stat-label">加权平均绩点（计内）<span class="gpa-note" id="gpa-note" style="display:none;"></span></div>
     </div>
     <div class="stat-card">
         <div class="stat-value" id="stat-credits">---</div>
@@ -30,6 +51,15 @@
     <div class="stat-card">
         <div class="stat-value" id="stat-count">---</div>
         <div class="stat-label">课程数</div>
+    </div>
+</div>
+
+<!-- 各学期绩点明细 -->
+<div class="semester-gpa-section" id="semester-gpa-section" style="display:none;">
+    <h2 class="section-title">📊 各学期绩点明细</h2>
+    <p class="section-desc">绩点 = Σ(课程学分 × 课程绩点) / Σ课程学分</p>
+    <div class="semester-gpa-grid" id="semester-gpa-grid">
+        <!-- JS 动态生成 -->
     </div>
 </div>
 
@@ -53,6 +83,7 @@
                     <th>学分</th>
                     <th>绩点</th>
                     <th>课程属性</th>
+                    <th>课程性质</th>
                     <th>考试类型</th>
                 </tr>
             </thead>

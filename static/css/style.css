@@ -194,6 +194,12 @@ a:hover { text-decoration: underline; }
 }
 .btn-danger:hover { background: #c0392b; }
 
+.btn-success {
+    background: #27ae60;
+    color: white;
+}
+.btn-success:hover { background: #219a52; }
+
 .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
 
 .btn:disabled {
@@ -347,6 +353,20 @@ a:hover { text-decoration: underline; }
     color: var(--text-light);
 }
 
+/* --- 日期行 --- */
+.schedule-table thead tr:first-child th {
+    background: var(--primary);
+    color: rgba(255,255,255,0.85);
+    font-weight: 400;
+    font-size: 0.8rem;
+    padding: 4px 4px;
+}
+
+/* --- 今日列格底金色 --- */
+.course-cell.today-col {
+    background: #fffde7;
+}
+
 /* --- 课程块 --- */
 .course-block {
     overflow: hidden;
@@ -377,6 +397,7 @@ a:hover { text-decoration: underline; }
     background: #fff3e0;
     border-left-color: #ffa726;
 }
+
 
 
 .course-name {
@@ -585,6 +606,78 @@ a:hover { text-decoration: underline; }
 }
 
 /* --- 设置页面 --- */
+/* --- 登录模式切换标签 --- */
+.login-mode-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1.5px solid var(--border);
+}
+
+.login-mode-tab {
+    flex: 1;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: none;
+    background: var(--card-bg);
+    color: var(--text-light);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.login-mode-tab:hover {
+    background: var(--primary-bg);
+    color: var(--primary);
+}
+
+.login-mode-tab.active {
+    background: var(--primary);
+    color: #fff;
+}
+
+.login-mode-tab + .login-mode-tab {
+    border-left: 1.5px solid var(--border);
+}
+
+/* --- 网络状态条 --- */
+.network-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    background: var(--bg);
+    font-size: 0.88rem;
+    color: var(--text);
+}
+
+.network-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #bdc3c7;
+    flex-shrink: 0;
+}
+
+.network-dot.online {
+    background: var(--success);
+    box-shadow: 0 0 6px rgba(39, 174, 96, 0.4);
+}
+
+.network-dot.offline {
+    background: var(--danger);
+}
+
+.network-latency {
+    margin-left: auto;
+    color: var(--text-light);
+    font-size: 0.8rem;
+}
+
 .settings-container {
     max-width: 700px;
     display: flex;
@@ -1394,10 +1487,165 @@ a:hover { text-decoration: underline; }
     margin-top: 2px;
 }
 
+/* 不计入绩点的课程行 */
+.grade-table tbody tr.row-excluded {
+    opacity: 0.55;
+    background: #fafafa;
+}
+.gpa-excluded-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    color: #999;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0px 5px;
+    margin-left: 5px;
+    vertical-align: middle;
+    font-weight: 400;
+}
+.gpa-note {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--text-light);
+    display: block;
+    margin-top: 2px;
+}
+
+/* --- 四六级成绩栏 --- */
+.cet-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    background: #f0f7ff;
+    border: 1px solid #cce0ff;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+}
+.cet-bar-title { font-weight: 700; color: var(--primary); }
+.cet-item { margin-right: 12px; }
+.cet-bar-best { margin-left: auto; color: var(--success); font-weight: 600; }
+
+/* --- GPA 模式切换 --- */
+.gpa-mode-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 6px 0;
+}
+.gpa-mode-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-right: 4px;
+}
+.gpa-mode-btn {
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.gpa-mode-btn.active {
+    background: var(--primary-light);
+    color: white;
+    border-color: var(--primary-light);
+}
+.gpa-mode-btn:not(.active):hover { background: var(--bg); }
+
+/* "已替换"标签（保研模式英语课） */
+.cet-replaced {
+    color: #e67e22;
+    border-color: #e67e22;
+}
+
 /* 成绩颜色 */
 .score-high { color: var(--success); font-weight: 700; }
 .score-pass { color: var(--text); }
 .score-fail { color: var(--danger); font-weight: 700; }
+
+/* 绩点颜色级别 */
+.gpa-high { color: var(--success); }
+.gpa-mid { color: var(--warning); }
+.gpa-low { color: var(--danger); }
+
+/* --- 各学期绩点明细 --- */
+.semester-gpa-section {
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    color: var(--primary);
+    margin-bottom: 4px;
+}
+
+.section-desc {
+    font-size: 0.82rem;
+    color: var(--text-light);
+    margin-bottom: 14px;
+}
+
+.semester-gpa-grid {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.semester-gpa-card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 14px 18px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--border);
+    min-width: 140px;
+    flex: 1;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.semester-gpa-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+    border-left-color: var(--primary-light);
+}
+
+.semester-gpa-card.active {
+    border-left-color: var(--primary-light);
+    background: var(--primary-bg);
+}
+
+.sgpa-semester {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-bottom: 4px;
+}
+
+.sgpa-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.sgpa-detail {
+    font-size: 0.78rem;
+    color: var(--text-light);
+    margin-top: 6px;
+    display: flex;
+    gap: 4px;
+}
+
+@media (max-width: 768px) {
+    .semester-gpa-grid {
+        flex-direction: column;
+    }
+    .semester-gpa-card {
+        min-width: auto;
+    }
+}
 
 /* 成绩页响应式 */
 @media (max-width: 768px) {
@@ -1424,5 +1672,217 @@ a:hover { text-decoration: underline; }
     .grade-table th:nth-child(4),
     .grade-table td:nth-child(4) {
         display: none;
+    }
+}
+
+/* ============================================================
+   校历 & 照片墙
+   ============================================================ */
+
+.gallery-scroll {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 4px 24px;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    cursor: grab;
+}
+
+.gallery-scroll:active {
+    cursor: grabbing;
+}
+
+/* 隐藏滚动条但可滚动 */
+.gallery-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+.gallery-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+.gallery-scroll::-webkit-scrollbar-thumb {
+    background: #c4c8d0;
+    border-radius: 4px;
+}
+.gallery-scroll::-webkit-scrollbar-thumb:hover {
+    background: #a0a4ac;
+}
+
+/* 火狐滚动条 */
+.gallery-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #c4c8d0 transparent;
+}
+
+.gallery-card {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: transform 0.25s, box-shadow 0.25s;
+    cursor: pointer;
+    width: 280px;
+}
+
+.gallery-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+}
+
+.gallery-card-img {
+    width: 100%;
+    height: 320px;
+    object-fit: cover;
+    display: block;
+    background: #f0f0f0;
+}
+
+.gallery-card-label {
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+/* Lightbox 全屏查看 */
+.lightbox-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.92);
+    z-index: 4000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.lightbox-img {
+    max-width: 90vw;
+    max-height: 85vh;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 24px;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: white;
+    font-size: 1.6rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    z-index: 4001;
+}
+.lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    color: white;
+    font-size: 2.8rem;
+    width: 56px;
+    height: 80px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    z-index: 4001;
+    user-select: none;
+}
+.lightbox-nav:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.lightbox-prev {
+    left: 16px;
+}
+
+.lightbox-next {
+    right: 16px;
+}
+
+.lightbox-counter {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.9rem;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 6px 16px;
+    border-radius: 20px;
+    z-index: 4001;
+}
+
+.lightbox-filename {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+    z-index: 4001;
+    max-width: 50vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 响应式：照片墙 */
+@media (max-width: 768px) {
+    .gallery-card {
+        width: 220px;
+    }
+    .gallery-card-img {
+        height: 260px;
+    }
+    .lightbox-nav {
+        width: 40px;
+        height: 56px;
+        font-size: 2rem;
+    }
+    .lightbox-prev { left: 8px; }
+    .lightbox-next { right: 8px; }
+    .lightbox-filename {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .gallery-card {
+        width: 180px;
+    }
+    .gallery-card-img {
+        height: 220px;
     }
 }

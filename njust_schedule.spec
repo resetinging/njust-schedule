@@ -41,6 +41,8 @@ a = Analysis(
         (str(ROOT / "static"), "static"),
     ] + ddddocr_datas + onnx_datas,
     hiddenimports=[
+        # jwc 教务客户端包
+        "jwc", "jwc._base", "jwc._auth", "jwc._parsers",
         # Flask 全家桶
         "flask", "flask.json.provider", "flask.cli",
         "werkzeug", "werkzeug.debug", "werkzeug.serving",
