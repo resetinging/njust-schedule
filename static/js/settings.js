@@ -1,8 +1,81 @@
-﻿document.addEventListener('DOMContentLoaded', async () => {
+﻿// 当前登录模式: 'direct' | 'webvpn'
+let currentLoginMode = 'direct';
+
+document.addEventListener('DOMContentLoaded', async () => {
     await loadStatus();                  // main.js 共享版本
     await loadSettingsAndLoginInfo();    // 补充登录信息面板
     loadSemesters();
+    checkNetworkStatus();                // 网络连通性检测
 });
+
+// ============================================================
+// 登录模式切换
+// ============================================================
+function switchLoginMode(mode) {
+    currentLoginMode = mode;
+    // 更新 tab 样式
+    document.querySelectorAll('.login-mode-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.mode === mode);
+    });
+    // 更新描述文字
+    const desc = document.getElementById('login-mode-desc');
+    const captchaArea = document.getElementById('captcha-area');
+    const btnCaptcha = document.getElementById('btn-load-captcha');
+    const btnCaptcha2 = document.getElementById('btn-load-captcha-2');
+    if (mode === 'webvpn') {
+        desc.innerHTML = '<strong>两步登录：</strong>Step 1 智慧理工 SSO 验证 → Step 2 教务系统登录。<br>点击「获取验证码」完成 Step 1，输入<strong>教务密码+验证码</strong>完成 Step 2。';
+        // WebVPN 模式也显示验证码（教务系统的验证码，非 SSO）
+        if (btnCaptcha) btnCaptcha.style.display = 'inline-block';
+        if (btnCaptcha2) btnCaptcha2.style.display = 'inline-block';
+        // 先隐藏验证码区域，点获取后再显示
+        document.getElementById('captcha-img').style.display = 'none';
+        document.getElementById('captcha-input-group').style.display = 'none';
+        // 显示两步提示引导 + 教务密码框
+        document.getElementById('password-label').innerHTML =
+            '智慧理工密码 <span style="color:#1976d2;font-size:12px;">（Step 1）</span>';
+        document.getElementById('password').placeholder = '请输入智慧理工密码';
+        document.getElementById('jwc-password-group').style.display = 'block';
+        document.getElementById('sso-step-hint').style.display = 'none';
+    } else {
+        desc.innerHTML = '直接登录教务系统，无需校园网环境。';
+        if (btnCaptcha) btnCaptcha.style.display = '';
+        if (btnCaptcha2) btnCaptcha2.style.display = '';
+        document.getElementById('jwc-password-group').style.display = 'none';
+        resetPasswordLabel();
+    }
+}
+
+// ============================================================
+// 网络状态检测
+// ============================================================
+async function checkNetworkStatus() {
+    const dot = document.getElementById('network-dot');
+    const label = document.getElementById('network-label');
+    const latency = document.getElementById('network-latency');
+    try {
+        const resp = await fetch('/api/status');
+        const data = await resp.json();
+        const net = data.network || {};
+        if (net.reachable) {
+            dot.className = 'network-dot online';
+            label.textContent = net.label || '教务在线';
+            if (net.latency_ms) {
+                latency.textContent = Math.round(net.latency_ms) + 'ms';
+            }
+        } else {
+            dot.className = 'network-dot offline';
+            label.textContent = '离线（校外）';
+            latency.textContent = '';
+        }
+        if (net.hint) {
+            label.title = net.hint;
+        }
+    } catch (e) {
+        dot.className = 'network-dot';
+        label.textContent = '检测失败';
+        latency.textContent = '';
+    }
+}
 
 // 加载设置 + 更新登录状态面板（settings 页面特有）
 async function loadSettingsAndLoginInfo() {
@@ -22,11 +95,19 @@ async function loadSettings() {
         const data = await resp.json();
         document.getElementById('student-id').value = data.student_id || '';
         document.getElementById('semester-select').value = data.semester || data.current_semester || '';
+        document.getElementById('first-week-date').value = data.first_week_date || '';
         // 显示密码保存状态
         const badge = document.getElementById('password-saved-badge');
         if (badge) {
             badge.style.display = data.has_password ? 'inline' : 'none';
         }
+        const jwcBadge = document.getElementById('jwc-password-saved-badge');
+        if (jwcBadge) {
+            jwcBadge.style.display = data.has_jwc_password ? 'inline' : 'none';
+        }
+        // 标记密码是否已保存（登录时空密码也能提交）
+        window._hasSavedPassword = data.has_password;
+        window._hasSavedJwcPassword = data.has_jwc_password;
         updateDataStats(data);
     } catch (e) {
         console.error('加载设置失败:', e);
@@ -51,6 +132,11 @@ async function loadSemesters() {
 
 function updateLoginInfo(data) {
     const infoDiv = document.getElementById('login-info');
+    const methodLabels = {
+        'web-auto': '🏫 教务直连（自动）',
+        'web-manual': '🏫 教务直连（手动验证码）',
+        'webvpn': '🌐 智慧理工',
+    };
     if (data.logged_in) {
         infoDiv.style.display = 'block';
         document.getElementById('info-status').innerHTML =
@@ -59,8 +145,12 @@ function updateLoginInfo(data) {
         document.getElementById('info-student-name').textContent =
             data.student_name || '-';
         document.getElementById('info-login-method').textContent =
-            data.login_method || '未知';
+            methodLabels[data.login_method] || data.login_method || '未知';
         document.getElementById('btn-login').textContent = '🔄 重新登录';
+        // 根据已登录方式预选 tab
+        if (data.login_method === 'webvpn') {
+            switchLoginMode('webvpn');
+        }
     } else {
         infoDiv.style.display = 'block';
         document.getElementById('info-status').innerHTML =
@@ -111,24 +201,56 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
     const captchaInput = document.getElementById('captcha-input').value.trim();
 
-    if (!studentId || !password) {
-        showToast('❌ 请输入学号和密码', 'error');
+    if (!studentId) {
+        showToast('❌ 请输入学号', 'error');
+        return;
+    }
+    // 密码为空但已保存 → 允许提交，后端用已存密码
+    if (!password && !window._hasSavedPassword) {
+        showToast('❌ 请输入密码', 'error');
         return;
     }
 
-    showLoading('正在登录教务系统...');
+    // 根据登录模式选择 API 端点
+    const isWebVPN = currentLoginMode === 'webvpn';
+    const useCaptcha = (
+        document.getElementById('captcha-area').style.display !== 'none'
+        && captchaInput.length > 0
+    );
 
-    // 判断用哪种登录方式
-    const useCaptcha = document.getElementById('captcha-area').style.display !== 'none'
-                       && captchaInput.length > 0;
-    const url = useCaptcha ? '/api/login-manual' : '/api/login';
-    const body = useCaptcha
-        ? JSON.stringify({ student_id: studentId, password, captcha: captchaInput })
-        : JSON.stringify({ student_id: studentId, password });
-
-    document.getElementById('loading-text').textContent = useCaptcha
-        ? '正在使用手动验证码登录...'
-        : '正在自动识别验证码并登录，请稍候...';
+    let url, body;
+    if (isWebVPN && useCaptcha) {
+        // Step 2: 智慧理工 + 手动验证码（用户已输入教务密码+验证码）
+        const jwcPwd = document.getElementById('jwc-password').value || password;
+        if (!jwcPwd) {
+            showToast('❌ 请输入教务密码', 'error');
+            return;
+        }
+        url = '/api/login-webvpn-manual';
+        body = JSON.stringify({ student_id: studentId, password, jwc_password: jwcPwd, captcha: captchaInput });
+        showLoading('Step 2/2: 正在登录教务系统...');
+        document.getElementById('loading-text').textContent = '正在提交教务密码和验证码...';
+    } else if (isWebVPN) {
+        // 自动 OCR 模式（使用智慧理工密码，教务密码可选）
+        const jwcPwd = document.getElementById('jwc-password').value;
+        url = '/api/login-webvpn';
+        body = JSON.stringify({ student_id: studentId, password, jwc_password: jwcPwd || password });
+        showLoading('正在通过智慧理工 SSO 登录...');
+        document.getElementById('loading-text').textContent =
+            '正在连接智慧理工并登录教务，请稍候...';
+    } else if (useCaptcha) {
+        url = '/api/login-manual';
+        body = JSON.stringify({ student_id: studentId, password, captcha: captchaInput });
+        showLoading('正在登录教务系统...');
+        document.getElementById('loading-text').textContent =
+            '正在使用手动验证码登录...';
+    } else {
+        url = '/api/login';
+        body = JSON.stringify({ student_id: studentId, password });
+        showLoading('正在登录教务系统...');
+        document.getElementById('loading-text').textContent =
+            '正在自动识别验证码并登录，请稍候...';
+    }
 
     try {
         const resp = await fetch(url, {
@@ -141,15 +263,37 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
         if (data.success) {
             showToast('✅ ' + data.message, 'success');
-            document.getElementById('password').value = '';
+            document.getElementById('password').disabled = false;
             document.getElementById('captcha-input').value = '';
             document.getElementById('captcha-area').style.display = 'none';
+            resetPasswordLabel();
             loadStatus();
             loadSettings();
+            checkNetworkStatus();
         } else {
             showToast('❌ ' + data.message, 'error');
-            // 如果提示验证码相关，自动展开手动验证码区域
-            if (data.need_captcha || data.message.includes('验证码')) {
+            // WebVPN 失败时显示调试日志
+            if (isWebVPN && data.debug_log && data.debug_log.length > 0) {
+                console.log('=== WebVPN 调试日志 ===');
+                data.debug_log.forEach(l => console.log(l));
+                // 也显示在页面上
+                const logText = data.debug_log.slice(-10).join('\n');
+                const logContainer = document.getElementById('webvpn-debug-log');
+                const logPre = document.getElementById('webvpn-debug-content');
+                if (logContainer && logPre) {
+                    logPre.textContent = logText;
+                    logContainer.style.display = 'block';
+                }
+            } else {
+                const logContainer = document.getElementById('webvpn-debug-log');
+                if (logContainer) logContainer.style.display = 'none';
+            }
+            // 如果提示验证码相关或密码错误（可能是教务密码不同），提示走手动两步流程
+            if (data.need_captcha || data.message.includes('验证码')
+                || (isWebVPN && data.message.includes('密码错误'))) {
+                if (isWebVPN) {
+                    showToast('💡 建议点击「显示验证码」进入两步登录：先确认智慧理工密码，再单独输入教务密码', 'info');
+                }
                 loadCaptchaAndShow();
             }
         }
@@ -163,6 +307,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 document.getElementById('semester-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const semester = document.getElementById('semester-select').value;
+    const firstWeekDate = document.getElementById('first-week-date').value;
 
     try {
         const resp = await fetch('/api/semester', {
@@ -173,6 +318,14 @@ document.getElementById('semester-form').addEventListener('submit', async (e) =>
         const data = await resp.json();
         showToast(data.success ? '✅ ' + data.message : '❌ ' + data.message,
                   data.success ? 'success' : 'error');
+        // 同时保存第一周日期
+        if (firstWeekDate) {
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ first_week_date: firstWeekDate }),
+            });
+        }
     } catch (e) {
         showToast('❌ 切换失败: ' + e.message, 'error');
     }
@@ -224,6 +377,21 @@ async function logout() {
     }
 }
 
+// 第一周日期变更时自动保存
+document.getElementById('first-week-date').addEventListener('change', async function () {
+    const date = this.value;
+    try {
+        await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ first_week_date: date }),
+        });
+        showToast('✅ 第一周日期已保存，回到课表页面将自动跳转', 'success');
+    } catch (e) {
+        showToast('❌ 保存失败: ' + e.message, 'error');
+    }
+});
+
 // 加载并显示验证码
 async function loadCaptchaAndShow() {
     document.getElementById('captcha-area').style.display = 'block';
@@ -235,13 +403,38 @@ async function loadCaptcha() {
     const img = document.getElementById('captcha-img');
     const input = document.getElementById('captcha-input');
     const loadBtn = document.getElementById('btn-load-captcha');
+    const isWebVPN = currentLoginMode === 'webvpn';
 
     img.style.display = 'none';
     if (loadBtn) loadBtn.style.display = 'none';
 
     try {
-        const resp = await fetch('/api/get-captcha');
-        const data = await resp.json();
+        let resp, data;
+
+        if (isWebVPN) {
+            // ========================================================
+            // 智慧理工模式：Step 1 — SSO 登录 → 获取教务验证码
+            // ========================================================
+            const studentId = document.getElementById('student-id').value.trim();
+            const password = document.getElementById('password').value;
+            if (!studentId || !password) {
+                showToast('❌ 请先输入学号和智慧理工密码', 'error');
+                if (loadBtn) loadBtn.style.display = 'inline-block';
+                return;
+            }
+            showLoading('Step 1/2: 正在登录智慧理工...');
+            resp = await fetch('/api/get-webvpn-captcha', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_id: studentId, password }),
+            });
+            data = await resp.json();
+            hideLoading();
+        } else {
+            // 直连模式
+            resp = await fetch('/api/get-captcha');
+            data = await resp.json();
+        }
 
         if (data.success && data.captcha_b64) {
             img.src = 'data:image/png;base64,' + data.captcha_b64;
@@ -249,13 +442,41 @@ async function loadCaptcha() {
             input.value = '';
             input.focus();
             document.getElementById('captcha-input-group').style.display = 'block';
-            showToast('✅ ' + data.message, 'info');
+            document.getElementById('captcha-area').style.display = 'block';
+
+            if (isWebVPN) {
+                // ★ Step 1 完成：智慧理工 SSO 登录成功
+                // 提示用户进入 Step 2：输入教务密码 + 验证码
+                document.getElementById('sso-step-hint').style.display = 'block';
+                document.getElementById('password').disabled = true;  // 锁定 SSO 密码，防止误改
+                document.getElementById('jwc-password').focus();
+                showToast('✅ 智慧理工登录成功！请输入教务密码和验证码', 'info');
+            } else {
+                showToast('✅ ' + data.message, 'info');
+            }
+        } else if (data.already_logged_in) {
+            // 已有教务会话，无需验证码
+            document.getElementById('sso-step-hint').style.display = 'none';
+            resetPasswordLabel();
+            showToast('✅ ' + data.message, 'success');
+            loadStatus();
+            loadSettings();
         } else {
+            document.getElementById('sso-step-hint').style.display = 'none';
             showToast('❌ ' + (data.message || '获取验证码失败'), 'error');
             if (loadBtn) loadBtn.style.display = 'inline-block';
         }
     } catch (e) {
+        hideLoading();
         showToast('❌ 获取验证码失败: ' + e.message, 'error');
         if (loadBtn) loadBtn.style.display = 'inline-block';
     }
+}
+
+// 重置密码标签为默认状态
+function resetPasswordLabel() {
+    document.getElementById('password-label').innerHTML =
+        '密码 <span id="password-saved-badge" class="badge badge-success" style="display:none;">✅ 已保存</span>';
+    document.getElementById('password').placeholder = '请输入密码';
+    document.getElementById('sso-step-hint').style.display = 'none';
 }

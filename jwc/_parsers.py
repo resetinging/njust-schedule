@@ -23,7 +23,18 @@ from config import (
     JW_EVAL_PAGE, JW_GRADE_QUERY, JW_GRADE_LIST, JW_CET_LIST,
     JW_APP_DO, JW_CAPTCHA_URLS, BIG_PERIOD_MAP,
     HTTP_TIMEOUT, HTTP_HEADERS,
+    SSO_BASE, SSO_LOGIN_URL,
+    WEBVPN_BASE, WEBVPN_PREFIX_JW,
+    JW_BASE_8080_VPN, JW_BASE_9080_VPN, DEBUG_WEBVPN,
 )
+
+# === 加密模块（WebVPN 密码加密） ===
+try:
+    from Crypto.Cipher import AES
+    from Crypto.Util.Padding import pad as aes_pad
+    _HAS_CRYPTO = True
+except ImportError:
+    _HAS_CRYPTO = False
 
 # === URL 别名（保持向后兼容） ===
 BASE_URL = JW_BASE_8080
@@ -45,273 +56,7 @@ HEADERS = HTTP_HEADERS
 TIMEOUT = HTTP_TIMEOUT
 
 
-class JWCClient:
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)
-        self.token = None
-        self.student_id = None
-        self.student_name = None
-        self.logged_in = False
-        self.login_method = ""
-        self.last_error = ""
-        self._captcha_ready = False
-        self._active_captcha_url = URL_CAPTCHA_CANDIDATES[0]
-
-    # ================================================================
-    # 登录入口
-    # ================================================================
-
-    def login(self, student_id: str, password: str) -> bool:
-        self.student_id = student_id
-        self.last_error = ""
-        self.logged_in = False
-        self.token = None
-        self._captcha_ready = False
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)
-
-        # 8080 端口 Web 登录 + OCR
-        if self._try_web_auto(student_id, password):
-            return True
-
-        return False
-
-    # ================================================================
-    # 方式1: Web 表单登录（USERNAME + PASSWORD 明文 + 验证码）
-    # ================================================================
-
-    def _try_simple_login(self, student_id: str, password: str, captcha: str) -> bool:
-        """
-        NJUST 真实登录：
-        1. POST /Logon.do?method=logon（8080）
-        2. 服务器返回 302 → 9080/LoginToXk?method=jwxt&secret=...
-        3. 跟随重定向链完成认证
-        """
-        payload = {
-            "USERNAME": student_id,
-            "PASSWORD": password,
-            "RANDOMCODE": captcha,
-            "useDogCode": "",
-        }
-        try:
-            # ★ 用 allow_redirects=True 让 requests 自动跟随整个重定向链
-            resp = self.session.post(
-                URL_LOGON_PAGE,
-                data=payload,
-                timeout=TIMEOUT,
-                allow_redirects=True,  # ← 自动跟随 302 → 9080 → ...
-                headers={"Referer": URL_LOGON_PAGE},
-            )
-            # ★ 先去重 cookie，否则 dict() 会崩溃
-            self._dedupe_cookies()
-
-            print(f"[Login] POST → final status={resp.status_code} "
-                  f"final URL={resp.url[:120]}")
-            print(f"[Login] 页面标题: {self._page_title(resp)}")
-            for i, h in enumerate(resp.history):
-                print(f"[Login]   重定向#{i}: {h.status_code} → {h.headers.get('Location','')[:80]}")
-
-            # 安全打印 cookies
-            ck = {c.name: c.value for c in self.session.cookies}
-            print(f"[Login] cookies: {ck}")
-
-            # 检查是否登录成功
-            if self._check_success(resp):
-                self._extract_name(resp.text)
-                self.logged_in = True
-                self.login_method = "web-auto"
-                # ★ 访问 9080 主页巩固 session
-                self.session.get(
-                    URL_MAIN_PAGE,
-                    timeout=TIMEOUT, allow_redirects=True,
-                )
-                self._dedupe_cookies()
-                print(f"[Login] 登录成功! cookies: "
-                      f"{ {c.name: c.value for c in self.session.cookies} }")
-                return True
-
-            # 检查响应中的错误提示
-            t = resp.text.lower()
-            if "用户名或密码不能为空" in t or "密码错误" in t:
-                self.last_error = "用户名或密码错误"
-            elif "验证码" in t and ("错误" in t or "不正确" in t):
-                self.last_error = "验证码不正确"
-            else:
-                self.last_error = "登录失败"
-            return False
-
-        except Exception as e:
-            print(f"[Login] 异常: {e}")
-            return False
-
-    # ================================================================
-    # 方式2: Web 登录 + OCR
-    # ================================================================
-
-    def _try_web_auto(self, student_id: str, password: str) -> bool:
-        """自动 OCR 识别验证码登录"""
-        try:
-            import ddddocr
-            self._init_logon_session()
-            ocr = ddddocr.DdddOcr(show_ad=False)
-
-            for i in range(5):
-                img = self._fetch_captcha()
-                if not img:
-                    break
-                code = self._ocr_with_preprocess(ocr, img)
-                if not code:
-                    continue
-                print(f"[OCR] #{i+1}: '{code}'")
-
-                if self._try_simple_login(student_id, password, code):
-                    self.logged_in = True
-                    self.login_method = "web-auto"
-                    return True
-
-            self.last_error = "验证码自动识别失败，请使用手动输入（点「显示验证码」）"
-            return False
-        except ImportError as e:
-            self.last_error = f"OCR 模块加载失败: {e}"
-            return False
-        except requests.exceptions.ConnectionError:
-            self.last_error = "无法连接教务服务器（请检查校园网/VPN）"
-            return False
-        except Exception as e:
-            self.last_error = str(e)
-            return False
-
-    # ================================================================
-    # 手动验证码流程
-    # ================================================================
-
-    def get_captcha_base64(self) -> Tuple[str, str]:
-        self._captcha_ready = False
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)
-        try:
-            self._init_logon_session()
-            img = self._fetch_captcha()
-            if not img:
-                return "", "获取验证码失败"
-            self._captcha_ready = True
-            return base64.b64encode(img).decode(), ""
-        except Exception as e:
-            return "", str(e)
-
-    def login_with_manual_captcha(self, sid: str, pw: str, captcha: str) -> bool:
-        self.student_id = sid
-        self.last_error = ""
-        self.logged_in = False
-        self.token = None
-
-        if not self._captcha_ready:
-            self.last_error = "会话过期，请重新获取验证码"
-            return False
-
-        if self._try_simple_login(sid, pw, captcha.strip()):
-            self.logged_in = True
-            self.login_method = "web-manual"
-            self._captcha_ready = False
-            return True
-
-        self.last_error = "验证码不正确，请刷新重试"
-        self._captcha_ready = False
-        return False
-
-    # ================================================================
-    # 核心方法
-    # ================================================================
-
-    def _init_logon_session(self):
-        self.session.cookies.clear()
-        self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
-        self.session.headers.update({"Referer": URL_LOGON_PAGE})
-        self._dedupe_cookies()
-        self._detect_captcha_url_from_page()
-        try:
-            self.session.get(URL_LOGON_SESS, timeout=TIMEOUT)
-            self._dedupe_cookies()
-        except Exception:
-            pass
-
-    def _detect_captcha_url_from_page(self):
-        try:
-            resp = self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
-            m = re.search(
-                r'<img[^>]+src=["\']([^"\']*(?:verifycode|checkcode|code)[^"\']*)["\']',
-                resp.text, re.IGNORECASE)
-            if m:
-                src = m.group(1)
-                self._active_captcha_url = src if src.startswith("http") else f"{BASE_URL}{src}"
-                logger.debug("CaptchaURL: %s", self._active_captcha_url)
-        except Exception:
-            pass
-
-    def _fetch_captcha(self) -> bytes:
-        for url in [self._active_captcha_url] + URL_CAPTCHA_CANDIDATES:
-            try:
-                r = self.session.get(url, timeout=TIMEOUT)
-                self._dedupe_cookies()
-                if r.status_code == 200 and len(r.content) > 100:
-                    self._active_captcha_url = url
-                    return r.content
-            except Exception:
-                continue
-        return b""
-
-    def _dedupe_cookies(self):
-        jar = self.session.cookies
-        js = [c for c in jar if c.name == "JSESSIONID"]
-        if len(js) > 1:
-            # 只清除多余的 JSESSIONID，保留最后一个及其他 cookie
-            for c in js[:-1]:
-                jar.clear(c.domain or "", c.path or "", c.name)
-
-    def _ocr_with_preprocess(self, ocr, data: bytes) -> str:
-        cands = [data]
-        try:
-            from PIL import Image
-            from io import BytesIO
-            img = Image.open(BytesIO(data)).convert("L")
-            bw = img.point(lambda x: 0 if x < 140 else 255, "1")
-            b = BytesIO(); bw.save(b, format="PNG"); cands.append(b.getvalue())
-            big = img.resize((img.width*2, img.height*2), Image.LANCZOS)
-            b2 = BytesIO(); big.save(b2, format="PNG"); cands.append(b2.getvalue())
-        except Exception:
-            pass
-        for c in cands:
-            r = ocr.classification(c).strip()
-            if r: return r
-        return ""
-
-    def _check_success(self, resp) -> bool:
-        t = resp.text
-        for kw in ["验证码错误", "密码错误", "账号错误", "用户不存在"]:
-            if kw in t:
-                return False
-        for kw in ["课程表", "学期理论课表", "学生首页", "学生个人中心",
-                    "xs_main", "framemain", "安全退出", "退出系统"]:
-            if kw in t:
-                return True
-        return URL_LOGON_PAGE.rstrip("/") not in resp.url.rstrip("/")
-
-    def _page_title(self, resp) -> str:
-        m = re.search(r'<title>([^<]*)</title>', resp.text)
-        return m.group(1) if m else "无"
-
-    def _extract_name(self, html: str):
-        for p in [r'([^\s<]{2,4})[，,]\s*同学', r'姓名[：:]\s*([^\s<]{2,4})']:
-            m = re.search(p, html)
-            if m:
-                self.student_name = m.group(1)
-                return
-
-    # ================================================================
-    # 课表
-    # ================================================================
-
+class ParserMixin:
     def get_schedule(self, semester: str = "", week: int = 0) -> list[dict]:
         if not self.logged_in:
             self.last_error = "未登录"
@@ -325,7 +70,7 @@ class JWCClient:
             params = {"method": "getKbcxAzc", "xh": self.student_id, "xnxqid": semester}
             if week > 0:
                 params["zc"] = str(week)
-            resp = self.session.post(
+            resp = self._post(
                 URL_APP_DO, params=params,
                 headers={"token": self.token} if self.token else {},
                 timeout=TIMEOUT)
@@ -339,23 +84,26 @@ class JWCClient:
         """NJUST 课表 HTML 解析 — 从主页链接获取正确的 Ves632DSdyV 参数"""
         try:
             # Debug: 看看当前 cookie 状态
-            print(f"[课表] 请求前 cookies: {dict(self.session.cookies)}")
+            self._log(f"[课表] 请求前 cookies: { {k: v[:20] for k, v in self.session.cookies.items()} }")
 
             # 先访问主页，提取课表链接中的 Ves632DSdyV 参数
-            main_resp = self.session.get(
+            main_resp = self._get(
                 URL_MAIN_PAGE,
                 timeout=TIMEOUT, allow_redirects=True,
             )
-            print(f"[课表] 主页 GET → status={main_resp.status_code} "
-                  f"title={self._page_title(main_resp)}")
+            self._log(f"[课表] 主页 GET → status={main_resp.status_code} "
+                  f"len={len(main_resp.text)} title={self._page_title(main_resp)}")
             real_schedule_url = URL_SCHEDULE_HTML  # 默认
             m = re.search(r'xskb/xskb_list\.do\?([^"\']+)', main_resp.text)
             if m:
                 real_schedule_url = f"{BASE_9080}/njlgdx/xskb/xskb_list.do?{m.group(1)}"
-                print(f"[课表] 从主页提取真实URL参数: {m.group(1)[:50]}")
+                self._log(f"[课表] 从主页提取真实URL参数: {m.group(1)[:50]}")
+            else:
+                self._log(f"[课表] [WARN] 未在主页找到课表链接，使用默认URL")
 
-            resp = self.session.get(real_schedule_url, timeout=TIMEOUT, allow_redirects=True)
-            print(f"[课表] GET → status={resp.status_code} len={len(resp.text)} title={self._page_title(resp)}")
+            resp = self._get(real_schedule_url, timeout=TIMEOUT, allow_redirects=True)
+            self._log(f"[课表] 课表 GET → status={resp.status_code} "
+                  f"len={len(resp.text)} title={self._page_title(resp)}")
 
             if resp.status_code != 200 or len(resp.text) < 2000:
                 self.last_error = "课表页面访问失败，请重新登录"
@@ -370,7 +118,7 @@ class JWCClient:
             if grid and data_table:
                 courses = self._parse_merged(grid, data_table)
                 if courses:
-                    print(f"[课表] 合并解析完成: {len(courses)} 条")
+                    self._log(f"[课表] 合并解析完成: {len(courses)} 条")
                     return courses
 
             # 降级
@@ -382,6 +130,7 @@ class JWCClient:
                 if courses: return courses
 
             self.last_error = "课表表格未找到"
+            self._log(f"[课表] 所有表格: {[t.get('id', t.get('class', '')) for t in soup.find_all('table')[:10]]}")
             return []
         except Exception as e:
             print(f"[课表HTML] {e}")
@@ -715,7 +464,7 @@ class JWCClient:
         try:
             if not semester:
                 semester = self._current_semester()
-            resp = self.session.post(
+            resp = self._post(
                 URL_APP_DO,
                 params={"method": "getXsksap", "xh": self.student_id, "xnxqid": semester},
                 headers={"token": self.token} if self.token else {},
@@ -778,7 +527,7 @@ class JWCClient:
 
         try:
             # 策略1：先访问查询页，获取表单，提交查询
-            resp = self.session.get(URL_EXAM_QUERY, timeout=TIMEOUT)
+            resp = self._get(URL_EXAM_QUERY, timeout=TIMEOUT)
             soup = BeautifulSoup(resp.text, "lxml")
             # 查找表单
             form = soup.find("form")
@@ -820,10 +569,10 @@ class JWCClient:
                         target_url = f"{BASE_9080}/njlgdx/xsks/{action}"
                 else:
                     target_url = URL_EXAM_LIST
-                resp = self.session.post(target_url, data=form_data, timeout=TIMEOUT)
+                resp = self._post(target_url, data=form_data, timeout=TIMEOUT)
             else:
                 # 没有表单，可能直接重定向了
-                resp = self.session.get(URL_EXAM_LIST, timeout=TIMEOUT)
+                resp = self._get(URL_EXAM_LIST, timeout=TIMEOUT)
 
             soup = BeautifulSoup(resp.text, "lxml")
             result = _parse_table(soup)
@@ -831,7 +580,7 @@ class JWCClient:
                 return result
 
             # 策略2：直接 POST 学期参数到列表页
-            resp = self.session.post(URL_EXAM_LIST,
+            resp = self._post(URL_EXAM_LIST,
                 data={"xnxqid": semester, "method": "query"},
                 timeout=TIMEOUT)
             soup = BeautifulSoup(resp.text, "lxml")
@@ -840,7 +589,7 @@ class JWCClient:
                 return result
 
             # 策略3：GET 列表页（可能查询页已设置会话状态）
-            resp = self.session.get(URL_EXAM_LIST, timeout=TIMEOUT)
+            resp = self._get(URL_EXAM_LIST, timeout=TIMEOUT)
             soup = BeautifulSoup(resp.text, "lxml")
             result = _parse_table(soup)
             if result:
@@ -852,11 +601,12 @@ class JWCClient:
             has_login = "logon" in resp.text.lower() or "登录" in resp.text
             form_count = len(soup.find_all("form"))
             table_count = len(soup.find_all("table"))
-            print(f"[考试HTML] 未找到数据表格")
-            print(f"  页面标题: {page_title}")
-            print(f"  响应长度: {len(resp.text)}")
-            print(f"  表单数量: {form_count}, 表格数量: {table_count}")
-            print(f"  疑似登录页: {has_login}")
+            self._log(f"[考试HTML] 未找到数据表格")
+            self._log(f"  页面标题: {page_title}")
+            self._log(f"  响应长度: {len(resp.text)}")
+            self._log(f"  表单数量: {form_count}, 表格数量: {table_count}")
+            self._log(f"  疑似登录页: {has_login}")
+            self._log(f"  疑似登录页: {has_login}")
             if has_login:
                 self.last_error = "考试页面需要重新登录，请先在设置页登录"
             else:
@@ -887,7 +637,7 @@ class JWCClient:
         try:
             if not semester:
                 semester = self._current_semester()
-            resp = self.session.post(
+            resp = self._post(
                 URL_APP_DO,
                 params={"method": "getCjcx", "xh": self.student_id, "xnxqid": semester},
                 headers={"token": self.token} if self.token else {},
@@ -918,16 +668,6 @@ class JWCClient:
 
     def _grades_html(self, semester: str) -> list[dict]:
         """解析成绩页面（HTML 表格）"""
-        def _save_debug(html, label):
-            """保存调试 HTML 到本地文件"""
-            try:
-                path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"debug_grades_{label}.html")
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(html)
-                print(f"[成绩] 调试 HTML 已保存: {path}")
-            except Exception:
-                pass
-
         def _parse_table(soup, label=""):
             """通过表头行确定列索引，然后逐行提取"""
             # 候选表格
@@ -1056,10 +796,9 @@ class JWCClient:
         # 策略1: GET 查询页（可能直接显示结果）
         try:
             print(f"[成绩] 策略1: GET {URL_GRADE_QUERY}")
-            resp = self.session.get(URL_GRADE_QUERY, timeout=TIMEOUT)
+            resp = self._get(URL_GRADE_QUERY, timeout=TIMEOUT)
             print(f"[成绩]   状态={resp.status_code} 长度={len(resp.text)} "
                   f"标题={self._page_title(resp)}")
-            _save_debug(resp.text, "step1_query")
             soup = BeautifulSoup(resp.text, "lxml")
 
             # 如果有表单，收集表单数据
@@ -1096,7 +835,7 @@ class JWCClient:
                 else:
                     target = URL_GRADE_LIST
 
-                strategies.append(("POST表单", lambda: self.session.post(target, data=form_data, timeout=TIMEOUT)))
+                strategies.append(("POST表单", lambda: self._post(target, data=form_data, timeout=TIMEOUT)))
                 print(f"[成绩]   找到表单, action={action}, 目标={target}, form_data keys={list(form_data.keys())}")
 
             # 先试试查询页直接有没有表格
@@ -1106,17 +845,17 @@ class JWCClient:
 
             # 策略1.5：如果查询页是带学期参数直接显示，尝试带 semester 的 GET
             if semester:
-                strategies.append(("GET列表页(带学期)", lambda: self.session.get(
+                strategies.append(("GET列表页(带学期)", lambda: self._get(
                     f"{URL_GRADE_LIST}?xnxqid={semester}", timeout=TIMEOUT)))
         except Exception as e:
             print(f"[成绩] 策略1异常: {e}")
 
         # 策略2: 直接 POST 列表页
-        strategies.append(("POST列表页", lambda: self.session.post(
+        strategies.append(("POST列表页", lambda: self._post(
             URL_GRADE_LIST, data={"xnxqid": semester}, timeout=TIMEOUT)))
 
         # 策略3: GET 列表页
-        strategies.append(("GET列表页", lambda: self.session.get(
+        strategies.append(("GET列表页", lambda: self._get(
             URL_GRADE_LIST, timeout=TIMEOUT)))
 
         # 执行策略
@@ -1127,7 +866,6 @@ class JWCClient:
                 resp = sfn()
                 print(f"[成绩]   状态={resp.status_code} 长度={len(resp.text)} "
                       f"标题={self._page_title(resp)}")
-                _save_debug(resp.text, sname.replace(" ", "_"))
                 soup = BeautifulSoup(resp.text, "lxml")
                 last_soup = soup
                 result = _parse_table(soup, sname)
@@ -1137,19 +875,19 @@ class JWCClient:
                 print(f"[成绩]   {sname} 异常: {e}")
 
         # 全部失败，诊断
-        print(f"[成绩] ===== 所有策略均失败 =====")
+        self._log(f"[成绩] ===== 所有策略均失败 =====")
         if last_soup:
             tables = last_soup.find_all("table")
-            print(f"[成绩] 总表格数: {len(tables)}")
+            self._log(f"[成绩] 总表格数: {len(tables)}")
             for i, tbl in enumerate(tables[:5]):
                 rows = tbl.find_all("tr")
                 r0 = rows[0].get_text("|", strip=True)[:120] if rows else "(空)"
-                print(f"[成绩]   表格#{i}: {len(rows)}行, 首行: {r0}")
+                self._log(f"[成绩]   表格#{i}: {len(rows)}行, 首行: {r0}")
             has_login = "logon" in str(last_soup).lower() or "登录" in str(last_soup)
             if has_login:
                 self.last_error = "成绩页面需要重新登录，请先在设置页登录"
             else:
-                self.last_error = f"成绩解析失败，详见 debug_grades_*.html"
+                self.last_error = "成绩解析失败"
         else:
             self.last_error = "无法访问成绩页面"
         return []
@@ -1176,7 +914,7 @@ class JWCClient:
         """
         import re
         try:
-            resp = self.session.get(URL_CET_LIST, timeout=TIMEOUT)
+            resp = self._get(URL_CET_LIST, timeout=TIMEOUT)
             if resp.status_code != 200:
                 print(f"[CET] 请求失败: {resp.status_code}")
                 return []
@@ -1279,11 +1017,12 @@ class JWCClient:
         表格结构：序号 | 学年学期 | 评价分类 | 评价批次 | 开始时间 | 结束时间 | 是否已完成 | 操作
         """
         try:
-            resp = self.session.get(URL_EVAL_PAGE, timeout=TIMEOUT)
+            resp = self._get(URL_EVAL_PAGE, timeout=TIMEOUT)
             soup = BeautifulSoup(resp.text, "lxml")
             table = soup.find("table", class_="Nsb_r_list")
             if not table:
                 self.last_error = "评价页面未找到数据表格"
+                self._log(f"[评价] 未找到 Nsb_r_list 表格，表格数={len(soup.find_all('table'))}")
                 return []
             rows = table.find_all("tr")[1:]
             evals = []
@@ -1319,22 +1058,3 @@ class JWCClient:
             self.last_error = f"评价解析失败: {e}"
             return []
 
-    def test_connection(self) -> Tuple[bool, str]:
-        try:
-            r = self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
-            return (True, "连接正常") if r.status_code == 200 else (False, f"{r.status_code}")
-        except requests.exceptions.ConnectionError:
-            return False, "无法连接，请确认校园网/VPN"
-        except Exception as e:
-            return False, str(e)
-
-    def logout(self):
-        try:
-            self.session.get(f"{BASE_9080}/njlgdx/xk/LoginToXk?method=exit", timeout=5)
-        except Exception:
-            pass
-        self.logged_in = False
-        self.token = None
-        self.student_name = None
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)

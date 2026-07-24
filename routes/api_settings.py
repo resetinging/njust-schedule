@@ -23,14 +23,16 @@ def api_settings():
         settings["current_semester"] = jwc_client._current_semester()
         # 标记密码是否已保存（不返回原始密码）
         settings["has_password"] = bool(settings.get("password_enc", ""))
+        settings["has_jwc_password"] = bool(settings.get("jwc_password_enc", ""))
         settings.pop("password_enc", None)  # 不暴露编码密码到前端
+        settings.pop("jwc_password_enc", None)
         return jsonify(settings)
 
     else:
         data = request.get_json()
         for key, value in data.items():
             if key in ("student_id", "student_name", "semester",
-                        "auto_refresh", "refresh_interval"):
+                        "auto_refresh", "refresh_interval", "first_week_date"):
                 set_setting(key, str(value))
         return jsonify({"success": True, "message": "设置已保存"})
 
