@@ -120,6 +120,11 @@ Page({
   // 已登录操作
   // ============================================================
 
+  /** 跳转成绩页（TabBar 页面需要用 switchTab） */
+  onGoGrades() {
+    wx.switchTab({ url: '/pages/grades/grades' })
+  },
+
   /** 一键刷新 */
   async onRefreshAll() {
     wx.showLoading({ title: '刷新中…' })

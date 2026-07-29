@@ -5,32 +5,64 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
-const { getCurrentWeek, isWeekInRange, getWeekBounds } = require('../../utils/date')
+const { calcCurrentWeek, calcTodayDay, isWeekInRange, getWeekBounds } = require('../../utils/date')
 const config = require('../../utils/config')
 
 Page({
   data: {
     semesters: [],           // 学期列表
     semester: '',            // 当前学期
-    currentWeek: 1,          // 当前周
+    currentWeek: 1,          // 当前显示的周
+    actualWeek: 1,           // 实际教学周（根据校历）
+    todayDay: 0,             // 今天星期几 (1-7)
     courses: [],             // 全部课程
     filteredCourses: [],     // 当前周的课程（含单双周过滤）
     listDayGroups: [],       // 列表视图分组数据
     viewMode: 'grid',        // 'grid' | 'list'
     loading: false,
     showDetail: false,
-    detailCourse: {}
+    detailCourse: {},
+    firstWeekDate: ''        // 学期第一周周一日期
   },
 
   onLoad() {
     this.loadCachedData()
     this.loadFromServer()
+    this.loadFirstWeekDate()
   },
 
   onShow() {
     const app = getApp()
     if (app.globalData.semester) {
       this.setData({ semester: app.globalData.semester })
+    }
+  },
+
+  /** 获取校历设置 */
+  async loadFirstWeekDate() {
+    try {
+      const res = await api.getStatus()
+      if (res && res.first_week_date) {
+        const firstWeekDate = res.first_week_date
+        const actualWeek = calcCurrentWeek(firstWeekDate)
+        const todayDay = calcTodayDay()
+        this.setData({
+          firstWeekDate,
+          actualWeek,
+          todayDay,
+          currentWeek: actualWeek
+        })
+        // 如果已加载课程，重新过滤
+        if (this.data.courses.length > 0) {
+          this.filterByWeek(actualWeek)
+        }
+      } else {
+        const todayDay = calcTodayDay()
+        this.setData({ todayDay })
+      }
+    } catch (e) {
+      const todayDay = calcTodayDay()
+      this.setData({ todayDay })
     }
   },
 
@@ -67,8 +99,8 @@ Page({
         if (res.semester) storage.setSemester(res.semester)
         this.filterByWeek(this.data.currentWeek)
 
-        // 估算当前学期所处周次
-        if (res.courses.length > 0) {
+        // 估算当前学期所处周次（仅在校历未设置时使用）
+        if (res.courses.length > 0 && !this.data.firstWeekDate) {
           const minWeek = Math.min(...res.courses.map(c => getWeekBounds(c.weeks).min))
           const maxWeek = Math.max(...res.courses.map(c => getWeekBounds(c.weeks).max))
           const midWeek = Math.floor((minWeek + maxWeek) / 2)

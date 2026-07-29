@@ -3,7 +3,8 @@
     "pages/schedule/schedule",
     "pages/exams/exams",
     "pages/eval/eval",
-    "pages/settings/settings"
+    "pages/settings/settings",
+    "pages/grades/grades"
   ],
   "window": {
     "navigationBarTitleText": "课表助手",
@@ -35,6 +36,12 @@
         "text": "评教",
         "iconPath": "static/icons/eval.png",
         "selectedIconPath": "static/icons/eval-active.png"
+      },
+      {
+        "pagePath": "pages/grades/grades",
+        "text": "成绩",
+        "iconPath": "static/icons/grades.png",
+        "selectedIconPath": "static/icons/grades-active.png"
       },
       {
         "pagePath": "pages/settings/settings",

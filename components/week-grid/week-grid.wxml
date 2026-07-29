@@ -1,10 +1,26 @@
 <!-- 周课表网格组件 — 大节分组布局 -->
 <view class="week-grid">
 
+  <!-- 表头：日期行 -->
+  <view class="grid-header date-header">
+    <view class="header-cell period-header"></view>
+    <view
+      class="header-cell date-cell {{index + 1 === todayDay ? 'today-col' : ''}}"
+      wx:for="{{dateLabels}}"
+      wx:key="index"
+    >
+      <text>{{item}}</text>
+    </view>
+  </view>
+
   <!-- 表头：星期 -->
   <view class="grid-header">
     <view class="header-cell period-header">节次</view>
-    <view class="header-cell" wx:for="{{weekdays}}" wx:key="*this">
+    <view
+      class="header-cell {{index + 1 === todayDay ? 'today-col' : ''}}"
+      wx:for="{{weekdays}}"
+      wx:key="*this"
+    >
       <text>{{item}}</text>
     </view>
   </view>
@@ -26,7 +42,7 @@
 
       <!-- 每天的这一大节 -->
       <view
-        class="day-cell"
+        class="day-cell {{index + 1 === todayDay ? 'today-col' : ''}}"
         wx:for="{{row.days}}"
         wx:key="index"
         wx:for-item="dayCell"

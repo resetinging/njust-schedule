@@ -18,6 +18,10 @@
 
     <!-- 快捷操作 -->
     <view class="action-list">
+      <view class="action-item" bindtap="onGoGrades">
+        <text>📊 成绩查询</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="action-item" bindtap="onRefreshAll">
         <text>🔄 一键刷新课表+考试</text>
         <text class="arrow">›</text>

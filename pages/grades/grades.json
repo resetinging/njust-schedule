@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "成绩查询",
+  "usingComponents": {
+    "loading-modal": "/components/loading-modal/loading-modal"
+  }
+}

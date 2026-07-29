@@ -176,8 +176,58 @@ function parseDateStr(str) {
   return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
 }
 
+/**
+ * 根据学期第一周周一日期计算当前教学周
+ * @param {string} firstWeekDate - "YYYY-MM-DD"
+ * @returns {number} 当前周次 (1-based，限制在 1-20)
+ */
+function calcCurrentWeek(firstWeekDate) {
+  if (!firstWeekDate) return 1
+  try {
+    const firstMonday = new Date(firstWeekDate.replace(/-/g, '/') + 'T00:00:00')
+    const now = new Date()
+    const diffMs = now.getTime() - firstMonday.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const week = Math.floor(diffDays / 7) + 1
+    return Math.max(1, Math.min(week, 20))
+  } catch (e) {
+    return 1
+  }
+}
+
+/**
+ * 计算今天是星期几
+ * @returns {number} 1=周一 ... 7=周日
+ */
+function calcTodayDay() {
+  const day = new Date().getDay()
+  return day === 0 ? 7 : day
+}
+
+/**
+ * 计算某教学周某天的日期
+ * @param {string} firstWeekDate - 第一周周一日期 "YYYY-MM-DD"
+ * @param {number} weekNum - 教学周次
+ * @param {number} dayOfWeek - 1=周一 ... 7=周日
+ * @returns {string} "M/D" 格式日期
+ */
+function getDateLabel(firstWeekDate, weekNum, dayOfWeek) {
+  if (!firstWeekDate) return ''
+  try {
+    const firstMonday = new Date(firstWeekDate.replace(/-/g, '/') + 'T00:00:00')
+    const date = new Date(firstMonday)
+    date.setDate(date.getDate() + (weekNum - 1) * 7 + (dayOfWeek - 1))
+    return `${date.getMonth() + 1}/${date.getDate()}`
+  } catch (e) {
+    return ''
+  }
+}
+
 module.exports = {
   getCurrentWeek,
+  calcCurrentWeek,
+  calcTodayDay,
+  getDateLabel,
   formatDate,
   formatTime,
   weekToChinese,

@@ -11,7 +11,7 @@
         </view>
       </picker>
       <view class="week-info">
-        <text>第 {{currentWeek}} 周</text>
+        <text>第 {{currentWeek}} 周<text wx:if="{{currentWeek === actualWeek}}" class="this-week-label">（本周）</text></text>
         <view class="week-nav">
           <text class="week-btn" bindtap="prevWeek">◀</text>
           <text class="week-btn" bindtap="nextWeek">▶</text>
@@ -39,6 +39,8 @@
     <week-grid
       courses="{{filteredCourses}}"
       currentWeek="{{currentWeek}}"
+      firstWeekDate="{{firstWeekDate}}"
+      todayDay="{{todayDay}}"
       bind:coursetap="onCourseTap"
     />
   </view>

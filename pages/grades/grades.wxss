@@ -1,0 +1,361 @@
+/* 成绩查询页面样式 */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-page);
+}
+
+.content {
+  padding-bottom: 40rpx;
+}
+
+/* 顶部操作栏 */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 28rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #EEE;
+}
+
+.picker-text {
+  font-size: 28rpx;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.top-actions {
+  display: flex;
+  gap: 24rpx;
+}
+
+.action-btn {
+  font-size: 26rpx;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* GPA 模式切换 */
+.mode-tabs {
+  display: flex;
+  margin: 20rpx 24rpx;
+  background: #F0F0F0;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.mode-tab {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  font-size: 28rpx;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.mode-tab.active {
+  background: var(--primary);
+  color: #fff;
+  font-weight: bold;
+}
+
+/* GPA 汇总卡片 */
+.gpa-summary {
+  margin: 0 24rpx 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.gpa-main-card {
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+
+.gpa-bignum {
+  font-size: 80rpx;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.gpa-label {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.gpa-stats {
+  display: flex;
+  justify-content: space-around;
+  border-top: 1rpx solid #F0F0F0;
+  padding-top: 20rpx;
+}
+
+.gpa-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-num {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.stat-label {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+/* 各学期绩点 */
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  padding: 24rpx 28rpx 12rpx;
+}
+
+.semester-gpa-list {
+  margin: 0 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.sem-gpa-row {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 28rpx;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.sem-gpa-row:last-child {
+  border-bottom: none;
+}
+
+.sem-name {
+  flex: 1;
+  font-size: 26rpx;
+  color: #333;
+}
+
+.sem-gpa {
+  font-size: 32rpx;
+  font-weight: bold;
+  margin-right: 16rpx;
+}
+
+.sem-credits {
+  font-size: 22rpx;
+  color: #999;
+}
+
+/* 当前学期绩点 */
+.current-sem-gpa {
+  padding: 20rpx 28rpx;
+  font-size: 28rpx;
+  color: #666;
+  text-align: center;
+  background: #fff;
+  margin: 0 24rpx;
+  border-radius: 12rpx;
+}
+
+/* 四六级 */
+.cet-section {
+  margin: 0 24rpx 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.cet-list {
+  padding: 0 28rpx 20rpx;
+}
+
+.cet-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.cet-row:last-child {
+  border-bottom: none;
+}
+
+.cet-type {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #333;
+  margin-right: 20rpx;
+  min-width: 80rpx;
+}
+
+.cet-score {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: var(--primary);
+  flex: 1;
+}
+
+.cet-date {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.cet-empty {
+  padding: 24rpx 28rpx;
+  font-size: 26rpx;
+  color: #999;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 成绩列表 */
+.grade-list {
+  margin: 0 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.grade-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20rpx 28rpx;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.grade-row:last-child {
+  border-bottom: none;
+}
+
+.grade-left {
+  flex: 1;
+  overflow: hidden;
+}
+
+.grade-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #222;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.grade-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  font-size: 22rpx;
+  color: #999;
+}
+
+.grade-code,
+.grade-type,
+.grade-nature,
+.grade-credit {
+  font-size: 20rpx;
+  color: #999;
+}
+
+.grade-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: 16rpx;
+  min-width: 100rpx;
+}
+
+.grade-score {
+  font-size: 36rpx;
+  font-weight: bold;
+}
+
+.grade-gp {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+/* 分数/绩点颜色 */
+.score-high {
+  color: #27AE60;
+}
+
+.score-mid {
+  color: #F39C12;
+}
+
+.score-low {
+  color: #E74C3C;
+}
+
+/* 空状态 */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80rpx 40rpx;
+}
+
+.empty-state .icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-state .text {
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+}
+
+.empty-state .hint {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 40rpx;
+}
+
+/* 按钮 */
+.btn-primary {
+  display: block;
+  width: 70%;
+  padding: 20rpx;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  text-align: center;
+  border: none;
+}
+
+.btn-secondary {
+  display: block;
+  width: 60%;
+  margin: 0 auto;
+  padding: 16rpx;
+  background: #F5F5F5;
+  color: #666;
+  border-radius: 40rpx;
+  font-size: 26rpx;
+  text-align: center;
+  border: none;
+}
+
+.bottom-actions {
+  padding: 32rpx 0 20rpx;
+}

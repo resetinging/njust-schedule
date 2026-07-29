@@ -6,12 +6,14 @@
  * 输入:
  *   courses: [{day, start, end, name, classroom, teacher, week_type, weeks, ...}]
  *   currentWeek: 当前周次 (number)
+ *   firstWeekDate: 学期第一周周一日期 (string "YYYY-MM-DD")
+ *   todayDay: 今天星期几 (number, 1-7)
  *
  * 输出:
  *   bind:coursetap → 点击课程事件
  */
 
-const { WEEKDAY_NAMES, isWeekInRange } = require('../../utils/date')
+const { WEEKDAY_NAMES, isWeekInRange, getDateLabel } = require('../../utils/date')
 
 // NJUST 大节定义（与桌面端 static/js/schedule.js 保持一致）
 const BIG_PERIODS = [
@@ -53,13 +55,24 @@ Component({
     },
     currentWeek: {
       type: Number,
-      value: 1
+      value: 1,
+      observer: '_buildLayout'
+    },
+    firstWeekDate: {
+      type: String,
+      value: '',
+      observer: '_buildLayout'
+    },
+    todayDay: {
+      type: Number,
+      value: 0
     }
   },
 
   data: {
     weekdays: WEEKDAY_NAMES.slice(1), // 周一~周日
-    bigPeriodRows: [] // [{label, time, height, days: [{courses}]}]
+    dateLabels: [],                    // 日期标签 ["9/1", "9/2", ...]
+    bigPeriodRows: []                  // [{label, time, height, days: [{courses}]}]
   },
 
   lifetimes: {
@@ -73,6 +86,13 @@ Component({
     _buildLayout() {
       const courses = this.properties.courses || []
       const week = this.properties.currentWeek
+      const firstWeekDate = this.properties.firstWeekDate
+
+      // 构建日期标签
+      const dateLabels = []
+      for (let d = 1; d <= 7; d++) {
+        dateLabels.push(getDateLabel(firstWeekDate, week, d))
+      }
 
       // 1. 过滤当前周课程
       const visible = courses.filter(c => {
@@ -148,7 +168,7 @@ Component({
         }
       })
 
-      this.setData({ bigPeriodRows })
+      this.setData({ bigPeriodRows, dateLabels })
     },
 
     /** 点击课程块 */

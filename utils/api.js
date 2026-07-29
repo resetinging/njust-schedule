@@ -225,6 +225,34 @@ function getSemesters() {
   })
 }
 
+// ============================================================
+// 成绩接口
+// ============================================================
+
+/** 获取成绩数据 */
+function getGrades(semester, gpaMode) {
+  const params = {}
+  if (semester) params.semester = semester
+  else params.semester = '__all__'
+  if (gpaMode) params.gpa_mode = gpaMode
+  return request('GET', '/api/grades', params)
+}
+
+/** 刷新成绩（从教务抓取） */
+function refreshGrades() {
+  return request('POST', '/api/refresh-grades')
+}
+
+/** 获取四六级成绩 */
+function getCetScores() {
+  return request('GET', '/api/cet-scores')
+}
+
+/** 刷新四六级成绩 */
+function refreshCet() {
+  return request('POST', '/api/refresh-cet')
+}
+
 module.exports = {
   getCaptcha,
   login,
@@ -245,5 +273,9 @@ module.exports = {
   getStatus,
   setSemester,
   clearData,
-  getSemesters
+  getSemesters,
+  getGrades,
+  refreshGrades,
+  getCetScores,
+  refreshCet
 }

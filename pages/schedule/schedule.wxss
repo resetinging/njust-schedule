@@ -40,6 +40,12 @@
   font-weight: bold;
 }
 
+.this-week-label {
+  font-size: 22rpx;
+  color: #E65100;
+  font-weight: bold;
+}
+
 .week-nav {
   display: flex;
   gap: 8rpx;

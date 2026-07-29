@@ -10,6 +10,8 @@ const STORAGE_KEYS = {
   COURSES: 'cached_courses',
   EXAMS: 'cached_exams',
   EVALUATIONS: 'cached_evaluations',
+  GRADES: 'cached_grades',
+  CET_SCORES: 'cached_cet_scores',
   CACHE_TIME: 'cache_timestamps'
 }
 
