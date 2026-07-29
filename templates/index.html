@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}课表 - 南理工课表管理{% endblock %}
 {% block nav_index %}active{% endblock %}
 
@@ -33,6 +33,16 @@
         <table class="schedule-table" id="schedule-table">
             <thead>
                 <tr>
+                    <th class="time-col"></th>
+                    <th id="date-mon" class="date-sub"></th>
+                    <th id="date-tue" class="date-sub"></th>
+                    <th id="date-wed" class="date-sub"></th>
+                    <th id="date-thu" class="date-sub"></th>
+                    <th id="date-fri" class="date-sub"></th>
+                    <th id="date-sat" class="date-sub"></th>
+                    <th id="date-sun" class="date-sub"></th>
+                </tr>
+                <tr>
                     <th class="time-col">节次</th>
                     <th>周一</th>
                     <th>周二</th>
@@ -58,5 +68,9 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+    // 学期第一周周一日期（由后端注入，格式 YYYY-MM-DD）
+    const FIRST_WEEK_DATE = "{{ first_week_date }}";
+</script>
 <script src="/static/js/schedule.js"></script>
 {% endblock %}

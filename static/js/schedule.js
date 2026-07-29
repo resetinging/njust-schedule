@@ -13,12 +13,43 @@ const BIG_PERIODS = [
 ];
 const DAY_NAMES = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
-let currentWeek = 1; // 默认显示第1周
-
+let currentWeek = 1;    // 当前显示的周次
+let actualWeek = 1;     // 实际教学周（根据校历计算）
+let todayDay = null;    // 今天星期几 (1-7)
 let allCourses = [];
+
+// ============================================================
+// 计算当前教学周（基于学期第一周周一的日期）
+// ============================================================
+function calcCurrentWeek() {
+    if (!FIRST_WEEK_DATE) return 1;
+    try {
+        const firstMonday = new Date(FIRST_WEEK_DATE + 'T00:00:00');
+        const now = new Date();
+        const diffMs = now.getTime() - firstMonday.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const week = Math.floor(diffDays / 7) + 1;
+        return Math.max(1, Math.min(week, 20));
+    } catch (e) {
+        return 1;
+    }
+}
+
+// ============================================================
+// 计算今天是星期几（1=周一 ... 7=周日）
+// ============================================================
+function calcToday() {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun, 1=Mon, ...
+    return day === 0 ? 7 : day;
+}
 
 // 页面加载
 document.addEventListener('DOMContentLoaded', () => {
+    // 根据校历设置计算当前周
+    actualWeek = calcCurrentWeek();
+    currentWeek = actualWeek;
+    todayDay = calcToday();
     loadStatus();
     loadSchedule();
 });
@@ -42,6 +73,7 @@ async function loadSchedule() {
             document.getElementById('schedule-empty').style.display = 'none';
             document.getElementById('schedule-table-wrapper').style.display = 'block';
             document.getElementById('schedule-list').style.display = 'none';
+            updateWeekLabel();
             renderTable(allCourses);
             renderListView(allCourses);
         }
@@ -55,9 +87,48 @@ async function loadSchedule() {
     }
 }
 
+// ============================================================
+// 填充日期行（基于 FIRST_WEEK_DATE + currentWeek）
+// ============================================================
+function highlightTodayHeader() {
+    const dateIds = ['date-mon', 'date-tue', 'date-wed', 'date-thu', 'date-fri', 'date-sat', 'date-sun'];
+    if (FIRST_WEEK_DATE) {
+        try {
+            const firstMonday = new Date(FIRST_WEEK_DATE + 'T00:00:00');
+            for (let d = 0; d < 7; d++) {
+                const date = new Date(firstMonday);
+                date.setDate(date.getDate() + (currentWeek - 1) * 7 + d);
+                const el = document.getElementById(dateIds[d]);
+                if (el) {
+                    el.textContent = `${date.getMonth() + 1}/${date.getDate()}`;
+                }
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    // 今列表头也高亮
+    if (todayDay && todayDay >= 1 && todayDay <= 7) {
+        const todayDateEl = document.getElementById(dateIds[todayDay - 1]);
+        if (todayDateEl) {
+            todayDateEl.classList.add('today-col');
+        }
+        // 同时高亮周一~周日行的 th
+        const headerRows = document.querySelectorAll('#schedule-table thead tr');
+        if (headerRows.length >= 2) {
+            const ths = headerRows[1].querySelectorAll('th');
+            if (ths[todayDay]) {
+                ths[todayDay].classList.add('today-col');
+            }
+        }
+    }
+}
+
 function renderTable(courses) {
     const tbody = document.getElementById('schedule-body');
     tbody.innerHTML = '';
+
+    // 填充日期行 + 高亮今列表头
+    highlightTodayHeader();
 
     for (const bp of BIG_PERIODS) {
         const tr = document.createElement('tr');
@@ -77,6 +148,11 @@ function renderTable(courses) {
         for (let d = 1; d <= 7; d++) {
             const td = document.createElement('td');
             td.className = 'course-cell';
+
+            // 今日列金色格底
+            if (todayDay === d) {
+                td.classList.add('today-col');
+            }
 
             // 内部固定高度容器，避免 td 被表格算法撑开
             const inner = document.createElement('div');
@@ -106,6 +182,15 @@ function renderTable(courses) {
                 const heightPct = (overlapCount / totalPeriods) * 100;
                 div.style.height = heightPct + '%';
                 div.style.flexShrink = '0';
+
+                // 课程不从大节顶部开始时，插入空白占位
+                const offsetFromTop = course.start - bp.periods[0];
+                if (offsetFromTop > 0) {
+                    const spacer = document.createElement('div');
+                    spacer.style.height = ((offsetFromTop / totalPeriods) * 100) + '%';
+                    spacer.style.flexShrink = '0';
+                    inner.appendChild(spacer);
+                }
 
                 div.innerHTML = `
                     <div class="course-name">${course.name}</div>
@@ -220,7 +305,12 @@ function nextWeek() {
 }
 
 function updateWeekLabel() {
-    document.getElementById('week-label').textContent = `第 ${currentWeek} 周`;
+    const label = document.getElementById('week-label');
+    if (currentWeek === actualWeek) {
+        label.textContent = `第 ${currentWeek} 周（本周）`;
+    } else {
+        label.textContent = `第 ${currentWeek} 周`;
+    }
 }
 
 async function refreshSchedule() {

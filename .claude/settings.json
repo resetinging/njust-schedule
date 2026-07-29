@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m 'server: 移除桌面专属文件，保留云托管后端 *)",
+      "Bash(git checkout *)",
+      "Bash(git clean *)",
+      "Bash(ls -la)",
+      "Bash(dir)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\a\\Documents\\local\\miniprogram"
+    ]
+  }
+}

@@ -7,7 +7,7 @@ import json
 import logging
 from sqlalchemy.exc import OperationalError
 from wxcloudrun import db
-from wxcloudrun.model import Counters, Course, Exam, Evaluation, Setting
+from wxcloudrun.model import Counters, Course, Exam, Evaluation, Setting, Grade, CetScore
 
 logger = logging.getLogger('log')
 
@@ -174,3 +174,94 @@ def clear_data(semester: str):
     Course.query.filter(Course.semester == semester).delete()
     Exam.query.filter(Exam.semester == semester).delete()
     db.session.commit()
+
+
+# ============================================================
+# NJUST — 成绩
+# ============================================================
+def save_grades(grades: list, academic_year: str, semester: str):
+    """保存某学期成绩（先删后插）"""
+    Grade.query.filter(
+        Grade.academic_year == academic_year,
+        Grade.semester == semester,
+    ).delete()
+    for g in grades:
+        db.session.add(Grade(
+            academic_year=g.get("academic_year", academic_year),
+            semester=g.get("semester", semester),
+            course_code=g.get("course_code", ""),
+            course_name=g.get("course_name", ""),
+            score=str(g.get("score", "")),
+            credit=float(g.get("credit", 0) or 0),
+            grade_point=float(g.get("grade_point", 0) or 0),
+            course_type=g.get("course_type", ""),
+            course_nature=g.get("course_nature", ""),
+            exam_type=g.get("exam_type", "正常考试"),
+        ))
+    db.session.commit()
+
+
+def get_grades(academic_year: str = "", semester: str = "") -> list:
+    """查询成绩，可选按学期过滤"""
+    q = Grade.query
+    if academic_year:
+        q = q.filter(Grade.academic_year == academic_year)
+    if semester:
+        q = q.filter(Grade.semester == semester)
+    rows = q.order_by(
+        Grade.academic_year.desc(), Grade.semester.desc(),
+        Grade.course_type, Grade.course_name,
+    ).all()
+    return [r.to_dict() for r in rows]
+
+
+def count_grades(academic_year: str = "", semester: str = "") -> int:
+    """统计成绩数量"""
+    q = Grade.query
+    if academic_year:
+        q = q.filter(Grade.academic_year == academic_year)
+    if semester:
+        q = q.filter(Grade.semester == semester)
+    return q.count()
+
+
+def get_grade_semesters() -> list:
+    """获取已有成绩的学期列表"""
+    rows = db.session.query(
+        Grade.academic_year, Grade.semester
+    ).distinct().order_by(
+        Grade.academic_year.desc(), Grade.semester.desc()
+    ).all()
+    return [f"{r[0]}-{r[1]}" for r in rows]
+
+
+# ============================================================
+# NJUST — 四六级
+# ============================================================
+def save_cet_scores(scores: list):
+    """全量替换四六级成绩"""
+    CetScore.query.delete()
+    for s in scores:
+        db.session.add(CetScore(
+            cet_type=s.get("type", ""),
+            total_score=float(s.get("score", 0) or 0),
+            exam_date=s.get("exam_date", ""),
+        ))
+    db.session.commit()
+
+
+def get_cet_scores() -> list:
+    """获取四六级成绩（每种取最高分）"""
+    rows = db.session.query(
+        CetScore.cet_type,
+        db.func.max(CetScore.total_score).label('total_score'),
+        CetScore.exam_date,
+    ).group_by(CetScore.cet_type).order_by(CetScore.cet_type).all()
+    result = []
+    for r in rows:
+        result.append({
+            "type": r[0],
+            "score": float(r[1] or 0),
+            "exam_date": r[2] or "",
+        })
+    return result

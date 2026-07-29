@@ -4,6 +4,7 @@ NJUST 课表 — Flask 路由
 包含：页面路由 + 全量 API + 批量评教后台
 """
 import json
+import os
 import re
 import time
 import uuid
@@ -52,7 +53,8 @@ def _warm_eval_session():
 # ============================================================
 @app.route('/')
 def index():
-    return render_template('index.html')
+    first_week_date = dao.get_setting("first_week_date", "")
+    return render_template('index.html', first_week_date=first_week_date)
 
 
 @app.route('/exams')
@@ -68,6 +70,11 @@ def evaluations_page():
 @app.route('/settings')
 def settings_page():
     return render_template('settings.html')
+
+
+@app.route('/gallery')
+def gallery_page():
+    return render_template('gallery.html')
 
 
 @app.route('/proxy/jw/<path:target_path>', methods=['GET', 'POST'])
@@ -149,6 +156,7 @@ def api_status():
         "auto_login_attempted": _auto_login_attempted,
         "auto_login_error": auto_login_error,
         "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "first_week_date": dao.get_setting("first_week_date", ""),
     })
 
 
@@ -430,6 +438,7 @@ def api_settings():
             "semester": dao.get_setting("semester"),
             "auto_refresh": dao.get_setting("auto_refresh", "false"),
             "refresh_interval": dao.get_setting("refresh_interval", "3600"),
+            "first_week_date": dao.get_setting("first_week_date", ""),
             "semester_list": jwc_client.get_semester_list(),
             "current_semester": jwc_client._current_semester(),
             "has_password": bool(dao.get_setting("password_enc", "")),
@@ -439,9 +448,21 @@ def api_settings():
         data = request.get_json()
         for key, value in data.items():
             if key in ("student_id", "student_name", "semester",
-                       "auto_refresh", "refresh_interval"):
+                       "auto_refresh", "refresh_interval", "first_week_date"):
                 dao.set_setting(key, str(value))
         return jsonify({"success": True, "message": "设置已保存"})
+
+
+@app.route('/api/gallery-images')
+def api_gallery_images():
+    """返回 static/gallery/ 目录下的图片列表"""
+    gallery_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'gallery')
+    images = []
+    if os.path.isdir(gallery_dir):
+        for f in sorted(os.listdir(gallery_dir)):
+            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')):
+                images.append(f)
+    return jsonify({"success": True, "images": images})
 
 
 @app.route('/api/semesters')
@@ -984,6 +1005,185 @@ def api_clear_data():
     semester = dao.get_setting("semester", jwc_client._current_semester())
     dao.clear_data(semester)
     return jsonify({"success": True, "message": "数据已清除"})
+
+
+# ============================================================
+# API — 成绩查询
+# ============================================================
+
+@app.route('/api/grades')
+def api_get_grades():
+    """获取已存储的成绩数据
+
+    参数:
+        semester: 学期代码（如 "2024-2025-1"），传 "__all__" 查看全部学期
+        gpa_mode: "baoyan" 启用保研模式（CET 折算替换英语模块）
+    """
+    from gpa import (
+        score_to_gp, calc_gpa, calc_semester_gpas, is_gpa_course,
+        calc_gpa_baoyan,
+    )
+
+    semester = request.args.get("semester", "")
+    view_all = (semester == "__all__" or not semester)
+
+    all_grades = dao.get_grades()
+    semester_gpas = calc_semester_gpas(all_grades)
+    available_semesters = dao.get_grade_semesters()
+
+    all_grades_list = all_grades
+    for g in all_grades_list:
+        if float(g.get("grade_point", 0) or 0) == 0:
+            g["grade_point"] = score_to_gp(g.get("score", ""))
+
+    all_gpa = calc_gpa(all_grades_list, gpa_only=False) if all_grades_list else 0
+    all_gpa_counted = calc_gpa(all_grades_list, gpa_only=True) if all_grades_list else 0
+    all_credits = round(sum(
+        float(g.get("credit", 0) or 0) for g in all_grades_list
+        if is_gpa_course(g.get("course_nature", ""))
+    ), 1)
+
+    if view_all:
+        grades = all_grades_list
+        display_semester = "__all__"
+    else:
+        parts = semester.split("-") if semester else []
+        academic_year = f"{parts[0]}-{parts[1]}" if len(parts) >= 2 else ""
+        sem = parts[2] if len(parts) >= 3 else ""
+        if academic_year and sem:
+            grades = dao.get_grades(academic_year, sem)
+            for g in grades:
+                if float(g.get("grade_point", 0) or 0) == 0:
+                    g["grade_point"] = score_to_gp(g.get("score", ""))
+        else:
+            grades = []
+        display_semester = semester
+
+    gpa_mode = request.args.get("gpa_mode", "")
+    cet_scores = dao.get_cet_scores() if gpa_mode == "baoyan" else None
+
+    gpa_baoyan = 0.0
+    all_gpa_baoyan = 0.0
+    if gpa_mode == "baoyan" and grades:
+        gpa_baoyan = calc_gpa_baoyan(grades, cet_scores, gpa_only=True)
+    if gpa_mode == "baoyan" and all_grades_list:
+        all_gpa_baoyan = calc_gpa_baoyan(all_grades_list, cet_scores, gpa_only=True)
+
+    counted_credits = round(sum(
+        float(g.get("credit", 0) or 0) for g in grades
+        if is_gpa_course(g.get("course_nature", ""))
+    ), 1)
+
+    return jsonify({
+        "semester": display_semester,
+        "count": len(grades),
+        "grades": grades,
+        "available_semesters": available_semesters,
+        "total_credits": counted_credits,
+        "gpa": calc_gpa(grades, gpa_only=True) if grades else 0,
+        "gpa_all": calc_gpa(grades, gpa_only=False) if grades else 0,
+        "gpa_baoyan": gpa_baoyan,
+        "all_gpa_baoyan": all_gpa_baoyan,
+        "gpa_mode": gpa_mode,
+        "all_gpa": all_gpa_counted,
+        "all_gpa_all": all_gpa,
+        "all_credits": all_credits,
+        "all_count": sum(1 for g in all_grades_list if is_gpa_course(g.get("course_nature", ""))),
+        "all_count_total": len(all_grades_list),
+        "semester_gpas": semester_gpas,
+    })
+
+
+@app.route('/api/refresh-grades', methods=['POST'])
+def api_refresh_grades():
+    """刷新成绩数据（从教务系统拉取）"""
+    err = _require_login()
+    if err:
+        return err
+
+    with jwc_lock:
+        grades = jwc_client.get_grades("")
+
+    if not grades and jwc_client.last_error:
+        return jsonify({
+            "success": False,
+            "message": jwc_client.last_error or "获取成绩失败",
+        }), 500
+
+    from collections import defaultdict
+    grouped = defaultdict(list)
+    for g in grades:
+        key = (g.get("academic_year", ""), g.get("semester", ""))
+        grouped[key].append(g)
+
+    total_count = 0
+    for (ay, s), group in grouped.items():
+        dao.save_grades(group, ay, s)
+        total_count += len(group)
+
+    return jsonify({
+        "success": True,
+        "message": f"成功获取 {total_count} 条成绩记录（{len(grouped)} 个学期）",
+        "count": total_count,
+    })
+
+
+# ============================================================
+# API — 四六级
+# ============================================================
+
+@app.route('/api/refresh-cet', methods=['POST'])
+def api_refresh_cet():
+    """刷新四六级成绩（从教务系统拉取）"""
+    err = _require_login()
+    if err:
+        return err
+
+    with jwc_lock:
+        scores = jwc_client.get_cet_scores()
+
+    if not scores:
+        return jsonify({
+            "success": False,
+            "message": "未获取到四六级成绩",
+        }), 404
+
+    dao.save_cet_scores(scores)
+    return jsonify({
+        "success": True,
+        "message": f"成功获取 {len(scores)} 条四六级成绩",
+        "scores": scores,
+    })
+
+
+@app.route('/api/cet-scores')
+def api_cet_scores():
+    """获取已存储的四六级成绩及折算信息"""
+    from gpa import cet_to_percentage
+    scores = dao.get_cet_scores()
+
+    cet_info = []
+    for s in scores:
+        pct = cet_to_percentage(s["score"], s["type"])
+        cet_info.append({
+            **s,
+            "percentage": pct,
+            "usable": pct > 0,
+        })
+
+    best_pct = 0.0
+    best_type = ""
+    for ci in cet_info:
+        if ci["usable"] and ci["percentage"] > best_pct:
+            best_pct = ci["percentage"]
+            best_type = ci["type"]
+
+    return jsonify({
+        "scores": cet_info,
+        "best_type": best_type,
+        "best_percentage": best_pct,
+        "has_usable": best_pct > 0,
+    })
 
 
 # ============================================================

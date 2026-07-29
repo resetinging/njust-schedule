@@ -22,6 +22,7 @@ async function loadSettings() {
         const data = await resp.json();
         document.getElementById('student-id').value = data.student_id || '';
         document.getElementById('semester-select').value = data.semester || data.current_semester || '';
+        document.getElementById('first-week-date').value = data.first_week_date || '';
         // 显示密码保存状态
         const badge = document.getElementById('password-saved-badge');
         if (badge) {
@@ -175,6 +176,25 @@ document.getElementById('semester-form').addEventListener('submit', async (e) =>
                   data.success ? 'success' : 'error');
     } catch (e) {
         showToast('❌ 切换失败: ' + e.message, 'error');
+    }
+});
+
+// 保存校历设置
+document.getElementById('calendar-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const firstWeekDate = document.getElementById('first-week-date').value;
+
+    try {
+        const resp = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ first_week_date: firstWeekDate }),
+        });
+        const data = await resp.json();
+        showToast(data.success ? '✅ ' + data.message : '❌ ' + data.message,
+                  data.success ? 'success' : 'error');
+    } catch (e) {
+        showToast('❌ 保存失败: ' + e.message, 'error');
     }
 });
 

@@ -104,3 +104,56 @@ class Setting(db.Model):
     __tablename__ = 'settings'
     k = db.Column(db.String(100), primary_key=True)
     v = db.Column(db.Text, default='')
+
+
+# ============================================================
+# NJUST — 成绩
+# ============================================================
+class Grade(db.Model):
+    __tablename__ = 'grades'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    academic_year = db.Column(db.String(20), default='')
+    semester = db.Column(db.String(10), default='')
+    course_code = db.Column(db.String(50), default='')
+    course_name = db.Column(db.String(200), nullable=False, default='')
+    score = db.Column(db.String(20), default='')
+    credit = db.Column(db.Float, default=0)
+    grade_point = db.Column(db.Float, default=0)
+    course_type = db.Column(db.String(50), default='')
+    course_nature = db.Column(db.String(50), default='')
+    exam_type = db.Column(db.String(50), default='正常考试')
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "academic_year": self.academic_year,
+            "semester": self.semester,
+            "course_code": self.course_code,
+            "course_name": self.course_name,
+            "score": self.score,
+            "credit": self.credit,
+            "grade_point": self.grade_point,
+            "course_type": self.course_type,
+            "course_nature": self.course_nature,
+            "exam_type": self.exam_type,
+        }
+
+
+# ============================================================
+# NJUST — 四六级成绩
+# ============================================================
+class CetScore(db.Model):
+    __tablename__ = 'cet_scores'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    cet_type = db.Column(db.String(10), nullable=False, default='')
+    total_score = db.Column(db.Float, default=0)
+    exam_date = db.Column(db.String(20), default='')
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+
+    def to_dict(self):
+        return {
+            "type": self.cet_type,
+            "score": self.total_score,
+            "exam_date": self.exam_date,
+        }
