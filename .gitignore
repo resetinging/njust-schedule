@@ -3,6 +3,18 @@ __pycache__/
 *.pyc
 *.pyo
 
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# 环境变量
+.env
+.env.*
+
+# Flask 实例配置
+instance/
+
 # Build artifacts (PyInstaller)
 build/
 dist/
@@ -13,8 +25,11 @@ release/
 *.zip
 *.exe
 
-# Runtime data (auto-generated)
-schedule.db
+# 数据库文件
+*.db
+
+# 日志
+*.log
 
 # IDE files
 .vscode/
@@ -22,8 +37,16 @@ schedule.db
 *.swp
 *.swo
 
+# 测试与覆盖率
+.pytest_cache/
+.coverage
+htmlcov/
+
 # OS files
 .DS_Store
 Thumbs.db
 desktop.ini
 debug_*.json
+
+# Python 版本
+.python-version
