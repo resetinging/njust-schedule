@@ -111,6 +111,7 @@ Component({
         const days = []
         for (let d = 1; d <= 7; d++) {
           const dayCourses = []
+          const seenKeys = new Set()
 
           for (const c of visible) {
             const day = c.day || c.day_of_week
@@ -123,6 +124,12 @@ Component({
             const overlapStart = Math.max(cs, firstPeriod)
             const overlapEnd = Math.min(ce, lastPeriod)
             if (overlapStart > overlapEnd) continue
+
+            // 单元格内去重: 跨大节课程在 kbtable 每个大节格产生相同条目,
+            // 防止同名同节次的重复块堆叠溢出(与后端去重双保险)
+            const dedupeKey = `${c.name}|${cs}|${ce}|${c.teacher || ''}|${c.weeks || ''}`
+            if (seenKeys.has(dedupeKey)) continue
+            seenKeys.add(dedupeKey)
 
             // 按重叠小节数计算绝对高度（rpx），避免百分比依赖父级明确 height
             const overlapCount = overlapEnd - overlapStart + 1
@@ -148,6 +155,9 @@ Component({
               credits: c.credits || '',
               type: c.type || c.course_type || '',
               _height: courseHeight,
+              // 课程不从大节顶部开始时，先插入空白占位(与桌面端 renderTable 一致)
+              // 例: 2-3节的课在"第一大节(1-3)"中显示在下方,不再误认为1-2节
+              _offsetHeight: Math.max(0, (cs - firstPeriod) * PERIOD_HEIGHT),
               _color: getCourseColor(c.name),
               _cssClass: cssClass,
               // 只在第一个大节段显示完整文本，后续段只显示课程名

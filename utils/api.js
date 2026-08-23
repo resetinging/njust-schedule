@@ -20,6 +20,35 @@ const storage = require('./storage')
 function request(method, path, data = {}) {
   const header = { 'Content-Type': 'application/json' }
 
+  // 本地联调: 直连本机 Flask(需开发者工具勾选「不校验合法域名」)
+  if (config.USE_LOCAL) {
+    return new Promise((resolve) => {
+      wx.request({
+        url: config.LOCAL_BASE + path,
+        method,
+        header,
+        data,
+        timeout: config.REQUEST_TIMEOUT,
+        success(res) {
+          if (res.statusCode === 200) {
+            resolve(res.data)
+          } else {
+            resolve({
+              success: false,
+              message: (res.data && res.data.message) || ('服务器错误 ' + res.statusCode)
+            })
+          }
+        },
+        fail(err) {
+          resolve({
+            success: false,
+            message: '网络请求失败: ' + (err.errMsg || '未知错误')
+          })
+        }
+      })
+    })
+  }
+
   return new Promise((resolve) => {
     wx.cloud.callContainer({
       config: { env: config.CLOUD_ENV, service: config.CLOUD_SERVICE },

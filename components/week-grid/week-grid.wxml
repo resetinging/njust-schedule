@@ -47,23 +47,24 @@
         wx:key="index"
         wx:for-item="dayCell"
       >
-        <!-- 课程块 -->
-        <view
-          wx:for="{{dayCell.courses}}"
-          wx:key="name"
-          wx:for-item="course"
-          class="course-block {{course._cssClass}}"
-          style="height: {{course._height}}rpx; background: {{course._color}}"
-          bindtap="onCourseTap"
-          data-course="{{course}}"
-        >
-          <text class="course-name">{{course.name}}</text>
-          <text class="course-teacher" wx:if="{{course.teacher && course._isFirst}}">{{course.teacher}}</text>
-          <text class="course-room" wx:if="{{course.classroom && course._isFirst}}">{{course.classroom}}</text>
-          <!-- 单双周角标 -->
-          <text class="week-badge" wx:if="{{course.week_type === 1 && course._isFirst}}">单</text>
-          <text class="week-badge even" wx:if="{{course.week_type === 2 && course._isFirst}}">双</text>
-        </view>
+        <!-- 课程块（不从大节顶部开始时带偏移占位，与桌面端一致） -->
+        <block wx:for="{{dayCell.courses}}" wx:key="name" wx:for-item="course">
+          <view wx:if="{{course._offsetHeight > 0}}" class="course-offset"
+                style="height: {{course._offsetHeight}}rpx"></view>
+          <view
+            class="course-block {{course._cssClass}}"
+            style="height: {{course._height}}rpx; background: {{course._color}}"
+            bindtap="onCourseTap"
+            data-course="{{course}}"
+          >
+            <text class="course-name">{{course.name}}</text>
+            <text class="course-teacher" wx:if="{{course.teacher && course._isFirst}}">{{course.teacher}}</text>
+            <text class="course-room" wx:if="{{course.classroom && course._isFirst}}">{{course.classroom}}</text>
+            <!-- 单双周角标 -->
+            <text class="week-badge" wx:if="{{course.week_type === 1 && course._isFirst}}">单</text>
+            <text class="week-badge even" wx:if="{{course.week_type === 2 && course._isFirst}}">双</text>
+          </view>
+        </block>
       </view>
     </view>
   </view>

@@ -13,6 +13,15 @@ const API_BASE = 'https://flask-5da7-276116-7-1448570339.sh.run.tcloudbase.com'
 // 请求超时（毫秒）— 云托管冷启动较慢，给 30s 余量
 const REQUEST_TIMEOUT = 30000
 
+// ============================================================
+// 本地联调开关（仅开发调试用！）
+// USE_LOCAL = true 时，所有请求直连本机 Flask（127.0.0.1:5000），
+// 需要在微信开发者工具「详情 → 本地设置」勾选「不校验合法域名…」。
+// ⚠️ 上传正式版前必须保持 false（本开关已复位为 false）。
+// ============================================================
+const USE_LOCAL = false
+const LOCAL_BASE = 'http://127.0.0.1:5000'
+
 // 缓存有效期（毫秒）
 const CACHE_TTL = {
   courses: 30 * 60 * 1000,    // 课表 30分钟
@@ -35,6 +44,8 @@ module.exports = {
   CLOUD_SERVICE,
   API_BASE,
   REQUEST_TIMEOUT,
+  USE_LOCAL,
+  LOCAL_BASE,
   CACHE_TTL,
   BIG_PERIOD_MAP
 }

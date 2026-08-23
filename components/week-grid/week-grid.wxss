@@ -115,6 +115,11 @@
   border-right: none;
 }
 
+/* 大节内偏移占位（课程不从大节顶部开始时，与桌面端 spacer 一致） */
+.course-offset {
+  width: 100%;
+}
+
 /* 课程块 */
 .course-block {
   display: flex;
