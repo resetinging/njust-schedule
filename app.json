@@ -4,7 +4,8 @@
     "pages/exams/exams",
     "pages/eval/eval",
     "pages/settings/settings",
-    "pages/grades/grades"
+    "pages/grades/grades",
+    "pages/gallery/gallery"
   ],
   "window": {
     "navigationBarTitleText": "课表助手",

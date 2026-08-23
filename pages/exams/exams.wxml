@@ -37,23 +37,30 @@
     <!-- 按日期分组的考试列表 -->
     <scroll-view scroll-y class="exam-scroll">
       <block wx:for="{{dayGroups}}" wx:key="date" wx:for-item="group">
-        <!-- 日期头部 -->
-        <view class="date-header">
+        <!-- 日期头部（已结束可折叠） -->
+        <view class="date-header" data-date="{{group.date}}" data-done="{{group.urgency === 'done'}}" bindtap="onToggleGroup">
           <text class="date-title">📅 {{group.date}} {{group.weekday}}</text>
-          <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>
-        </view>
-
-        <!-- 考试卡片 -->
-        <view class="exam-card {{group.urgency === 'urgent' ? 'exam-urgent' : ''}} {{group.urgency === 'warning' ? 'exam-warning' : ''}}"
-              wx:for="{{group.exams}}" wx:key="course_name" wx:for-item="exam">
-          <view class="exam-course">{{exam.course_name}}</view>
-          <view class="exam-meta">
-            <text class="meta-item">⏰ {{exam.time || '待定'}}</text>
-            <text class="meta-item">📍 {{exam.location || '待定'}}</text>
-            <text class="meta-item" wx:if="{{exam.seat}}">💺 {{exam.seat}}</text>
-            <text class="meta-item">📋 {{exam.type || '期末考试'}}</text>
+          <view class="date-right">
+            <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>
+            <text wx:if="{{group.urgency === 'done'}}" class="collapse-arrow">
+              {{collapsedDates[group.date] ? '展开 ▾' : '折叠 ▴'}}
+            </text>
           </view>
         </view>
+
+        <!-- 考试卡片（已结束且折叠时隐藏） -->
+        <block wx:if="{{!(group.urgency === 'done' && collapsedDates[group.date])}}">
+          <view class="exam-card {{group.urgency === 'urgent' ? 'exam-urgent' : ''}} {{group.urgency === 'warning' ? 'exam-warning' : ''}} {{group.urgency === 'done' ? 'exam-done' : ''}}"
+                wx:for="{{group.exams}}" wx:key="course_name" wx:for-item="exam">
+            <view class="exam-course">{{exam.course_name}}</view>
+            <view class="exam-meta">
+              <text class="meta-item">⏰ {{exam.time || '待定'}}</text>
+              <text class="meta-item">📍 {{exam.location || '待定'}}</text>
+              <text class="meta-item" wx:if="{{exam.seat}}">💺 {{exam.seat}}</text>
+              <text class="meta-item">📋 {{exam.type || '期末考试'}}</text>
+            </view>
+          </view>
+        </block>
       </block>
     </scroll-view>
   </block>

@@ -158,3 +158,8 @@ page {
 .modal-buttons button {
   flex: 1;
 }
+
+/* ==== 优化: 底部安全区 + 通用滚动提示 ==== */
+.page-safe-bottom {
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+}

@@ -1,0 +1,55 @@
+/* 校历 & 照片墙样式 */
+
+.container {
+  padding-bottom: 40rpx;
+}
+
+.gallery-list {
+  padding: 20rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  margin: 12rpx 0 20rpx;
+}
+
+.gallery-item {
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-bottom: 24rpx;
+  padding-bottom: 16rpx;
+}
+
+.gallery-img {
+  width: 100%;
+  display: block;
+}
+
+.gallery-name {
+  font-size: 26rpx;
+  font-weight: bold;
+  padding: 12rpx 20rpx 4rpx;
+}
+
+.gallery-hint {
+  font-size: 22rpx;
+  color: var(--text-hint);
+  padding: 0 20rpx;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 120rpx 40rpx;
+}
+
+.empty-state .icon {
+  font-size: 100rpx;
+}
+
+.empty-state .text {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  margin: 20rpx 0 30rpx;
+}

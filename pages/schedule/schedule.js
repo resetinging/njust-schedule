@@ -6,7 +6,6 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const { calcCurrentWeek, calcTodayDay, isWeekInRange, getWeekBounds } = require('../../utils/date')
-const config = require('../../utils/config')
 
 Page({
   data: {
@@ -22,13 +21,19 @@ Page({
     loading: false,
     showDetail: false,
     detailCourse: {},
-    firstWeekDate: ''        // 学期第一周周一日期
+    firstWeekDate: '',       // 学期第一周周一日期
+
+    searchText: '',          // 课程/教师搜索
+    weekPickerRange: []      // 周次跳转选择器 (1-20)
   },
 
   onLoad() {
     this.loadCachedData()
     this.loadFromServer()
     this.loadFirstWeekDate()
+    this.setData({
+      weekPickerRange: Array.from({ length: 20 }, (_, i) => String(i + 1))
+    })
   },
 
   onShow() {
@@ -124,13 +129,21 @@ Page({
     }
   },
 
-  /** 按周次过滤课程 */
+  /** 按周次过滤课程（含搜索关键词） */
   filterByWeek(week) {
-    const filtered = this.data.courses.filter(c => {
+    const kw = (this.data.searchText || '').trim().toLowerCase()
+    let filtered = this.data.courses.filter(c => {
       if (c.week_type === 1 && week % 2 === 0) return false
       if (c.week_type === 2 && week % 2 === 1) return false
       return isWeekInRange(week, c.weeks)
     })
+
+    if (kw) {
+      filtered = filtered.filter(c =>
+        (c.name || '').toLowerCase().includes(kw) ||
+        (c.teacher || '').toLowerCase().includes(kw)
+      )
+    }
 
     // 构建列表视图分组（按天分组 + 去重）
     const listDayGroups = this._buildListGroups(filtered)
@@ -172,6 +185,25 @@ Page({
   switchView(e) {
     const mode = e.currentTarget.dataset.mode
     this.setData({ viewMode: mode })
+  },
+
+  /** 搜索课程/教师 */
+  onSearchInput(e) {
+    this.setData({ searchText: e.detail.value })
+    this.filterByWeek(this.data.currentWeek)
+  },
+
+  /** 清空搜索 */
+  onClearSearch() {
+    this.setData({ searchText: '' })
+    this.filterByWeek(this.data.currentWeek)
+  },
+
+  /** 周次跳转 */
+  onJumpWeek(e) {
+    const idx = e.detail.value
+    const week = parseInt(this.data.weekPickerRange[idx]) || 1
+    this.filterByWeek(week)
   },
 
   /** 切换学期 */

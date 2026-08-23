@@ -12,7 +12,8 @@ Page({
     exams: [],
     countdowns: [],    // 顶部倒计时卡片（最近 3 场）
     dayGroups: [],     // 按日期分组 [{date, weekday, urgency, exams}]
-    loading: false
+    loading: false,
+    collapsedDates: {} // 已结束日期组折叠状态
   },
 
   onLoad() {
@@ -121,6 +122,16 @@ Page({
     const parts = str.split('-')
     if (parts.length !== 3) return null
     return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+  },
+
+  /** 折叠/展开已结束的日期组 */
+  onToggleGroup(e) {
+    // 只有已结束的日期组可折叠
+    if (!e.currentTarget.dataset.done) return
+    const date = e.currentTarget.dataset.date
+    const collapsed = { ...this.data.collapsedDates }
+    collapsed[date] = !collapsed[date]
+    this.setData({ collapsedDates: collapsed })
   },
 
   /** 刷新 */

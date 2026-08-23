@@ -22,9 +22,8 @@ App({
       })
     }
 
-    // 启动时检查是否有已保存的登录态
-    const token = storage.getToken()
-    if (token) {
+    // 启动时检查本地是否保存过学号（登录态以学号为准，后端接口无 token 校验）
+    if (storage.getStudentId()) {
       this.globalData.isLoggedIn = true
       this.globalData.studentName = storage.getStudentName()
       this.globalData.semester = storage.getSemester()

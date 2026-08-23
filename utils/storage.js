@@ -1,9 +1,8 @@
 /**
- * 本地存储封装 — token、用户信息、数据缓存
+ * 本地存储封装 — 用户信息、数据缓存
  */
 
 const STORAGE_KEYS = {
-  TOKEN: 'auth_token',
   STUDENT_ID: 'student_id',
   STUDENT_NAME: 'student_name',
   SEMESTER: 'semester',
@@ -44,15 +43,6 @@ function remove(key) {
 }
 
 // ============================================================
-// Token 管理
-// ============================================================
-
-function getToken() { return get(STORAGE_KEYS.TOKEN, '') }
-function setToken(t) { set(STORAGE_KEYS.TOKEN, t) }
-function clearToken() { remove(STORAGE_KEYS.TOKEN) }
-function isLoggedIn() { return !!getStudentId() }
-
-// ============================================================
 // 用户信息
 // ============================================================
 
@@ -62,6 +52,7 @@ function getStudentName() { return get(STORAGE_KEYS.STUDENT_NAME, '') }
 function setStudentName(n) { set(STORAGE_KEYS.STUDENT_NAME, n) }
 function getSemester() { return get(STORAGE_KEYS.SEMESTER, '') }
 function setSemester(s) { set(STORAGE_KEYS.SEMESTER, s) }
+function isLoggedIn() { return !!getStudentId() }
 
 // ============================================================
 // 数据缓存
@@ -107,7 +98,8 @@ function clearAll() {
 }
 
 module.exports = {
-  getToken, setToken, clearToken, isLoggedIn,
+  get, set, remove,
+  isLoggedIn,
   getStudentId, setStudentId, getStudentName, setStudentName,
   getSemester, setSemester,
   getCached, setCached, getCachedIfFresh, getCacheAge,

@@ -359,3 +359,23 @@
 .bottom-actions {
   padding: 32rpx 0 20rpx;
 }
+
+/* ==== 优化: 保研说明 + 加载更多 ==== */
+.baoyan-tip {
+  margin: 0 20rpx 16rpx;
+  padding: 16rpx 20rpx;
+  background: #EDEBF8;
+  border-radius: 12rpx;
+  font-size: 22rpx;
+  color: var(--primary-dark);
+  line-height: 1.5;
+}
+.load-more {
+  text-align: center;
+  padding: 24rpx;
+  color: var(--primary);
+  font-size: 26rpx;
+  background: var(--bg-card);
+  border-radius: 12rpx;
+  margin: 16rpx 20rpx;
+}

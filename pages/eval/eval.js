@@ -2,12 +2,11 @@
  * 教学评价页面
  * 参考桌面端 static/js/evaluations.js
  * 功能：批次列表 → 课程列表 → 评教表单（含自动填写）→ 提交
- *       一键评教 → 进度追踪 / 查看已提交评分
+ *       一键评教 → 前端顺序循环（方案 A）
  */
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
-const config = require('../../utils/config')
 const { timeUntilDeadline } = require('../../utils/date')
 
 Page({
@@ -304,68 +303,135 @@ Page({
     this.setData({ autoFillScore: e.detail.value })
   },
 
-  /** 自动填写评教（参考桌面端 autoFillEval） */
-  async onAutoFill() {
+  /** 自动填写评教（纯前端算法，方案 A） */
+  onAutoFill() {
     const score = parseFloat(this.data.autoFillScore)
     if (isNaN(score) || score < 0 || score > 100) {
       wx.showToast({ title: '请输入0-100的目标分数', icon: 'none' })
       return
     }
-
-    const formData = this.buildFormData('0')
-    try {
-      const res = await api.getAutoFillSuggestion(formData, score)
-      if (res.success && res.selections) {
-        const selections = { ...res.selections }
-        let total = 0
-        const indicators = this.data.indicators.map(ind => {
-          const val = selections[ind.seq]
-          if (val) {
-            const opt = ind.options.find(o => o.value === val)
-            if (opt) total += this._optionScore(opt)
-            return {
-              ...ind,
-              options: ind.options.map(o => ({ ...o, checked: o.value === val }))
-            }
-          }
-          return ind
-        })
-        this.setData({ selections, indicators, liveTotal: total })
-      }
-      // 服务端不支持自动填写时，本地按高分策略自动选
-      if (!res.success || !res.selections) {
-        this._localAutoFill(score)
-      }
-    } catch (e) {
-      // 降级为本地自动填写
-      this._localAutoFill(score)
-    }
+    this._autoFillSelections(score)
   },
 
-  /** 本地自动填写：每个指标选最接近目标比例的选项 */
-  _localAutoFill(targetScore) {
-    const selections = {}
+  /**
+   * 增强版自动评分（移植自服务端算法，方案 A）：
+   * 贪心选择 → 防同列作弊 → 单指标微调
+   * 返回 { selections: {seq: value}, total }
+   */
+  _computeAutoFill(indicators, targetScore) {
+    const selections = []
+    let totalMax = 0
+    for (const ind of indicators) {
+      const opts = ind.options || []
+      let indMax = 0
+      opts.forEach(o => {
+        const s = this._optionScore(o)
+        if (s > indMax) indMax = s
+      })
+      totalMax += indMax
+      selections.push({
+        seq: ind.seq,
+        maxScore: indMax,
+        opts: opts.map((o, i) => ({ idx: i, score: this._optionScore(o), name: o.name, value: o.value })),
+        colIndex: 0, score: 0, name: '', value: ''
+      })
+    }
+    if (totalMax <= 0) return { selections: {}, total: 0 }
+
+    // 步骤 1: 贪心 — 每条指标选最接近目标比例的选项
+    selections.forEach(sel => {
+      const target = (targetScore / totalMax) * sel.maxScore
+      let best = sel.opts[0], bestDist = Infinity
+      sel.opts.forEach(o => {
+        const d = Math.abs(o.score - target)
+        if (d < bestDist) { bestDist = d; best = o }
+      })
+      sel.colIndex = best.idx
+      sel.score = best.score
+      sel.name = best.name
+      sel.value = best.value
+    })
+
+    const allSame = () => selections.length > 1 &&
+      selections.every(s => s.colIndex === selections[0].colIndex)
+    const total = () => selections.reduce((sum, s) => sum + s.score, 0)
+
+    // 步骤 2: 防作弊 — 不能所有指标选同一列
+    if (allSame()) {
+      const cur = total()
+      let bestPenalty = Math.abs(cur - targetScore), bestCombo = null
+      selections.forEach((sel, si) => {
+        sel.opts.forEach(o => {
+          if (o.idx === sel.colIndex) return
+          const p = Math.abs(cur - sel.score + o.score - targetScore)
+          if (p < bestPenalty) { bestPenalty = p; bestCombo = { si, o } }
+        })
+      })
+      if (bestCombo) {
+        const s = selections[bestCombo.si]
+        s.colIndex = bestCombo.o.idx
+        s.score = bestCombo.o.score
+        s.name = bestCombo.o.name
+        s.value = bestCombo.o.value
+      }
+    }
+
+    // 步骤 3: 微调（最多 10 轮，连续 3 轮无改善则停）
+    let noImprove = 0
+    for (let round = 0; round < 10; round++) {
+      const cur = total()
+      const curPenalty = Math.abs(cur - targetScore)
+      if (curPenalty < 0.5) break
+      let bestSwap = null, bestPenalty = curPenalty
+      selections.forEach((sel, si) => {
+        sel.opts.forEach(o => {
+          if (o.idx === sel.colIndex) return
+          const newPenalty = Math.abs(cur - sel.score + o.score - targetScore)
+          const saved = sel.colIndex
+          sel.colIndex = o.idx
+          const same = allSame()
+          sel.colIndex = saved
+          if (same) return
+          if (newPenalty < bestPenalty) { bestPenalty = newPenalty; bestSwap = { si, o } }
+        })
+      })
+      if (bestSwap && bestPenalty < curPenalty) {
+        const s = selections[bestSwap.si]
+        s.colIndex = bestSwap.o.idx
+        s.score = bestSwap.o.score
+        s.name = bestSwap.o.name
+        s.value = bestSwap.o.value
+        noImprove = 0
+      } else {
+        noImprove++
+        if (noImprove >= 3) break
+      }
+    }
+
+    const result = {}
+    selections.forEach(s => { result[s.seq] = s.value })
+    return { selections: result, total: Math.round(total() * 10) / 10 }
+  },
+
+  /** 应用自动填写结果到表单 UI */
+  _autoFillSelections(targetScore) {
+    const filled = this._computeAutoFill(this.data.indicators, targetScore)
+    const selections = filled.selections
     let total = 0
     const indicators = this.data.indicators.map(ind => {
-      const opts = ind.options || []
-      if (opts.length === 0) return ind
-      // 选分数最接近 targetScore/max 比例的选项
-      const targetRatio = targetScore / Math.max(this.data.maxTotal, 1)
-      let best = opts[0], bestDiff = Infinity
-      for (const o of opts) {
-        const s = this._optionScore(o)
-        const ratio = s / Math.max(this._maxOptionScore(opts), 1)
-        const diff = Math.abs(ratio - targetRatio)
-        if (diff < bestDiff) { bestDiff = diff; best = o }
+      const val = selections[ind.seq]
+      if (val !== undefined) {
+        const opt = ind.options.find(o => o.value === val)
+        if (opt) total += this._optionScore(opt)
+        return {
+          ...ind,
+          options: ind.options.map(o => ({ ...o, checked: o.value === val }))
+        }
       }
-      selections[ind.seq] = best.value
-      total += this._optionScore(best)
-      return {
-        ...ind,
-        options: opts.map(o => ({ ...o, checked: o.value === best.value }))
-      }
+      return ind
     })
     this.setData({ selections, indicators, liveTotal: total })
+    wx.showToast({ title: `已自动填写,总分 ${total}`, icon: 'none' })
   },
 
   /** 构建提交数据 */
@@ -426,7 +492,7 @@ Page({
   },
 
   // ============================================================
-  // 一键评教
+  // 一键评教（前端顺序循环，方案 A）
   // ============================================================
 
   showBatchDialog() {
@@ -441,85 +507,92 @@ Page({
     this.setData({ targetScore: e.detail.value })
   },
 
-  /** 开始批量评教 */
+  /** 开始批量评教：逐门「取表单 → 前端自动评分 → 提交」 */
   async startBatchEval() {
     this.setData({ showBatchDialog: false })
-    const batchUrl = (this.data.currentBatch && this.data.currentBatch.items && this.data.currentBatch.items.length > 0)
-      ? this.data.currentBatch.items[0].url : ''
+    const targetScore = this.data.targetScore
+    const targets = this.data.batchCourses.filter(c => !c.submitted)
+
+    if (targets.length === 0) {
+      wx.showToast({ title: '✅ 所有课程已提交', icon: 'success' })
+      return
+    }
 
     this.setData({
       batchRunning: true, batchDone: false, batchCurrent: 0,
-      batchTotal: this.data.batchCourses.filter(c => !c.submitted).length,
+      batchTotal: targets.length,
       batchMessage: '正在提交…', batchPercent: 0, batchResults: []
     })
 
-    try {
-      const res = await api.startBatchEval(
-        batchUrl, this.data.targetScore, '1',
-        this.data.currentBatchHiddenFields.action || '',
-        this.data.currentBatchHiddenFields
-      )
-      if (!res.success) {
-        this.setData({ batchRunning: false, batchDone: true, batchMessage: res.message || '启动失败' })
-        return
-      }
-      this.setData({ batchId: res.batch_id })
-      this.pollBatchProgress()
-    } catch (e) {
-      this.setData({ batchRunning: false })
-      wx.showToast({ title: '启动失败', icon: 'none' })
-    }
-  },
-
-  /** 轮询批量评教进度 */
-  pollBatchProgress() {
-    this._pollCount = 0
-    this._pollTimer = setInterval(async () => {
-      if (!this.data.batchRunning) { clearInterval(this._pollTimer); return }
-      this._pollCount++
-      if (this._pollCount > config.MAX_POLL_RETRIES) {
-        clearInterval(this._pollTimer)
-        this.setData({ batchRunning: false, batchDone: true, batchMessage: '轮询超时' })
-        return
-      }
+    const results = []
+    for (let i = 0; i < targets.length; i++) {
+      if (!this.data.batchRunning) break // 用户关闭进度弹窗
+      const course = targets[i]
       try {
-        const res = await api.getBatchProgress(this.data.batchId)
-        if (!res.success) {
-          clearInterval(this._pollTimer)
-          this.setData({ batchRunning: false, batchDone: true, batchMessage: res.message || '查询失败' })
-          return
-        }
-        this.setData({
-          batchCurrent: res.current || 0, batchTotal: res.total || 0,
-          batchMessage: res.message || '',
-          batchPercent: res.total > 0 ? Math.round((res.current || 0) / res.total * 100) : 0,
-          batchResults: res.results || []
-        })
-        if (res.done) {
-          clearInterval(this._pollTimer)
-          this.setData({ batchRunning: false, batchDone: true })
-          const results = res.results || []
-          const courses = this.data.batchCourses.map(c => {
-            const result = results.find(r => r.course === c.name)
-            if (result && result.status === 'success') return { ...c, submitted: true }
-            return c
+        this.setData({ batchMessage: `正在加载 ${course.name}...` })
+        const formRes = await api.getEvalForm(course.eval_url)
+        if (!formRes.success || !(formRes.indicators || []).length) {
+          results.push({ course: course.name, status: 'failed', error: formRes.message || '无法解析表单' })
+        } else {
+          this.setData({ batchMessage: `正在为 ${course.name} 自动评分...` })
+          const filled = this._computeAutoFill(formRes.indicators, targetScore)
+          const formData = { ...(formRes.hidden_fields || {}) }
+          Object.entries(filled.selections).forEach(([seq, val]) => {
+            const ind = formRes.indicators.find(x => x.seq === seq)
+            const opt = ind && ind.options.find(o => o.value === val)
+            if (opt) formData[opt.name] = val
           })
-          this.setData({ batchCourses: courses })
+          // 补课程列表页的批次级隐藏字段（如 cj0701id）
+          const batchHf = this.data.currentBatchHiddenFields || {}
+          Object.keys(batchHf).forEach(k => {
+            if (!(k in formData)) formData[k] = batchHf[k]
+          })
+          formData.issubmit = '1'
+          this.setData({ batchMessage: `正在提交 ${course.name}...` })
+          const subRes = await api.submitEval(formData, '1', formRes.action || '')
+          if (subRes.success) {
+            results.push({ course: course.name, status: 'success', score: filled.total })
+          } else {
+            results.push({ course: course.name, status: 'failed', error: subRes.message || '提交失败' })
+          }
         }
       } catch (e) {
-        clearInterval(this._pollTimer)
-        this.setData({ batchRunning: false })
+        results.push({ course: course.name, status: 'failed', error: (e && e.message) || '请求失败' })
       }
-    }, config.POLL_INTERVAL)
+
+      const done = i + 1
+      this.setData({
+        batchCurrent: done,
+        batchPercent: Math.round(done / targets.length * 100),
+        batchResults: results.slice()
+      })
+    }
+
+    const successCount = results.filter(r => r.status === 'success').length
+    const failCount = results.filter(r => r.status === 'failed').length
+    this.setData({
+      batchRunning: false,
+      batchDone: true,
+      batchMessage: `完成:成功 ${successCount}/${targets.length}`,
+      batchPercent: 100,
+      batchResults: results
+    })
+
+    // 更新课程已提交状态
+    const courses = this.data.batchCourses.map(c => {
+      const r = results.find(x => x.course === c.name)
+      if (r && r.status === 'success') return { ...c, submitted: true }
+      return c
+    })
+    this.setData({ batchCourses: courses })
+
+    let msg = `✅ 批量评教：${successCount} 成功`
+    if (failCount > 0) msg += `，${failCount} 失败`
+    wx.showToast({ title: msg, icon: failCount > 0 ? 'none' : 'success' })
   },
 
   closeBatchProgress() {
-    if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null }
     this.setData({ batchDone: false, batchRunning: false, batchResults: [] })
-  },
-
-  onUnload() {
-    if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null }
   },
 
   onPullDownRefresh() {

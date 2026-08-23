@@ -4,7 +4,7 @@
   <!-- ============================================================ -->
   <!-- 加载中 -->
   <!-- ============================================================ -->
-  <loading-modal show="{{loading}}" text="加载成绩数据…" />
+  <loading-modal visible="{{loading}}" title="加载成绩数据…" />
 
   <!-- ============================================================ -->
   <!-- 空状态 / 错误 -->
@@ -46,6 +46,11 @@
             data-mode="baoyan" bindtap="onGpaModeChange">保研/推免</view>
     </view>
 
+    <!-- 保研模式说明 -->
+    <view wx:if="{{gpaMode === 'baoyan'}}" class="baoyan-tip">
+      🎓 保研模式：用最高可用 CET 折算分替换英语模块（8 学分）重算绩点，优先级 CET6 &gt; CET4 &gt; 原始英语成绩
+    </view>
+
     <!-- GPA 汇总卡片 -->
     <view class="gpa-summary">
       <view class="gpa-main-card">
@@ -68,13 +73,15 @@
       </view>
     </view>
 
-    <!-- 各学期绩点 -->
+    <!-- 各学期绩点（点击切换学期） -->
     <view wx:if="{{semesterGpas.length > 0 && selectedSemester === '__all__'}}" class="semester-gpa-list">
-      <view class="section-title">📋 各学期绩点</view>
-      <view class="sem-gpa-row" wx:for="{{semesterGpas}}" wx:key="semester">
+      <view class="section-title">📋 各学期绩点（点击查看详情）</view>
+      <view class="sem-gpa-row" wx:for="{{semesterGpas}}" wx:key="semester"
+            data-sem="{{item.semester}}" bindtap="onSemGpaTap">
         <text class="sem-name">{{item.semester}}</text>
         <text class="sem-gpa {{item._gpaClass}}">{{item._gpaFixed}}</text>
         <text class="sem-credits">{{item.credits}}学分 / {{item.count}}门</text>
+        <text class="arrow">›</text>
       </view>
     </view>
 
@@ -103,10 +110,10 @@
       </view>
     </view>
 
-    <!-- 成绩列表 -->
+    <!-- 成绩列表（分页渲染） -->
     <view class="section-title">📚 成绩列表（{{grades.length}}门）</view>
     <view class="grade-list">
-      <view class="grade-row" wx:for="{{grades}}" wx:key="id">
+      <view class="grade-row" wx:for="{{displayGrades}}" wx:key="id">
         <view class="grade-left">
           <text class="grade-name">{{item.course_name}}</text>
           <view class="grade-meta">
@@ -121,6 +128,11 @@
           <text class="grade-gp">{{item._gpStr}}</text>
         </view>
       </view>
+    </view>
+
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{displayGrades.length < grades.length}}" bindtap="loadMoreGrades">
+      加载更多（还有 {{grades.length - displayGrades.length}} 门）
     </view>
 
     <!-- 底部刷新按钮 -->

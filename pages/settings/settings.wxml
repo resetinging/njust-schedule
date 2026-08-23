@@ -22,6 +22,10 @@
         <text>📊 成绩查询</text>
         <text class="arrow">›</text>
       </view>
+      <view class="action-item" bindtap="onGoGallery">
+        <text>🖼️ 校历 & 照片墙</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="action-item" bindtap="onRefreshAll">
         <text>🔄 一键刷新课表+考试</text>
         <text class="arrow">›</text>
@@ -30,6 +34,15 @@
         <text>🗑 清除缓存数据</text>
         <text class="arrow">›</text>
       </view>
+    </view>
+
+    <!-- 校历设置 -->
+    <view class="setting-card card">
+      <view class="setting-title">📆 学期第一周周一</view>
+      <picker mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
+        <view class="setting-value">{{firstWeekDate || '点击设置（课表自动跳转本周）'}}</view>
+      </picker>
+      <view class="setting-hint">设置后课表将自动定位当前教学周并高亮今天</view>
     </view>
 
     <!-- 退出登录 -->
@@ -46,6 +59,18 @@
     <view class="login-card card">
       <view class="login-title">登录教务系统</view>
 
+      <!-- 登录模式切换 -->
+      <view class="mode-tabs">
+        <view class="mode-tab {{loginMode === 'direct' ? 'active' : ''}}"
+              data-mode="direct" bindtap="switchLoginMode">🏫 教务直连</view>
+        <view class="mode-tab {{loginMode === 'webvpn' ? 'active' : ''}}"
+              data-mode="webvpn" bindtap="switchLoginMode">🌐 智慧理工</view>
+      </view>
+      <view class="mode-desc" wx:if="{{loginMode === 'webvpn'}}">
+        两步登录：Step 1 智慧理工 SSO 验证 → Step 2 教务系统登录（适合校外网络）
+      </view>
+      <view class="mode-desc" wx:else>直接登录教务系统（需教务可达）</view>
+
       <!-- 学号 -->
       <view class="form-group">
         <text class="form-label">学号</text>
@@ -55,15 +80,23 @@
 
       <!-- 密码 -->
       <view class="form-group">
-        <text class="form-label">密码</text>
-        <input class="form-input" placeholder="请输入教务密码"
+        <text class="form-label">{{loginMode === 'webvpn' ? '智慧理工密码（Step 1）' : '教务密码'}}</text>
+        <input class="form-input" placeholder="{{loginMode === 'webvpn' ? '请输入智慧理工密码' : '请输入教务密码'}}"
                password="{{true}}" value="{{password}}"
                bindinput="onPasswordInput" />
       </view>
 
+      <!-- 教务密码（智慧理工模式，与智慧理工密码相同可留空） -->
+      <view class="form-group" wx:if="{{loginMode === 'webvpn'}}">
+        <text class="form-label">教务密码（Step 2，不同时填写）</text>
+        <input class="form-input" placeholder="教务密码与智慧理工密码相同可留空"
+               password="{{true}}" value="{{jwcPassword}}"
+               bindinput="onJwcPasswordInput" />
+      </view>
+
       <!-- 验证码 -->
       <view class="form-group">
-        <text class="form-label">验证码</text>
+        <text class="form-label">{{loginMode === 'webvpn' ? (ssoStepDone ? '教务验证码（Step 2）' : '验证码（点击右侧刷新完成 Step 1）') : '验证码'}}</text>
         <captcha-input src="{{captchaSrc}}" value="{{captcha}}"
                        bind:input="onCaptchaInput" bind:refresh="onRefreshCaptcha" />
       </view>
@@ -71,13 +104,13 @@
       <!-- 登录按钮 -->
       <button class="btn-primary login-btn" bindtap="onLogin"
               disabled="{{!canLogin || loggingIn}}">
-        {{loggingIn ? '登录中…' : '登录'}}
+        {{loggingIn ? '登录中…' : (loginMode === 'webvpn' ? '智慧理工两步登录' : '登录')}}
       </button>
     </view>
 
     <!-- 提示 -->
     <view class="login-tip">
-      <text>需要连接校园网或学校 VPN</text>
+      <text>{{loginMode === 'webvpn' ? '智慧理工密码与教务密码可能不同，请分别填写' : '需要连接校园网或学校 VPN'}}</text>
     </view>
   </view>
 

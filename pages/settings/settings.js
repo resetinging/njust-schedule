@@ -1,5 +1,6 @@
 /**
  * 设置/登录页面
+ * 登录模式: direct(教务直连) | webvpn(智慧理工 SSO 两步)
  */
 
 const api = require('../../utils/api')
@@ -12,22 +13,31 @@ Page({
     studentName: '',
     semester: '',
 
+    // 登录模式
+    loginMode: 'direct',   // 'direct' | 'webvpn'
+
     // 登录表单
     password: '',
+    jwcPassword: '',       // 智慧理工模式下可选的教务密码
     captcha: '',
     captchaSrc: '',
     loggingIn: false,
-    canLogin: false
+    canLogin: false,
+    ssoStepDone: false,    // 智慧理工模式: SSO 已通过, 显示教务验证码
+
+    // 校历设置
+    firstWeekDate: ''
   },
 
   onLoad() {
     this.refreshState()
+    this.loadSettings()
   },
 
   onShow() {
     this.refreshState()
-    // 如果已登录且有密码，自动获取验证码
-    if (this.data.isLoggedIn === false && storage.getStudentId()) {
+    // 如果已保存学号但未登录，自动获取验证码
+    if (!this.data.isLoggedIn && storage.getStudentId()) {
       this.setData({ studentId: storage.getStudentId() })
       this.onRefreshCaptcha()
     }
@@ -44,6 +54,35 @@ Page({
     })
   },
 
+  /** 加载设置（第一周日期来自 /api/status） */
+  async loadSettings() {
+    try {
+      const res = await api.getStatus()
+      if (res && res.first_week_date !== undefined) {
+        this.setData({ firstWeekDate: res.first_week_date || '' })
+      }
+    } catch (e) {
+      // 忽略
+    }
+  },
+
+  // ============================================================
+  // 登录模式切换
+  // ============================================================
+
+  switchLoginMode(e) {
+    const mode = e.currentTarget.dataset.mode
+    if (mode === this.data.loginMode) return
+    this.setData({
+      loginMode: mode,
+      captcha: '',
+      captchaSrc: '',
+      ssoStepDone: false,
+      jwcPassword: ''
+    })
+    this._updateCanLogin()
+  },
+
   // ============================================================
   // 登录
   // ============================================================
@@ -58,25 +97,64 @@ Page({
     this._updateCanLogin()
   },
 
+  onJwcPasswordInput(e) {
+    this.setData({ jwcPassword: e.detail.value })
+    this._updateCanLogin()
+  },
+
   onCaptchaInput(e) {
     this.setData({ captcha: e.detail.value })
     this._updateCanLogin()
   },
 
-  /** 计算登录按钮是否可用 */
+  /** 计算登录按钮是否可用（手动验证码流程） */
   _updateCanLogin() {
     const { studentId, password, captcha } = this.data
     this.setData({ canLogin: !!(studentId && password && captcha) })
   },
 
-  /** 获取验证码 */
+  /** 获取验证码（按登录模式选择端点） */
   async onRefreshCaptcha() {
+    const { loginMode, studentId, password } = this.data
+
+    if (loginMode === 'webvpn') {
+      if (!studentId || !password) {
+        wx.showToast({ title: '请先输入学号和智慧理工密码', icon: 'none' })
+        return
+      }
+      wx.showLoading({ title: '智慧理工登录中…' })
+      try {
+        const res = await api.getWebvpnCaptcha(studentId, password)
+        wx.hideLoading()
+        if (res.success && res.captcha_b64) {
+          this.setData({
+            captchaSrc: 'data:' + (res.captcha_mime || 'image/png') + ';base64,' + res.captcha_b64,
+            captcha: '',
+            ssoStepDone: true
+          })
+          wx.showToast({ title: '✅ 智慧理工已通过，请输入教务密码和验证码', icon: 'none' })
+        } else if (res.success && res.already_logged_in) {
+          this.refreshState()
+          wx.showToast({ title: '✅ 已有教务会话，无需重复登录', icon: 'success' })
+        } else {
+          wx.showToast({ title: res.message || '智慧理工登录失败', icon: 'none' })
+        }
+      } catch (e) {
+        wx.hideLoading()
+        wx.showToast({ title: '获取验证码失败', icon: 'none' })
+      }
+      return
+    }
+
+    // 教务直连模式
     try {
       const res = await api.getCaptcha()
       if (res.success && res.captcha_b64) {
         this.setData({
-          captchaSrc: 'data:image/jpeg;base64,' + res.captcha_b64
+          captchaSrc: 'data:' + (res.captcha_mime || 'image/png') + ';base64,' + res.captcha_b64,
+          captcha: ''
         })
+        this._updateCanLogin()
       } else {
         wx.showToast({ title: res.message || '获取验证码失败', icon: 'none' })
       }
@@ -87,33 +165,67 @@ Page({
 
   /** 登录 */
   async onLogin() {
-    const { studentId, password, captcha } = this.data
-    if (!studentId || !password || !captcha) {
-      wx.showToast({ title: '请填写所有字段', icon: 'none' })
+    const { loginMode, studentId, password, jwcPassword, captcha } = this.data
+    if (!studentId || !password) {
+      wx.showToast({ title: '请填写学号和密码', icon: 'none' })
+      return
+    }
+    if (!captcha) {
+      wx.showToast({ title: '请先获取并输入验证码', icon: 'none' })
+      return
+    }
+    if (loginMode === 'webvpn' && !this.data.ssoStepDone) {
+      wx.showToast({ title: '请先完成智慧理工登录（点击验证码刷新）', icon: 'none' })
       return
     }
 
     this.setData({ loggingIn: true })
     try {
-      const res = await api.login(studentId, password, captcha)
+      const res = loginMode === 'webvpn'
+        ? await api.loginWebvpnManual(studentId, password, jwcPassword, captcha)
+        : await api.login(studentId, password, captcha)
       this.setData({ loggingIn: false })
 
       if (res.success) {
+        storage.setStudentId(studentId)
+        storage.setStudentName(res.student_name || '')
+        storage.setSemester(res.semester || '')
         wx.showToast({ title: '登录成功', icon: 'success' })
         this.refreshState()
         // 通知全局
         getApp().setLoginState(true, res.student_name || studentId, res.semester || '')
+        this.setData({
+          password: '', jwcPassword: '', captcha: '', captchaSrc: '', ssoStepDone: false
+        })
+        this.loadSettings()
       } else {
         wx.showToast({ title: res.message || '登录失败', icon: 'none' })
-        // 刷新验证码
-        this.onRefreshCaptcha()
+        // 刷新验证码重试
         this.setData({ captcha: '' })
         this._updateCanLogin()
+        this.onRefreshCaptcha()
       }
     } catch (e) {
       this.setData({ loggingIn: false })
       wx.showToast({ title: '登录失败', icon: 'none' })
     }
+  },
+
+  // ============================================================
+  // 校历设置
+  // ============================================================
+
+  onFirstWeekDateChange(e) {
+    const date = e.detail.value
+    this.setData({ firstWeekDate: date })
+    api.saveSettings({ first_week_date: date }).then(res => {
+      wx.showToast({
+        title: res.success ? '✅ 已保存，课表将自动跳转本周' : (res.message || '保存失败'),
+        icon: 'none'
+      })
+    }).catch(() => {
+      wx.showToast({ title: '保存失败', icon: 'none' })
+    })
   },
 
   // ============================================================
@@ -125,6 +237,11 @@ Page({
     wx.switchTab({ url: '/pages/grades/grades' })
   },
 
+  /** 打开校历照片墙 */
+  onGoGallery() {
+    wx.navigateTo({ url: '/pages/gallery/gallery' })
+  },
+
   /** 一键刷新 */
   async onRefreshAll() {
     wx.showLoading({ title: '刷新中…' })
@@ -133,8 +250,8 @@ Page({
       wx.hideLoading()
       if (res.success) {
         const parts = []
-        if (res.schedule?.ok) parts.push(`课表 ${res.schedule.count} 门`)
-        if (res.exams?.ok) parts.push(`考试 ${res.exams.count} 场`)
+        if (res.schedule && res.schedule.ok) parts.push(`课表 ${res.schedule.count} 门`)
+        if (res.exams && res.exams.ok) parts.push(`考试 ${res.exams.count} 场`)
         wx.showToast({ title: parts.join('，') || '已刷新', icon: 'success' })
       } else {
         wx.showToast({ title: res.message || '刷新失败', icon: 'none' })
@@ -180,8 +297,10 @@ Page({
           this.refreshState()
           this.setData({
             password: '',
+            jwcPassword: '',
             captcha: '',
-            captchaSrc: ''
+            captchaSrc: '',
+            ssoStepDone: false
           })
         }
       }

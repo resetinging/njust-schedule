@@ -1,0 +1,24 @@
+<!-- 校历 & 照片墙 -->
+<view class="container">
+
+  <loading-modal visible="{{loading}}" title="加载图片…" />
+
+  <!-- 空状态 / 错误 -->
+  <view wx:if="{{!loading && errorMsg}}" class="empty-state">
+    <view class="icon">🖼️</view>
+    <view class="text">{{errorMsg}}</view>
+    <button class="btn-primary" bindtap="loadImages">重新加载</button>
+  </view>
+
+  <!-- 图片列表 -->
+  <view wx:if="{{!loading && !errorMsg}}" class="gallery-list">
+    <view class="section-title">📅 校历 & 照片墙</view>
+    <view class="gallery-item" wx:for="{{images}}" wx:key="name"
+          data-index="{{index}}" bindtap="onImageTap">
+      <image class="gallery-img" src="{{item.src}}" mode="widthFix" lazy-load />
+      <view class="gallery-name">{{item.name}}</view>
+      <view class="gallery-hint">点击查看大图</view>
+    </view>
+  </view>
+
+</view>

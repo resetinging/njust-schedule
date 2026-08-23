@@ -13,12 +13,6 @@ const API_BASE = 'https://flask-5da7-276116-7-1448570339.sh.run.tcloudbase.com'
 // 请求超时（毫秒）— 云托管冷启动较慢，给 30s 余量
 const REQUEST_TIMEOUT = 30000
 
-// 轮询间隔（批量评教进度查询）
-const POLL_INTERVAL = 2000
-
-// 批量评教轮询最大次数（600次 × 2s = 20分钟）
-const MAX_POLL_RETRIES = 600
-
 // 缓存有效期（毫秒）
 const CACHE_TTL = {
   courses: 30 * 60 * 1000,    // 课表 30分钟
@@ -41,8 +35,6 @@ module.exports = {
   CLOUD_SERVICE,
   API_BASE,
   REQUEST_TIMEOUT,
-  POLL_INTERVAL,
-  MAX_POLL_RETRIES,
   CACHE_TTL,
   BIG_PERIOD_MAP
 }

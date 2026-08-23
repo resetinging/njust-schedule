@@ -11,7 +11,12 @@
         </view>
       </picker>
       <view class="week-info">
-        <text>第 {{currentWeek}} 周<text wx:if="{{currentWeek === actualWeek}}" class="this-week-label">（本周）</text></text>
+        <picker mode="selector" range="{{weekPickerRange}}" bindchange="onJumpWeek">
+          <view class="week-label-badge">
+            <text>第 {{currentWeek}} 周<text wx:if="{{currentWeek === actualWeek}}" class="this-week-label">（本周）</text></text>
+            <text class="week-jump-hint">跳转 ▾</text>
+          </view>
+        </picker>
         <view class="week-nav">
           <text class="week-btn" bindtap="prevWeek">◀</text>
           <text class="week-btn" bindtap="nextWeek">▶</text>
@@ -31,6 +36,14 @@
         data-mode="list"
         bindtap="switchView"
       >📋 列表</text>
+    </view>
+
+    <!-- 搜索课程/教师 -->
+    <view class="search-bar" wx:if="{{!loading && courses.length > 0}}">
+      <input class="search-input" placeholder="🔍 搜索课程 / 教师"
+             value="{{searchText}}" bindinput="onSearchInput"
+             confirm-type="search" />
+      <text wx:if="{{searchText}}" class="search-clear" bindtap="onClearSearch">✕</text>
     </view>
   </view>
 
@@ -75,8 +88,14 @@
       </view>
     </block>
     <view class="empty-state" wx:else>
-      <text>本周暂无课程</text>
+      <text>{{searchText ? '没有匹配的课程' : '本周暂无课程'}}</text>
     </view>
+  </view>
+
+  <!-- 网格视图空结果（搜索无匹配） -->
+  <view class="empty-state" wx:if="{{viewMode === 'grid' && !loading && filteredCourses.length === 0 && courses.length > 0}}">
+    <view class="icon">🔍</view>
+    <view class="text">没有匹配的课程</view>
   </view>
 
   <!-- 加载中 -->
@@ -120,9 +139,9 @@
         <text class="label">学分</text>
         <text>{{detailCourse.credits}}</text>
       </view>
-      <view class="modal-row" wx:if="{{detailCourse.type}}">
+      <view class="modal-row" wx:if="{{detailCourse.course_type || detailCourse.type}}">
         <text class="label">类型</text>
-        <text>{{detailCourse.type}}</text>
+        <text>{{detailCourse.course_type || detailCourse.type}}</text>
       </view>
       <button class="btn-primary" style="margin-top:24rpx" bindtap="closeDetail">关闭</button>
     </view>

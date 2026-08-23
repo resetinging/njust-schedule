@@ -1,6 +1,6 @@
 /**
  * API 封装 — 所有后端接口调用
- * 自动附加 token，统一错误处理
+ * 统一错误处理
  */
 
 const config = require('./config')
@@ -15,10 +15,9 @@ const storage = require('./storage')
  * @param {string} method - GET | POST
  * @param {string} path - API 路径 (如 '/api/get-captcha')
  * @param {object} data - 请求参数
- * @param {boolean} auth - 是否需要登录态（预留）
  * @returns {Promise<object>} { success, data, message }
  */
-function request(method, path, data = {}, auth = true) {
+function request(method, path, data = {}) {
   const header = { 'Content-Type': 'application/json' }
 
   return new Promise((resolve) => {
@@ -55,7 +54,7 @@ function request(method, path, data = {}, auth = true) {
 
 /** 获取验证码图片 (base64) */
 function getCaptcha() {
-  return request('GET', '/api/get-captcha', {}, false)
+  return request('GET', '/api/get-captcha')
 }
 
 /** 手动输入验证码登录 */
@@ -64,7 +63,7 @@ function login(studentId, password, captcha) {
     student_id: studentId,
     password: password,
     captcha: captcha
-  }, false).then(res => {
+  }).then(res => {
     if (res.success) {
       storage.setStudentId(studentId)
       storage.setStudentName(res.student_name || '')
@@ -163,30 +162,6 @@ function submitEval(formData, submitType, action) {
   })
 }
 
-/** 发起批量评教 */
-function startBatchEval(batchUrl, targetScore, submitType, actionPath, hiddenFields) {
-  return request('POST', '/api/batch-submit-eval', {
-    batch_url: batchUrl,
-    target_score: targetScore,
-    submit_type: submitType || '1',
-    action_path: actionPath || '/njlgdx/xspj/xspj_save.do',
-    hidden_fields: hiddenFields || {}
-  })
-}
-
-/** 查询批量评教进度 */
-function getBatchProgress(batchId) {
-  return request('GET', `/api/batch-progress/${batchId}`)
-}
-
-/** 自动评分建议（不下发表单） */
-function getAutoFillSuggestion(formData, targetScore) {
-  return request('POST', '/api/eval/auto-fill', {
-    form_data: formData,
-    target_score: targetScore
-  })
-}
-
 // ============================================================
 // 系统状态
 // ============================================================
@@ -217,7 +192,7 @@ function clearData() {
 
 /** 获取可用学期列表（从 settings 接口获取，避免额外路由依赖） */
 function getSemesters() {
-  return request('GET', '/api/settings', {}, false).then(res => {
+  return request('GET', '/api/settings').then(res => {
     if (res.semester_list) {
       return { success: true, semesters: res.semester_list, current: res.current_semester }
     }
@@ -253,6 +228,56 @@ function refreshCet() {
   return request('POST', '/api/refresh-cet')
 }
 
+// ============================================================
+// 智慧理工 SSO 登录接口
+// ============================================================
+
+/** Step 1: 智慧理工 SSO 登录并获取教务验证码 */
+function getWebvpnCaptcha(studentId, password) {
+  return request('POST', '/api/get-webvpn-captcha', {
+    student_id: studentId,
+    password: password
+  })
+}
+
+/** Step 2: 使用验证码完成教务登录（智慧理工模式） */
+function loginWebvpnManual(studentId, password, jwcPassword, captcha) {
+  return request('POST', '/api/login-webvpn-manual', {
+    student_id: studentId,
+    password: password,
+    jwc_password: jwcPassword || password,
+    captcha: captcha
+  })
+}
+
+/** 智慧理工模式自动登录（自动 OCR 教务验证码） */
+function loginWebvpn(studentId, password, jwcPassword) {
+  return request('POST', '/api/login-webvpn', {
+    student_id: studentId,
+    password: password,
+    jwc_password: jwcPassword || password
+  })
+}
+
+// ============================================================
+// 设置与校历接口
+// ============================================================
+
+/** 保存设置（first_week_date 等） */
+function saveSettings(data) {
+  return request('POST', '/api/settings', data)
+}
+
+/** 获取校历图片列表 */
+function getGalleryImages() {
+  return request('GET', '/api/gallery-images')
+}
+
+/** 获取单张校历图片（base64） */
+function getGalleryImage(name) {
+  return request('GET', '/api/gallery-image', { name })
+}
+
 module.exports = {
   getCaptcha,
   login,
@@ -267,9 +292,6 @@ module.exports = {
   getEvalCourses,
   getEvalForm,
   submitEval,
-  startBatchEval,
-  getBatchProgress,
-  getAutoFillSuggestion,
   getStatus,
   setSemester,
   clearData,
@@ -277,5 +299,11 @@ module.exports = {
   getGrades,
   refreshGrades,
   getCetScores,
-  refreshCet
+  refreshCet,
+  getWebvpnCaptcha,
+  loginWebvpnManual,
+  loginWebvpn,
+  saveSettings,
+  getGalleryImages,
+  getGalleryImage
 }

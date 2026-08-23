@@ -213,3 +213,20 @@
   text-align: center;
   border: none;
 }
+
+/* ==== 优化: 已结束分组折叠 ==== */
+.date-right {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.collapse-arrow {
+  font-size: 20rpx;
+  color: var(--text-hint);
+  padding: 4rpx 8rpx;
+  border: 1rpx solid var(--border);
+  border-radius: 8rpx;
+}
+.exam-done {
+  opacity: 0.55;
+}
