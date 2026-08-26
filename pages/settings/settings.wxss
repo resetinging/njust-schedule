@@ -172,6 +172,18 @@
   border-radius: 12rpx;
 }
 
+.remember-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.remember-label {
+  font-size: 24rpx;
+  color: var(--text-hint);
+}
+
 .login-tip {
   text-align: center;
   font-size: 22rpx;

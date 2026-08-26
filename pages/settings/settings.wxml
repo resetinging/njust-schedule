@@ -86,6 +86,12 @@
                bindinput="onPasswordInput" />
       </view>
 
+      <!-- 记住学号密码 -->
+      <view class="remember-row">
+        <switch checked="{{rememberPwd}}" bindchange="onToggleRemember" color="#7C6BE8" style="transform:scale(0.8);" />
+        <text class="remember-label" bindtap="onTapRemember">记住学号和密码（保存在本机）</text>
+      </view>
+
       <!-- 教务密码（智慧理工模式，与智慧理工密码相同可留空） -->
       <view class="form-group" wx:if="{{loginMode === 'webvpn'}}">
         <text class="form-label">教务密码（Step 2，不同时填写）</text>
@@ -104,7 +110,7 @@
       <!-- 登录按钮 -->
       <button class="btn-primary login-btn" bindtap="onLogin"
               disabled="{{!canLogin || loggingIn}}">
-        {{loggingIn ? '登录中…' : (loginMode === 'webvpn' ? '智慧理工两步登录' : '登录')}}
+        {{loggingIn ? '登录中…' : (loginMode === 'webvpn' ? '智慧理工登录' : '登录（自动识别验证码）')}}
       </button>
     </view>
 

@@ -25,6 +25,7 @@ Page({
     loggingIn: false,
     canLogin: false,
     ssoStepDone: false,    // 智慧理工模式: SSO 已通过, 显示教务验证码
+    rememberPwd: true,     // 记住学号与密码（保存在本机）
 
     // 校历设置
     firstWeekDate: ''
@@ -37,10 +38,16 @@ Page({
 
   onShow() {
     this.refreshState()
-    // 如果已保存学号但未登录，自动获取验证码
-    if (!this.data.isLoggedIn && storage.getStudentId()) {
-      this.setData({ studentId: storage.getStudentId() })
-      this.onRefreshCaptcha()
+    // 回填记住的学号与密码（登录走自动 OCR，无需预取验证码）
+    if (!this.data.isLoggedIn) {
+      const updates = {}
+      if (storage.getStudentId()) updates.studentId = storage.getStudentId()
+      const savedPwd = storage.get('saved_password', '')
+      if (savedPwd) updates.password = savedPwd
+      if (Object.keys(updates).length) {
+        this.setData(updates)
+        this._updateCanLogin()
+      }
     }
   },
 
@@ -108,10 +115,27 @@ Page({
     this._updateCanLogin()
   },
 
-  /** 计算登录按钮是否可用（手动验证码流程） */
+  /** 计算登录按钮是否可用（学号+密码即可；验证码可选，自动识别时无需输入） */
   _updateCanLogin() {
-    const { studentId, password, captcha } = this.data
-    this.setData({ canLogin: !!(studentId && password && captcha) })
+    const { studentId, password } = this.data
+    this.setData({ canLogin: !!(studentId && password) })
+  },
+
+  /** 记住密码开关 */
+  onToggleRemember(e) {
+    this.setData({ rememberPwd: !!e.detail.value })
+    if (!e.detail.value) {
+      storage.remove('saved_password')
+    }
+  },
+
+  /** 点击文字切换记住密码 */
+  onTapRemember() {
+    const next = !this.data.rememberPwd
+    this.setData({ rememberPwd: next })
+    if (!next) {
+      storage.remove('saved_password')
+    }
   },
 
   /** 获取验证码（按登录模式选择端点） */
@@ -169,30 +193,50 @@ Page({
     }
   },
 
-  /** 登录 */
+  /** 登录（无验证码时走服务端自动 OCR，失败自动切换手动验证码） */
   async onLogin() {
-    const { loginMode, studentId, password, jwcPassword, captcha } = this.data
+    const { loginMode, studentId, password, jwcPassword, captcha, rememberPwd } = this.data
     if (!studentId || !password) {
       wx.showToast({ title: '请填写学号和密码', icon: 'none' })
       return
     }
-    if (!captcha) {
-      wx.showToast({ title: '请先获取并输入验证码', icon: 'none' })
-      return
-    }
-    if (loginMode === 'webvpn' && !this.data.ssoStepDone) {
-      wx.showToast({ title: '请先完成智慧理工登录（点击验证码刷新）', icon: 'none' })
-      return
-    }
 
+    let res
     this.setData({ loggingIn: true })
     try {
-      const res = loginMode === 'webvpn'
-        ? await api.loginWebvpnManual(studentId, password, jwcPassword, captcha, this.data.captchaId)
-        : await api.login(studentId, password, captcha, this.data.captchaId)
+      if (loginMode === 'webvpn') {
+        // 智慧理工：SSO 已完成且有验证码 → 手动两步；否则全自动（含教务 OCR）
+        if (captcha && this.data.ssoStepDone) {
+          wx.showLoading({ title: '登录中…' })
+          res = await api.loginWebvpnManual(studentId, password, jwcPassword, captcha, this.data.captchaId)
+        } else if (!this.data.ssoStepDone) {
+          wx.showLoading({ title: '智慧理工自动登录中…' })
+          res = await api.loginWebvpn(studentId, password, jwcPassword)
+        } else {
+          wx.showToast({ title: '请先输入验证码', icon: 'none' })
+          this.setData({ loggingIn: false })
+          return
+        }
+      } else {
+        // 教务直连：有验证码 → 手动；无验证码 → 服务端自动 OCR
+        if (captcha) {
+          wx.showLoading({ title: '登录中…' })
+          res = await api.login(studentId, password, captcha, this.data.captchaId)
+        } else {
+          wx.showLoading({ title: '自动识别验证码登录中…' })
+          res = await api.loginAuto(studentId, password)
+        }
+      }
+      wx.hideLoading()
       this.setData({ loggingIn: false })
 
       if (res.success) {
+        // 记住密码（保存在本机；退出登录时自动清除）
+        if (rememberPwd) {
+          storage.set('saved_password', password)
+        } else {
+          storage.remove('saved_password')
+        }
         storage.setStudentId(studentId)
         storage.setStudentName(res.student_name || '')
         storage.setSemester(res.semester || '')
@@ -206,12 +250,13 @@ Page({
         this.loadSettings()
       } else {
         wx.showToast({ title: res.message || '登录失败', icon: 'none' })
-        // 刷新验证码重试
-        this.setData({ captcha: '', captchaId: '' })
+        // 自动识别失败 → 显示验证码图片，切换为手动输入
+        this.setData({ captcha: '', captchaId: '', ssoStepDone: false })
         this._updateCanLogin()
         this.onRefreshCaptcha()
       }
     } catch (e) {
+      wx.hideLoading()
       this.setData({ loggingIn: false })
       wx.showToast({ title: '登录失败', icon: 'none' })
     }

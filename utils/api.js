@@ -113,6 +113,23 @@ function login(studentId, password, captcha, captchaId) {
   })
 }
 
+/** 教务直连自动登录（服务端 ddddocr 自动识别验证码，无需输入） */
+function loginAuto(studentId, password) {
+  return request('POST', '/api/login', {
+    student_id: studentId,
+    password: password
+  }).then(res => {
+    if (res.success) {
+      storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
+      storage.setStudentId(studentId)
+      storage.setStudentName(res.student_name || '')
+      storage.setSemester(res.semester || '')
+      storage.set(TOKEN_KEY, res.token || '')
+    }
+    return res
+  })
+}
+
 /** 退出登录（销毁后端会话 + 清空本地） */
 function logout() {
   return request('POST', '/api/logout').then(() => {
@@ -352,6 +369,7 @@ function getGalleryImage(name) {
 module.exports = {
   getCaptcha,
   login,
+  loginAuto,
   logout,
   getCourses,
   refreshSchedule,
