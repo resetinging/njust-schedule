@@ -1683,7 +1683,8 @@ class JWCClient:
                 })
 
             logger.info(f"[成绩] {label} 解析完成: {len(grades)} 条")
-            return grades if grades else None
+            # 找到标准成绩表格即算解析成功: 空列表 = 暂无成绩(正常场景)
+            return grades
 
         # 策略执行
         strategies = []

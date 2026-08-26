@@ -75,6 +75,33 @@ with app.app_context():
     _migrate_student_id()
 
 
+# gzip 压缩文本响应（JSON/HTML/JS/CSS, >500 字节）: 移动网络下显著提速
+import gzip as _gzip
+import io as _io
+
+@app.after_request
+def _gzip_response(resp):
+    from flask import request as _fr
+    if "gzip" not in (_fr.headers.get("Accept-Encoding") or "").lower():
+        return resp
+    if getattr(resp, "direct_passthrough", False):
+        return resp
+    ct = resp.headers.get("Content-Type") or ""
+    if not ct.startswith(("application/json", "text/", "application/javascript")):
+        return resp
+    data = resp.get_data()
+    if len(data) < 500:
+        return resp
+    buf = _io.BytesIO()
+    with _gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=6) as f:
+        f.write(data)
+    resp.set_data(buf.getvalue())
+    resp.headers["Content-Encoding"] = "gzip"
+    resp.headers["Content-Length"] = str(len(resp.get_data()))
+    resp.headers["Vary"] = "Accept-Encoding"
+    return resp
+
+
 # 静态资源长缓存（仅非 DEBUG 模式；Flask 会校验 Last-Modified/ETag，
 # 文件变化时仍能 304/重新拉取）
 if not config.DEBUG:

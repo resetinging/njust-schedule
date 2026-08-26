@@ -133,11 +133,18 @@ def _register_session(client: JWCClient) -> str:
 
 
 def _get_session_client() -> Optional[JWCClient]:
-    """从当前请求头取 token 并返回对应会话客户端（未登录返回 None）"""
+    """从当前请求头取 token 并返回对应会话客户端（未登录返回 None）。
+
+    惰性回收: 会话超过 TTL 未活动时当场删除并视为未登录(内存保护 +
+    过期会话及时失效, 不依赖下次注册时统一清理)。
+    """
     token = request.headers.get(TOKEN_HEADER) or ""
     with _sessions_lock:
         item = _sessions.get(token)
         if item is None:
+            return None
+        if time.time() - item[1] > SESSION_TTL:
+            _sessions.pop(token, None)
             return None
         item[1] = time.time()  # 更新活动时间
         return item[0]
