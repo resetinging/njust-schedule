@@ -1,58 +1,13 @@
 """
 数据访问层 — SQLAlchemy ORM
 ===========================
-包含：模板 Counter + NJUST 课表/考试/评教/设置/成绩/四六级
+NJUST 课表/考试/评教/设置/成绩/四六级
 多用户：业务数据（课表/考试/评教/成绩/四六级）全部按 student_id 隔离，
 学期等用户级设置以 "{student_id}:{key}" 前缀存储。
 """
 import json
-import logging
-from sqlalchemy.exc import OperationalError
 from wxcloudrun import db
-from wxcloudrun.model import Counters, Course, Exam, Evaluation, Setting, Grade, CetScore
-
-logger = logging.getLogger('log')
-
-
-# ============================================================
-# 模板原有 — Counter
-# ============================================================
-def query_counterbyid(cid):
-    try:
-        return Counters.query.filter(Counters.id == cid).first()
-    except OperationalError as e:
-        logger.info("query_counterbyid errorMsg= {} ".format(e))
-        return None
-
-
-def delete_counterbyid(cid):
-    try:
-        counter = Counters.query.get(cid)
-        if counter is None:
-            return
-        db.session.delete(counter)
-        db.session.commit()
-    except OperationalError as e:
-        logger.info("delete_counterbyid errorMsg= {} ".format(e))
-
-
-def insert_counter(counter):
-    try:
-        db.session.add(counter)
-        db.session.commit()
-    except OperationalError as e:
-        logger.info("insert_counter errorMsg= {} ".format(e))
-
-
-def update_counterbyid(counter):
-    try:
-        existing = query_counterbyid(counter.id)
-        if existing is None:
-            return
-        db.session.flush()
-        db.session.commit()
-    except OperationalError as e:
-        logger.info("update_counterbyid errorMsg= {} ".format(e))
+from wxcloudrun.model import Course, Exam, Evaluation, Setting, Grade, CetScore
 
 
 # ============================================================

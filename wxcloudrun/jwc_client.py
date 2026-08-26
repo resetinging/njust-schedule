@@ -1499,7 +1499,8 @@ class JWCClient:
             return self._validity_cache_ok
         decided = True
         try:
-            resp = self.session.get(URL_MAIN_PAGE, timeout=10, allow_redirects=True)
+            # 短超时探测: 教务无响应时保守信任现有会话(不踢人), 不拖慢数据请求
+            resp = self.session.get(URL_MAIN_PAGE, timeout=5, allow_redirects=True)
             self._dedupe_cookies()
             if resp.status_code == 200:
                 t = resp.text.lower()
@@ -1518,9 +1519,10 @@ class JWCClient:
         self._validity_cache_ttl = 300.0 if decided else 60.0
         return ok
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self, timeout: float = None) -> Tuple[bool, str]:
+        """教务连通性探测（可指定短超时, 避免阻塞调用方接口响应）"""
         try:
-            r = self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
+            r = self.session.get(URL_LOGON_PAGE, timeout=timeout or TIMEOUT)
             return (True, "连接正常") if r.status_code == 200 else (False, f"{r.status_code}")
         except requests.exceptions.ConnectionError:
             return False, "无法连接，请确认校园网/VPN"

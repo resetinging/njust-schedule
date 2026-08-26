@@ -1,21 +1,10 @@
 """
-数据模型 — 微信云托管模板 SQLAlchemy ORM
+数据模型 — NJUST 课表/考试/评教/设置/成绩/四六级
 ======================================
-包含：模板 Counter + NJUST 课表/考试/评教/设置
+（微信云托管模板的 Counters 示例已移除）
 """
 from datetime import datetime
 from wxcloudrun import db
-
-
-# ============================================================
-# 模板原有 — 计数器
-# ============================================================
-class Counters(db.Model):
-    __tablename__ = 'Counters'
-    id = db.Column(db.Integer, primary_key=True)
-    count = db.Column(db.Integer, default=1)
-    created_at = db.Column('createdAt', db.TIMESTAMP, nullable=False, default=datetime.now())
-    updated_at = db.Column('updatedAt', db.TIMESTAMP, nullable=False, default=datetime.now())
 
 
 # ============================================================

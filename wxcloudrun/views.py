@@ -9,6 +9,7 @@ import re
 import secrets
 import threading
 import time
+from collections import defaultdict
 from contextlib import contextmanager
 from typing import Optional, Tuple
 from flask import render_template, request, jsonify, Response
@@ -171,7 +172,8 @@ def _check_network() -> Tuple[bool, str]:
         return _network_cache["ok"], ""
     probe = JWCClient()
     try:
-        ok, msg = probe.test_connection()
+        # 短超时探测: 教务无响应时快速判离线, 不让 /api/status 被拖慢
+        ok, msg = probe.test_connection(timeout=5)
     except Exception:
         ok, msg = False, ""
     _network_cache["ts"] = now
@@ -1319,7 +1321,6 @@ def api_refresh_grades():
             "message": client.last_error or "获取成绩失败",
         }), 500
 
-    from collections import defaultdict
     grouped = defaultdict(list)
     for g in grades:
         key = (g.get("academic_year", ""), g.get("semester", ""))
