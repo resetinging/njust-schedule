@@ -81,9 +81,12 @@
       <!-- 密码 -->
       <view class="form-group">
         <text class="form-label">{{loginMode === 'webvpn' ? '智慧理工密码（Step 1）' : '教务密码'}}</text>
-        <input class="form-input" placeholder="{{loginMode === 'webvpn' ? '请输入智慧理工密码' : '请输入教务密码'}}"
-               password="{{true}}" value="{{password}}"
-               bindinput="onPasswordInput" />
+        <view class="pwd-row">
+          <input class="form-input pwd-input" placeholder="{{loginMode === 'webvpn' ? '请输入智慧理工密码' : '请输入教务密码'}}"
+                 password="{{!showPassword}}" value="{{password}}"
+                 bindinput="onPasswordInput" />
+          <text class="pwd-toggle" bindtap="onTogglePassword">{{showPassword ? '🙈' : '👁'}}</text>
+        </view>
       </view>
 
       <!-- 记住学号密码 -->
@@ -95,9 +98,12 @@
       <!-- 教务密码（智慧理工模式，与智慧理工密码相同可留空） -->
       <view class="form-group" wx:if="{{loginMode === 'webvpn'}}">
         <text class="form-label">教务密码（Step 2，不同时填写）</text>
-        <input class="form-input" placeholder="教务密码与智慧理工密码相同可留空"
-               password="{{true}}" value="{{jwcPassword}}"
-               bindinput="onJwcPasswordInput" />
+        <view class="pwd-row">
+          <input class="form-input pwd-input" placeholder="教务密码与智慧理工密码相同可留空"
+                 password="{{!showJwcPassword}}" value="{{jwcPassword}}"
+                 bindinput="onJwcPasswordInput" />
+          <text class="pwd-toggle" bindtap="onToggleJwcPassword">{{showJwcPassword ? '🙈' : '👁'}}</text>
+        </view>
       </view>
 
       <!-- 验证码 -->

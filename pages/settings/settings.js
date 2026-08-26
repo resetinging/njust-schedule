@@ -26,6 +26,8 @@ Page({
     canLogin: false,
     ssoStepDone: false,    // 智慧理工模式: SSO 已通过, 显示教务验证码
     rememberPwd: true,     // 记住学号与密码（保存在本机）
+    showPassword: false,   // 密码明文显示开关
+    showJwcPassword: false,// 教务密码明文显示开关
 
     // 校历设置
     firstWeekDate: ''
@@ -108,6 +110,16 @@ Page({
   onJwcPasswordInput(e) {
     this.setData({ jwcPassword: e.detail.value })
     this._updateCanLogin()
+  },
+
+  /** 切换密码明文显示 */
+  onTogglePassword() {
+    this.setData({ showPassword: !this.data.showPassword })
+  },
+
+  /** 切换教务密码明文显示 */
+  onToggleJwcPassword() {
+    this.setData({ showJwcPassword: !this.data.showJwcPassword })
   },
 
   onCaptchaInput(e) {

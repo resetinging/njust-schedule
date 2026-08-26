@@ -184,6 +184,29 @@
   color: var(--text-hint);
 }
 
+/* 密码输入行: 输入框 + 明文切换按钮 */
+.pwd-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.pwd-input {
+  flex: 1;
+}
+
+.pwd-toggle {
+  flex-shrink: 0;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34rpx;
+  border-radius: 12rpx;
+  background: #F2F0FA;
+}
+
 .login-tip {
   text-align: center;
   font-size: 22rpx;
