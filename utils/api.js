@@ -71,7 +71,7 @@ function request(method, path, data = {}) {
         } else {
           resolve({
             success: false,
-            message: res.data?.message || `服务器错误 ${res.statusCode}`
+            message: (res.data && res.data.message) || `服务器错误 ${res.statusCode}`
           })
         }
       },
@@ -183,8 +183,8 @@ function refreshExams() {
 function refreshAll() {
   return request('POST', '/api/refresh-all').then(res => {
     if (res.success) {
-      if (res.schedule?.ok) storage.setCached('cached_courses', [])
-      if (res.exams?.ok) storage.setCached('cached_exams', [])
+      if (res.schedule && res.schedule.ok) storage.setCached('cached_courses', [])
+      if (res.exams && res.exams.ok) storage.setCached('cached_exams', [])
     }
     return res
   })
