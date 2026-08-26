@@ -87,6 +87,7 @@
                  bindinput="onPasswordInput" />
           <text class="pwd-toggle" bindtap="onTogglePassword">{{showPassword ? '🙈' : '👁'}}</text>
         </view>
+        <view class="pwd-hint" wx:if="{{loginMode === 'direct'}}">💡 教务处默认密码为: 学号 + @Njust（如未修改过）</view>
       </view>
 
       <!-- 记住学号密码 -->
