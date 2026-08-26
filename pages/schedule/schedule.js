@@ -30,8 +30,9 @@ Page({
   },
 
   onLoad() {
+    // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在
+    // 下拉刷新 / 学期切换等主动操作时
     this.loadCachedData()
-    this.loadFromServer()
     this.loadFirstWeekDate()
     this.setData({
       weekPickerRange: Array.from({ length: 20 }, (_, i) => String(i + 1))

@@ -50,7 +50,12 @@ Page({
   },
 
   onLoad() {
-    this.loadFromServer()
+    // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
+    const batches = storage.getCached('cached_evaluations')
+    if (batches && batches.evaluations) {
+      this.setData({ batches: batches.evaluations })
+      this._processBatches(batches.evaluations)
+    }
   },
 
   /** 加载评教批次 */
@@ -64,6 +69,7 @@ Page({
         const batches = res.evaluations || []
         this.setData({ batches })
         this._processBatches(batches)
+        storage.setCached('cached_evaluations', res)
       }
     } catch (e) {
       this.setData({ loading: false })

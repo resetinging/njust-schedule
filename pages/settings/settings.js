@@ -196,7 +196,7 @@ Page({
         storage.setStudentId(studentId)
         storage.setStudentName(res.student_name || '')
         storage.setSemester(res.semester || '')
-        wx.showToast({ title: '登录成功', icon: 'success' })
+        wx.showToast({ title: '登录成功，下拉刷新获取数据', icon: 'success' })
         this.refreshState()
         // 通知全局
         getApp().setLoginState(true, res.student_name || studentId, res.semester || '')

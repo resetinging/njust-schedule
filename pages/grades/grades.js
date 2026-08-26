@@ -43,7 +43,8 @@ Page({
   },
 
   onLoad() {
-    this.loadGrades()
+    // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
+    this.loadCached()
   },
 
   onShow() {
@@ -51,6 +52,27 @@ Page({
     if (saved !== this._mode) {
       this.loadGrades()
     }
+  },
+
+  onPullDownRefresh() {
+    this.loadGrades().finally(() => wx.stopPullDownRefresh())
+  },
+
+  /** 从缓存渲染（不请求后端） */
+  loadCached() {
+    const gradesRes = storage.getCached('cached_grades')
+    if (!gradesRes || !gradesRes.grades || !gradesRes.grades.length) return
+    this._allGrades = gradesRes.grades
+    const cetRes = storage.getCached('cached_cet_scores')
+    this._cetRaw = (cetRes && cetRes.success ? cetRes.scores : []) || []
+    this._mode = storage.get('gpa_mode', '')
+    // 默认勾选: 通识选修课不勾选
+    this._checked = {}
+    for (const g of this._allGrades) {
+      this._checked[g.id] = !_isNonGpa(g)
+    }
+    this._render()
+    this.setData({ loading: false })
   },
 
   // ============================================================
@@ -78,6 +100,7 @@ Page({
       }
       this._render()
       storage.setCached('cached_grades', res)
+      storage.setCached('cached_cet_scores', cetRes || {})
     } catch (e) {
       this.setData({ loading: false, empty: true, errorMsg: '网络请求失败' })
     }

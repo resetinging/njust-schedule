@@ -103,6 +103,7 @@ function login(studentId, password, captcha, captchaId) {
     captcha_id: captchaId || ''
   }).then(res => {
     if (res.success) {
+      storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
       storage.setStudentId(studentId)
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
@@ -283,6 +284,7 @@ function getWebvpnCaptcha(studentId, password) {
   }).then(res => {
     // SSO 后已有教务会话：直接获得登录 token
     if (res.success && res.already_logged_in && res.token) {
+      storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
       storage.setStudentId(studentId)
       storage.set(TOKEN_KEY, res.token)
     }
@@ -300,6 +302,7 @@ function loginWebvpnManual(studentId, password, jwcPassword, captcha, captchaId)
     captcha_id: captchaId || ''
   }).then(res => {
     if (res.success) {
+      storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
       storage.setStudentId(studentId)
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
@@ -317,6 +320,7 @@ function loginWebvpn(studentId, password, jwcPassword) {
     jwc_password: jwcPassword || password
   }).then(res => {
     if (res.success) {
+      storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
       storage.setStudentId(studentId)
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')

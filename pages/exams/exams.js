@@ -17,8 +17,8 @@ Page({
   },
 
   onLoad() {
+    // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
     this.loadCachedData()
-    this.loadFromServer()
   },
 
   /** 从缓存加载 */
