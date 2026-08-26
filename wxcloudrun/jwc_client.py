@@ -1434,27 +1434,36 @@ class JWCClient:
     def is_session_valid(self, cache_ttl: float = 300.0) -> bool:
         """检测 NJUST 教务 Session 是否仍然有效（轻量级检查）。
 
-        结果缓存 cache_ttl 秒（默认 5 分钟），避免每个数据请求都访问教务主页；
-        教务会话通常以小时计，5 分钟延迟感知过期可接受。
+        - 结果缓存: 明确结论缓存 5 分钟; 探测无结论(网络/网关异常)
+          只缓存 60 秒, 尽快重试
+        - 只有「页面明确显示登录表单」才判定会话过期;
+          网络故障/网关异常不踢人(实际数据请求失败时再提示重新登录)
         """
         if not self.logged_in:
             return False
         now = time.time()
-        if now - self._validity_cache_ts < cache_ttl:
+        ttl = getattr(self, "_validity_cache_ttl", cache_ttl)
+        if now - self._validity_cache_ts < ttl:
             return self._validity_cache_ok
+        decided = True
         try:
             resp = self.session.get(URL_MAIN_PAGE, timeout=10, allow_redirects=True)
             self._dedupe_cookies()
-            # 如果页面包含登录表单关键字，说明 session 已过期
-            if resp.status_code != 200:
-                ok = False
-            else:
+            if resp.status_code == 200:
                 t = resp.text.lower()
-                ok = not ("logon.do" in t or "userrname" in t or "randmcode" in t)
+                if "logon.do" in t or "userrname" in t or "randmcode" in t:
+                    ok = False   # 明确过期: 返回了登录表单
+                else:
+                    ok = True
+            else:
+                ok = True        # 网关/服务器异常: 探测无结论, 保守不踢人
+                decided = False
         except Exception:
-            ok = False
+            ok = True            # 网络故障: 探测无结论, 保守不踢人
+            decided = False
         self._validity_cache_ts = now
         self._validity_cache_ok = ok
+        self._validity_cache_ttl = 300.0 if decided else 60.0
         return ok
 
     def test_connection(self) -> Tuple[bool, str]:
