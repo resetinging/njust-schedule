@@ -1,16 +1,17 @@
-click==8.0.3
-Flask==2.0.2
+click==8.1.7
+Flask==2.2.5
 Flask-SQLAlchemy==2.5.1
-greenlet==1.1.2
-itsdangerous==2.0.1
-Jinja2==3.0.3
-MarkupSafe==2.0.1
-PyMySQL==1.0.2
-SQLAlchemy==1.4.29
-Werkzeug==2.0.2
+greenlet==2.0.2
+itsdangerous==2.1.2
+Jinja2==3.1.4
+MarkupSafe==2.1.5
+PyMySQL==1.0.3
+SQLAlchemy==1.4.54
+Werkzeug==2.2.3
 # NJUST 教务爬虫依赖
 requests>=2.25
 beautifulsoup4>=4.9
 lxml>=4.6
 ddddocr>=1.0
 Pillow>=11.0
+pycryptodome>=3.15

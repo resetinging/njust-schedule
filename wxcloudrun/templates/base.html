@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -22,6 +22,7 @@
             <div class="nav-links">
                 <a href="/" class="nav-link {% block nav_index %}{% endblock %}">课表</a>
                 <a href="/exams" class="nav-link {% block nav_exams %}{% endblock %}">考试</a>
+                <a href="/grades" class="nav-link {% block nav_grades %}{% endblock %}">成绩</a>
                 <a href="/evaluations" class="nav-link {% block nav_evaluations %}{% endblock %}">评价</a>
                 <a href="/gallery" class="nav-link {% block nav_gallery %}{% endblock %}">校历</a>
                 <a href="/settings" class="nav-link {% block nav_settings %}{% endblock %}">设置</a>
@@ -41,7 +42,6 @@
     <!-- 底部信息 -->
     <footer class="footer">
         <p>南京理工大学课表管理系统 · 数据来自教务系统</p>
-        <p class="footer-hint">📱 手机访问: http://{{ lan_ip }}:{{ port }}（同一WiFi下打开后添加到主屏幕）</p>
     </footer>
 
     <script src="/static/js/main.js"></script>

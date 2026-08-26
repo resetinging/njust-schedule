@@ -47,7 +47,16 @@ from config import (
     JW_EVAL_PAGE, JW_GRADE_QUERY, JW_GRADE_LIST, JW_CET_LIST,
     JW_APP_DO, JW_CAPTCHA_URLS, BIG_PERIOD_MAP,
     HTTP_TIMEOUT, HTTP_HEADERS,
+    SSO_BASE, SSO_LOGIN_URL, DEBUG_WEBVPN,
 )
+
+# === 加密模块（智慧理工 SSO 密码加密） ===
+try:
+    from Crypto.Cipher import AES
+    from Crypto.Util.Padding import pad as aes_pad
+    _HAS_CRYPTO = True
+except ImportError:
+    _HAS_CRYPTO = False
 
 # === URL 别名（保持向后兼容） ===
 BASE_URL = JW_BASE_8080
@@ -69,6 +78,45 @@ HEADERS = HTTP_HEADERS
 TIMEOUT = HTTP_TIMEOUT
 
 
+def _dedupe_schedule_courses(courses: list) -> list:
+    """去掉跨大节课程在 kbtable 每个大节格产生的重复条目(解析时去重)"""
+    seen = set()
+    result = []
+    for c in courses:
+        key = (str(c.get("name", "")), c.get("day"), c.get("start"), c.get("end"),
+               str(c.get("weeks", "")), str(c.get("teacher", "")),
+               str(c.get("classroom", "")))
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(c)
+    return result
+
+
+def _encrypt_sso_password(password: str, salt: str) -> str:
+    """SSO 密码加密（匹配智慧理工前端 encrypt.js encryptPassword 逻辑）
+
+    - 生成 64 位随机字符前缀（吸收 CBC IV 差异）
+    - AES-128-CBC 加密，key=salt(UTF-8)，iv=随机16字符(UTF-8)
+    - 返回 Base64 密文
+    """
+    import secrets as _secrets
+
+    chars = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678"
+    random_prefix = "".join(_secrets.choice(chars) for _ in range(64))
+    random_iv = "".join(_secrets.choice(chars) for _ in range(16))
+
+    data = random_prefix + password
+    key_bytes = salt.encode("utf-8")[:16].ljust(16, b"\x00")
+    iv_bytes = random_iv.encode("utf-8")[:16].ljust(16, b"\x00")
+
+    cipher = AES.new(key_bytes, AES.MODE_CBC, iv_bytes)
+    padded = aes_pad(data.encode("utf-8"), AES.block_size)
+    encrypted = cipher.encrypt(padded)
+
+    return base64.b64encode(encrypted).decode()
+
+
 class JWCClient:
     def __init__(self):
         self.session = requests.Session()
@@ -82,6 +130,11 @@ class JWCClient:
         self.last_error = ""
         self._captcha_ready = False
         self._active_captcha_url = URL_CAPTCHA_CANDIDATES[0]
+        self.debug_log = []  # 智慧理工 SSO 诊断日志
+        # 智慧理工手动验证码中间状态
+        self._webvpn_manual_ready = False
+        self._webvpn_post_url = ""
+        self._webvpn_login_page_url = ""
 
     # ================================================================
     # 登录入口
@@ -132,15 +185,16 @@ class JWCClient:
             # ★ 先去重 cookie，否则 dict() 会崩溃
             self._dedupe_cookies()
 
-            print(f"[Login] POST → final status={resp.status_code} "
-                  f"final URL={resp.url[:120]}")
-            print(f"[Login] 页面标题: {self._page_title(resp)}")
+            logger.debug("[Login] POST → final status=%s final URL=%s",
+                         resp.status_code, resp.url[:120])
+            logger.debug("[Login] 页面标题: %s", self._page_title(resp))
             for i, h in enumerate(resp.history):
-                print(f"[Login]   重定向#{i}: {h.status_code} → {h.headers.get('Location','')[:80]}")
+                logger.debug("[Login]   重定向#%d: %s → %s", i,
+                             h.status_code, h.headers.get('Location', '')[:80])
 
-            # 安全打印 cookies
-            ck = {c.name: c.value for c in self.session.cookies}
-            print(f"[Login] cookies: {ck}")
+            # 只记录 cookie 名称，不输出值（避免会话凭证进入日志）
+            ck = [c.name for c in self.session.cookies]
+            logger.debug("[Login] cookies: %s", ck)
 
             # 检查是否登录成功
             if self._check_success(resp):
@@ -153,11 +207,11 @@ class JWCClient:
                     timeout=TIMEOUT, allow_redirects=True,
                 )
                 self._dedupe_cookies()
-                # 详细打印 cookie（含域名），方便排查跨服务器 cookie 问题
-                ck_detail = [(c.name, c.value, c.domain) for c in self.session.cookies]
-                print(f"[Login] 登录成功! 共 {len(ck_detail)} 个 cookie:")
-                for name, val, dom in ck_detail:
-                    print(f"[Login]   {name}={val[:20] if len(val)>20 else val}... domain={dom}")
+                # 记录 cookie 名称/域名用于排查跨服务器问题，不输出值
+                ck_detail = [(c.name, c.domain) for c in self.session.cookies]
+                logger.debug("[Login] 登录成功! 共 %d 个 cookie:", len(ck_detail))
+                for name, dom in ck_detail:
+                    logger.debug("[Login]   %s domain=%s", name, dom)
                 return True
 
             # 检查响应中的错误提示
@@ -171,7 +225,7 @@ class JWCClient:
             return False
 
         except Exception as e:
-            print(f"[Login] 异常: {e}")
+            logger.debug("[Login] 异常: %s", e)
             return False
 
     # ================================================================
@@ -192,7 +246,7 @@ class JWCClient:
                 code = self._ocr_with_preprocess(ocr, img)
                 if not code:
                     continue
-                print(f"[OCR] #{i+1}: '{code}'")
+                logger.debug("[OCR] #%d: '%s'", i + 1, code)
 
                 if self._try_simple_login(student_id, password, code):
                     self.logged_in = True
@@ -249,6 +303,373 @@ class JWCClient:
         self.last_error = "验证码不正确，请刷新重试"
         self._captcha_ready = False
         return False
+
+    # ================================================================
+    # 智慧理工 SSO 登录（校外/备用登录方式）
+    # ================================================================
+
+    def _log(self, msg: str):
+        """记录调试日志（登录失败时可通过接口返回诊断信息）"""
+        self.debug_log.append(msg)
+        if DEBUG_WEBVPN:
+            logger.debug("[SSO] %s", msg)
+
+    def login_webvpn(self, student_id: str, password: str) -> bool:
+        """通过智慧理工 SSO 登录 + 直连教务（不走 WebVPN 代理）
+
+        流程：
+        1. 直连 SSO（ids.njust.edu.cn）登录验证身份
+        2. 尝试直连教务（CAS ticket 自动登录）
+        3. 否则走标准 8080 Logon.do 登录 → 302 → 9080 重定向链
+        """
+        self.student_id = student_id
+        self.student_name = None
+        self.last_error = ""
+        self.logged_in = False
+        self.login_method = ""
+        self.token = None
+        self._captcha_ready = False
+        self.debug_log = []
+        self.session = requests.Session()
+        self.session.cookies = _DedupCookieJar()
+        self.session.headers.update(HEADERS)
+
+        if not _HAS_CRYPTO:
+            self.last_error = "SSO 登录需要 pycryptodome 模块，请重新部署服务"
+            return False
+
+        try:
+            # Step 1: 直连 SSO 登录
+            if not self._direct_sso_login(student_id, password):
+                return False
+
+            # Step 2: 尝试 CAS 自动登录教务
+            if self._try_direct_jw_access():
+                return True
+
+            # Step 3: 标准 8080 Logon.do 流程
+            self._log("[SSO-JW] 教务需要表单登录，走 8080 Logon.do 标准流程...")
+            if self._try_web_auto(student_id, password):
+                self.logged_in = True
+                self.login_method = "webvpn"
+                return True
+
+            if not self.last_error:
+                self.last_error = "教务系统登录失败，请尝试手动输入验证码"
+            return False
+
+        except requests.exceptions.ConnectionError:
+            self.last_error = "无法连接教务服务器（请检查网络连接）"
+            return False
+        except Exception as e:
+            self.last_error = f"登录异常: {e}"
+            logger.debug("[SSO] 异常: %s", e, exc_info=True)
+            return False
+
+    def _direct_sso_login(self, student_id: str, password: str) -> bool:
+        """直连 SSO 登录（ids.njust.edu.cn，不走 WebVPN 代理）"""
+        from urllib.parse import urljoin
+
+        try:
+            # Step D1: GET SSO 登录页 → 解析表单
+            self._log(f"[SSO-Direct] Step D1: GET {SSO_LOGIN_URL}")
+            resp = self.session.get(SSO_LOGIN_URL, timeout=TIMEOUT, allow_redirects=True)
+            self._dedupe_cookies()
+            self._log(f"[SSO-Direct]   最终 URL: {resp.url[:120]}")
+            self._log(f"[SSO-Direct]   状态={resp.status_code} 标题={self._page_title(resp)}")
+
+            # 已有有效 TGC，直接跳过 SSO 登录页
+            if "authserver/login" not in resp.url:
+                self._log("[SSO-Direct]   未到达 SSO 登录页（可能已有 TGC）")
+                return True
+
+            soup = BeautifulSoup(resp.text, "lxml")
+            form = soup.find("form", id="pwdFromId")
+            if not form:
+                self.last_error = "未找到 SSO 登录表单（ids.njust.edu.cn）"
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+                return False
+
+            def _form_val(field_id: str) -> str:
+                inp = form.find("input", id=field_id)
+                return (inp.get("value") or "").strip() if inp else ""
+
+            execution_val = _form_val("execution")
+            salt_val = _form_val("pwdEncryptSalt")
+            lt_val = _form_val("lt")
+
+            if not execution_val or not salt_val:
+                self.last_error = "获取 SSO 表单字段失败（execution/salt 为空）"
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+                return False
+
+            # Step D2: 检查是否需要 SSO 验证码
+            need_captcha = False
+            sso_captcha_text = ""
+            try:
+                check_url = f"{SSO_BASE}/authserver/checkNeedCaptcha.htl"
+                check_resp = self.session.post(
+                    check_url,
+                    data={"username": student_id},
+                    timeout=TIMEOUT,
+                    headers={
+                        "Referer": resp.url,
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                )
+                need_captcha = check_resp.json().get("isNeed", False)
+                self._log(f"[SSO-Direct]   needCaptcha: {need_captcha}")
+            except Exception as e:
+                self._log(f"[SSO-Direct]   checkNeedCaptcha 失败: {e}")
+
+            # Step D3: OCR SSO 验证码（如需要）
+            if need_captcha:
+                try:
+                    import ddddocr
+                    captcha_url = f"{SSO_BASE}/authserver/getCaptcha.htl"
+                    cap_resp = self.session.get(
+                        captcha_url, timeout=TIMEOUT, headers={"Referer": resp.url})
+                    if cap_resp.status_code == 200 and len(cap_resp.content) > 100:
+                        ocr = ddddocr.DdddOcr(show_ad=False)
+                        sso_captcha_text = ocr.classification(cap_resp.content).strip()
+                        self._log(f"[SSO-Direct]   SSO OCR: '{sso_captcha_text}'")
+                    else:
+                        self._log(f"[SSO-Direct]   验证码获取失败 status={cap_resp.status_code}")
+                except ImportError:
+                    self.last_error = "SSO 需要验证码但 ddddocr 未安装"
+                    return False
+                except Exception as e:
+                    self._log(f"[SSO-Direct]   SSO 验证码异常: {e}")
+
+            # Step D4: AES 加密密码
+            encrypted_pwd = _encrypt_sso_password(password, salt_val)
+            self._log(f"[SSO-Direct]   密码已加密 (salt={salt_val})")
+
+            # Step D5: POST SSO 登录
+            form_action = (form.get("action") or "").strip()
+            if form_action:
+                if form_action.startswith("?"):
+                    post_url = urljoin(resp.url, form_action)
+                elif form_action.startswith("http"):
+                    post_url = form_action
+                elif form_action.startswith("/"):
+                    post_url = f"{SSO_BASE}{form_action}"
+                else:
+                    post_url = urljoin(resp.url, form_action)
+            else:
+                post_url = resp.url
+
+            form_data = {
+                "username": student_id,
+                "passwordText": password,
+                "password": encrypted_pwd,
+                "captcha": sso_captcha_text if need_captcha else "",
+                "rememberMe": "true",
+                "_eventId": "submit",
+                "cllt": "userNameLogin",
+                "dllt": "generalLogin",
+                "lt": lt_val,
+                "execution": execution_val,
+            }
+
+            login_resp = self.session.post(
+                post_url, data=form_data, timeout=TIMEOUT,
+                allow_redirects=True, headers={"Referer": resp.url})
+            self._dedupe_cookies()
+            self._log(f"[SSO-Direct]   最终 URL: {login_resp.url[:120]}")
+            self._log(f"[SSO-Direct]   状态={login_resp.status_code} "
+                      f"标题={self._page_title(login_resp)}")
+
+            # Step D6: 检测登录结果
+            t = login_resp.text.lower()
+            if "密码错误" in t or "用户名或密码错误" in t or "账号或密码错误" in t:
+                self.last_error = "智慧理工账号或密码错误"
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+                return False
+            if "验证码" in t and ("错误" in t or "不正确" in t):
+                self.last_error = "SSO 验证码不正确"
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+                return False
+            if "用户名或密码不能为空" in t:
+                self.last_error = "用户名或密码不能为空"
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+                return False
+
+            login_soup = BeautifulSoup(login_resp.text, "lxml")
+            if ("authserver/login" in login_resp.url
+                    and login_soup.find("form", id="pwdFromId")):
+                self.last_error = "SSO 登录失败，请检查智慧理工账号和密码"
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+                return False
+
+            self._log("[SSO-Direct] [OK] SSO 登录成功")
+            return True
+
+        except requests.exceptions.ConnectionError:
+            self.last_error = "无法连接智慧理工 SSO（ids.njust.edu.cn）"
+            self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+            return False
+        except Exception as e:
+            self.last_error = f"SSO 登录异常: {e}"
+            self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+            logger.debug("[SSO] 异常: %s", e, exc_info=True)
+            return False
+
+    def _try_direct_jw_access(self) -> bool:
+        """SSO 登录后尝试通过 CAS ticket 登录教务"""
+        from urllib.parse import quote
+
+        candidate_services = [
+            f"{BASE_9080}{JW_PATH_PREFIX}/framework/main.jsp",
+            f"{BASE_9080}{JW_PATH_PREFIX}/",
+            f"{BASE_9080}{JW_PATH_PREFIX}/xk/LoginToXk",
+        ]
+
+        for idx, service_url in enumerate(candidate_services):
+            try:
+                sso_service_url = (
+                    f"{SSO_BASE}/authserver/login?service={quote(service_url, safe='')}")
+                self._log(f"[SSO-JW] 尝试 CAS service #{idx+1}: {service_url[:100]}")
+                resp = self.session.get(sso_service_url, timeout=TIMEOUT, allow_redirects=True)
+                self._dedupe_cookies()
+                self._log(f"[SSO-JW]   状态={resp.status_code} 标题={self._page_title(resp)}")
+
+                if self._check_success(resp):
+                    self._extract_name(resp.text)
+                    self.logged_in = True
+                    self.login_method = "webvpn"
+                    self._log(f"[SSO-JW] [OK] CAS ticket 登录教务成功!")
+                    return True
+
+                if self._is_jw_login_page(resp):
+                    self._log("[SSO-JW]   教务不支持此 CAS service，返回登录表单")
+                elif "authserver" in str(resp.url):
+                    self._log("[SSO-JW]   CAS 未重定向（可能 service 未注册）")
+            except requests.exceptions.ConnectionError:
+                self._log(f"[SSO-JW]   无法连接 (service #{idx+1})")
+                continue
+            except Exception as e:
+                self._log(f"[SSO-JW]   异常 (service #{idx+1}): {e}")
+                continue
+
+        # 兜底: 直接访问 main.jsp
+        self._log("[SSO-JW] 兜底: 直接访问 main.jsp")
+        try:
+            resp2 = self.session.get(URL_MAIN_PAGE, timeout=TIMEOUT, allow_redirects=True)
+            self._dedupe_cookies()
+            if self._check_success(resp2):
+                self._extract_name(resp2.text)
+                self.logged_in = True
+                self.login_method = "webvpn"
+                self._log("[SSO-JW] [OK] 直连教务已登录!")
+                return True
+            self._log("[SSO-JW]   教务未登录，需要表单登录")
+        except Exception as e:
+            self._log(f"[SSO-JW]   直连异常: {e}")
+
+        return False
+
+    def get_webvpn_captcha_base64(self, student_id: str, password: str):
+        """SSO 登录后获取教务 8080 登录验证码（base64）
+
+        返回 (b64, error)；SSO 后已有教务会话时返回 ("__ALREADY_LOGGED_IN__", "")。
+        """
+        self.student_id = student_id
+        self.student_name = None
+        self.last_error = ""
+        self._webvpn_manual_ready = False
+        self._webvpn_post_url = ""
+        self._webvpn_login_page_url = ""
+        self.debug_log = []
+        self.session = requests.Session()
+        self.session.cookies = _DedupCookieJar()
+        self.session.headers.update(HEADERS)
+
+        if not _HAS_CRYPTO:
+            return "", "SSO 登录需要 pycryptodome 模块，请重新部署服务"
+
+        try:
+            # Step 1: 直连 SSO 登录
+            self._log("[SSO-Captcha] Step 1: 直连 SSO 登录...")
+            if not self._direct_sso_login(student_id, password):
+                return "", self.last_error
+
+            # Step 2: 尝试 CAS 自动登录教务
+            self._log("[SSO-Captcha] Step 2: 尝试直连教务...")
+            if self._try_direct_jw_access():
+                self._webvpn_manual_ready = True
+                return "__ALREADY_LOGGED_IN__", ""
+
+            # Step 3: 从 8080 Logon.do 获取验证码（不清除 SSO cookie）
+            self._log("[SSO-Captcha] Step 3: 从 8080 Logon.do 获取验证码...")
+            self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
+            self.session.headers.update({"Referer": URL_LOGON_PAGE})
+            self._dedupe_cookies()
+            self._detect_captcha_url_from_page()
+            try:
+                self.session.get(URL_LOGON_SESS, timeout=TIMEOUT)
+                self._dedupe_cookies()
+            except Exception:
+                pass
+
+            img = self._fetch_captcha()
+            if not img:
+                return "", "获取验证码失败：无法从教务服务器获取验证码图片"
+
+            self._webvpn_manual_ready = True
+            self._webvpn_login_page_url = URL_LOGON_PAGE
+            self._webvpn_post_url = URL_LOGON_PAGE
+            self._log(f"[SSO-Captcha] [OK] 验证码就绪 ({len(img)} bytes)")
+            return base64.b64encode(img).decode(), ""
+
+        except requests.exceptions.ConnectionError:
+            return "", "无法连接教务服务器（请检查网络连接）"
+        except Exception as e:
+            logger.debug("[SSO] 异常: %s", e, exc_info=True)
+            return "", str(e)
+
+    def complete_webvpn_login(self, student_id: str, password: str,
+                              captcha: str) -> bool:
+        """使用手动输入的验证码完成教务登录（标准 8080 Logon.do 流程）"""
+        if not self._webvpn_manual_ready:
+            self.last_error = "会话已过期，请重新获取验证码"
+            return False
+
+        self.student_id = student_id
+        self.student_name = None
+        self.last_error = ""
+        self.logged_in = False
+        self.login_method = ""
+
+        try:
+            self._log("[SSO-Login] 使用手动验证码完成 8080 标准登录...")
+            if self._try_simple_login(student_id, password, captcha.strip()):
+                self.logged_in = True
+                self.login_method = "webvpn"
+                self._log("[SSO-Login] [OK] 登录成功!")
+                return True
+
+            if not self.last_error:
+                self.last_error = "教务系统登录失败，请重新获取验证码重试"
+            return False
+        except Exception as e:
+            self._log(f"[SSO-Login] 异常: {e}")
+            logger.debug("[SSO] 异常: %s", e, exc_info=True)
+            self.last_error = f"登录异常: {e}"
+            return False
+
+    def _is_jw_login_page(self, resp) -> bool:
+        """检测是否为教务登录页面（强智教务）"""
+        t = resp.text.lower()
+        url = resp.url.lower() if hasattr(resp, 'url') else ""
+        indicators = [
+            "Logon.do" in url,
+            "Verifyservlet" in t,
+            "verifycode.servlet" in t,
+            ("USERNAME" in t and "PASSWORD" in t and "RANDOMCODE" in t),
+        ]
+        return any(indicators)
 
     # ================================================================
     # 核心方法
@@ -327,14 +748,23 @@ class JWCClient:
 
     def _check_success(self, resp) -> bool:
         t = resp.text
+        # 明确的失败标记
         for kw in ["验证码错误", "密码错误", "账号错误", "用户不存在"]:
             if kw in t:
                 return False
+        # 检测是教务登录页面（而非已登录状态）
+        if self._is_jw_login_page(resp):
+            return False
+        # 明确的成功标记
         for kw in ["课程表", "学期理论课表", "学生首页", "学生个人中心",
                     "xs_main", "framemain", "安全退出", "退出系统"]:
             if kw in t:
                 return True
-        return URL_LOGON_PAGE.rstrip("/") not in resp.url.rstrip("/")
+        # URL fallback：登录页地址视为失败，SSO 登录页也视为失败
+        url_str = resp.url if hasattr(resp, 'url') else ""
+        if "Logon.do" in url_str:
+            return False
+        return "authserver" not in url_str
 
     def _page_title(self, resp) -> str:
         m = re.search(r'<title>([^<]*)</title>', resp.text)
@@ -355,7 +785,8 @@ class JWCClient:
         if not self.logged_in:
             self.last_error = "未登录"
             return []
-        return self._schedule_api(semester, week) or self._schedule_html(semester)
+        courses = self._schedule_api(semester, week) or self._schedule_html(semester)
+        return _dedupe_schedule_courses(courses)
 
     def _schedule_api(self, semester: str, week: int) -> list[dict]:
         try:
@@ -377,25 +808,26 @@ class JWCClient:
     def _schedule_html(self, semester: str) -> list[dict]:
         """NJUST 课表 HTML 解析 — 从主页链接获取正确的 Ves632DSdyV 参数"""
         try:
-            # Debug: 看看当前 cookie 状态（含域名）
-            cks = [(c.name, c.value[:16], c.domain) for c in self.session.cookies]
-            print(f"[课表] 请求前 cookies ({len(cks)}个): {cks}")
+            # Debug: 看看当前 cookie 状态（含域名，不含值）
+            cks = [(c.name, c.domain) for c in self.session.cookies]
+            logger.debug("[课表] 请求前 cookies (%d个): %s", len(cks), cks)
 
             # 先访问主页，提取课表链接中的 Ves632DSdyV 参数
             main_resp = self.session.get(
                 URL_MAIN_PAGE,
                 timeout=TIMEOUT, allow_redirects=True,
             )
-            print(f"[课表] 主页 GET → status={main_resp.status_code} "
-                  f"title={self._page_title(main_resp)}")
+            logger.debug("[课表] 主页 GET → status=%s title=%s",
+                         main_resp.status_code, self._page_title(main_resp))
             real_schedule_url = URL_SCHEDULE_HTML  # 默认
             m = re.search(r'xskb/xskb_list\.do\?([^"\']+)', main_resp.text)
             if m:
                 real_schedule_url = f"{BASE_9080}/njlgdx/xskb/xskb_list.do?{m.group(1)}"
-                print(f"[课表] 从主页提取真实URL参数: {m.group(1)[:50]}")
+                logger.debug("[课表] 从主页提取真实URL参数: %s", m.group(1)[:50])
 
             resp = self.session.get(real_schedule_url, timeout=TIMEOUT, allow_redirects=True)
-            print(f"[课表] GET → status={resp.status_code} len={len(resp.text)} title={self._page_title(resp)}")
+            logger.debug("[课表] GET → status=%s len=%d title=%s",
+                         resp.status_code, len(resp.text), self._page_title(resp))
 
             if resp.status_code != 200 or len(resp.text) < 2000:
                 self.last_error = "课表页面访问失败，请重新登录"
@@ -410,7 +842,7 @@ class JWCClient:
             if grid and data_table:
                 courses = self._parse_merged(grid, data_table)
                 if courses:
-                    print(f"[课表] 合并解析完成: {len(courses)} 条")
+                    logger.debug("[课表] 合并解析完成: %d 条", len(courses))
                     return courses
 
             # 降级
@@ -424,8 +856,7 @@ class JWCClient:
             self.last_error = "课表表格未找到"
             return []
         except Exception as e:
-            print(f"[课表HTML] {e}")
-            import traceback; traceback.print_exc()
+            logger.debug("[课表HTML] %s", e, exc_info=True)
             return []
 
     def _parse_datalist(self, table) -> list[dict]:
@@ -492,7 +923,7 @@ class JWCClient:
                     )),
                 })
 
-        print(f"[课表] dataList 解析完成: {len(courses)} 条")
+        logger.debug("[课表] dataList 解析完成: %d 条", len(courses))
         return courses
 
     def _parse_merged(self, grid, data_table) -> list[dict]:
@@ -621,7 +1052,7 @@ class JWCClient:
                 if n in c.get_text():
                     day_map[i] = d
                     break
-        print(f"[kbtable] 列映射: {day_map}")
+        logger.debug("[kbtable] 列映射: %s", day_map)
 
         # 大节 → 小节映射（从 th 文本提取）
         # NJUST 大节 → 小节映射
@@ -892,11 +1323,11 @@ class JWCClient:
             has_login = "logon" in resp.text.lower() or "登录" in resp.text
             form_count = len(soup.find_all("form"))
             table_count = len(soup.find_all("table"))
-            print(f"[考试HTML] 未找到数据表格")
-            print(f"  页面标题: {page_title}")
-            print(f"  响应长度: {len(resp.text)}")
-            print(f"  表单数量: {form_count}, 表格数量: {table_count}")
-            print(f"  疑似登录页: {has_login}")
+            logger.debug("[考试HTML] 未找到数据表格")
+            logger.debug("  页面标题: %s", page_title)
+            logger.debug("  响应长度: %d", len(resp.text))
+            logger.debug("  表单数量: %d, 表格数量: %d", form_count, table_count)
+            logger.debug("  疑似登录页: %s", has_login)
             if has_login:
                 self.last_error = "考试页面需要重新登录，请先在设置页登录"
             else:

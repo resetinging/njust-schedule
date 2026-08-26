@@ -3,30 +3,26 @@ NJUST 课表 — Flask 路由
 =======================
 包含：页面路由 + 全量 API + 批量评教后台
 """
-import json
+import base64
 import os
 import re
-import time
-import uuid
+import secrets
 import threading
+import time
 from datetime import datetime
-from flask import render_template, request, jsonify, g, Response
+from flask import render_template, request, jsonify, Response
 from bs4 import BeautifulSoup
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from wxcloudrun import app, db
 from wxcloudrun.jwc_client import JWCClient
 from wxcloudrun import dao
-from wxcloudrun.response import make_succ_response, make_err_response
-from config import DEBUG_EVAL
 
 # ============================================================
 # 全局教务客户端
 # ============================================================
 jwc_client = JWCClient()
 jwc_lock = threading.Lock()
-
-_batch_progress = {}
-_batch_progress_lock = threading.Lock()
 
 _auto_login_attempted = False
 _last_auto_login_time = 0.0
@@ -65,6 +61,11 @@ def exams_page():
 @app.route('/evaluations')
 def evaluations_page():
     return render_template('evaluations.html')
+
+
+@app.route('/grades')
+def grades_page():
+    return render_template('grades.html')
 
 
 @app.route('/settings')
@@ -145,6 +146,20 @@ def api_status():
             else:
                 auto_login_error = jwc_client.last_error or "登录失败"
 
+    # 教务连通性(桌面端导航栏/设置页依赖)
+    try:
+        ok, _msg = jwc_client.test_connection()
+        network = {
+            "reachable": ok,
+            "method": "direct" if ok else "offline",
+            "latency_ms": 0,
+            "label": "教务在线" if ok else "离线",
+            "hint": "" if ok else "请检查教务系统连接",
+        }
+    except Exception:
+        network = {"reachable": False, "method": "offline", "latency_ms": 0,
+                   "label": "离线", "hint": "请检查教务系统连接"}
+
     return jsonify({
         "logged_in": jwc_client.logged_in,
         "student_id": student_id,
@@ -157,6 +172,7 @@ def api_status():
         "auto_login_error": auto_login_error,
         "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "first_week_date": dao.get_setting("first_week_date", ""),
+        "network": network,
     })
 
 
@@ -169,18 +185,56 @@ def api_connect_test():
 # ============================================================
 # API — 登录
 # ============================================================
-import base64
+# 教务密码加密存储（不再使用可逆 Base64 明文）:
+#   - 优先使用环境变量 PASSWORD_SECRET 作为密钥（生产环境推荐配置）
+#   - 未配置时，首次使用自动生成随机密钥并存入 settings 表（key: secret_key）
+#   - 解密失败时回退尝试旧版 Base64 编码，兼容历史数据
+_PWD_SALT = "jwc-pwd-v1"
+
+
+def _get_pwd_secret() -> str:
+    key = (os.environ.get("PASSWORD_SECRET") or "").strip()
+    if key:
+        return key
+    key = dao.get_setting("secret_key", "")
+    if not key:
+        key = secrets.token_hex(32)
+        dao.set_setting("secret_key", key)
+    return key
 
 
 def _encode_pwd(pwd: str) -> str:
-    return base64.b64encode(pwd.encode()).decode()
+    return URLSafeTimedSerializer(_get_pwd_secret(), salt=_PWD_SALT).dumps(pwd)
 
 
 def _decode_pwd(encoded: str) -> str:
+    if not encoded:
+        return ""
+    try:
+        return URLSafeTimedSerializer(_get_pwd_secret(), salt=_PWD_SALT).loads(encoded)
+    except BadSignature:
+        pass
+    # 兼容旧版 Base64 存储
     try:
         return base64.b64decode(encoded.encode()).decode()
     except Exception:
         return ""
+
+
+def _resolve_password(student_id: str, provided: str) -> str:
+    """解析登录密码：优先使用前端提供的，为空时回退到已保存的密码。
+
+    保存了智慧理工密码（password_enc）与教务密码（jwc_password_enc）时，
+    自动登录优先使用教务密码。
+    """
+    if provided:
+        return provided
+    saved_sid = dao.get_setting("student_id")
+    if saved_sid == student_id:
+        jwc_pwd = _decode_pwd(dao.get_setting("jwc_password_enc", ""))
+        pwd = _decode_pwd(dao.get_setting("password_enc", ""))
+        return jwc_pwd or pwd
+    return ""
 
 
 def _auto_login() -> bool:
@@ -193,7 +247,8 @@ def _auto_login() -> bool:
     # Session 已过期或未登录 → 强制重新登录
     jwc_client.logged_in = False
     sid = dao.get_setting("student_id")
-    pwd = _decode_pwd(dao.get_setting("password_enc", ""))
+    pwd = _decode_pwd(dao.get_setting("jwc_password_enc", "")) or \
+        _decode_pwd(dao.get_setting("password_enc", ""))
     if not sid or not pwd:
         return False
     jwc_client.login(sid, pwd)
@@ -214,8 +269,22 @@ def _on_login_success(student_id: str, password: str = ""):
         "success": True,
         "message": f"登录成功！欢迎 {jwc_client.student_name or student_id}",
         "student_name": jwc_client.student_name or student_id,
+        "semester": semester,
         "login_method": jwc_client.login_method,
     })
+
+
+def _sniff_image_mime(data: bytes) -> str:
+    """根据文件头识别验证码图片类型,前端据此构造 data URL"""
+    if data.startswith(b"\x89PNG"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith(b"GIF87a") or data.startswith(b"GIF89a"):
+        return "image/gif"
+    if data.startswith(b"BM"):
+        return "image/bmp"
+    return "image/png"
 
 
 @app.route('/api/get-captcha')
@@ -230,6 +299,7 @@ def api_get_captcha():
     return jsonify({
         "success": True,
         "captcha_b64": b64,
+        "captcha_mime": _sniff_image_mime(base64.b64decode(b64)),
         "message": "验证码获取成功",
     })
 
@@ -238,7 +308,7 @@ def api_get_captcha():
 def api_login():
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
-    password = data.get("password") or ""
+    password = _resolve_password(student_id, data.get("password") or "")
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
     with jwc_lock:
@@ -257,7 +327,7 @@ def api_login():
 def api_login_manual():
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
-    password = data.get("password") or ""
+    password = _resolve_password(student_id, data.get("password") or "")
     captcha_text = (data.get("captcha") or "").strip()
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
@@ -271,6 +341,106 @@ def api_login_manual():
         return jsonify({
             "success": False,
             "message": jwc_client.last_error or "登录失败",
+        }), 401
+
+
+# ============================================================
+# API — 智慧理工 SSO 登录（校外/备用方式）
+# ============================================================
+@app.route('/api/get-webvpn-captcha', methods=['POST'])
+def api_get_webvpn_captcha():
+    """Step 1: 智慧理工 SSO 登录 → 获取教务验证码（或发现已有教务会话）"""
+    data = request.get_json()
+    student_id = (data.get("student_id") or "").strip()
+    password = _resolve_password(student_id, data.get("password") or "")
+
+    if not student_id or not password:
+        return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
+
+    with jwc_lock:
+        b64, error = jwc_client.get_webvpn_captcha_base64(student_id, password)
+
+    if b64 == "__ALREADY_LOGGED_IN__":
+        # SSO 后已有教务会话，无需再输验证码
+        dao.set_setting("password_enc", _encode_pwd(password))
+        jwc_client.logged_in = True
+        jwc_client.login_method = "webvpn"
+        return jsonify({
+            "success": True,
+            "already_logged_in": True,
+            "message": "已有教务会话，无需重复登录",
+        })
+
+    if error:
+        return jsonify({
+            "success": False,
+            "message": error,
+            "debug_log": jwc_client.debug_log[-20:],
+        }), 500
+
+    # 验证码获取成功说明 SSO 登录成功，保存智慧理工密码
+    dao.set_setting("password_enc", _encode_pwd(password))
+    return jsonify({
+        "success": True,
+        "captcha_b64": b64,
+        "captcha_mime": _sniff_image_mime(base64.b64decode(b64)),
+        "message": "智慧理工登录成功，请输入教务密码和验证码",
+    })
+
+
+@app.route('/api/login-webvpn-manual', methods=['POST'])
+def api_login_webvpn_manual():
+    """Step 2: 使用手动输入的验证码完成教务登录（智慧理工模式）"""
+    data = request.get_json()
+    student_id = (data.get("student_id") or "").strip()
+    password = _resolve_password(student_id, data.get("password") or "")
+    captcha_text = (data.get("captcha") or "").strip()
+
+    if not student_id or not password:
+        return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
+    if not captcha_text:
+        return jsonify({"success": False, "message": "请先获取验证码并输入"}), 400
+
+    with jwc_lock:
+        success = jwc_client.complete_webvpn_login(student_id, password, captcha_text)
+
+    if success:
+        # 教务密码与智慧理工密码分开存储
+        jwc_password = data.get("jwc_password") or password
+        if jwc_password:
+            dao.set_setting("jwc_password_enc", _encode_pwd(jwc_password))
+        return _on_login_success(student_id, password)
+    else:
+        return jsonify({
+            "success": False,
+            "message": jwc_client.last_error or "登录失败，请检查验证码",
+        }), 401
+
+
+@app.route('/api/login-webvpn', methods=['POST'])
+def api_login_webvpn():
+    """通过智慧理工 SSO 自动登录（含自动 OCR 教务验证码）"""
+    data = request.get_json()
+    student_id = (data.get("student_id") or "").strip()
+    password = _resolve_password(student_id, data.get("password") or "")
+
+    if not student_id or not password:
+        return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
+
+    with jwc_lock:
+        success = jwc_client.login_webvpn(student_id, password)
+
+    if success:
+        # 教务密码与智慧理工密码分开存储
+        jwc_password = data.get("jwc_password") or password
+        if jwc_password:
+            dao.set_setting("jwc_password_enc", _encode_pwd(jwc_password))
+        return _on_login_success(student_id, password)
+    else:
+        return jsonify({
+            "success": False,
+            "message": jwc_client.last_error or "智慧理工登录失败",
+            "debug_log": jwc_client.debug_log[-20:],
         }), 401
 
 
@@ -405,10 +575,30 @@ def api_refresh_all():
 # ============================================================
 # API — 数据查询
 # ============================================================
+def _dedupe_courses(courses: list) -> list:
+    """去掉跨大节课程在 kbtable 每个大节格产生的重复条目。
+
+    例: 第1-13节的课程设计在 kbtable 五个大节格各解析出一条完全相同
+    的记录,前端网格会把它们全部堆进同一个单元格导致溢出。
+    """
+    seen = set()
+    result = []
+    for c in courses:
+        key = (str(c.get("name", "")), c.get("day"), c.get("start"), c.get("end"),
+               str(c.get("weeks", "")), str(c.get("teacher", "")),
+               str(c.get("classroom", "")))
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(c)
+    return result
+
+
 @app.route('/api/courses')
 def api_get_courses():
-    semester = request.args.get("semester", dao.get_setting("semester", jwc_client._current_semester()))
-    courses = dao.get_courses(semester)
+    semester = (request.args.get("semester") or "").strip() or \
+        dao.get_setting("semester", jwc_client._current_semester())
+    courses = _dedupe_courses(dao.get_courses(semester))
     return jsonify({
         "success": True,
         "semester": semester,
@@ -419,7 +609,8 @@ def api_get_courses():
 
 @app.route('/api/exams')
 def api_get_exams():
-    semester = request.args.get("semester", dao.get_setting("semester", jwc_client._current_semester()))
+    semester = (request.args.get("semester") or "").strip() or \
+        dao.get_setting("semester", jwc_client._current_semester())
     exams = dao.get_exams(semester)
     return jsonify({
         "success": True,
@@ -442,6 +633,7 @@ def api_settings():
             "semester_list": jwc_client.get_semester_list(),
             "current_semester": jwc_client._current_semester(),
             "has_password": bool(dao.get_setting("password_enc", "")),
+            "has_jwc_password": bool(dao.get_setting("jwc_password_enc", "")),
         }
         return jsonify(settings)
     else:
@@ -456,13 +648,33 @@ def api_settings():
 @app.route('/api/gallery-images')
 def api_gallery_images():
     """返回 static/gallery/ 目录下的图片列表"""
-    gallery_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'gallery')
+    gallery_dir = os.path.join(app.static_folder, 'gallery')
     images = []
     if os.path.isdir(gallery_dir):
         for f in sorted(os.listdir(gallery_dir)):
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')):
                 images.append(f)
     return jsonify({"success": True, "images": images})
+
+
+@app.route('/api/gallery-image')
+def api_gallery_image():
+    """返回单张校历图片的 base64 数据（供小程序通过云托管内网获取）"""
+    name = (request.args.get("name") or "").strip()
+    if not name or "/" in name or "\\" in name or ".." in name:
+        return jsonify({"success": False, "message": "无效的文件名"}), 400
+    gallery_dir = os.path.join(app.static_folder, 'gallery')
+    path = os.path.join(gallery_dir, name)
+    if not os.path.isfile(path):
+        return jsonify({"success": False, "message": "图片不存在"}), 404
+    with open(path, "rb") as f:
+        data = f.read()
+    return jsonify({
+        "success": True,
+        "name": name,
+        "mime": _sniff_image_mime(data),
+        "data_b64": base64.b64encode(data).decode(),
+    })
 
 
 @app.route('/api/semesters')
@@ -488,7 +700,8 @@ def api_set_semester():
 
 @app.route('/api/evaluations')
 def api_get_evaluations():
-    semester = request.args.get("semester", dao.get_setting("semester", jwc_client._current_semester()))
+    semester = (request.args.get("semester") or "").strip() or \
+        dao.get_setting("semester", jwc_client._current_semester())
     evals = dao.get_evaluations(semester)
     return jsonify({
         "success": True,
@@ -632,116 +845,6 @@ def _parse_eval_form_page(html: str) -> dict:
     }
 
 
-# ============================================================
-# 评教 — 自动填写算法
-# ============================================================
-def _auto_fill_eval_indicators(indicators: list, target_score: float = 95.0) -> dict:
-    if not indicators:
-        return {"_total": 0}
-    indicator_scores = []
-    total_max = 0
-    for ind in indicators:
-        opts = ind.get("options", [])
-        ind_max = 0
-        scored_opts = []
-        for i, opt in enumerate(opts):
-            s = float(opt.get("score", 0) or 0)
-            scored_opts.append({"idx": i, "score": s, "name": opt["name"], "value": opt["value"]})
-            if s > ind_max:
-                ind_max = s
-        total_max += ind_max
-        indicator_scores.append({"seq": ind.get("seq", ""), "max_score": ind_max, "options": scored_opts})
-    if total_max <= 0:
-        return {"_total": 0}
-
-    # 贪心
-    selections = []
-    for iscore in indicator_scores:
-        ind_target = (target_score / total_max) * iscore["max_score"] if total_max > 0 else 0
-        best_idx = 0
-        best_dist = float('inf')
-        for opt in iscore["options"]:
-            dist = abs(opt["score"] - ind_target)
-            if dist < best_dist:
-                best_dist = dist
-                best_idx = opt["idx"]
-        chosen = iscore["options"][best_idx]
-        selections.append({
-            "seq": iscore["seq"], "colIndex": best_idx, "score": chosen["score"],
-            "name": chosen["name"], "value": chosen["value"], "options": iscore["options"],
-        })
-
-    def _all_same_column(sels):
-        if len(sels) <= 1:
-            return False
-        return all(s["colIndex"] == sels[0]["colIndex"] for s in sels)
-
-    # 防作弊
-    if len(selections) > 1 and _all_same_column(selections):
-        current_total = sum(s["score"] for s in selections)
-        best_penalty = abs(current_total - target_score)
-        best_combo = None
-        for sacrifice_idx in range(len(selections)):
-            for alt_opt in selections[sacrifice_idx]["options"]:
-                if alt_opt["idx"] == selections[sacrifice_idx]["colIndex"]:
-                    continue
-                new_total = current_total - selections[sacrifice_idx]["score"] + alt_opt["score"]
-                penalty = abs(new_total - target_score)
-                if penalty < best_penalty:
-                    best_penalty = penalty
-                    best_combo = {"sacrifice_idx": sacrifice_idx, "colIndex": alt_opt["idx"],
-                                  "score": alt_opt["score"], "name": alt_opt["name"], "value": alt_opt["value"]}
-        if best_combo:
-            idx = best_combo["sacrifice_idx"]
-            selections[idx]["colIndex"] = best_combo["colIndex"]
-            selections[idx]["score"] = best_combo["score"]
-            selections[idx]["name"] = best_combo["name"]
-            selections[idx]["value"] = best_combo["value"]
-
-    # 单指标微调
-    no_improve = 0
-    for _ in range(10):
-        current_total = sum(s["score"] for s in selections)
-        current_penalty = abs(current_total - target_score)
-        if current_penalty < 0.5:
-            break
-        best_swap = None
-        best_penalty = current_penalty
-        for i in range(len(selections)):
-            for alt_opt in selections[i]["options"]:
-                if alt_opt["idx"] == selections[i]["colIndex"]:
-                    continue
-                new_total = current_total - selections[i]["score"] + alt_opt["score"]
-                new_penalty = abs(new_total - target_score)
-                saved_col, saved_score = selections[i]["colIndex"], selections[i]["score"]
-                selections[i]["colIndex"], selections[i]["score"] = alt_opt["idx"], alt_opt["score"]
-                all_same = _all_same_column(selections)
-                selections[i]["colIndex"], selections[i]["score"] = saved_col, saved_score
-                if all_same:
-                    continue
-                if new_penalty < best_penalty:
-                    best_penalty = new_penalty
-                    best_swap = {"idx": i, "colIndex": alt_opt["idx"], "score": alt_opt["score"],
-                                 "name": alt_opt["name"], "value": alt_opt["value"]}
-        if best_swap and best_penalty < current_penalty:
-            idx = best_swap["idx"]
-            selections[idx]["colIndex"] = best_swap["colIndex"]
-            selections[idx]["score"] = best_swap["score"]
-            selections[idx]["name"] = best_swap["name"]
-            selections[idx]["value"] = best_swap["value"]
-            no_improve = 0
-        else:
-            no_improve += 1
-            if no_improve >= 3:
-                break
-
-    result = {}
-    for s in selections:
-        result[s["seq"]] = (s["name"], s["value"])
-    result["_total"] = sum(s["score"] for s in selections)
-    return result
-
-
 def _build_ordered_eval_post_data(form_data: dict, batch_hidden_fields=None,
                                   auto_fill_selections=None, submit_type: str = "1") -> list:
     merged = dict(form_data)
@@ -865,138 +968,67 @@ def api_submit_eval():
         return jsonify({"success": False, "message": f"提交失败: {e}"}), 500
 
 
-# ============================================================
-# 批量评教
-# ============================================================
-def _run_batch_eval(batch_id, courses, action_path, batch_hidden_fields, target_score, submit_type):
-    total = len(courses)
-    action_verb = "提交" if submit_type == "1" else "保存"
-    for i, course in enumerate(courses):
-        with _batch_progress_lock:
-            _batch_progress[batch_id].update({
-                "current": i + 1, "course": course["name"],
-                "status": "fetching_form", "message": f"正在加载 {course['name']}...",
-            })
-        try:
-            eval_target = f"http://202.119.81.112:9080{course['eval_url']}" if course["eval_url"].startswith("/") else course["eval_url"]
-            with jwc_lock:
-                _warm_eval_session()
-                form_resp = jwc_client.session.get(eval_target, headers=EVAL_HEADERS, timeout=15)
-            if "非法访问" in form_resp.text or "非法操作" in form_resp.text:
-                with _batch_progress_lock:
-                    _batch_progress[batch_id]["results"].append({"course": course["name"], "status": "failed", "error": "教务拒绝"})
-                continue
-            parsed = _parse_eval_form_page(form_resp.text)
-            if not parsed or not parsed.get("indicators"):
-                with _batch_progress_lock:
-                    _batch_progress[batch_id]["results"].append({"course": course["name"], "status": "failed", "error": "无法解析表单"})
-                continue
-            with _batch_progress_lock:
-                _batch_progress[batch_id].update({"status": "auto_filling", "message": f"正在为 {course['name']} 自动评分..."})
-            selections = _auto_fill_eval_indicators(parsed["indicators"], target_score)
-            with _batch_progress_lock:
-                _batch_progress[batch_id].update({"status": "submitting", "message": f"正在{action_verb} {course['name']}..."})
-            form_data = dict(parsed["hidden_fields"])
-            form_data["issubmit"] = submit_type
-            action = parsed.get("action") or action_path
-            target_url = f"http://202.119.81.112:9080{action}"
-            post_data = _build_ordered_eval_post_data(form_data, batch_hidden_fields=batch_hidden_fields,
-                                                      auto_fill_selections=selections, submit_type=submit_type)
-            with jwc_lock:
-                _warm_eval_session()
-                resp = jwc_client.session.post(target_url, data=post_data, headers=EVAL_HEADERS, timeout=15)
-            if "评价成功" in resp.text or "提交成功" in resp.text or "保存成功" in resp.text:
-                with _batch_progress_lock:
-                    _batch_progress[batch_id]["results"].append({
-                        "course": course["name"], "status": "success",
-                        "score": round(selections.get("_total", 0), 1),
-                    })
-            else:
-                with _batch_progress_lock:
-                    _batch_progress[batch_id]["results"].append({"course": course["name"], "status": "failed", "error": "教务未确认"})
-        except Exception as e:
-            with _batch_progress_lock:
-                _batch_progress[batch_id]["results"].append({"course": course["name"], "status": "failed", "error": str(e)})
-    with _batch_progress_lock:
-        _batch_progress[batch_id].update({"status": "completed", "message": f"批量{action_verb}完成", "done": True, "course": ""})
+@app.route('/api/jw-proxy', methods=['POST'])
+def api_jw_proxy():
+    """通用教务网关: 用已登录会话转发任意 9080 请求,返回原始内容。
 
+    方案 A(薄后端)核心接口: 前端负责业务逻辑,后端只做认证 + 转发。
 
-@app.route('/api/batch-submit-eval', methods=['POST'])
-def api_batch_submit_eval():
-    if not jwc_client.logged_in:
-        return jsonify({"success": False, "message": "请先登录"}), 401
-    data = request.get_json()
-    batch_url = data.get("batch_url", "")
-    target_score = float(data.get("target_score", 95))
-    submit_type = str(data.get("submit_type", "1"))
-    mode = data.get("mode", "")
-    if not batch_url:
-        return jsonify({"success": False, "message": "缺少批次 URL"}), 400
-    if not (0 < target_score <= 100):
-        return jsonify({"success": False, "message": "目标分数需在 1~100 之间"}), 400
-    target = f"http://202.119.81.112:9080{batch_url}" if batch_url.startswith("/") else batch_url
+    参数:
+        method: "GET" | "POST"
+        path: 教务路径,如 "/njlgdx/xskb/xskb_list.do?Ves632DSdyV=..."
+              (query 可拼在 path 里,或单独传 query)
+        data: POST 表单参数 {key: value}
+    返回:
+        success/status/content_type/text(文本) 或 data_b64(二进制)
+    """
+    err = _require_login()
+    if err:
+        return err
+    data = request.get_json() or {}
+    method = (data.get("method") or "GET").upper()
+    path = (data.get("path") or "").strip()
+    if not path:
+        return jsonify({"success": False, "message": "缺少 path"}), 400
+    if method not in ("GET", "POST"):
+        return jsonify({"success": False, "message": "method 仅支持 GET/POST"}), 400
+    if not path.startswith("/"):
+        path = "/" + path
+
+    target = f"http://202.119.81.112:9080{path}"
+    qs = data.get("query")
+    if qs and isinstance(qs, str):
+        target += "?" + qs.lstrip("?")
+    form_data = data.get("data") or {}
+    if not isinstance(form_data, dict):
+        form_data = {}
+
     try:
         with jwc_lock:
             _warm_eval_session()
-            resp = jwc_client.session.get(target, headers=EVAL_HEADERS, timeout=15)
+            if method == "POST":
+                resp = jwc_client.session.post(target, data=form_data,
+                                               headers=EVAL_HEADERS, timeout=15)
+            else:
+                resp = jwc_client.session.get(target, headers=EVAL_HEADERS, timeout=15)
     except Exception as e:
-        return jsonify({"success": False, "message": f"获取课程列表失败: {e}"}), 500
-    if "非法访问" in resp.text or "非法操作" in resp.text:
-        return jsonify({"success": False, "message": "教务系统拒绝了请求"}), 403
-    parsed = _parse_eval_courses_page(resp.text)
-    if not parsed or not parsed.get("courses"):
-        return jsonify({"success": False, "message": "未找到课程列表"}), 500
-    if mode == "save":
-        targets = [c for c in parsed["courses"] if not c.get("evaluated") and not c.get("submitted")]
-        action_desc, empty_msg = "保存", "所有课程均已保存或提交"
-    elif mode == "submit":
-        targets = [c for c in parsed["courses"] if c.get("evaluated") and not c.get("submitted")]
-        action_desc, empty_msg = "提交", "没有已保存待提交的课程"
-    else:
-        targets = [c for c in parsed["courses"] if not c.get("submitted")]
-        action_desc, empty_msg = "评教", "所有课程已提交"
-    if not targets:
-        return jsonify({"success": True, "message": empty_msg, "total": 0})
-    batch_id = str(uuid.uuid4())[:8]
-    action_path = data.get("action_path", "/njlgdx/xspj/xspj_save.do")
-    batch_hidden_fields = parsed.get("hidden_fields", {})
-    if data.get("hidden_fields"):
-        batch_hidden_fields.update(data["hidden_fields"])
-    with _batch_progress_lock:
-        _batch_progress[batch_id] = {
-            "current": 0, "total": len(targets), "course": "", "status": "starting",
-            "message": f"准备{action_desc} {len(targets)} 门课程...", "done": False, "results": [],
-            "created_at": time.time(), "mode": mode,
-        }
-    thread = threading.Thread(target=_run_batch_eval, args=(
-        batch_id, targets, action_path, batch_hidden_fields, target_score, submit_type), daemon=True)
-    thread.start()
-    return jsonify({
-        "success": True, "batch_id": batch_id, "total": len(targets),
-        "message": f"已开始批量{action_desc}，共 {len(targets)} 门课程",
-    })
+        return jsonify({"success": False, "message": f"请求失败: {e}"}), 502
 
-
-@app.route('/api/batch-progress/<batch_id>')
-def api_batch_progress(batch_id):
-    with _batch_progress_lock:
-        now = time.time()
-        stale_ids = [bid for bid, p in _batch_progress.items()
-                     if p.get("done") and now - p.get("created_at", 0) > 600]
-        for bid in stale_ids:
-            del _batch_progress[bid]
-        progress = _batch_progress.get(batch_id)
-        if not progress:
-            return jsonify({"success": False, "message": "未找到此批次"}), 404
+    content_type = resp.headers.get("content-type") or ""
+    if content_type.startswith(("text/", "application/json", "application/javascript")):
         return jsonify({
-            "success": True, "batch_id": batch_id,
-            "current": progress["current"], "total": progress["total"],
-            "course": progress.get("course", ""), "status": progress["status"],
-            "message": progress["message"], "done": progress["done"],
-            "results": progress.get("results", []),
+            "success": True,
+            "status": resp.status_code,
+            "content_type": content_type,
+            "text": resp.text,
         })
-
-
+    # 二进制内容(图片等) → base64
+    return jsonify({
+        "success": True,
+        "status": resp.status_code,
+        "content_type": content_type,
+        "data_b64": base64.b64encode(resp.content).decode(),
+    })
 # ============================================================
 # API — 清除数据
 # ============================================================
@@ -1013,84 +1045,33 @@ def api_clear_data():
 
 @app.route('/api/grades')
 def api_get_grades():
-    """获取已存储的成绩数据
+    """返回已存储的成绩原始数据(方案 A: GPA 等业务计算已移至前端)
 
     参数:
-        semester: 学期代码（如 "2024-2025-1"），传 "__all__" 查看全部学期
-        gpa_mode: "baoyan" 启用保研模式（CET 折算替换英语模块）
+        semester: 学期代码(如 "2024-2025-1"),传 "__all__" 或不传查看全部学期
     """
-    from gpa import (
-        score_to_gp, calc_gpa, calc_semester_gpas, is_gpa_course,
-        calc_gpa_baoyan,
-    )
-
     semester = request.args.get("semester", "")
     view_all = (semester == "__all__" or not semester)
 
     all_grades = dao.get_grades()
-    semester_gpas = calc_semester_gpas(all_grades)
     available_semesters = dao.get_grade_semesters()
 
-    all_grades_list = all_grades
-    for g in all_grades_list:
-        if float(g.get("grade_point", 0) or 0) == 0:
-            g["grade_point"] = score_to_gp(g.get("score", ""))
-
-    all_gpa = calc_gpa(all_grades_list, gpa_only=False) if all_grades_list else 0
-    all_gpa_counted = calc_gpa(all_grades_list, gpa_only=True) if all_grades_list else 0
-    all_credits = round(sum(
-        float(g.get("credit", 0) or 0) for g in all_grades_list
-        if is_gpa_course(g.get("course_nature", ""))
-    ), 1)
-
     if view_all:
-        grades = all_grades_list
+        grades = all_grades
         display_semester = "__all__"
     else:
         parts = semester.split("-") if semester else []
         academic_year = f"{parts[0]}-{parts[1]}" if len(parts) >= 2 else ""
         sem = parts[2] if len(parts) >= 3 else ""
-        if academic_year and sem:
-            grades = dao.get_grades(academic_year, sem)
-            for g in grades:
-                if float(g.get("grade_point", 0) or 0) == 0:
-                    g["grade_point"] = score_to_gp(g.get("score", ""))
-        else:
-            grades = []
+        grades = dao.get_grades(academic_year, sem) if academic_year and sem else []
         display_semester = semester
 
-    gpa_mode = request.args.get("gpa_mode", "")
-    cet_scores = dao.get_cet_scores() if gpa_mode == "baoyan" else None
-
-    gpa_baoyan = 0.0
-    all_gpa_baoyan = 0.0
-    if gpa_mode == "baoyan" and grades:
-        gpa_baoyan = calc_gpa_baoyan(grades, cet_scores, gpa_only=True)
-    if gpa_mode == "baoyan" and all_grades_list:
-        all_gpa_baoyan = calc_gpa_baoyan(all_grades_list, cet_scores, gpa_only=True)
-
-    counted_credits = round(sum(
-        float(g.get("credit", 0) or 0) for g in grades
-        if is_gpa_course(g.get("course_nature", ""))
-    ), 1)
-
     return jsonify({
+        "success": True,
         "semester": display_semester,
         "count": len(grades),
         "grades": grades,
         "available_semesters": available_semesters,
-        "total_credits": counted_credits,
-        "gpa": calc_gpa(grades, gpa_only=True) if grades else 0,
-        "gpa_all": calc_gpa(grades, gpa_only=False) if grades else 0,
-        "gpa_baoyan": gpa_baoyan,
-        "all_gpa_baoyan": all_gpa_baoyan,
-        "gpa_mode": gpa_mode,
-        "all_gpa": all_gpa_counted,
-        "all_gpa_all": all_gpa,
-        "all_credits": all_credits,
-        "all_count": sum(1 for g in all_grades_list if is_gpa_course(g.get("course_nature", ""))),
-        "all_count_total": len(all_grades_list),
-        "semester_gpas": semester_gpas,
     })
 
 
@@ -1158,32 +1139,9 @@ def api_refresh_cet():
 
 @app.route('/api/cet-scores')
 def api_cet_scores():
-    """获取已存储的四六级成绩及折算信息"""
-    from gpa import cet_to_percentage
+    """获取已存储的四六级原始成绩(折算计算已移至前端)"""
     scores = dao.get_cet_scores()
-
-    cet_info = []
-    for s in scores:
-        pct = cet_to_percentage(s["score"], s["type"])
-        cet_info.append({
-            **s,
-            "percentage": pct,
-            "usable": pct > 0,
-        })
-
-    best_pct = 0.0
-    best_type = ""
-    for ci in cet_info:
-        if ci["usable"] and ci["percentage"] > best_pct:
-            best_pct = ci["percentage"]
-            best_type = ci["type"]
-
-    return jsonify({
-        "scores": cet_info,
-        "best_type": best_type,
-        "best_percentage": best_pct,
-        "has_usable": best_pct > 0,
-    })
+    return jsonify({"success": True, "scores": scores})
 
 
 # ============================================================

@@ -50,3 +50,7 @@ debug_*.json
 
 # Python 鐗堟湰
 .python-version
+
+# 本地验证工具(uv 与托管 Python)
+.uvbin/
+

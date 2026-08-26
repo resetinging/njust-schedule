@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    南理工课表管理系统 - 课表页面逻辑
    ============================================================ */
 
@@ -13,19 +13,19 @@ const BIG_PERIODS = [
 ];
 const DAY_NAMES = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
-let currentWeek = 1;    // 当前显示的周次
-let actualWeek = 1;     // 实际教学周（根据校历计算）
-let todayDay = null;    // 今天星期几 (1-7)
+let currentWeek = 1;
 let allCourses = [];
+let todayDay = null;   // 今天星期几 (1-7)
 
 // ============================================================
-// 计算当前教学周（基于学期第一周周一的日期）
+// 计算当前教学周（基于学期第一周周一）
 // ============================================================
 function calcCurrentWeek() {
     if (!FIRST_WEEK_DATE) return 1;
     try {
         const firstMonday = new Date(FIRST_WEEK_DATE + 'T00:00:00');
         const now = new Date();
+        // Monday = 1 in our system, but JS getDay() gives Sunday=0
         const diffMs = now.getTime() - firstMonday.getTime();
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         const week = Math.floor(diffDays / 7) + 1;
@@ -36,19 +36,19 @@ function calcCurrentWeek() {
 }
 
 // ============================================================
-// 计算今天是星期几（1=周一 ... 7=周日）
+// 计算今天是星期几
 // ============================================================
 function calcToday() {
     const now = new Date();
     const day = now.getDay(); // 0=Sun, 1=Mon, ...
+    // 转换为 1=Mon ... 7=Sun
     return day === 0 ? 7 : day;
 }
 
 // 页面加载
 document.addEventListener('DOMContentLoaded', () => {
-    // 根据校历设置计算当前周
-    actualWeek = calcCurrentWeek();
-    currentWeek = actualWeek;
+    // 根据设置计算当前周
+    currentWeek = calcCurrentWeek();
     todayDay = calcToday();
     loadStatus();
     loadSchedule();
@@ -87,47 +87,11 @@ async function loadSchedule() {
     }
 }
 
-// ============================================================
-// 填充日期行（基于 FIRST_WEEK_DATE + currentWeek）
-// ============================================================
-function highlightTodayHeader() {
-    const dateIds = ['date-mon', 'date-tue', 'date-wed', 'date-thu', 'date-fri', 'date-sat', 'date-sun'];
-    if (FIRST_WEEK_DATE) {
-        try {
-            const firstMonday = new Date(FIRST_WEEK_DATE + 'T00:00:00');
-            for (let d = 0; d < 7; d++) {
-                const date = new Date(firstMonday);
-                date.setDate(date.getDate() + (currentWeek - 1) * 7 + d);
-                const el = document.getElementById(dateIds[d]);
-                if (el) {
-                    el.textContent = `${date.getMonth() + 1}/${date.getDate()}`;
-                }
-            }
-        } catch (e) { /* ignore */ }
-    }
-
-    // 今列表头也高亮
-    if (todayDay && todayDay >= 1 && todayDay <= 7) {
-        const todayDateEl = document.getElementById(dateIds[todayDay - 1]);
-        if (todayDateEl) {
-            todayDateEl.classList.add('today-col');
-        }
-        // 同时高亮周一~周日行的 th
-        const headerRows = document.querySelectorAll('#schedule-table thead tr');
-        if (headerRows.length >= 2) {
-            const ths = headerRows[1].querySelectorAll('th');
-            if (ths[todayDay]) {
-                ths[todayDay].classList.add('today-col');
-            }
-        }
-    }
-}
-
 function renderTable(courses) {
     const tbody = document.getElementById('schedule-body');
     tbody.innerHTML = '';
 
-    // 填充日期行 + 高亮今列表头
+    // ★ 高亮今日列的表头
     highlightTodayHeader();
 
     for (const bp of BIG_PERIODS) {
@@ -149,7 +113,7 @@ function renderTable(courses) {
             const td = document.createElement('td');
             td.className = 'course-cell';
 
-            // 今日列金色格底
+            // ★ 今日列金色格底
             if (todayDay === d) {
                 td.classList.add('today-col');
             }
@@ -210,6 +174,25 @@ function renderTable(courses) {
             tr.appendChild(td);
         }
         tbody.appendChild(tr);
+    }
+}
+
+// ★ 填充日期行（不修改表头样式）
+function highlightTodayHeader() {
+    // 日期行填充（基于 FIRST_WEEK_DATE + currentWeek）
+    const dateIds = ['date-mon', 'date-tue', 'date-wed', 'date-thu', 'date-fri', 'date-sat', 'date-sun'];
+    if (FIRST_WEEK_DATE) {
+        try {
+            const firstMonday = new Date(FIRST_WEEK_DATE + 'T00:00:00');
+            for (let d = 0; d < 7; d++) {
+                const date = new Date(firstMonday);
+                date.setDate(date.getDate() + (currentWeek - 1) * 7 + d);
+                const el = document.getElementById(dateIds[d]);
+                if (el) {
+                    el.textContent = `${date.getMonth() + 1}/${date.getDate()}`;
+                }
+            }
+        } catch (e) { /* ignore */ }
     }
 }
 
@@ -306,6 +289,7 @@ function nextWeek() {
 
 function updateWeekLabel() {
     const label = document.getElementById('week-label');
+    const actualWeek = calcCurrentWeek();
     if (currentWeek === actualWeek) {
         label.textContent = `第 ${currentWeek} 周（本周）`;
     } else {

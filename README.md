@@ -1,123 +1,105 @@
-# wxcloudrun-flask
-[![GitHub license](https://img.shields.io/github/license/WeixinCloud/wxcloudrun-express)](https://github.com/WeixinCloud/wxcloudrun-express)
-![GitHub package.json dependency version (prod)](https://img.shields.io/badge/python-3.7.3-green)
+# 南理工课表管理系统
 
-微信云托管 python Flask 框架模版，实现简单的计数器读写接口，使用云托管 MySQL 读写、记录计数值。
+面向南京理工大学学生的教务一站式 Web 应用:登录强智教务系统,拉取并展示**课表、考试安排、教学评价、成绩绩点、四六级成绩**,支持**批量自动评教**与**保研口径 GPA** 计算。部署于微信云托管(Flask + MySQL),手机端可安装为 PWA。
 
-![](https://qcloudimg.tencent-cloud.cn/raw/be22992d297d1b9a1a5365e606276781.png)
+> 本项目从桌面版迁移而来,基于微信云托管 Flask 模板框架二次开发,原模板的计数器示例代码已不再使用。
+>
+> 配套微信小程序与本后端的分工、模块划分与接口契约,详见 [docs/architecture.md](docs/architecture.md)。
+>
+> **架构(方案 A)**:后端收敛为「教务网关 + 认证 + 提交中转」,业务计算(GPA 绩点、评教自动评分、批量评教循环)已移至前端(小程序 `utils/gpa.js`、`eval.js`,Web `evaluations.js`)。
 
+## 功能
+
+- **课表**:周视图 + 手机列表视图,自动计算当前教学周(根据学期第一周周一),高亮今日课程
+- **考试**:考试安排列表(时间/考场/座位号)
+- **教学评价**:
+  - 拉取评价批次与课程列表,解析评价指标表单
+  - 按目标分自动填选(默认 95 分,含防同列机制与微调优化)
+  - 后台线程批量保存/提交全部课程,进度实时可见
+  - 内置教务页面反向代理(`/proxy/jw/*`),可在本应用中直接打开教务评价页
+- **成绩与绩点**:
+  - 成绩记录按学期存储,计算学期绩点与全部学期加权平均绩点(NJUST 4.0 量表)
+  - 排除通识教育选修课、缓考/缺考/免修等非正式成绩
+  - 保研模式:四六级成绩按官方公式折算百分制,替换英语模块(8 学分)重算 GPA
+- **登录**:双端口重定向链认证,验证码支持 ddddocr 自动识别(5 次重试)与手动输入;服务重启后凭保存的凭证自动重新登录
+
+## 技术栈
+
+- 后端:Python 3.10 / Flask 2.2 / SQLAlchemy 1.4 / MySQL
+- 爬虫:requests + BeautifulSoup(lxml),HTML 解析带多策略降级(API → 查询页表单 → 列表页)
+- OCR:ddddocr(验证码自动识别)
+- 前端:原生 JS + PWA(Service Worker 离线缓存)
+- 部署:微信云托管(Dockerfile + container.config.json)
+
+## 目录结构
+
+```
+.
+├── config.py                    集中配置(数据库、教务 URL、大节定义、HTTP 头)
+├── run.py                       Flask 启动入口
+├── requirements.txt             依赖清单
+├── Dockerfile                    云托管容器构建
+├── container.config.json         云托管服务设置与建表 SQL
+├── wxcloudrun/                   app 目录
+│   ├── __init__.py               Flask 应用与 SQLAlchemy 初始化
+│   ├── views.py                  页面路由 + 全部 /api/* 接口 + 批量评教后台
+│   ├── jwc_client.py             教务系统爬虫客户端(登录/课表/考试/成绩/评教/四六级)
+│   ├── model.py                  ORM 模型(Course/Exam/Evaluation/Grade/CetScore/Setting)
+│   ├── dao.py                    数据访问层
+│   ├── templates/                Jinja2 页面模板(课表/考试/成绩/评教/校历/设置)
+│   └── static/                   前端资源(JS/CSS/PWA/图标/校历图片)
+├── docs/
+│   └── architecture.md           小程序前后端职责说明与接口契约
+```
 
 ## 快速开始
-前往 [微信云托管快速开始页面](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/basic/guide.html)，选择相应语言的模板，根据引导完成部署。
 
-## 本地调试
-下载代码在本地调试，请参考[微信云托管本地调试指南](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/guide/debug/)
+### 环境变量
 
-## 实时开发
-代码变动时，不需要重新构建和启动容器，即可查看变动后的效果。请参考[微信云托管实时开发指南](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/guide/debug/dev.html)
+| 变量 | 说明 | 默认 |
+|---|---|---|
+| `MYSQL_USERNAME` / `MYSQL_PASSWORD` / `MYSQL_ADDRESS` | 云托管 MySQL 连接信息(云托管自动注入) | `root` / `root` / `127.0.0.1:3306` |
+| `DEBUG` | Flask 调试模式(生产环境保持关闭) | `False` |
+| `PASSWORD_SECRET` | 教务密码加密密钥,**强烈建议生产环境配置**(未配置时自动生成随机密钥存入数据库) | 自动生成 |
 
-## Dockerfile最佳实践
-请参考[如何提高项目构建效率](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/scene/build/speed.html)
+### 本地运行
 
-## 目录结构说明
-
-~~~
-.
-├── Dockerfile dockerfile       dockerfile
-├── README.md README.md         README.md文件
-├── container.config.json       模板部署「服务设置」初始化配置（二开请忽略）
-├── requirements.txt            依赖包文件
-├── config.py                   项目的总配置文件  里面包含数据库 web应用 日志等各种配置
-├── run.py                      flask项目管理文件 与项目进行交互的命令行工具集的入口
-└── wxcloudrun                  app目录
-    ├── __init__.py             python项目必带  模块化思想
-    ├── dao.py                  数据库访问模块
-    ├── model.py                数据库对应的模型
-    ├── response.py             响应结构构造
-    ├── templates               模版目录,包含主页index.html文件
-    └── views.py                执行响应的代码所在模块  代码逻辑处理主要地点  项目大部分代码在此编写
-~~~
-
-
-
-## 服务 API 文档
-
-### `GET /api/count`
-
-获取当前计数
-
-#### 请求参数
-
-无
-
-#### 响应结果
-
-- `code`：错误码
-- `data`：当前计数值
-
-##### 响应结果示例
-
-```json
-{
-  "code": 0,
-  "data": 42
-}
+```bash
+pip install -r requirements.txt
+python run.py 127.0.0.1 5000
 ```
 
-#### 调用示例
+浏览器访问 http://127.0.0.1:5000,在「设置」页登录教务系统后即可刷新数据。
+注意:教务系统仅限校园网或 VPN 环境访问。
 
-```
-curl https://<云托管服务域名>/api/count
-```
+### 云托管部署
 
+使用微信云托管控制台选择本仓库部署(参考[云托管快速开始](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/basic/guide.html)),数据表由 `container.config.json` 的建表 SQL 与应用启动时的 `db.create_all()` 双保险创建。
 
+## 主要 API
 
-### `POST /api/count`
-
-更新计数，自增或者清零
-
-#### 请求参数
-
-- `action`：`string` 类型，枚举值
-  - 等于 `"inc"` 时，表示计数加一
-  - 等于 `"clear"` 时，表示计数重置（清零）
-
-##### 请求参数示例
-
-```
-{
-  "action": "inc"
-}
-```
-
-#### 响应结果
-
-- `code`：错误码
-- `data`：当前计数值
-
-##### 响应结果示例
-
-```json
-{
-  "code": 0,
-  "data": 42
-}
-```
-
-#### 调用示例
-
-```
-curl -X POST -H 'content-type: application/json' -d '{"action": "inc"}' https://<云托管服务域名>/api/count
-```
+| 端点 | 说明 |
+|---|---|
+| `GET /api/status` | 登录状态、学期、数据统计 |
+| `POST /api/login` / `POST /api/login-manual` | 自动 OCR / 手动验证码登录 |
+| `GET /api/get-captcha` | 获取验证码图片(Base64) |
+| `POST /api/refresh-schedule` / `refresh-exams` / `refresh-all` | 从教务刷新课表/考试/全部 |
+| `POST /api/refresh-grades` / `refresh-cet` / `refresh-evaluations` | 刷新成绩/四六级/评价列表 |
+| `GET /api/courses` / `exams` / `grades` / `cet-scores` / `evaluations` | 查询已存储数据(**原始数据**,GPA/折算等计算在前端完成) |
+| `GET /api/eval-courses` / `eval-form` | 解析评教课程列表 / 评价表单 |
+| `POST /api/submit-eval` | 单门评教提交中转(批量循环由前端执行) |
+| `POST /api/jw-proxy` | 通用教务网关:转发任意 9080 GET/POST 并返回原始内容 |
+| `POST /api/get-webvpn-captcha` / `login-webvpn-manual` / `login-webvpn` | 智慧理工 SSO 两步/全自动登录 |
+| `GET/POST /api/settings`, `POST /api/semester` | 设置与学期切换 |
+| `POST /api/clear-data` | 清除当前学期数据 |
+| `GET /api/connect-test` | 教务连通性测试 |
+| `GET/POST /proxy/jw/*` | 教务页面反向代理(评教用) |
 
 ## 使用注意
-如果不是通过微信云托管控制台部署模板代码，而是自行复制/下载模板代码后，手动新建一个服务并部署，需要在「服务设置」中补全以下环境变量，才可正常使用，否则会引发无法连接数据库，进而导致部署失败。
-- MYSQL_ADDRESS
-- MYSQL_PASSWORD
-- MYSQL_USERNAME
-以上三个变量的值请按实际情况填写。如果使用云托管内MySQL，可以在控制台MySQL页面获取相关信息。
 
-
+- 教务系统需要校园网或 VPN 才能访问;Session 过期后应用会自动重新登录(需在设置页保存过密码)。
+- 学号/密码仅保存在你自己的服务数据库中;密码经加密存储,推荐通过 `PASSWORD_SECRET` 环境变量提供密钥。
+- 批量评教为自动化辅助工具,请仅用于自己的账号,并自行承担使用责任。
 
 ## License
 

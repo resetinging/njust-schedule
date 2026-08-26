@@ -11,23 +11,59 @@
     <!-- 教务系统登录 -->
     <div class="settings-card">
         <h2>🔐 教务系统登录</h2>
-        <p class="settings-desc">
-            登录南京理工大学教务系统以自动获取课表和考试安排。
-            请确保已连接校园网 i-Zijin 或南理工 VPN。
+
+        <!-- 登录方式选择 -->
+        <div class="login-mode-tabs" id="login-mode-tabs">
+            <button class="login-mode-tab active" data-mode="direct"
+                    onclick="switchLoginMode('direct')">
+                🏫 教务直连
+            </button>
+            <button class="login-mode-tab" data-mode="webvpn"
+                    onclick="switchLoginMode('webvpn')">
+                🌐 智慧理工
+            </button>
+        </div>
+
+        <p class="settings-desc" id="login-mode-desc">
+            直接登录教务系统，无需校园网环境。
         </p>
+
+        <!-- 网络状态指示 -->
+        <div class="network-status-bar" id="network-status-bar">
+            <span class="network-dot" id="network-dot"></span>
+            <span id="network-label">检测中...</span>
+            <span class="network-latency" id="network-latency"></span>
+        </div>
 
         <form id="login-form" class="settings-form">
             <div class="form-group">
                 <label for="student-id">学号</label>
-                <input type="text" id="student-id" placeholder="请输入12位学号"
+                <input type="text" id="student-id" placeholder="请输入学号/工号"
                        maxlength="20" required autocomplete="username">
             </div>
+            <!-- 两步登录提示（智慧理工模式专用） -->
+            <div id="sso-step-hint" style="display:none; margin-bottom:12px;">
+                <div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px 14px;">
+                    <span style="color:#2e7d32;">✅ <strong>Step 1 完成：</strong>智慧理工登录成功</span>
+                    <br><span style="color:#666; font-size:13px;">现在请输入<strong>教务系统密码</strong>和验证码完成 Step 2</span>
+                </div>
+            </div>
             <div class="form-group">
-                <label for="password">密码
+                <label for="password" id="password-label">密码
                     <span id="password-saved-badge" class="badge badge-success" style="display:none;">✅ 已保存</span>
                 </label>
-                <input type="password" id="password" placeholder="请输入教务系统密码"
+                <input type="password" id="password" placeholder="请输入密码"
                        required autocomplete="current-password">
+            </div>
+
+            <!-- 教务密码（智慧理工模式专用，与智慧理工密码分开存储） -->
+            <div class="form-group" id="jwc-password-group" style="display:none;">
+                <label for="jwc-password">教务密码
+                    <span id="jwc-password-saved-badge" class="badge badge-success" style="display:none;">✅ 已保存</span>
+                </label>
+                <input type="password" id="jwc-password" placeholder="请输入教务系统密码"
+                       autocomplete="off">
+                <small style="color:#888;">教务系统密码可能与智慧理工密码不同</small>
             </div>
 
             <!-- 手动验证码区域（默认隐藏，自动登录失败后显示） -->
@@ -42,7 +78,7 @@
                     </button>
                 </div>
                 <div class="form-group" id="captcha-input-group" style="display:none;">
-                    <label for="captcha-input">请输入验证码（4位）</label>
+                    <label for="captcha-input">请输入验证码</label>
                     <div class="captcha-input-row">
                         <input type="text" id="captcha-input" placeholder="请输入图片中的验证码"
                                maxlength="6" autocomplete="off">
@@ -67,6 +103,14 @@
                 </button>
             </div>
         </form>
+
+        <!-- WebVPN 调试日志 -->
+        <div id="webvpn-debug-log" class="webvpn-debug-log" style="display:none;">
+            <details>
+                <summary>🔍 WebVPN 诊断日志（点击展开）</summary>
+                <pre id="webvpn-debug-content"></pre>
+            </details>
+        </div>
 
         <div class="login-info" id="login-info" style="display:none;">
             <div class="info-row">
@@ -101,22 +145,12 @@
                     <!-- JS 动态填充 -->
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary">切换学期</button>
-        </form>
-    </div>
-
-    <!-- 校历设置 -->
-    <div class="settings-card">
-        <h2>📅 校历设置</h2>
-        <p class="settings-desc">
-            设置本学期第一周周一的日期，用于自动计算当前教学周和课表日期行。
-        </p>
-        <form id="calendar-form" class="settings-form">
             <div class="form-group">
-                <label for="first-week-date">第一周周一日期</label>
+                <label for="first-week-date">学期第一周周一</label>
                 <input type="date" id="first-week-date">
+                <small style="color:#888;">设置后，课表将自动跳到当前日期对应的教学周</small>
             </div>
-            <button type="submit" class="btn btn-primary">💾 保存校历</button>
+            <button type="submit" class="btn btn-primary">切换学期</button>
         </form>
     </div>
 
@@ -141,8 +175,9 @@
         <h2>📖 使用说明</h2>
         <div class="help-content">
             <ol>
-                <li><strong>环境要求</strong>：连接校园网 i-Zijin 或南理工 VPN</li>
-                <li><strong>登录</strong>：输入学号和教务系统密码，系统会自动尝试多种登录方式</li>
+                <li><strong>🏫 教务直连</strong>：直接登录教务系统，验证码自动识别</li>
+                <li><strong>🌐 智慧理工</strong>：通过智慧理工 SSO 账号登录（支持两步验证）</li>
+                <li><strong>登录</strong>：输入学号和密码，系统会自动尝试多种登录方式</li>
                 <li><strong>获取课表</strong>：登录后回到「课表」页面点击刷新</li>
                 <li><strong>获取考试</strong>：在「考试」页面点击刷新获取考试安排</li>
                 <li><strong>多设备访问</strong>：手机连接同一 WiFi，浏览器访问本机局域网 IP</li>

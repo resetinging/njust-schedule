@@ -5,6 +5,7 @@ SQLAlchemy + MySQL + NJUST 路由
 """
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+import os
 import pymysql
 import config
 
@@ -14,12 +15,15 @@ pymysql.install_as_MySQLdb()
 # 创建 Flask 应用
 app = Flask(__name__, instance_relative_config=True)
 app.config['DEBUG'] = config.DEBUG
-app.config['JSON_AS_ASCII'] = False
+app.json.ensure_ascii = False
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
-# MySQL 连接（云托管自动注入 MYSQL_USERNAME/PASSWORD/ADDRESS 环境变量）
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://{}:{}@{}/flask_demo'.format(
-    config.MYSQL_USERNAME, config.MYSQL_PASSWORD, config.MYSQL_ADDRESS)
+# 数据库连接：优先使用 SQLALCHEMY_DATABASE_URI 环境变量（本地开发可用 sqlite:///xxx.db），
+# 否则使用 MySQL（云托管自动注入 MYSQL_USERNAME/PASSWORD/ADDRESS 环境变量）
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'SQLALCHEMY_DATABASE_URI',
+    'mysql://{}:{}@{}/flask_demo'.format(
+        config.MYSQL_USERNAME, config.MYSQL_PASSWORD, config.MYSQL_ADDRESS))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 防止 MySQL 连接空闲超时断开（云数据库默认 8 小时，但容器冷启后旧连接失效）

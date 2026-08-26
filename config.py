@@ -14,7 +14,7 @@ PORT = 5000
 # ============================================================
 # MySQL 数据库（云托管通过环境变量注入）
 # ============================================================
-DEBUG = os.environ.get("DEBUG", "True") == "True"
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 MYSQL_USERNAME = os.environ.get("MYSQL_USERNAME", "root")
 MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "root")
 MYSQL_ADDRESS = os.environ.get("MYSQL_ADDRESS", "127.0.0.1:3306")
@@ -68,6 +68,16 @@ BIG_PERIOD_MAP = {
 }
 
 # ============================================================
+# 智慧理工 SSO 配置（校外/备用登录方式）
+# ============================================================
+SSO_BASE = "https://ids.njust.edu.cn"
+SSO_LOGIN_URL = (
+    f"{SSO_BASE}/authserver/login"
+    "?service=https%3A%2F%2Fehall2.njust.edu.cn%2Flogin"
+)
+
+# ============================================================
 # 调试开关
 # ============================================================
 DEBUG_EVAL = False
+DEBUG_WEBVPN = False

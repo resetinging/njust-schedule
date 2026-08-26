@@ -209,7 +209,6 @@ let currentEvalForm = null;   // 当前评价表单数据 (indicators + hidden_f
 let currentBatchData = null;  // 当前批次课程列表数据 (courses + hidden_fields)
 let currentBatchUrl = '';     // 当前批次的教务 URL，用于提交后重新拉取
 let currentView = 'courses';  // 'courses' | 'form'
-let batchPollTimer = null;   // 批量评教轮询定时器
 
 // 第一步：点击批次 → 加载课程列表
 async function openEvalModal(title, itemUrl) {
@@ -581,11 +580,6 @@ async function submitEval(submitType) {
         }
     }
 
-    // 调试：输出所有 radio 键值对
-    const radioKeys = Object.keys(payload).filter(k => k.startsWith('pj0601id_'));
-    console.log('提交评教 — radio 组数:', radioKeys.length, radioKeys);
-    console.log('提交评教 — 完整 payload 键数:', Object.keys(payload).length);
-
     showLoading('正在提交评教...');
     try {
         const resp = await fetch('/api/submit-eval', {
@@ -595,7 +589,6 @@ async function submitEval(submitType) {
                 form_data: payload,
                 submit_type: submitType,
                 action: currentEvalForm.action || '/njlgdx/xspj/xspj_save.do',
-                _debug_radio_count: radioKeys.length,
             }),
         });
         const data = await resp.json();
@@ -805,8 +798,85 @@ function showFillResult(actualScore, target) {
 }
 
 // ============================================================
-// 批量评教（一键评教）
+// 批量评教（一键评教）— 前端循环执行(方案 A)
 // ============================================================
+
+// 纯计算: 根据目标分计算每个指标的最优选项(不依赖 DOM)
+function computeAutoFillSelection(indicators, target) {
+    const selections = [];
+    const maxScore = calcMaxScore(indicators);
+
+    // 步骤 1: 每条指标选最接近目标比例的选项
+    for (const ind of indicators) {
+        const opts = ind.options || [];
+        if (opts.length === 0) continue;
+        let indMax = 0;
+        for (const o of opts) {
+            const s = parseFloat(o.score) || 0;
+            if (s > indMax) indMax = s;
+        }
+        const indTarget = maxScore > 0 ? (target / maxScore) * indMax : 0;
+        let bestIdx = 0, bestDist = Infinity;
+        for (let i = 0; i < opts.length; i++) {
+            const s = parseFloat(opts[i].score) || 0;
+            const dist = Math.abs(s - indTarget);
+            if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+        }
+        selections.push({ ind, colIndex: bestIdx, score: parseFloat(opts[bestIdx].score) || 0 });
+    }
+
+    // 步骤 2: 防作弊 — 不能所有指标选同一列
+    const allSameColumn = selections.length > 1
+        && selections.every(s => s.colIndex === selections[0].colIndex);
+    if (allSameColumn) {
+        const cur = selections.reduce((sum, s) => sum + s.score, 0);
+        let bestPenalty = Math.abs(cur - target), bestCombo = null;
+        selections.forEach((sel, si) => {
+            (sel.ind.options || []).forEach((o, ci) => {
+                if (ci === sel.colIndex) return;
+                const p = Math.abs(cur - sel.score + (parseFloat(o.score) || 0) - target);
+                if (p < bestPenalty) {
+                    bestPenalty = p;
+                    bestCombo = { si, ci, score: parseFloat(o.score) || 0 };
+                }
+            });
+        });
+        if (bestCombo) {
+            selections[bestCombo.si].colIndex = bestCombo.ci;
+            selections[bestCombo.si].score = bestCombo.score;
+        }
+    }
+
+    // 步骤 3: 微调
+    for (let round = 0; round < 5; round++) {
+        const cur = selections.reduce((sum, s) => sum + s.score, 0);
+        const curPenalty = Math.abs(cur - target);
+        if (curPenalty < 0.5) break;
+        let bestSwap = null, bestPenalty = curPenalty;
+        selections.forEach((sel, si) => {
+            (sel.ind.options || []).forEach((o, ci) => {
+                if (ci === sel.colIndex) return;
+                const newPenalty = Math.abs(cur - sel.score + (parseFloat(o.score) || 0) - target);
+                const saved = sel.colIndex;
+                sel.colIndex = ci;
+                const same = selections.every(s => s.colIndex === selections[0].colIndex);
+                sel.colIndex = saved;
+                if (same) return;
+                if (newPenalty < bestPenalty) {
+                    bestPenalty = newPenalty;
+                    bestSwap = { si, ci, score: parseFloat(o.score) || 0 };
+                }
+            });
+        });
+        if (bestSwap) {
+            selections[bestSwap.si].colIndex = bestSwap.ci;
+            selections[bestSwap.si].score = bestSwap.score;
+        } else {
+            break;
+        }
+    }
+    return selections;
+}
 
 async function startBatchEval() {
     if (!currentBatchData || !currentBatchUrl) {
@@ -823,8 +893,6 @@ async function startBatchEval() {
     const targetInput = document.getElementById('batch-target-score');
     const targetScore = parseInt(targetInput ? targetInput.value : '95') || 95;
 
-    const actionPath = currentEvalForm ? currentEvalForm.action : '/njlgdx/xspj/xspj_save.do';
-
     if (!confirm(`将自动为 ${unsubmitted.length} 门课程以目标分 ${targetScore} 评分并提交，确认继续？`)) {
         return;
     }
@@ -839,103 +907,86 @@ async function startBatchEval() {
     document.getElementById('batch-progress-actions').style.display = 'none';
     document.getElementById('eval-modal-title').textContent = '🚀 一键评教中...';
 
-    try {
-        const resp = await fetch('/api/batch-submit-eval', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                batch_url: currentBatchUrl,
-                action_path: actionPath,
-                hidden_fields: currentBatchData.hidden_fields || {},
-                target_score: targetScore,
-                submit_type: '1',
-            }),
-        });
-        const data = await resp.json();
-
-        if (!data.success) {
-            showToast('❌ ' + data.message, 'error');
-            hideBatchProgress();
-            return;
-        }
-
-        if (data.total === 0) {
-            showToast('✅ 所有课程已提交，无需评价', 'success');
-            hideBatchProgress();
-            await refreshCourseList();
-            return;
-        }
-
-        // 开始轮询进度
-        pollBatchProgress(data.batch_id);
-    } catch (e) {
-        showToast('❌ 请求失败: ' + e.message, 'error');
-        hideBatchProgress();
-    }
-}
-
-function pollBatchProgress(batchId) {
-    if (batchPollTimer) clearInterval(batchPollTimer);
-
-    batchPollTimer = setInterval(async () => {
+    const results = [];
+    for (let i = 0; i < unsubmitted.length; i++) {
+        const course = unsubmitted[i];
+        const statusEl = document.getElementById('batch-progress-status');
         try {
-            const resp = await fetch('/api/batch-progress/' + batchId);
+            statusEl.textContent = `正在加载 ${course.name}...`;
+            const resp = await fetch('/api/eval-form?url=' + encodeURIComponent(course.eval_url));
             const data = await resp.json();
-            if (!data.success) {
-                clearInterval(batchPollTimer);
-                batchPollTimer = null;
-                showToast('❌ ' + (data.message || '进度查询失败'), 'error');
-                hideBatchProgress();
-                return;
-            }
-            renderBatchProgress(data);
-            if (data.done) {
-                clearInterval(batchPollTimer);
-                batchPollTimer = null;
+            if (!data.success || !(data.indicators || []).length) {
+                results.push({ course: course.name, status: 'failed', error: data.message || '无法解析表单' });
+            } else {
+                statusEl.textContent = `正在为 ${course.name} 自动评分...`;
+                const sels = computeAutoFillSelection(data.indicators, targetScore);
+                const payload = { ...(data.hidden_fields || {}) };
+                for (const sel of sels) {
+                    const opt = (sel.ind.options || [])[sel.colIndex];
+                    if (opt) payload[opt.name] = opt.value;
+                }
+                // 补课程列表页的批次级隐藏字段（如 cj0701id）
+                if (currentBatchData.hidden_fields) {
+                    for (const [k, v] of Object.entries(currentBatchData.hidden_fields)) {
+                        if (!(k in payload)) payload[k] = v;
+                    }
+                }
+                payload.issubmit = '1';
+                statusEl.textContent = `正在提交 ${course.name}...`;
+                const sub = await fetch('/api/submit-eval', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        form_data: payload,
+                        submit_type: '1',
+                        action: data.action || '/njlgdx/xspj/xspj_save.do',
+                    }),
+                });
+                const subData = await sub.json();
+                if (subData.success) {
+                    results.push({
+                        course: course.name, status: 'success',
+                        score: Math.round(sels.reduce((sum, s) => sum + s.score, 0) * 10) / 10,
+                    });
+                } else {
+                    results.push({ course: course.name, status: 'failed', error: subData.message || '提交失败' });
+                }
             }
         } catch (e) {
-            console.error('轮询进度失败:', e);
+            results.push({ course: course.name, status: 'failed', error: e.message || '请求失败' });
         }
-    }, 1500);
-}
 
-function renderBatchProgress(progress) {
-    const pct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
-
-    document.getElementById('batch-progress-count').textContent =
-        `${progress.current} / ${progress.total}`;
-    document.getElementById('batch-progress-fill').style.width = pct + '%';
-    document.getElementById('batch-progress-status').textContent = progress.message;
-
-    // 渲染各课程结果
-    let resultsHtml = '';
-    for (const r of (progress.results || [])) {
-        const icon = r.status === 'success' ? '✅' : '❌';
-        const detail = r.status === 'success'
-            ? (r.score ? ` — ${r.score}分` : '')
-            : ` — ${escapeHtml(r.error || '未知错误')}`;
-        resultsHtml += `
-            <div class="batch-progress-item ${r.status}">
-                <span>${icon} ${escapeHtml(r.course)}</span>
-                <span class="batch-progress-item-detail">${detail}</span>
-            </div>`;
+        // 更新进度 UI
+        const done = i + 1;
+        document.getElementById('batch-progress-count').textContent = `${done} / ${unsubmitted.length}`;
+        document.getElementById('batch-progress-fill').style.width =
+            Math.round((done / unsubmitted.length) * 100) + '%';
+        let resultsHtml = '';
+        for (const r of results) {
+            const icon = r.status === 'success' ? '✅' : '❌';
+            const detail = r.status === 'success'
+                ? (r.score ? ` — ${r.score}分` : '')
+                : ` — ${escapeHtml(r.error || '未知错误')}`;
+            resultsHtml += `
+                <div class="batch-progress-item ${r.status}">
+                    <span>${icon} ${escapeHtml(r.course)}</span>
+                    <span class="batch-progress-item-detail">${detail}</span>
+                </div>`;
+        }
+        document.getElementById('batch-progress-results').innerHTML = resultsHtml;
     }
-    document.getElementById('batch-progress-results').innerHTML = resultsHtml;
 
-    // 完成时显示操作按钮
-    if (progress.done) {
-        document.getElementById('batch-progress-status').textContent =
-            `已完成！成功 ${progress.results.filter(r => r.status === 'success').length} / ${progress.total}`;
-        document.getElementById('batch-progress-actions').style.display = 'block';
-        document.getElementById('eval-modal-title').textContent = '✅ 批量评教完成';
+    const successCount = results.filter(r => r.status === 'success').length;
+    const failCount = results.filter(r => r.status === 'failed').length;
+    document.getElementById('batch-progress-status').textContent =
+        `已完成！成功 ${successCount} / ${unsubmitted.length}`;
+    document.getElementById('batch-progress-actions').style.display = 'block';
+    document.getElementById('eval-modal-title').textContent = '✅ 批量评教完成';
+    let msg = `✅ 批量评教：${successCount} 成功`;
+    if (failCount > 0) msg += `，${failCount} 失败`;
+    showToast(msg, failCount > 0 ? 'warning' : 'success');
 
-        // 计算总分促进用户反馈
-        const successCount = progress.results.filter(r => r.status === 'success').length;
-        const failCount = progress.results.filter(r => r.status === 'failed').length;
-        let msg = `✅ 批量评教：${successCount} 成功`;
-        if (failCount > 0) msg += `，${failCount} 失败`;
-        showToast(msg, failCount > 0 ? 'warning' : 'success');
-    }
+    await refreshCourseList();
 }
 
 function hideBatchProgress() {
@@ -944,11 +995,6 @@ function hideBatchProgress() {
 }
 
 function closeEvalModal() {
-    // 停止批量评教轮询
-    if (batchPollTimer) {
-        clearInterval(batchPollTimer);
-        batchPollTimer = null;
-    }
     document.getElementById('eval-modal').style.display = 'none';
     document.getElementById('eval-modal-content').innerHTML = '';
     document.getElementById('batch-progress').style.display = 'none';
