@@ -8,10 +8,12 @@ MarkupSafe==2.1.5
 PyMySQL==1.0.3
 SQLAlchemy==1.4.54
 Werkzeug==2.2.3
-# NJUST 教务爬虫依赖
-requests>=2.25
-beautifulsoup4>=4.9
-lxml>=4.6
-ddddocr>=1.0
-Pillow>=11.0
-pycryptodome>=3.15
+# 生产 WSGI 服务器（替代 Flask 开发服务器）
+gunicorn==21.2.0
+# NJUST 教务爬虫依赖（版本与本地实测一致，保证部署可重复）
+requests==2.34.2
+beautifulsoup4==4.15.0
+lxml==6.1.2
+ddddocr==1.6.1
+Pillow==12.3.0
+pycryptodome==3.23.0

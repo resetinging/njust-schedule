@@ -160,6 +160,15 @@ EVAL_HEADERS = {
 
 
 def _warm_eval_session(client: JWCClient):
+    """评教请求前的教务页面预热（应对教务的 Referer 校验）。
+
+    同一用户 60 秒内只预热一次：批量评教逐门提交时，
+    每个请求此前都会多打一次预热请求，缓存后教务请求量减半。
+    """
+    now = time.time()
+    if now - getattr(client, "_eval_warm_ts", 0.0) < 60:
+        return
+    client._eval_warm_ts = now
     client.session.get(
         "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
         headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},

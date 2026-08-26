@@ -37,3 +37,10 @@ nul
 
 # macOS
 .DS_Store
+
+# Python 虚拟环境与本地工具链（构建上下文不应包含）
+.venv/
+.uvbin/
+tests/
+docs/
+.claude/

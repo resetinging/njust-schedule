@@ -3,30 +3,31 @@
 FROM python:3.10-slim
 
 # 容器默认时区为UTC，启用上海时区（学期计算/日志时间依赖北京时间）
-RUN apt-get update && apt-get install -y tzdata \
-    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo Asia/Shanghai > /etc/timezone
-
-# 安装系统依赖（ddddocr 的 onnxruntime 需要 libgomp）
+# 一并安装系统依赖（ddddocr 的 onnxruntime 需要 libgomp）
 RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libgomp1 \
+        tzdata ca-certificates libgomp1 \
+    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo Asia/Shanghai > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
-# 拷贝当前项目到/app目录下（.dockerignore中文件除外）
-COPY . /app
-
-# 设定当前的工作目录
+# 设定工作目录
 WORKDIR /app
 
-# 安装 Python 依赖，选用国内镜像源
+# ★ 先拷贝并安装依赖（Docker 层缓存: 代码改动不会触发依赖重装, 构建大幅加速）
+COPY requirements.txt /app/requirements.txt
 RUN pip config set global.index-url http://mirrors.cloud.tencent.com/pypi/simple \
     && pip config set global.trusted-host mirrors.cloud.tencent.com \
     && pip install --upgrade pip \
     && pip install --user -r requirements.txt
 
+# 再拷贝项目代码（.dockerignore 中文件除外）
+COPY . /app
+
 # 暴露端口。必须与 container.config.json 中的 containerPort 一致
 EXPOSE 80
 
-# 执行启动命令（与模板 run.py 兼容）
-CMD ["python3", "run.py", "0.0.0.0", "80"]
+# 生产启动: gunicorn 单 worker + 多线程（会话在进程内存, 必须单进程;
+# 8 线程足够承载教务 IO 等待期间的并发）
+CMD ["python3", "-m", "gunicorn", "run:app", \
+     "--workers", "1", "--threads", "8", \
+     "--timeout", "60", "--bind", "0.0.0.0:80"]

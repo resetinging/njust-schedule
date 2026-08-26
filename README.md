@@ -25,7 +25,7 @@
 
 ## 技术栈
 
-- 后端:Python 3.10 / Flask 2.2 / SQLAlchemy 1.4 / MySQL
+- 后端:Python 3.10 / Flask 2.2 / SQLAlchemy 1.4 / MySQL / gunicorn(单 worker 多线程,会话在进程内存)
 - 爬虫:requests + BeautifulSoup(lxml),HTML 解析带多策略降级(API → 查询页表单 → 列表页)
 - OCR:ddddocr(验证码自动识别)
 - 前端:原生 JS + PWA(Service Worker 离线缓存)
