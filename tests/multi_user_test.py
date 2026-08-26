@@ -146,6 +146,18 @@ check("pop 仅删除对应用户的验证码会话",
 views._pop_captcha_client(cid2)
 check("两个验证码会话均已消费删除", len(views._captcha_clients) == 0)
 
+print("== 空考试数据场景 ==")
+# 模拟"本学期暂无考试": 考试接口返回空且无错误信息
+C = make_user("10003", "丙")
+C.get_exams = lambda semester="": []
+tC = views._register_session(C)
+hC = {"X-Auth-Token": tC}
+r = client.post("/api/refresh-exams", headers=hC)
+check("空考试表返回成功而非解析失败", r.status_code == 200 and r.get_json()["success"],
+      (r.status_code, r.get_json()))
+check("成功消息提示暂无考试", "0 场" in r.get_json()["message"], r.get_json()["message"])
+client.post("/api/logout", headers=hC)
+
 print("== 登出隔离验证 ==")
 r = client.post("/api/logout", headers=hA)
 check("甲 退出登录", r.status_code == 200)

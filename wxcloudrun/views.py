@@ -609,15 +609,19 @@ def _require_login() -> Tuple[Optional[JWCClient], Optional[Tuple]]:
 
 
 def _retry_with_relogin(client: JWCClient, fetch_func, error_msg: str):
-    """执行数据获取。失败时区分两种情况:
-      - 明确会话过期(错误信息提示需登录) → 401 踢下线
-      - 暂无数据/临时故障 → 保留会话, 返回 500 提示重试(不再误踢用户)
+    """执行数据获取。三种结果:
+      - 有数据 → 正常返回
+      - 空结果且无错误信息 → 成功但无数据(如"本学期暂无考试"), 不报错
+      - 有错误信息 → 区分会话过期(401 踢下线)与其他故障(500 提示重试)
     返回 (data, error_tuple)，成功时 error_tuple 为 None，
     失败时 data 为 []，error_tuple 为 (flask_response, status_code)。"""
     result = fetch_func()
     if result:
         return result, None
     last_err = client.last_error or ""
+    if not last_err:
+        # 成功获取但无数据（空表等正常场景）
+        return [], None
     if "登录" in last_err or "logon" in last_err.lower():
         client.logged_in = False
         return [], (jsonify({
@@ -626,7 +630,7 @@ def _retry_with_relogin(client: JWCClient, fetch_func, error_msg: str):
         }), 401)
     return [], (jsonify({
         "success": False,
-        "message": f"{error_msg}: {last_err or '可能暂无数据，请稍后重试'}",
+        "message": f"{error_msg}: {last_err}",
     }), 500)
 
 
@@ -667,9 +671,13 @@ def api_refresh_exams():
         return retry_err
     dao.save_exams(exams, semester, sid)
     _invalidate_stats(sid, semester)
+    if exams:
+        msg = f"成功获取 {len(exams)} 场考试"
+    else:
+        msg = "成功获取 0 场考试（本学期暂无考试安排）"
     return jsonify({
         "success": True,
-        "message": f"成功获取 {len(exams)} 场考试",
+        "message": msg,
         "count": len(exams),
     })
 

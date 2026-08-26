@@ -1,5 +1,13 @@
 # 创建应用实例
+import logging
 import sys
+
+# 全局日志配置: info 级别输出到 stdout(云托管采集 stdout 日志)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    stream=sys.stdout,
+)
 
 from wxcloudrun import app
 
