@@ -50,11 +50,14 @@ function request(method, path, data = {}) {
   }
 
   return new Promise((resolve) => {
+    // 服务名通过 X-WX-SERVICE header 传递（官方兼容写法）；
+    // config 仅放 env，避免部分基础库版本不支持 config.service 导致
+    // 请求丢失服务名 → 网关 INVALID_PATH。
     wx.cloud.callContainer({
-      config: { env: config.CLOUD_ENV, service: config.CLOUD_SERVICE },
+      config: { env: config.CLOUD_ENV },
       path,
       method,
-      header,
+      header: Object.assign({ 'X-WX-SERVICE': config.CLOUD_SERVICE }, header),
       data,
       timeout: config.REQUEST_TIMEOUT,
       success(res) {
