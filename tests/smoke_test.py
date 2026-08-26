@@ -25,7 +25,7 @@ os.environ.pop("MYSQL_PASSWORD", None)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from wxcloudrun import app, db  # noqa: E402  (导入即触发 db.create_all())
+from wxcloudrun import app, db, dao  # noqa: E402  (导入即触发 db.create_all())
 
 client = app.test_client()
 
@@ -47,21 +47,25 @@ print("== 页面路由 ==")
 for path in ["/", "/exams", "/evaluations", "/grades", "/settings", "/gallery"]:
     check(path, client.get(path), 200)
 
-print("== 公开 API ==")
+print("== 公开 API (未登录) ==")
 check("/api/status", client.get("/api/status"), 200)
 check("/api/settings", client.get("/api/settings"), 200)
 check("/api/semesters", client.get("/api/semesters"), 200)
-check("/api/courses", client.get("/api/courses"), 200)
-check("/api/exams", client.get("/api/exams"), 200)
-check("/api/evaluations", client.get("/api/evaluations"), 200)
-check("/api/grades", client.get("/api/grades"), 200)
-check("/api/cet-scores", client.get("/api/cet-scores"), 200)
 check("/api/gallery-images", client.get("/api/gallery-images"), 200)
 check("/api/gallery-image?name=南京理工大学26-27年校历.png",
       client.get("/api/gallery-image?name=南京理工大学26-27年校历.png"), 200)
 check("/api/gallery-image 路径穿越防护",
       client.get("/api/gallery-image?name=..%2Fconfig.py"), 400)
 check("/api/connect-test", client.get("/api/connect-test"), 200)
+
+# 无账号模式: 未登录时不泄露数据库里保存的账号/密码状态
+st = client.get("/api/status").get_json()
+assert st["logged_in"] is False and st["student_id"] == "" and st["student_name"] == ""
+assert st["auto_login_attempted"] is False and st["login_method"] == ""
+print("  [PASS] /api/status 未登录: 无账号信息、不触发自动登录")
+se = client.get("/api/settings").get_json()
+assert se["student_id"] == "" and se["has_password"] is False and se["has_jwc_password"] is False
+print("  [PASS] /api/settings 未登录: 不泄露保存的账号/密码状态")
 
 print("== 未登录保护 (期望 401) ==")
 for name, path, method in [
@@ -75,9 +79,21 @@ for name, path, method in [
     ("eval-courses", "/api/eval-courses?url=/njlgdx/xspj/x", "get"),
     ("submit-eval", "/api/submit-eval", "post"),
     ("jw-proxy", "/api/jw-proxy", "post"),
+    ("courses", "/api/courses", "get"),
+    ("exams", "/api/exams", "get"),
+    ("evaluations", "/api/evaluations", "get"),
+    ("grades", "/api/grades", "get"),
+    ("cet-scores", "/api/cet-scores", "get"),
 ]:
     resp = client.post(path, json={}) if method == "post" else client.get(path)
     check(name, resp, 401)
+
+# 即使数据库里存有历史凭证，也不会自动登录（无账号模式核心行为）
+dao.set_setting("student_id", "99999999")
+dao.set_setting("password_enc", "fake-encrypted")
+st = client.get("/api/status").get_json()
+assert st["logged_in"] is False and st["student_id"] == "", st
+print("  [PASS] 库中存有凭证时 /api/status 仍为未登录、不泄露账号")
 
 print("== 参数校验 ==")
 check("login 缺参数", client.post("/api/login", json={}), 400)
@@ -86,7 +102,6 @@ check("eval-form 缺 url", client.get("/api/eval-form"), 400)
 check("404 处理", client.get("/no-such-page"), 404)
 
 print("== 数据访问层 ==")
-from wxcloudrun import dao  # noqa: E402
 
 # 设置读写
 dao.set_setting("smoke_key", "hello")

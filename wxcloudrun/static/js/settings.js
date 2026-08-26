@@ -1,4 +1,4 @@
-﻿// 当前登录模式: 'direct' | 'webvpn'
+// 当前登录模式: 'direct' | 'webvpn'
 let currentLoginMode = 'direct';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -169,12 +169,12 @@ function updateDataStats(data) {
         <p>📊 课表数据: <strong id="stats-courses">-</strong> 门课程</p>
         <p>📊 考试数据: <strong id="stats-exams">-</strong> 场考试</p>
     `;
-    // 异步加载实际数量
+    // 异步加载实际数量（未登录时接口返回 401，显示 '-'）
     fetch('/api/courses').then(r => r.json()).then(d => {
-        document.getElementById('stats-courses').textContent = d.count;
+        document.getElementById('stats-courses').textContent = (d && d.success) ? d.count : '-';
     });
     fetch('/api/exams').then(r => r.json()).then(d => {
-        document.getElementById('stats-exams').textContent = d.count;
+        document.getElementById('stats-exams').textContent = (d && d.success) ? d.count : '-';
     });
 }
 

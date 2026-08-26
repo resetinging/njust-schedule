@@ -27,6 +27,12 @@ jwc_lock = threading.Lock()
 _auto_login_attempted = False
 _last_auto_login_time = 0.0
 
+# 自动登录开关：默认关闭（无账号模式）。
+#   关闭时：任何人打开页面都是未登录状态，后端不会用数据库里保存的
+#   凭证自动登录教务；用户必须在设置页手动输入学号/密码/验证码登录。
+#   设环境变量 AUTO_LOGIN_ENABLED=True 可恢复旧行为。
+AUTO_LOGIN_ENABLED = os.environ.get("AUTO_LOGIN_ENABLED", "False") == "True"
+
 EVAL_HEADERS = {
     "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
     "Host": "202.119.81.112:9080",
@@ -127,24 +133,18 @@ def proxy_jw(target_path):
 # ============================================================
 @app.route('/api/status')
 def api_status():
-    student_id = dao.get_setting("student_id")
-    student_name = dao.get_setting("student_name")
+    # 无账号模式：登录态只取决于当前进程内的教务会话（jwc_client），
+    # 不读取数据库里保存的账号，也绝不在这里触发自动登录。
+    logged_in = bool(jwc_client.logged_in)
+    student_id = jwc_client.student_id if logged_in else ""
+    student_name = jwc_client.student_name if logged_in else ""
     semester = dao.get_setting("semester", jwc_client._current_semester())
 
     has_courses = False
     has_exams = False
-    if student_id and semester:
+    if logged_in and semester:
         has_courses = dao.count_courses(semester) > 0
         has_exams = dao.count_exams(semester) > 0
-
-    auto_login_error = ""
-    global _auto_login_attempted, _last_auto_login_time
-    if not jwc_client.logged_in and student_id:
-        if not _auto_login_attempted or (time.time() - _last_auto_login_time) > 30:
-            if _auto_login():
-                auto_login_error = ""
-            else:
-                auto_login_error = jwc_client.last_error or "登录失败"
 
     # 教务连通性(桌面端导航栏/设置页依赖)
     try:
@@ -161,15 +161,15 @@ def api_status():
                    "label": "离线", "hint": "请检查教务系统连接"}
 
     return jsonify({
-        "logged_in": jwc_client.logged_in,
+        "logged_in": logged_in,
         "student_id": student_id,
-        "student_name": student_name or jwc_client.student_name or "",
+        "student_name": student_name,
         "semester": semester or jwc_client._current_semester(),
         "has_courses": has_courses,
         "has_exams": has_exams,
-        "login_method": jwc_client.login_method or "",
-        "auto_login_attempted": _auto_login_attempted,
-        "auto_login_error": auto_login_error,
+        "login_method": jwc_client.login_method if logged_in else "",
+        "auto_login_attempted": False,
+        "auto_login_error": "",
         "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "first_week_date": dao.get_setting("first_week_date", ""),
         "network": network,
@@ -222,22 +222,22 @@ def _decode_pwd(encoded: str) -> str:
 
 
 def _resolve_password(student_id: str, provided: str) -> str:
-    """解析登录密码：优先使用前端提供的，为空时回退到已保存的密码。
+    """解析登录密码。
 
-    保存了智慧理工密码（password_enc）与教务密码（jwc_password_enc）时，
-    自动登录优先使用教务密码。
+    无账号模式：登录必须显式提供密码，不再回退到数据库里保存的凭证
+    （避免"空密码登录"隐式使用他人保存的账号密码）。
     """
-    if provided:
-        return provided
-    saved_sid = dao.get_setting("student_id")
-    if saved_sid == student_id:
-        jwc_pwd = _decode_pwd(dao.get_setting("jwc_password_enc", ""))
-        pwd = _decode_pwd(dao.get_setting("password_enc", ""))
-        return jwc_pwd or pwd
-    return ""
+    return provided or ""
 
 
 def _auto_login() -> bool:
+    """用数据库保存的凭证自动登录教务。
+
+    仅当 AUTO_LOGIN_ENABLED=True 时生效（默认无账号模式，直接失败）。
+    """
+    if not AUTO_LOGIN_ENABLED:
+        jwc_client.last_error = "自动登录已关闭，请手动登录"
+        return False
     global _auto_login_attempted, _last_auto_login_time
     _auto_login_attempted = True
     _last_auto_login_time = time.time()
@@ -450,6 +450,11 @@ def api_login_webvpn():
 def _require_login():
     if not jwc_client.logged_in or not jwc_client.is_session_valid():
         jwc_client.logged_in = False
+        if not AUTO_LOGIN_ENABLED:
+            return jsonify({
+                "success": False,
+                "message": "尚未登录，请先在设置页面登录",
+            }), 401
         auto_ok = _auto_login()
         student_id = dao.get_setting("student_id")
         if not student_id:
@@ -467,19 +472,19 @@ def _require_login():
 
 
 def _retry_with_relogin(fetch_func, error_msg: str):
-    """执行数据获取，若失败则重新登录后重试一次。
+    """执行数据获取，失败时仅在自动登录开启的情况下重新登录后重试一次。
     返回 (data, error_tuple)，成功时 error_tuple 为 None，
     失败时 data 为 []，error_tuple 为 (flask_response, status_code)。"""
     result = fetch_func()
     if result:
         return result, None
-    # 失败 → 强制重新登录
+    # 失败 → 会话过期；无账号模式下不自动重登录，直接要求手动登录
     jwc_client.logged_in = False
-    if not _auto_login():
+    if not AUTO_LOGIN_ENABLED or not _auto_login():
         return [], (jsonify({
             "success": False,
-            "message": f"{error_msg}: 自动重新登录失败 — {jwc_client.last_error}",
-        }), 500)
+            "message": f"{error_msg}: 会话已过期，请重新登录",
+        }), 401)
     # 重试
     result = fetch_func()
     if result:
@@ -596,6 +601,9 @@ def _dedupe_courses(courses: list) -> list:
 
 @app.route('/api/courses')
 def api_get_courses():
+    err = _require_login()
+    if err:
+        return err
     semester = (request.args.get("semester") or "").strip() or \
         dao.get_setting("semester", jwc_client._current_semester())
     courses = _dedupe_courses(dao.get_courses(semester))
@@ -609,6 +617,9 @@ def api_get_courses():
 
 @app.route('/api/exams')
 def api_get_exams():
+    err = _require_login()
+    if err:
+        return err
     semester = (request.args.get("semester") or "").strip() or \
         dao.get_setting("semester", jwc_client._current_semester())
     exams = dao.get_exams(semester)
@@ -623,17 +634,19 @@ def api_get_exams():
 @app.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
     if request.method == 'GET':
+        # 无账号模式：未登录时不返回数据库里保存的账号与密码状态
+        logged_in = bool(jwc_client.logged_in)
         settings = {
-            "student_id": dao.get_setting("student_id"),
-            "student_name": dao.get_setting("student_name"),
+            "student_id": (jwc_client.student_id if logged_in else ""),
+            "student_name": (jwc_client.student_name if logged_in else ""),
             "semester": dao.get_setting("semester"),
             "auto_refresh": dao.get_setting("auto_refresh", "false"),
             "refresh_interval": dao.get_setting("refresh_interval", "3600"),
             "first_week_date": dao.get_setting("first_week_date", ""),
             "semester_list": jwc_client.get_semester_list(),
             "current_semester": jwc_client._current_semester(),
-            "has_password": bool(dao.get_setting("password_enc", "")),
-            "has_jwc_password": bool(dao.get_setting("jwc_password_enc", "")),
+            "has_password": bool(dao.get_setting("password_enc", "")) if logged_in else False,
+            "has_jwc_password": bool(dao.get_setting("jwc_password_enc", "")) if logged_in else False,
         }
         return jsonify(settings)
     else:
@@ -700,6 +713,9 @@ def api_set_semester():
 
 @app.route('/api/evaluations')
 def api_get_evaluations():
+    err = _require_login()
+    if err:
+        return err
     semester = (request.args.get("semester") or "").strip() or \
         dao.get_setting("semester", jwc_client._current_semester())
     evals = dao.get_evaluations(semester)
@@ -1050,6 +1066,9 @@ def api_get_grades():
     参数:
         semester: 学期代码(如 "2024-2025-1"),传 "__all__" 或不传查看全部学期
     """
+    err = _require_login()
+    if err:
+        return err
     semester = request.args.get("semester", "")
     view_all = (semester == "__all__" or not semester)
 
@@ -1140,6 +1159,9 @@ def api_refresh_cet():
 @app.route('/api/cet-scores')
 def api_cet_scores():
     """获取已存储的四六级原始成绩(折算计算已移至前端)"""
+    err = _require_login()
+    if err:
+        return err
     scores = dao.get_cet_scores()
     return jsonify({"success": True, "scores": scores})
 
