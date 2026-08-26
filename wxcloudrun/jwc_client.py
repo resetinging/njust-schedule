@@ -314,7 +314,7 @@ class JWCClient:
             self._captcha_ready = False
             return True
 
-        self.last_error = "验证码不正确，请刷新重试"
+        self.last_error = "验证码不正确或已过期，请刷新验证码后重试"
         self._captcha_ready = False
         return False
 
@@ -744,6 +744,11 @@ class JWCClient:
                     jar.clear(c.domain, c.path, c.name)
 
     def _ocr_with_preprocess(self, ocr, data: bytes) -> str:
+        """多候选预处理提高识别率: 原图 → 二值化 → 2x放大 → 反色。
+
+        每个候选分别识别, 取第一个非空结果; 验证码可能白底黑字
+        或深底浅字, 反色候选覆盖后一种情况。
+        """
         cands = [data]
         try:
             from PIL import Image
@@ -751,13 +756,16 @@ class JWCClient:
             img = Image.open(BytesIO(data)).convert("L")
             bw = img.point(lambda x: 0 if x < 140 else 255, "1")
             b = BytesIO(); bw.save(b, format="PNG"); cands.append(b.getvalue())
-            big = img.resize((img.width*2, img.height*2), Image.LANCZOS)
+            big = img.resize((img.width * 2, img.height * 2), Image.LANCZOS)
             b2 = BytesIO(); big.save(b2, format="PNG"); cands.append(b2.getvalue())
+            inv = img.point(lambda x: 255 - x)
+            b3 = BytesIO(); inv.save(b3, format="PNG"); cands.append(b3.getvalue())
         except Exception:
             pass
         for c in cands:
             r = ocr.classification(c).strip()
-            if r: return r
+            if r:
+                return r
         return ""
 
     def _check_success(self, resp) -> bool:

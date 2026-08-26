@@ -53,6 +53,18 @@ def _jwc_request(client: JWCClient):
             yield client
 
 
+@contextmanager
+def _jwc_request_priority(client: JWCClient):
+    """登录/验证码请求的优先通道: 仅实例锁串行, 不参与全局信号量排队。
+
+    验证码时效仅几十秒, 若与其他用户的数据刷新一起排队, 轮到执行时
+    验证码已过期 — 表现为"验证码一直不正确"。登录请求量极小,
+    不限流风险可控。
+    """
+    with client._lock:
+        yield client
+
+
 def _prune_captcha_locked():
     now = time.time()
     expired = [cid for cid, (_c, ts) in _captcha_clients.items()
@@ -389,7 +401,7 @@ def _on_login_success(client: JWCClient, token: str):
 @app.route('/api/get-captcha')
 def api_get_captcha():
     cid, client = _new_captcha_client()
-    with _jwc_request(client):
+    with _jwc_request_priority(client):
         b64, error = client.get_captcha_base64()
     if error or not b64:
         _pop_captcha_client(cid)
@@ -415,7 +427,7 @@ def api_login():
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
     client = JWCClient()
-    with _jwc_request(client):
+    with _jwc_request_priority(client):
         success = client.login(student_id, password)
     if success:
         token = _register_session(client)
@@ -442,7 +454,7 @@ def api_login_manual():
     client = _pop_captcha_client(captcha_id)
     if client is None:
         return jsonify({"success": False, "message": "验证码会话已过期，请重新获取"}), 400
-    with _jwc_request(client):
+    with _jwc_request_priority(client):
         success = client.login_with_manual_captcha(student_id, password, captcha_text)
     if success:
         token = _register_session(client)
@@ -467,7 +479,7 @@ def api_get_webvpn_captcha():
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
 
     cid, client = _new_captcha_client()
-    with _jwc_request(client):
+    with _jwc_request_priority(client):
         b64, error = client.get_webvpn_captcha_base64(student_id, password)
 
     if b64 == "__ALREADY_LOGGED_IN__":
@@ -521,7 +533,7 @@ def api_login_webvpn_manual():
     if client is None:
         return jsonify({"success": False, "message": "验证码会话已过期，请重新获取"}), 400
 
-    with _jwc_request(client):
+    with _jwc_request_priority(client):
         success = client.complete_webvpn_login(student_id, password, captcha_text)
 
     if success:
@@ -545,7 +557,7 @@ def api_login_webvpn():
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
 
     client = JWCClient()
-    with _jwc_request(client):
+    with _jwc_request_priority(client):
         success = client.login_webvpn(student_id, password)
 
     if success:
