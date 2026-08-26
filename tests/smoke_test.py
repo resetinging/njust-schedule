@@ -7,7 +7,7 @@
   - 公开 API 与参数校验
   - 未登录保护（401）
   - 数据访问层（课表/考试/成绩/四六级/评教/设置）
-  - 关键业务逻辑（课表去重、评教提交参数排序、密码加解密）
+  - 关键业务逻辑（课表去重、评教提交参数排序）
 
 用法: python tests/smoke_test.py
 """
@@ -166,7 +166,7 @@ print("  [PASS] clear_data")
 
 print("== 业务逻辑 ==")
 from wxcloudrun.jwc_client import JWCClient, _dedupe_schedule_courses  # noqa: E402
-from wxcloudrun.views import _build_ordered_eval_post_data, _encode_pwd, _decode_pwd  # noqa: E402
+from wxcloudrun.views import _build_ordered_eval_post_data  # noqa: E402
 
 # 课表去重
 dup = [
@@ -205,11 +205,6 @@ i1, i2 = post.index(("pj06xh", "1")), post.index(("pj06xh", "2"))
 assert post[i1 + 1] == ("pj0601fz_1", "100") and post[i1 + 2] == ("pj0601id_1", "11"), post
 assert post[i2 + 1] == ("pj0601fz_2", "100") and post[i2 + 2] == ("pj0601id_2", "22"), post
 print("  [PASS] 评教提交参数排序:", keys)
-
-# 密码加解密
-enc = _encode_pwd("s3cret!")
-assert _decode_pwd(enc) == "s3cret!", "密码加解密失败"
-print("  [PASS] 密码加解密（itsdangerous）")
 
 print()
 print(f"结果: {PASS} 通过, {FAIL} 失败")

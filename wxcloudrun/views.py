@@ -6,13 +6,11 @@ NJUST 课表 — Flask 路由
 import base64
 import os
 import re
-import secrets
 import threading
 import time
 from datetime import datetime
 from flask import render_template, request, jsonify, Response
 from bs4 import BeautifulSoup
-from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from wxcloudrun import app, db
 from wxcloudrun.jwc_client import JWCClient
@@ -24,14 +22,10 @@ from wxcloudrun import dao
 jwc_client = JWCClient()
 jwc_lock = threading.Lock()
 
-_auto_login_attempted = False
-_last_auto_login_time = 0.0
-
-# 自动登录开关：默认关闭（无账号模式）。
-#   关闭时：任何人打开页面都是未登录状态，后端不会用数据库里保存的
-#   凭证自动登录教务；用户必须在设置页手动输入学号/密码/验证码登录。
-#   设环境变量 AUTO_LOGIN_ENABLED=True 可恢复旧行为。
-AUTO_LOGIN_ENABLED = os.environ.get("AUTO_LOGIN_ENABLED", "False") == "True"
+# 本服务仅支持手动登录（无账号模式）：
+#   - 后端绝不使用数据库中的任何凭证自动登录教务
+#   - 任何访问者打开页面都是未登录状态，需在设置页手动输入
+#     学号/密码/验证码登录；数据接口未登录一律 401
 
 EVAL_HEADERS = {
     "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
@@ -185,40 +179,11 @@ def api_connect_test():
 # ============================================================
 # API — 登录
 # ============================================================
-# 教务密码加密存储（不再使用可逆 Base64 明文）:
-#   - 优先使用环境变量 PASSWORD_SECRET 作为密钥（生产环境推荐配置）
-#   - 未配置时，首次使用自动生成随机密钥并存入 settings 表（key: secret_key）
-#   - 解密失败时回退尝试旧版 Base64 编码，兼容历史数据
-_PWD_SALT = "jwc-pwd-v1"
-
-
-def _get_pwd_secret() -> str:
-    key = (os.environ.get("PASSWORD_SECRET") or "").strip()
-    if key:
-        return key
-    key = dao.get_setting("secret_key", "")
-    if not key:
-        key = secrets.token_hex(32)
-        dao.set_setting("secret_key", key)
-    return key
-
-
-def _encode_pwd(pwd: str) -> str:
-    return URLSafeTimedSerializer(_get_pwd_secret(), salt=_PWD_SALT).dumps(pwd)
-
-
-def _decode_pwd(encoded: str) -> str:
-    if not encoded:
-        return ""
-    try:
-        return URLSafeTimedSerializer(_get_pwd_secret(), salt=_PWD_SALT).loads(encoded)
-    except BadSignature:
-        pass
-    # 兼容旧版 Base64 存储
-    try:
-        return base64.b64decode(encoded.encode()).decode()
-    except Exception:
-        return ""
+# 本服务仅支持手动登录：登录密码只用于本次登录流程，
+# 不加密保存到数据库（无任何自动登录机制，保存密码无意义）。
+#
+# 注: settings 表中可能残留历史版本的 password_enc / secret_key
+# 数据, 它们已无任何读取入口, 可忽略。
 
 
 def _resolve_password(student_id: str, provided: str) -> str:
@@ -230,35 +195,13 @@ def _resolve_password(student_id: str, provided: str) -> str:
     return provided or ""
 
 
-def _auto_login() -> bool:
-    """用数据库保存的凭证自动登录教务。
-
-    仅当 AUTO_LOGIN_ENABLED=True 时生效（默认无账号模式，直接失败）。
-    """
-    if not AUTO_LOGIN_ENABLED:
-        jwc_client.last_error = "自动登录已关闭，请手动登录"
-        return False
-    global _auto_login_attempted, _last_auto_login_time
-    _auto_login_attempted = True
-    _last_auto_login_time = time.time()
-    # 检查 Session 是否真实有效（而非仅信任 logged_in 标志位）
-    if jwc_client.logged_in and jwc_client.is_session_valid():
-        return True
-    # Session 已过期或未登录 → 强制重新登录
-    jwc_client.logged_in = False
-    sid = dao.get_setting("student_id")
-    pwd = _decode_pwd(dao.get_setting("jwc_password_enc", "")) or \
-        _decode_pwd(dao.get_setting("password_enc", ""))
-    if not sid or not pwd:
-        return False
-    jwc_client.login(sid, pwd)
-    return jwc_client.logged_in
-
-
 def _on_login_success(student_id: str, password: str = ""):
+    """登录成功后的公共处理。
+
+    只保存学号/姓名/学期等非敏感信息；**不保存密码**（本服务仅支持
+    手动登录，密码不会用于任何自动登录）。
+    """
     dao.set_setting("student_id", student_id)
-    if password:
-        dao.set_setting("password_enc", _encode_pwd(password))
     if jwc_client.student_name:
         dao.set_setting("student_name", jwc_client.student_name)
     semester = dao.get_setting("semester")
@@ -362,7 +305,6 @@ def api_get_webvpn_captcha():
 
     if b64 == "__ALREADY_LOGGED_IN__":
         # SSO 后已有教务会话，无需再输验证码
-        dao.set_setting("password_enc", _encode_pwd(password))
         jwc_client.logged_in = True
         jwc_client.login_method = "webvpn"
         return jsonify({
@@ -378,8 +320,7 @@ def api_get_webvpn_captcha():
             "debug_log": jwc_client.debug_log[-20:],
         }), 500
 
-    # 验证码获取成功说明 SSO 登录成功，保存智慧理工密码
-    dao.set_setting("password_enc", _encode_pwd(password))
+    # 验证码获取成功说明 SSO 登录成功（不保存密码）
     return jsonify({
         "success": True,
         "captcha_b64": b64,
@@ -405,10 +346,7 @@ def api_login_webvpn_manual():
         success = jwc_client.complete_webvpn_login(student_id, password, captcha_text)
 
     if success:
-        # 教务密码与智慧理工密码分开存储
-        jwc_password = data.get("jwc_password") or password
-        if jwc_password:
-            dao.set_setting("jwc_password_enc", _encode_pwd(jwc_password))
+        # 不保存教务密码（仅支持手动登录）
         return _on_login_success(student_id, password)
     else:
         return jsonify({
@@ -431,10 +369,7 @@ def api_login_webvpn():
         success = jwc_client.login_webvpn(student_id, password)
 
     if success:
-        # 教务密码与智慧理工密码分开存储
-        jwc_password = data.get("jwc_password") or password
-        if jwc_password:
-            dao.set_setting("jwc_password_enc", _encode_pwd(jwc_password))
+        # 不保存教务密码（仅支持手动登录）
         return _on_login_success(student_id, password)
     else:
         return jsonify({
@@ -448,51 +383,32 @@ def api_login_webvpn():
 # API — 数据刷新
 # ============================================================
 def _require_login():
+    """数据/操作接口的登录守卫：未登录（或教务会话过期）一律 401。
+
+    本服务仅支持手动登录，不自动重登录。
+    """
     if not jwc_client.logged_in or not jwc_client.is_session_valid():
         jwc_client.logged_in = False
-        if not AUTO_LOGIN_ENABLED:
-            return jsonify({
-                "success": False,
-                "message": "尚未登录，请先在设置页面登录",
-            }), 401
-        auto_ok = _auto_login()
-        student_id = dao.get_setting("student_id")
-        if not student_id:
-            return jsonify({
-                "success": False,
-                "message": "尚未登录，请先在设置页面登录",
-            }), 401
-        if not auto_ok:
-            err = jwc_client.last_error or "教务系统不可达"
-            return jsonify({
-                "success": False,
-                "message": f"自动登录失败: {err}",
-            }), 401
+        return jsonify({
+            "success": False,
+            "message": "尚未登录，请先在设置页面登录",
+        }), 401
     return None
 
 
 def _retry_with_relogin(fetch_func, error_msg: str):
-    """执行数据获取，失败时仅在自动登录开启的情况下重新登录后重试一次。
+    """执行数据获取。会话过期时返回 401 提示手动登录，不自动重登录。
     返回 (data, error_tuple)，成功时 error_tuple 为 None，
     失败时 data 为 []，error_tuple 为 (flask_response, status_code)。"""
     result = fetch_func()
     if result:
         return result, None
-    # 失败 → 会话过期；无账号模式下不自动重登录，直接要求手动登录
+    # 会话过期（或教务侧拒绝）；无自动登录，直接要求手动登录
     jwc_client.logged_in = False
-    if not AUTO_LOGIN_ENABLED or not _auto_login():
-        return [], (jsonify({
-            "success": False,
-            "message": f"{error_msg}: 会话已过期，请重新登录",
-        }), 401)
-    # 重试
-    result = fetch_func()
-    if result:
-        return result, None
     return [], (jsonify({
         "success": False,
-        "message": jwc_client.last_error or error_msg,
-    }), 500)
+        "message": f"{error_msg}: 会话已过期，请重新登录",
+    }), 401)
 
 
 @app.route('/api/refresh-schedule', methods=['POST'])

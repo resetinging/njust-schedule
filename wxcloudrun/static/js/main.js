@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    南理工课表管理系统 - 全局 JavaScript
    ============================================================ */
 
@@ -62,9 +62,6 @@ function hideLoading() {
 }
 
 // --- 导航状态更新 ---
-// 使用 sessionStorage 跨页面记住已弹过 toast，避免每次切页面都弹
-const AUTO_LOGIN_TOAST_KEY = '_njust_auto_login_toast_shown';
-
 function updateNavStatus(data) {
     const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
@@ -75,11 +72,6 @@ function updateNavStatus(data) {
         text.textContent = data.student_name || '已登录';
         text.title = (data.login_method === 'webvpn')
             ? '🌐 智慧理工登录' : '🏫 教务直连';
-        // 自动登录成功提示（同窗口仅首次）
-        if (data.auto_login_attempted && !sessionStorage.getItem(AUTO_LOGIN_TOAST_KEY)) {
-            sessionStorage.setItem(AUTO_LOGIN_TOAST_KEY, '1');
-            showToast('✅ 已自动登录 — ' + (data.student_name || data.student_id), 'success');
-        }
     } else {
         // 未登录时显示网络状态
         const net = data.network || {};
@@ -91,12 +83,6 @@ function updateNavStatus(data) {
             dot.className = 'status-dot offline';
             text.textContent = '离线';
             text.title = net.hint || '请检查教务系统连接';
-        }
-        // 自动登录失败提示（同窗口仅首次）
-        if (data.auto_login_attempted && !sessionStorage.getItem(AUTO_LOGIN_TOAST_KEY)) {
-            sessionStorage.setItem(AUTO_LOGIN_TOAST_KEY, '1');
-            const reason = data.auto_login_error || '凭证无效或教务系统不可达';
-            showToast('⚠️ 自动登录失败: ' + reason + '，请前往设置手动登录', 'warning');
         }
     }
 }
