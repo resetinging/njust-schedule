@@ -159,10 +159,20 @@ Page({
       const semChecked = gs.filter(g => this._checked[g.id] !== false)
       const semScored = semChecked.filter(g => !isNaN(_scoreNum(g)))
       const semAvg = semScored.length ? semScored.reduce((s, g) => s + _scoreNum(g), 0) / semScored.length : 0
+      // 每学期绩点（与总 GPA 同口径, 支持保研模式）
+      const semGpa = isBaoyan
+        ? gpaUtil.calcGpaBaoyan(semChecked, this._cetRaw, true)
+        : gpaUtil.calcGpa(semChecked, true)
+      let semGpaClass = ''
+      if (semGpa >= 3.0) semGpaClass = 'gpa-high'
+      else if (semGpa >= 2.0) semGpaClass = 'gpa-mid'
+      else if (semGpa > 0) semGpaClass = 'gpa-low'
       return {
         sem,
         count: gs.length,
         avg: _fixed(semAvg),
+        gpa: _fixed(semGpa),
+        gpaClass: semGpaClass,
         folded: this._folded && this._folded[sem] === true,
         courses: gs.map(g => {
           const gp = _gpOf(g)
@@ -186,6 +196,7 @@ Page({
       errorMsg: '',
       stats: {
         credits: _fixed(totalCredits, 1),
+        count: checked.length,
         avg: _fixed(avg),
         gpa: _fixed(gpaV),
         gpaClass,

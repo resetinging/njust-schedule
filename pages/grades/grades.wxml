@@ -1,4 +1,4 @@
-<!-- 成绩查询页面 — 复刻目标 UI -->
+<!-- 成绩查询页面 — 网页版布局(绩点大卡 + 学期绩点明细 + 成绩明细), 保留小程序风格 -->
 <view class="container">
 
   <loading-modal visible="{{loading}}" title="加载成绩数据…" />
@@ -14,40 +14,79 @@
 
   <block wx:if="{{!loading && !empty}}">
 
-    <!-- ============ 已勾选课程统计卡 ============ -->
-    <view class="stats-card">
-      <view class="sc-head">
-        <text class="sc-title">已勾选课程统计</text>
-        <view class="mode-seg">
-          <text class="seg {{stats.mode === '' ? 'on' : ''}}" data-mode="" bindtap="onModeChange">标准</text>
-          <text class="seg {{stats.mode === 'baoyan' ? 'on' : ''}}" data-mode="baoyan" bindtap="onModeChange">保研</text>
+    <!-- ============ 绩点大卡（紫色渐变, 与课表页顶卡同风格） ============ -->
+    <view class="gpa-hero">
+      <view class="hero-top">
+        <view class="hero-gpa-wrap">
+          <text class="hero-gpa {{stats.gpaClass}}">{{stats.gpa}}</text>
+          <text class="hero-label">{{stats.mode === 'baoyan' ? '加权平均绩点（保研 · CET折算）' : '加权平均绩点（计内）'}}</text>
         </view>
-        <text class="sc-refresh" bindtap="onRefreshGrades">🔄</text>
+        <text class="hero-refresh" bindtap="onRefreshGrades" disabled="{{refreshing}}">{{refreshing ? '⏳' : '🔄'}}</text>
       </view>
 
-      <view class="sc-pills">
-        <text class="pill">总学分 <text class="pill-num">{{stats.credits}}</text></text>
-        <text class="pill">平均分 <text class="pill-num">{{stats.avg}}</text></text>
-        <text class="pill">GPA <text class="pill-num {{stats.gpaClass}}">{{stats.gpa}}</text></text>
+      <view class="hero-stats">
+        <view class="hs-item">
+          <text class="hs-num">{{stats.credits}}</text>
+          <text class="hs-label">已获学分</text>
+        </view>
+        <view class="hs-divider"></view>
+        <view class="hs-item">
+          <text class="hs-num">{{stats.count}}</text>
+          <text class="hs-label">课程数</text>
+        </view>
+        <view class="hs-divider"></view>
+        <view class="hs-item">
+          <text class="hs-num">{{stats.avg}}</text>
+          <text class="hs-label">平均分</text>
+        </view>
       </view>
 
-      <!-- 四六级成绩行 -->
-      <view class="sc-cet" wx:if="{{stats.cet}}" bindtap="onRefreshCet">
-        <view class="sc-cet-top">
-          <view class="chk on sm">✓</view>
-          <text class="sc-cet-title">四六级成绩</text>
-          <text class="sc-cet-date">{{stats.cet.date}}</text>
-        </view>
-        <view class="sc-cet-line">{{stats.cet.line}}</view>
+      <!-- 绩点算法切换 -->
+      <view class="mode-seg hero-mode">
+        <text class="seg {{stats.mode === '' ? 'on' : ''}}" data-mode="" bindtap="onModeChange">📋 奖学金/综测</text>
+        <text class="seg {{stats.mode === 'baoyan' ? 'on' : ''}}" data-mode="baoyan" bindtap="onModeChange">🎓 保研推免</text>
       </view>
     </view>
 
-    <!-- ============ 分学期卡片 ============ -->
+    <!-- ============ 四六级成绩条 ============ -->
+    <view class="sc-cet" wx:if="{{stats.cet}}" bindtap="onRefreshCet">
+      <view class="sc-cet-top">
+        <view class="chk on sm">✓</view>
+        <text class="sc-cet-title">四六级成绩</text>
+        <text class="sc-cet-date">{{stats.cet.date}}</text>
+        <text class="sc-cet-refresh">🔄</text>
+      </view>
+      <view class="sc-cet-line">{{stats.cet.line}}</view>
+    </view>
+
+    <!-- ============ 各学期绩点明细 ============ -->
+    <view class="sem-gpa-section" wx:if="{{semGroups.length > 0}}">
+      <text class="section-title">📊 各学期绩点明细</text>
+      <text class="section-desc">绩点 = Σ(课程学分 × 课程绩点) / Σ课程学分</text>
+      <scroll-view scroll-x class="sem-gpa-scroll">
+        <view class="sem-gpa-grid">
+          <view class="sem-gpa-card" wx:for="{{semGroups}}" wx:key="sem"
+                data-sem="{{item.sem}}" bindtap="onFold">
+            <text class="sg-sem">{{item.sem}}</text>
+            <text class="sg-gpa {{item.gpaClass}}">{{item.gpa}}</text>
+            <text class="sg-sub">{{item.count}} 门 · 均分 {{item.avg}}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- ============ 成绩明细（分学期卡片, 保留折叠 + 勾选） ============ -->
+    <view class="detail-head">
+      <text class="section-title">📋 成绩明细</text>
+      <text class="section-desc">勾选课程参与上方绩点统计（通识选修默认不勾选）</text>
+    </view>
+
     <view class="sem-card" wx:for="{{semGroups}}" wx:key="sem" wx:for-item="grp">
       <!-- 学期头 -->
       <view class="sem-head" data-sem="{{grp.sem}}" bindtap="onFold">
         <text class="sem-ico">🎓</text>
         <text class="sem-name">{{grp.sem}}</text>
+        <text class="sem-gpa-tag {{grp.gpaClass}}">GPA {{grp.gpa}}</text>
         <text class="sem-count">{{grp.count}} 门</text>
         <text class="sem-fold">{{grp.folded ? '˅' : '˄'}}</text>
       </view>
