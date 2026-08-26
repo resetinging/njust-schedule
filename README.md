@@ -60,6 +60,9 @@
 |---|---|---|
 | `MYSQL_USERNAME` / `MYSQL_PASSWORD` / `MYSQL_ADDRESS` | 云托管 MySQL 连接信息(云托管自动注入) | `root` / `root` / `127.0.0.1:3306` |
 | `DEBUG` | Flask 调试模式(生产环境保持关闭) | `False` |
+| `JW_MAX_CONCURRENT` | 教务访问池并发上限(同时进行的教务 HTTP 请求数,防打爆教务服务器) | `4` |
+| `SESSION_TTL` | 用户会话无活动回收时间(秒) | `43200`(12h) |
+| `MAX_SESSIONS` | 用户池上限,超限自动淘汰最久未活动会话 | `200` |
 
 ### 本地运行
 

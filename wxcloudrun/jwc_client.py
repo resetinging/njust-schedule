@@ -118,10 +118,21 @@ def _encrypt_sso_password(password: str, salt: str) -> str:
 
 
 class JWCClient:
-    def __init__(self):
+    # 每实例独立的并发锁：同一用户的教务请求串行（保证 Cookie/会话一致性），
+    # 不同用户实例互不阻塞（配合 views 的全局信号量限流 = 访问池）
+    def __init__(self, pool_maxsize: int = 8):
+        import threading
+        from requests.adapters import HTTPAdapter
+        self._lock = threading.Lock()
         self.session = requests.Session()
         self.session.cookies = _DedupCookieJar()
         self.session.headers.update(HEADERS)
+        # HTTP 连接池：复用 keep-alive 连接，减少 TCP/TLS 握手开销
+        adapter = HTTPAdapter(pool_connections=pool_maxsize,
+                              pool_maxsize=pool_maxsize,
+                              pool_block=True)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
         self.token = None
         self.student_id = None
         self.student_name = None
@@ -135,6 +146,9 @@ class JWCClient:
         self._webvpn_manual_ready = False
         self._webvpn_post_url = ""
         self._webvpn_login_page_url = ""
+        # 会话有效性探测缓存（避免每个请求都访问教务主页探测）
+        self._validity_cache_ts = 0.0
+        self._validity_cache_ok = False
 
     # ================================================================
     # 登录入口
@@ -1411,22 +1425,31 @@ class JWCClient:
             self.last_error = f"评价解析失败: {e}"
             return []
 
-    def is_session_valid(self) -> bool:
-        """检测 NJUST 教务 Session 是否仍然有效（轻量级检查）"""
+    def is_session_valid(self, cache_ttl: float = 300.0) -> bool:
+        """检测 NJUST 教务 Session 是否仍然有效（轻量级检查）。
+
+        结果缓存 cache_ttl 秒（默认 5 分钟），避免每个数据请求都访问教务主页；
+        教务会话通常以小时计，5 分钟延迟感知过期可接受。
+        """
         if not self.logged_in:
             return False
+        now = time.time()
+        if now - self._validity_cache_ts < cache_ttl:
+            return self._validity_cache_ok
         try:
             resp = self.session.get(URL_MAIN_PAGE, timeout=10, allow_redirects=True)
             self._dedupe_cookies()
             # 如果页面包含登录表单关键字，说明 session 已过期
             if resp.status_code != 200:
-                return False
-            t = resp.text.lower()
-            if "logon.do" in t or "userrname" in t or "randmcode" in t:
-                return False
-            return True
+                ok = False
+            else:
+                t = resp.text.lower()
+                ok = not ("logon.do" in t or "userrname" in t or "randmcode" in t)
         except Exception:
-            return False
+            ok = False
+        self._validity_cache_ts = now
+        self._validity_cache_ok = ok
+        return ok
 
     def test_connection(self) -> Tuple[bool, str]:
         try:

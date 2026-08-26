@@ -8,6 +8,8 @@ import os
 import re
 import secrets
 import threading
+import time
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional, Tuple
 from flask import render_template, request, jsonify, Response
@@ -18,19 +20,57 @@ from wxcloudrun.jwc_client import JWCClient
 from wxcloudrun import dao
 
 # ============================================================
-# 用户会话管理（多用户）
+# 用户会话池（多用户）+ 教务访问池（并发控制）
 # ============================================================
-# 每个登录用户持有独立的 JWCClient 实例（独立教务会话 + Cookie），
-# 登录成功后签发随机 token，前端请求通过 X-Auth-Token 头携带。
-# 会话保存在进程内存：容器重启后所有用户需重新登录。
-_sessions = {}          # token -> JWCClient
-_captcha_clients = {}   # captcha_id -> JWCClient（登录尝试的临时会话）
+# - 会话池: 每个登录用户持有独立 JWCClient(独立教务会话/Cookie),
+#   登录签发随机 token, 请求经 X-Auth-Token 头识别; 带 TTL 与上限,
+#   防止长运行后内存堆积。
+# - 访问池: 同一用户的教务请求经实例锁串行(保证 Cookie 一致性),
+#   不同用户并行, 全局信号量限制教务并发总数(防打爆教务服务器)。
+# - 验证码临时会话: 登录尝试的客户端, 10 分钟未使用自动回收。
+_sessions = {}          # token -> [JWCClient, last_active_ts]
+_captcha_clients = {}   # captcha_id -> [JWCClient, created_ts]
 _sessions_lock = threading.Lock()
-jwc_lock = threading.Lock()  # 串行化教务 HTTP 请求（多用户共用）
 TOKEN_HEADER = "X-Auth-Token"
+
+# 访问池: 全局教务请求并发上限
+JW_MAX_CONCURRENT = int(os.environ.get("JW_MAX_CONCURRENT", "4"))
+_jw_semaphore = threading.BoundedSemaphore(JW_MAX_CONCURRENT)
+
+# 用户池: 会话 TTL(秒) 与上限(超限淘汰最旧)
+SESSION_TTL = int(os.environ.get("SESSION_TTL", str(12 * 3600)))  # 默认 12h
+MAX_SESSIONS = int(os.environ.get("MAX_SESSIONS", "200"))
+CAPTCHA_TTL = 10 * 60  # 验证码临时会话 10 分钟
 
 # 全局教务客户端：仅用于学期计算等无状态工具方法（不参与业务会话）
 jwc_client = JWCClient()
+
+
+@contextmanager
+def _jwc_request(client: JWCClient):
+    """访问池入口: 同一用户串行(实例锁) + 全局并发限流(信号量)。"""
+    with client._lock:
+        with _jw_semaphore:
+            yield client
+
+
+def _prune_captcha_locked():
+    now = time.time()
+    expired = [cid for cid, (_c, ts) in _captcha_clients.items()
+               if now - ts > CAPTCHA_TTL]
+    for cid in expired:
+        _captcha_clients.pop(cid, None)
+
+
+def _prune_sessions_locked():
+    now = time.time()
+    expired = [t for t, (_c, ts) in _sessions.items() if now - ts > SESSION_TTL]
+    for t in expired:
+        _sessions.pop(t, None)
+    # 上限保护: 淘汰最久未活动的会话
+    while len(_sessions) > MAX_SESSIONS:
+        oldest = min(_sessions, key=lambda t: _sessions[t][1])
+        _sessions.pop(oldest, None)
 
 
 def _new_captcha_client() -> Tuple[str, JWCClient]:
@@ -38,21 +78,24 @@ def _new_captcha_client() -> Tuple[str, JWCClient]:
     cid = secrets.token_urlsafe(16)
     client = JWCClient()
     with _sessions_lock:
-        _captcha_clients[cid] = client
+        _prune_captcha_locked()
+        _captcha_clients[cid] = [client, time.time()]
     return cid, client
 
 
 def _pop_captcha_client(captcha_id: str) -> Optional[JWCClient]:
     """取出并删除登录尝试会话（验证码与教务 Cookie 绑定同一实例）"""
     with _sessions_lock:
-        return _captcha_clients.pop(captcha_id or "", None)
+        item = _captcha_clients.pop(captcha_id or "", None)
+    return item[0] if item else None
 
 
 def _register_session(client: JWCClient) -> str:
-    """登录成功后注册用户会话，返回 token"""
+    """登录成功后注册用户会话，返回 token（先注册再淘汰，保持上限内）"""
     token = secrets.token_urlsafe(32)
     with _sessions_lock:
-        _sessions[token] = client
+        _sessions[token] = [client, time.time()]
+        _prune_sessions_locked()
     return token
 
 
@@ -60,12 +103,40 @@ def _get_session_client() -> Optional[JWCClient]:
     """从当前请求头取 token 并返回对应会话客户端（未登录返回 None）"""
     token = request.headers.get(TOKEN_HEADER) or ""
     with _sessions_lock:
-        return _sessions.get(token)
+        item = _sessions.get(token)
+        if item is None:
+            return None
+        item[1] = time.time()  # 更新活动时间
+        return item[0]
 
 
 def _logout_session(token: str):
     with _sessions_lock:
-        _sessions.pop(token or "", None)
+        item = _sessions.pop(token or "", None)
+    if item is not None:
+        try:
+            item[0].logout()
+        except Exception:
+            pass
+
+
+# 教务连通性探测缓存（导航栏/设置页高频调用，30 秒内复用结果）
+_network_cache = {"ts": 0.0, "ok": False}
+NETWORK_CACHE_TTL = 30
+
+
+def _check_network() -> Tuple[bool, str]:
+    now = time.time()
+    if now - _network_cache["ts"] < NETWORK_CACHE_TTL:
+        return _network_cache["ok"], ""
+    probe = JWCClient()
+    try:
+        ok, msg = probe.test_connection()
+    except Exception:
+        ok, msg = False, ""
+    _network_cache["ts"] = now
+    _network_cache["ok"] = ok
+    return ok, msg
 
 
 def _current_semester() -> str:
@@ -187,10 +258,9 @@ def api_status():
         has_courses = dao.count_courses(semester, student_id) > 0
         has_exams = dao.count_exams(semester, student_id) > 0
 
-    # 教务连通性(桌面端导航栏/设置页依赖)
-    probe = JWCClient()
+    # 教务连通性(桌面端导航栏/设置页依赖, 30 秒缓存)
     try:
-        ok, _msg = probe.test_connection()
+        ok, _msg = _check_network()
         network = {
             "reachable": ok,
             "method": "direct" if ok else "offline",
@@ -220,8 +290,7 @@ def api_status():
 
 @app.route('/api/connect-test')
 def api_connect_test():
-    probe = JWCClient()
-    ok, msg = probe.test_connection()
+    ok, msg = _check_network()
     return jsonify({"ok": ok, "message": msg})
 
 
@@ -274,7 +343,7 @@ def _on_login_success(client: JWCClient, token: str):
 @app.route('/api/get-captcha')
 def api_get_captcha():
     cid, client = _new_captcha_client()
-    with jwc_lock:
+    with _jwc_request(client):
         b64, error = client.get_captcha_base64()
     if error or not b64:
         _pop_captcha_client(cid)
@@ -300,7 +369,7 @@ def api_login():
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
     client = JWCClient()
-    with jwc_lock:
+    with _jwc_request(client):
         success = client.login(student_id, password)
     if success:
         token = _register_session(client)
@@ -327,7 +396,7 @@ def api_login_manual():
     client = _pop_captcha_client(captcha_id)
     if client is None:
         return jsonify({"success": False, "message": "验证码会话已过期，请重新获取"}), 400
-    with jwc_lock:
+    with _jwc_request(client):
         success = client.login_with_manual_captcha(student_id, password, captcha_text)
     if success:
         token = _register_session(client)
@@ -352,7 +421,7 @@ def api_get_webvpn_captcha():
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
 
     cid, client = _new_captcha_client()
-    with jwc_lock:
+    with _jwc_request(client):
         b64, error = client.get_webvpn_captcha_base64(student_id, password)
 
     if b64 == "__ALREADY_LOGGED_IN__":
@@ -403,7 +472,7 @@ def api_login_webvpn_manual():
     if client is None:
         return jsonify({"success": False, "message": "验证码会话已过期，请重新获取"}), 400
 
-    with jwc_lock:
+    with _jwc_request(client):
         success = client.complete_webvpn_login(student_id, password, captcha_text)
 
     if success:
@@ -427,7 +496,7 @@ def api_login_webvpn():
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
 
     client = JWCClient()
-    with jwc_lock:
+    with _jwc_request(client):
         success = client.login_webvpn(student_id, password)
 
     if success:
@@ -500,7 +569,7 @@ def api_refresh_schedule():
         return err
     sid = client.student_id or ""
     semester = dao.get_user_setting(sid, "semester") or _current_semester()
-    with jwc_lock:
+    with _jwc_request(client):
         courses, retry_err = _retry_with_relogin(
             client, lambda: client.get_schedule(semester), "获取课表失败")
     if retry_err:
@@ -522,7 +591,7 @@ def api_refresh_exams():
         return err
     sid = client.student_id or ""
     semester = dao.get_user_setting(sid, "semester") or _current_semester()
-    with jwc_lock:
+    with _jwc_request(client):
         exams, retry_err = _retry_with_relogin(
             client, lambda: client.get_exams(semester), "获取考试失败")
     if retry_err:
@@ -543,7 +612,7 @@ def api_refresh_all():
     sid = client.student_id or ""
     semester = dao.get_user_setting(sid, "semester") or _current_semester()
     results = {"schedule": None, "exams": None}
-    with jwc_lock:
+    with _jwc_request(client):
         courses, sched_err = _retry_with_relogin(
             client, lambda: client.get_schedule(semester), "获取课表失败")
         if not sched_err:
@@ -735,7 +804,7 @@ def api_refresh_evaluations():
         return err
     sid = client.student_id or ""
     semester = dao.get_user_setting(sid, "semester") or _current_semester()
-    with jwc_lock:
+    with _jwc_request(client):
         evals, retry_err = _retry_with_relogin(
             client, lambda: client.get_evaluations(semester), "获取评价数据失败")
     if retry_err:
@@ -1029,7 +1098,7 @@ def api_jw_proxy():
         form_data = {}
 
     try:
-        with jwc_lock:
+        with _jwc_request(client):
             _warm_eval_session(client)
             if method == "POST":
                 resp = client.session.post(target, data=form_data,
@@ -1117,7 +1186,7 @@ def api_refresh_grades():
         return err
     sid = client.student_id or ""
 
-    with jwc_lock:
+    with _jwc_request(client):
         grades = client.get_grades("")
 
     if not grades and client.last_error:
@@ -1155,7 +1224,7 @@ def api_refresh_cet():
         return err
     sid = client.student_id or ""
 
-    with jwc_lock:
+    with _jwc_request(client):
         scores = client.get_cet_scores()
 
     if not scores:

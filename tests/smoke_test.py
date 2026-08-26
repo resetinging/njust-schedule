@@ -22,6 +22,8 @@ if os.path.exists(_db_path):
 os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{_db_path}"
 os.environ.pop("MYSQL_USERNAME", None)
 os.environ.pop("MYSQL_PASSWORD", None)
+# 用户池上限调小, 便于测试淘汰逻辑
+os.environ["MAX_SESSIONS"] = "3"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -270,6 +272,26 @@ assert st["logged_in"] is False, st
 r = client.get("/api/courses", headers=h1)
 assert r.status_code == 401
 print("  [PASS] 退出登录后 token 失效（401）")
+
+print("== 会话池维护 ==")
+import time  # noqa: E402
+
+# 用户池上限: 注册超过 MAX_SESSIONS(=3) 的会话, 最久未活动者被淘汰
+for i in range(5):
+    c = JWCClient()
+    c.logged_in = True
+    c.student_id = f"pool{i}"
+    c.is_session_valid = lambda: True
+    views._register_session(c)
+assert len(views._sessions) <= 3, f"用户池超限: {len(views._sessions)}"
+print(f"  [PASS] 用户池上限淘汰（当前 {len(views._sessions)}/3）")
+
+# 验证码临时会话 TTL 清理
+cid, _ = views._new_captcha_client()
+views._captcha_clients[cid][1] = time.time() - 9999  # 模拟 10 分钟前创建
+views._prune_captcha_locked()
+assert cid not in views._captcha_clients, "过期验证码会话未清理"
+print("  [PASS] 验证码临时会话 TTL 清理")
 
 print()
 print(f"结果: {PASS} 通过, {FAIL} 失败")
