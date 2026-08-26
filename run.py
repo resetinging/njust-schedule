@@ -1,11 +1,13 @@
 # 创建应用实例
 import logging
+import os
 import sys
 
-# 全局日志配置: info 级别输出到 stdout(云托管采集 stdout 日志)
+# 全局日志配置: info 级别输出到 stdout(云托管采集 stdout 日志);
+# 调试时可设环境变量 LOG_LEVEL=DEBUG 查看教务爬虫的详细日志
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    level=getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
     stream=sys.stdout,
 )
 

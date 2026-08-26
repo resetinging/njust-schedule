@@ -45,6 +45,26 @@ CAPTCHA_TTL = 10 * 60  # 验证码临时会话 10 分钟
 jwc_client = JWCClient()
 
 
+# ============================================================
+# 调试日志: 请求级记录（/api/* 与 /proxy/* 每次请求一行）
+# ============================================================
+@app.before_request
+def _log_request_start():
+    request._log_t0 = time.time()
+
+
+@app.after_request
+def _log_request_end(resp):
+    if request.path.startswith(("/api/", "/proxy/")):
+        dur_ms = (time.time() - getattr(request, "_log_t0", time.time())) * 1000
+        token = request.headers.get(TOKEN_HEADER, "") or ""
+        tok = f"{token[:6]}…" if token else "-"
+        app.logger.info("[req] %s %s token=%s -> %s %.0fms",
+                        request.method, request.path, tok,
+                        resp.status_code, dur_ms)
+    return resp
+
+
 @contextmanager
 def _jwc_request(client: JWCClient):
     """访问池入口: 同一用户串行(实例锁) + 全局并发限流(信号量)。"""
@@ -107,6 +127,8 @@ def _register_session(client: JWCClient) -> str:
     with _sessions_lock:
         _sessions[token] = [client, time.time()]
         _prune_sessions_locked()
+    app.logger.info("[session] 登录成功 sid=%s name=%s token=%s… 在线=%d",
+                    client.student_id, client.student_name, token[:6], len(_sessions))
     return token
 
 
@@ -432,6 +454,8 @@ def api_login():
     if success:
         token = _register_session(client)
         return _on_login_success(client, token)
+    app.logger.info("[login] 自动登录失败 sid=%s reason=%s",
+                    student_id, client.last_error or "未知")
     return jsonify({
         "success": False,
         "message": client.last_error or "登录失败",
@@ -477,6 +501,7 @@ def api_get_webvpn_captcha():
 
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
+
 
     cid, client = _new_captcha_client()
     with _jwc_request_priority(client):
@@ -556,6 +581,7 @@ def api_login_webvpn():
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
 
+
     client = JWCClient()
     with _jwc_request_priority(client):
         success = client.login_webvpn(student_id, password)
@@ -574,6 +600,7 @@ def api_login_webvpn():
 def api_logout():
     """退出登录：销毁当前 token 对应的教务会话"""
     token = request.headers.get(TOKEN_HEADER) or ""
+    app.logger.info("[session] 退出登录 token=%s…", token[:6] if token else "-")
     client = None
     with _sessions_lock:
         client = _sessions.pop(token, None)
@@ -595,12 +622,15 @@ def _require_login() -> Tuple[Optional[JWCClient], Optional[Tuple]]:
     """
     client = _get_session_client()
     if client is None or not client.logged_in:
+        app.logger.info("[auth] 401 未登录: %s %s", request.method, request.path)
         return None, (jsonify({
             "success": False,
             "message": "尚未登录，请先登录",
         }), 401)
     if not client.is_session_valid():
         client.logged_in = False
+        app.logger.info("[auth] 401 会话过期: sid=%s path=%s",
+                        client.student_id, request.path)
         return None, (jsonify({
             "success": False,
             "message": "会话已过期，请重新登录",
@@ -647,8 +677,12 @@ def api_refresh_schedule():
     if retry_err:
         return retry_err
     dao.save_courses(courses, semester, sid)
+
     dao.set_user_setting(sid, "semester", semester)
+
     _invalidate_stats(sid, semester)
+
+    app.logger.info("[refresh] 课表 sid=%s semester=%s count=%d", sid, semester, len(courses))
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(courses)} 门课程",
@@ -670,7 +704,10 @@ def api_refresh_exams():
     if retry_err:
         return retry_err
     dao.save_exams(exams, semester, sid)
+
     _invalidate_stats(sid, semester)
+
+    app.logger.info("[refresh] 考试 sid=%s semester=%s count=%d", sid, semester, len(exams))
     if exams:
         msg = f"成功获取 {len(exams)} 场考试"
     else:
@@ -1282,9 +1319,18 @@ def api_refresh_grades():
         grouped[key].append(g)
 
     total_count = 0
+
+
     for (ay, s), group in grouped.items():
+
+
         dao.save_grades(group, ay, s, sid)
+
+
         total_count += len(group)
+
+
+    app.logger.info("[refresh] 成绩 sid=%s 学期数=%d 总数=%d", sid, len(grouped), total_count)
 
     return jsonify({
         "success": True,
@@ -1314,6 +1360,9 @@ def api_refresh_cet():
         }), 404
 
     dao.save_cet_scores(scores, sid)
+
+
+    app.logger.info("[refresh] 四六级 sid=%s count=%d", sid, len(scores))
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(scores)} 条四六级成绩",
@@ -1342,4 +1391,6 @@ def not_found(e):
 
 @app.errorhandler(500)
 def server_error(e):
+    # 记录完整堆栈, 便于线上排障(云托管采集 stdout 日志)
+    app.logger.error("服务器内部错误: %s", e, exc_info=True)
     return jsonify({"error": "服务器内部错误"}), 500
