@@ -267,7 +267,13 @@ class JWCClient:
                     self.login_method = "web-auto"
                     return True
 
-            self.last_error = "验证码自动识别失败，请使用手动输入（点「显示验证码」）"
+                # 非验证码问题(如密码错误)不必继续 OCR 重试, 保留真实错误信息
+                if self.last_error and "验证码" not in self.last_error:
+                    break
+
+            # 仅当错误是验证码相关(或未知)时才覆盖为识别失败提示
+            if not self.last_error or "验证码" in self.last_error:
+                self.last_error = "验证码自动识别失败，请使用手动输入（点「显示验证码」）"
             return False
         except ImportError as e:
             self.last_error = f"OCR 模块加载失败: {e}"
@@ -314,7 +320,10 @@ class JWCClient:
             self._captcha_ready = False
             return True
 
-        self.last_error = "验证码不正确或已过期，请刷新验证码后重试"
+        # 保留 _try_simple_login 检测到的真实原因(如密码错误);
+        # 仅当原因未知时兜底为验证码提示
+        if not self.last_error or "登录失败" in self.last_error:
+            self.last_error = "验证码不正确或已过期，请刷新验证码后重试"
         self._captcha_ready = False
         return False
 
