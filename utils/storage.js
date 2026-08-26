@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   STUDENT_ID: 'student_id',
   STUDENT_NAME: 'student_name',
   SEMESTER: 'semester',
+  TOKEN: 'token',           // 后端登录 token（多用户会话标识）
   COURSES: 'cached_courses',
   EXAMS: 'cached_exams',
   EVALUATIONS: 'cached_evaluations',

@@ -20,6 +20,7 @@ Page({
     password: '',
     jwcPassword: '',       // 智慧理工模式下可选的教务密码
     captcha: '',
+    captchaId: '',         // 当前验证码会话 ID（多用户：登录时回传绑定）
     captchaSrc: '',
     loggingIn: false,
     canLogin: false,
@@ -128,15 +129,18 @@ Page({
         wx.hideLoading()
         if (res.success && res.captcha_b64) {
           this.setData({
+            captchaId: res.captcha_id || '',
             captchaSrc: 'data:' + (res.captcha_mime || 'image/png') + ';base64,' + res.captcha_b64,
             captcha: '',
             ssoStepDone: true
           })
           wx.showToast({ title: '✅ 智慧理工已通过，请输入教务密码和验证码', icon: 'none' })
         } else if (res.success && res.already_logged_in) {
+          this.setData({ captchaId: '' })
           this.refreshState()
           wx.showToast({ title: '✅ 已有教务会话，无需重复登录', icon: 'success' })
         } else {
+          this.setData({ captchaId: '' })
           wx.showToast({ title: res.message || '智慧理工登录失败', icon: 'none' })
         }
       } catch (e) {
@@ -151,11 +155,13 @@ Page({
       const res = await api.getCaptcha()
       if (res.success && res.captcha_b64) {
         this.setData({
+          captchaId: res.captcha_id || '',
           captchaSrc: 'data:' + (res.captcha_mime || 'image/png') + ';base64,' + res.captcha_b64,
           captcha: ''
         })
         this._updateCanLogin()
       } else {
+        this.setData({ captchaId: '' })
         wx.showToast({ title: res.message || '获取验证码失败', icon: 'none' })
       }
     } catch (e) {
@@ -182,8 +188,8 @@ Page({
     this.setData({ loggingIn: true })
     try {
       const res = loginMode === 'webvpn'
-        ? await api.loginWebvpnManual(studentId, password, jwcPassword, captcha)
-        : await api.login(studentId, password, captcha)
+        ? await api.loginWebvpnManual(studentId, password, jwcPassword, captcha, this.data.captchaId)
+        : await api.login(studentId, password, captcha, this.data.captchaId)
       this.setData({ loggingIn: false })
 
       if (res.success) {
@@ -195,13 +201,13 @@ Page({
         // 通知全局
         getApp().setLoginState(true, res.student_name || studentId, res.semester || '')
         this.setData({
-          password: '', jwcPassword: '', captcha: '', captchaSrc: '', ssoStepDone: false
+          password: '', jwcPassword: '', captcha: '', captchaId: '', captchaSrc: '', ssoStepDone: false
         })
         this.loadSettings()
       } else {
         wx.showToast({ title: res.message || '登录失败', icon: 'none' })
         // 刷新验证码重试
-        this.setData({ captcha: '' })
+        this.setData({ captcha: '', captchaId: '' })
         this._updateCanLogin()
         this.onRefreshCaptcha()
       }

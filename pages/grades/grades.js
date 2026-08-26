@@ -1,84 +1,45 @@
 /**
- * 成绩查询页面 — GPA 汇总 + 各学期成绩 + 四六级
- * 方案 A: GPA/折算等业务计算全部在前端完成
- * 性能: 成绩列表分页渲染（每次 50 条，"加载更多"追加）
+ * 成绩查询页面 — 复刻目标 UI
+ * 已勾选课程统计(学分/平均分/GPA) + 分学期卡片(勾选切换/折叠) + 分数胶囊
+ * 方案 A: GPA/折算前端计算
  */
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const gpaUtil = require('../../utils/gpa')
 
-// WXML 不支持函数调用，需要在 JS 中预计算
-function _scoreClass(score) {
-  const s = parseFloat(score)
-  if (isNaN(s)) return ''
-  if (s >= 90) return 'score-high'
-  if (s >= 60) return 'score-mid'
-  return 'score-low'
-}
+// ============================================================
+// 工具
+// ============================================================
+const NON_GPA_NATURES = ['通识教育选修课']
 
-function _gpaClass(gpa) {
-  if (gpa >= 3.5) return 'score-high'
-  if (gpa >= 2.0) return 'score-mid'
-  return 'score-low'
+function _num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n }
+function _fixed(v, d) { const n = parseFloat(v); return isNaN(n) ? '-' : n.toFixed(d === undefined ? 2 : d) }
+function _gpOf(g) {
+  let gp = _num(g.grade_point)
+  if (gp === 0) gp = gpaUtil.scoreToGp(g.score)
+  return gp
 }
+function _scoreNum(g) { return parseFloat(g.score) }
 
-function _fixed(val, digits) {
-  const n = parseFloat(val)
-  return isNaN(n) ? '-' : n.toFixed(digits || 2)
-}
-
-function _creditsOf(grades) {
-  return _fixed(grades
-    .filter(g => gpaUtil.isGpaCourse(g.course_nature))
-    .reduce((sum, g) => sum + (parseFloat(g.credit) || 0), 0), 1)
-}
-
-const PAGE_SIZE = 50
+function _isNonGpa(g) { return NON_GPA_NATURES.includes((g.course_nature || '').trim()) }
 
 Page({
   data: {
-    // 状态
     loading: true,
     refreshing: false,
     empty: false,
     errorMsg: '',
 
-    // 数据
-    gpaMode: '',        // '' | 'baoyan'
-    selectedSemester: '__all__',
-    availableSemesters: [],
-    grades: [],          // 全部成绩（前端本地计算用）
-    displayGrades: [],   // 分页显示的切片
-    semesterGpas: [],    // 各学期绩点汇总（前端计算）
+    // 统计卡
+    stats: {
+      credits: '0', avg: '0', gpa: '0', gpaClass: '',
+      mode: '',            // '' | 'baoyan'
+      cet: null            // {line, date} | null
+    },
 
-    // 当前视图的绩点汇总
-    gpa: 0,
-    gpaAll: 0,
-    gpaBaoyan: 0,
-    totalCredits: 0,
-
-    // 全部学期汇总
-    allGpa: 0,
-    allGpaAll: 0,
-    allGpaBaoyan: 0,
-    allCredits: 0,
-    allCount: 0,
-    allCountTotal: 0,
-
-    // 预计算的显示值（WXML 不能调用函数）
-    bigGpaFixed: '-',
-    bigGpaClass: '',
-    bigGpaLabel: '计内 GPA',
-    currentGpaFixed: '-',
-    currentGpaClass: '',
-
-    // 四六级
-    cetScores: [],
-    showCet: false,
-
-    // 预计算 picker 用的学期数组（WXML 不能拼接数组）
-    semesterPickerRange: ['全部学期']
+    // 学期卡片组
+    semGroups: []          // [{sem, count, avg, folded, courses:[{id,name,checked,meta,score}]}]
   },
 
   onLoad() {
@@ -86,123 +47,172 @@ Page({
   },
 
   onShow() {
-    // 从缓存读取上次的 gpaMode
-    const savedMode = storage.get('gpa_mode', '')
-    if (savedMode !== this.data.gpaMode) {
-      this.setData({ gpaMode: savedMode })
+    const saved = storage.get('gpa_mode', '')
+    if (saved !== this._mode) {
+      this.loadGrades()
     }
   },
 
   // ============================================================
   // 数据加载
   // ============================================================
-
   async loadGrades() {
     this.setData({ loading: true, errorMsg: '' })
-
     try {
-      const res = await api.getGrades(this.data.selectedSemester, this.data.gpaMode)
-
+      const [gradesRes, cetRes] = await Promise.all([
+        api.getGrades('__all__'),
+        api.getCetScores()
+      ])
+      const res = gradesRes
       if (!res.success) {
-        this.setData({
-          loading: false,
-          empty: true,
-          errorMsg: res.message || '获取成绩失败'
-        })
+        this.setData({ loading: false, empty: true, errorMsg: res.message || '获取成绩失败' })
         return
       }
-
-      // 保研模式需要四六级成绩参与计算
-      let cetScores = this.data.cetScores || []
-      if (this.data.gpaMode === 'baoyan' && cetScores.length === 0) {
-        cetScores = await this.loadCetScores()
+      this._allGrades = res.grades || []
+      this._cetRaw = (cetRes && cetRes.success ? cetRes.scores : []) || []
+      this._mode = storage.get('gpa_mode', '')
+      // 默认勾选: 通识选修课不勾选
+      this._checked = {}
+      for (const g of this._allGrades) {
+        this._checked[g.id] = !_isNonGpa(g)
       }
-
-      const all = res.grades || []
-      const semGpaList = gpaUtil.calcSemesterGpas(all).map(info => ({
-        semester: info.semester,
-        gpa: info.gpa,
-        credits: info.credits,
-        count: info.count,
-        _gpaFixed: _fixed(info.gpa),
-        _gpaClass: _gpaClass(info.gpa)
-      }))
-
-      // 当前视图的成绩子集（前端过滤）
-      let viewGrades = all
-      if (this.data.selectedSemester !== '__all__') {
-        viewGrades = all.filter(
-          g => (g.academic_year || '') + '-' + (g.semester || '') === this.data.selectedSemester
-        )
-      }
-
-      // 前端计算全部汇总
-      const isBaoyan = this.data.gpaMode === 'baoyan'
-      const gpa = gpaUtil.calcGpa(viewGrades, true)
-      const gpaAll = gpaUtil.calcGpa(viewGrades, false)
-      const gpaBaoyan = gpaUtil.calcGpaBaoyan(viewGrades, cetScores, true)
-      const allGpa = gpaUtil.calcGpa(all, true)
-      const allGpaAll = gpaUtil.calcGpa(all, false)
-      const allGpaBaoyan = gpaUtil.calcGpaBaoyan(all, cetScores, true)
-      const allCredits = _creditsOf(all)
-      const allCount = all.filter(g => gpaUtil.isGpaCourse(g.course_nature)).length
-
-      const bigGpa = isBaoyan ? allGpaBaoyan : allGpa
-      const currentGpa = isBaoyan ? gpaBaoyan : gpa
-
-      // 为成绩列表预计算 CSS 类和格式化值（分页切片）
-      const grades = viewGrades.map(g => ({
-        ...g,
-        _scoreClass: _scoreClass(g.score),
-        _scoreStr: g.score != null ? String(g.score) : '-',
-        _gpStr: g.grade_point != null ? _fixed(g.grade_point, 1) : '-'
-      }))
-
-      this.setData({
-        loading: false,
-        empty: all.length === 0,
-        grades: grades,
-        displayGrades: grades.slice(0, PAGE_SIZE),
-        semesterGpas: semGpaList,
-        availableSemesters: res.available_semesters || [],
-        gpa: gpa,
-        gpaAll: gpaAll,
-        gpaBaoyan: gpaBaoyan,
-        totalCredits: _creditsOf(viewGrades),
-        allGpa: allGpa,
-        allGpaAll: allGpaAll,
-        allGpaBaoyan: allGpaBaoyan,
-        allCredits: allCredits,
-        allCount: allCount,
-        allCountTotal: all.length,
-        // 预计算 picker range
-        semesterPickerRange: ['全部学期'].concat(res.available_semesters || []),
-        // 预计算显示值
-        bigGpaFixed: _fixed(bigGpa),
-        bigGpaClass: _gpaClass(bigGpa),
-        bigGpaLabel: isBaoyan ? '保研绩点' : '计内 GPA',
-        currentGpaFixed: _fixed(currentGpa),
-        currentGpaClass: _gpaClass(currentGpa)
-      })
-
-      // 缓存
+      this._render()
       storage.setCached('cached_grades', res)
     } catch (e) {
-      this.setData({
-        loading: false,
-        empty: true,
-        errorMsg: '网络请求失败'
-      })
+      this.setData({ loading: false, empty: true, errorMsg: '网络请求失败' })
     }
   },
 
-  /** 加载更多成绩（分页） */
-  loadMoreGrades() {
-    const { grades, displayGrades } = this.data
-    if (displayGrades.length >= grades.length) return
-    this.setData({
-      displayGrades: grades.slice(0, displayGrades.length + PAGE_SIZE)
+  // ============================================================
+  // 计算与渲染
+  // ============================================================
+  _checkedList() {
+    return this._allGrades.filter(g => this._checked[g.id] !== false)
+  },
+
+  _render() {
+    const all = this._allGrades
+    const checked = this._checkedList().filter(g => _num(g.credit) > 0)
+    const isBaoyan = this._mode === 'baoyan'
+
+    // --- 统计 ---
+    const totalCredits = checked.reduce((s, g) => s + _num(g.credit), 0)
+    const scored = checked.filter(g => !isNaN(_scoreNum(g)))
+    const avg = scored.length ? scored.reduce((s, g) => s + _scoreNum(g), 0) / scored.length : 0
+    const gpaV = isBaoyan
+      ? gpaUtil.calcGpaBaoyan(checked, this._cetRaw, true)
+      : gpaUtil.calcGpa(checked, true)
+    let gpaClass = ''
+    if (gpaV >= 3.0) gpaClass = 'gpa-high'
+    else if (gpaV >= 2.0) gpaClass = 'gpa-mid'
+    else if (gpaV > 0) gpaClass = 'gpa-low'
+
+    // --- CET 折算行 ---
+    let cet = null
+    if (this._cetRaw.length) {
+      let best = null
+      for (const s of this._cetRaw) {
+        const pct = gpaUtil.cetToPercentage(s.score, s.type)
+        if (pct > 0 && (!best || pct > best.pct)) best = { pct, s }
+      }
+      if (best) {
+        cet = {
+          line: best.s.type + ' ' + best.s.score + ' | 折算 ' + _fixed(best.pct, 1) + ' | 学分 8',
+          date: best.s.exam_date || ''
+        }
+      }
+    }
+
+    // --- 学期分组(倒序) ---
+    const groups = {}
+    for (const g of all) {
+      const key = (g.academic_year || '') + '-' + (g.semester || '')
+      if (!groups[key]) groups[key] = []
+      groups[key].push(g)
+    }
+    const semKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a))
+    const semGroups = semKeys.map(sem => {
+      const gs = groups[sem].slice().sort((a, b) => (a.course_name || '').localeCompare(b.course_name || ''))
+      const semChecked = gs.filter(g => this._checked[g.id] !== false)
+      const semScored = semChecked.filter(g => !isNaN(_scoreNum(g)))
+      const semAvg = semScored.length ? semScored.reduce((s, g) => s + _scoreNum(g), 0) / semScored.length : 0
+      return {
+        sem,
+        count: gs.length,
+        avg: _fixed(semAvg),
+        folded: this._folded && this._folded[sem] === true,
+        courses: gs.map(g => {
+          const gp = _gpOf(g)
+          return {
+            id: g.id,
+            name: g.course_name,
+            checked: this._checked[g.id] !== false,
+            meta: '绩点 ' + (gp < 0 ? '-' : gp.toFixed(1)) +
+              ' | 学分 ' + (_num(g.credit) || '-') +
+              ' | ' + (g.course_type || '-') +
+              ' | ' + (g.course_nature || '-'),
+            score: String(g.score)
+          }
+        })
+      }
     })
+
+    this.setData({
+      loading: false,
+      empty: all.length === 0,
+      errorMsg: '',
+      stats: {
+        credits: _fixed(totalCredits, 1),
+        avg: _fixed(avg),
+        gpa: _fixed(gpaV),
+        gpaClass,
+        mode: this._mode,
+        cet
+      },
+      semGroups
+    })
+  },
+
+  // ============================================================
+  // 交互
+  // ============================================================
+  onToggle(e) {
+    const id = e.currentTarget.dataset.id
+    if (id === undefined || this._checked[id] === undefined) return
+    this._checked[id] = !this._checked[id]
+    this._render()
+  },
+
+  onFold(e) {
+    const sem = e.currentTarget.dataset.sem
+    if (!this._folded) this._folded = {}
+    this._folded[sem] = !(this._folded[sem] === true)
+    this._render()
+  },
+
+  /** 切换 标准/保研 */
+  onModeChange(e) {
+    const mode = e.currentTarget.dataset.mode
+    this._mode = mode
+    storage.set('gpa_mode', mode)
+    this._render()
+  },
+
+  /** 点击 CET 行刷新四六级 */
+  async onRefreshCet() {
+    wx.showLoading({ title: '获取中…' })
+    try {
+      const res = await api.refreshCet()
+      wx.hideLoading()
+      if (res.success) {
+        this._cetRaw = res.scores || []
+      } else {
+        wx.showToast({ title: res.message || '获取失败', icon: 'none' })
+      }
+      this._render()
+    } catch (e) {
+      wx.hideLoading()
+    }
   },
 
   /** 刷新成绩 */
@@ -220,85 +230,6 @@ Page({
       wx.showToast({ title: '刷新失败', icon: 'none' })
     } finally {
       this.setData({ refreshing: false })
-    }
-  },
-
-  /** 刷新四六级 */
-  async onRefreshCet() {
-    wx.showLoading({ title: '获取中…' })
-    try {
-      const res = await api.refreshCet()
-      wx.hideLoading()
-      if (res.success) {
-        wx.showToast({ title: res.message || '刷新成功', icon: 'success' })
-        await this.loadCetScores()
-        await this.loadGrades()
-      } else {
-        wx.showToast({ title: res.message || '刷新失败', icon: 'none' })
-      }
-    } catch (e) {
-      wx.hideLoading()
-      wx.showToast({ title: '刷新失败', icon: 'none' })
-    }
-  },
-
-  /** 加载四六级原始成绩,返回 scores 数组 */
-  async loadCetScores() {
-    try {
-      const res = await api.getCetScores()
-      if (res.success) {
-        const scores = res.scores || []
-        this.setData({
-          cetScores: scores,
-          showCet: scores.length > 0
-        })
-        storage.setCached('cached_cet_scores', res)
-        return scores
-      }
-    } catch (e) {
-      // ignore
-    }
-    return []
-  },
-
-  // ============================================================
-  // 交互
-  // ============================================================
-
-  /** 切换学期 */
-  onSemesterChange(e) {
-    const idx = e.detail.value
-    const range = this.data.semesterPickerRange
-    const selected = range[idx] || '__all__'
-    this.setData({ selectedSemester: selected === '全部学期' ? '__all__' : selected })
-    this.loadGrades()
-  },
-
-  /** 点击学期绩点卡片 → 切换到该学期 */
-  onSemGpaTap(e) {
-    const sem = e.currentTarget.dataset.sem
-    if (!sem) return
-    this.setData({ selectedSemester: sem })
-    this.loadGrades()
-  },
-
-  /** 切换 GPA 模式 */
-  onGpaModeChange(e) {
-    const mode = e.currentTarget.dataset.mode
-    this.setData({ gpaMode: mode })
-    storage.set('gpa_mode', mode)
-    this.loadGrades()
-    // 如果切换到保研模式，同步加载四六级
-    if (mode === 'baoyan') {
-      this.loadCetScores()
-    }
-  },
-
-  /** 展开/收起四六级 */
-  onShowCet() {
-    this.setData({ showCet: !this.data.showCet })
-    if (this.data.showCet && this.data.cetScores.length === 0) {
-      this.loadCetScores()
     }
   }
 })

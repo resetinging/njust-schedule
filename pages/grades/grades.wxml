@@ -1,147 +1,80 @@
-<!-- 成绩查询页面 — GPA 汇总 + 各学期成绩 + 四六级 -->
+<!-- 成绩查询页面 — 复刻目标 UI -->
 <view class="container">
 
-  <!-- ============================================================ -->
-  <!-- 加载中 -->
-  <!-- ============================================================ -->
   <loading-modal visible="{{loading}}" title="加载成绩数据…" />
 
-  <!-- ============================================================ -->
-  <!-- 空状态 / 错误 -->
-  <!-- ============================================================ -->
+  <!-- 空状态 -->
   <view wx:if="{{!loading && empty}}" class="empty-state">
     <view class="icon">📊</view>
     <view class="text">{{errorMsg || '暂无成绩数据'}}</view>
-    <view class="hint">请先登录教务系统，然后点击刷新</view>
     <button class="btn-primary" bindtap="onRefreshGrades" disabled="{{refreshing}}">
       {{refreshing ? '刷新中…' : '🔄 从教务获取成绩'}}
     </button>
   </view>
 
-  <!-- ============================================================ -->
-  <!-- 有数据 -->
-  <!-- ============================================================ -->
-  <view wx:if="{{!loading && !empty}}" class="content">
+  <block wx:if="{{!loading && !empty}}">
 
-    <!-- 顶部操作栏 -->
-    <view class="top-bar">
-      <view class="semester-picker">
-        <picker mode="selector" range="{{semesterPickerRange}}"
-                bindchange="onSemesterChange">
-          <view class="picker-text">
-            {{selectedSemester === '__all__' ? '全部学期' : selectedSemester}} ▼
+    <!-- ============ 已勾选课程统计卡 ============ -->
+    <view class="stats-card">
+      <view class="sc-head">
+        <text class="sc-title">已勾选课程统计</text>
+        <view class="mode-seg">
+          <text class="seg {{stats.mode === '' ? 'on' : ''}}" data-mode="" bindtap="onModeChange">标准</text>
+          <text class="seg {{stats.mode === 'baoyan' ? 'on' : ''}}" data-mode="baoyan" bindtap="onModeChange">保研</text>
+        </view>
+        <text class="sc-refresh" bindtap="onRefreshGrades">🔄</text>
+      </view>
+
+      <view class="sc-pills">
+        <text class="pill">总学分 <text class="pill-num">{{stats.credits}}</text></text>
+        <text class="pill">平均分 <text class="pill-num">{{stats.avg}}</text></text>
+        <text class="pill">GPA <text class="pill-num {{stats.gpaClass}}">{{stats.gpa}}</text></text>
+      </view>
+
+      <!-- 四六级成绩行 -->
+      <view class="sc-cet" wx:if="{{stats.cet}}" bindtap="onRefreshCet">
+        <view class="sc-cet-top">
+          <view class="chk on sm">✓</view>
+          <text class="sc-cet-title">四六级成绩</text>
+          <text class="sc-cet-date">{{stats.cet.date}}</text>
+        </view>
+        <view class="sc-cet-line">{{stats.cet.line}}</view>
+      </view>
+    </view>
+
+    <!-- ============ 分学期卡片 ============ -->
+    <view class="sem-card" wx:for="{{semGroups}}" wx:key="sem" wx:for-item="grp">
+      <!-- 学期头 -->
+      <view class="sem-head" data-sem="{{grp.sem}}" bindtap="onFold">
+        <text class="sem-ico">🎓</text>
+        <text class="sem-name">{{grp.sem}}</text>
+        <text class="sem-count">{{grp.count}} 门</text>
+        <text class="sem-fold">{{grp.folded ? '˅' : '˄'}}</text>
+      </view>
+
+      <!-- 成绩统计行 -->
+      <view class="sem-stats" data-sem="{{grp.sem}}" bindtap="onFold">
+        <text class="ss-tag">📊</text>
+        <text class="ss-title">成绩统计</text>
+        <text class="ss-avg">均分 {{grp.avg}}</text>
+        <text class="sem-fold">{{grp.folded ? '˅' : '˄'}}</text>
+      </view>
+
+      <!-- 课程列表 -->
+      <block wx:if="{{!grp.folded}}">
+        <view class="grade-row" wx:for="{{grp.courses}}" wx:key="id" wx:for-item="c">
+          <view class="chk {{c.checked ? 'on' : ''}}" data-id="{{c.id}}" bindtap="onToggle">
+            <text wx:if="{{c.checked}}">✓</text>
           </view>
-        </picker>
-      </view>
-      <view class="top-actions">
-        <text class="action-btn" bindtap="onRefreshGrades">🔄 刷新</text>
-      </view>
-    </view>
-
-    <!-- GPA 模式切换 -->
-    <view class="mode-tabs">
-      <view class="mode-tab {{gpaMode === '' ? 'active' : ''}}"
-            data-mode="" bindtap="onGpaModeChange">全部</view>
-      <view class="mode-tab {{gpaMode === 'baoyan' ? 'active' : ''}}"
-            data-mode="baoyan" bindtap="onGpaModeChange">保研/推免</view>
-    </view>
-
-    <!-- 保研模式说明 -->
-    <view wx:if="{{gpaMode === 'baoyan'}}" class="baoyan-tip">
-      🎓 保研模式：用最高可用 CET 折算分替换英语模块（8 学分）重算绩点，优先级 CET6 &gt; CET4 &gt; 原始英语成绩
-    </view>
-
-    <!-- GPA 汇总卡片 -->
-    <view class="gpa-summary">
-      <view class="gpa-main-card">
-        <view class="gpa-bignum {{bigGpaClass}}">{{bigGpaFixed}}</view>
-        <view class="gpa-label">{{bigGpaLabel}}</view>
-      </view>
-      <view class="gpa-stats">
-        <view class="gpa-stat-item">
-          <text class="stat-num">{{allCredits || 0}}</text>
-          <text class="stat-label">计内学分</text>
-        </view>
-        <view class="gpa-stat-item">
-          <text class="stat-num">{{allCount || 0}}</text>
-          <text class="stat-label">计内门数</text>
-        </view>
-        <view class="gpa-stat-item">
-          <text class="stat-num">{{allGpaAll || 0}}</text>
-          <text class="stat-label">全部 GPA</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 各学期绩点（点击切换学期） -->
-    <view wx:if="{{semesterGpas.length > 0 && selectedSemester === '__all__'}}" class="semester-gpa-list">
-      <view class="section-title">📋 各学期绩点（点击查看详情）</view>
-      <view class="sem-gpa-row" wx:for="{{semesterGpas}}" wx:key="semester"
-            data-sem="{{item.semester}}" bindtap="onSemGpaTap">
-        <text class="sem-name">{{item.semester}}</text>
-        <text class="sem-gpa {{item._gpaClass}}">{{item._gpaFixed}}</text>
-        <text class="sem-credits">{{item.credits}}学分 / {{item.count}}门</text>
-        <text class="arrow">›</text>
-      </view>
-    </view>
-
-    <!-- 当前视图绩点（非全部学期时显示） -->
-    <view wx:if="{{selectedSemester !== '__all__'}}" class="current-sem-gpa">
-      <text>当前学期绩点: </text>
-      <text class="{{currentGpaClass}}">{{currentGpaFixed}}</text>
-      <text class="sem-credits">（{{totalCredits}}学分 / {{grades.length}}门）</text>
-    </view>
-
-    <!-- 四六级成绩 -->
-    <view wx:if="{{gpaMode === 'baoyan'}}" class="cet-section">
-      <view class="section-title" bindtap="onShowCet">
-        📝 四六级成绩 {{showCet ? '▲' : '▼'}}
-      </view>
-      <view wx:if="{{showCet && cetScores.length > 0}}" class="cet-list">
-        <view class="cet-row" wx:for="{{cetScores}}" wx:key="type">
-          <text class="cet-type">{{item.type === 'CET4' ? '四级' : '六级'}}</text>
-          <text class="cet-score">{{item.score}}</text>
-          <text class="cet-date">{{item.exam_date || ''}}</text>
-        </view>
-      </view>
-      <view wx:if="{{showCet && cetScores.length === 0}}" class="cet-empty">
-        <text>暂无四六级成绩</text>
-        <text class="action-btn" bindtap="onRefreshCet">🔄 从教务获取</text>
-      </view>
-    </view>
-
-    <!-- 成绩列表（分页渲染） -->
-    <view class="section-title">📚 成绩列表（{{grades.length}}门）</view>
-    <view class="grade-list">
-      <view class="grade-row" wx:for="{{displayGrades}}" wx:key="id">
-        <view class="grade-left">
-          <text class="grade-name">{{item.course_name}}</text>
-          <view class="grade-meta">
-            <text class="grade-code">{{item.course_code || ''}}</text>
-            <text class="grade-type">{{item.course_type || ''}}</text>
-            <text class="grade-nature">{{item.course_nature || ''}}</text>
-            <text class="grade-credit">{{item.credit || 0}}学分</text>
+          <view class="g-main">
+            <text class="g-name">{{c.name}}</text>
+            <text class="g-meta">{{c.meta}}</text>
           </view>
+          <view class="g-score">{{c.score}}</view>
         </view>
-        <view class="grade-right">
-          <text class="grade-score {{item._scoreClass}}">{{item._scoreStr}}</text>
-          <text class="grade-gp">{{item._gpStr}}</text>
-        </view>
-      </view>
+      </block>
     </view>
 
-    <!-- 加载更多 -->
-    <view class="load-more" wx:if="{{displayGrades.length < grades.length}}" bindtap="loadMoreGrades">
-      加载更多（还有 {{grades.length - displayGrades.length}} 门）
-    </view>
-
-    <!-- 底部刷新按钮 -->
-    <view class="bottom-actions">
-      <button class="btn-secondary" bindtap="onRefreshGrades" disabled="{{refreshing}}">
-        {{refreshing ? '刷新中…' : '🔄 刷新成绩'}}
-      </button>
-    </view>
-
-  </view>
+  </block>
 
 </view>

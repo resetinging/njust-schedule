@@ -1,21 +1,21 @@
 /* ============================================================
    南理工课表 — 全局样式
-   NJUST 主题色: 紫色 #5B3CC4
+   NJUST 主题色: 紫色 #7C6BE8
    ============================================================ */
 
 page {
-  --primary: #5B3CC4;
-  --primary-light: #7C5FE8;
-  --primary-dark: #3E2A8A;
-  --success: #4CAF50;
-  --danger: #E53935;
-  --warning: #FF9800;
-  --text-primary: #212121;
-  --text-secondary: #757575;
-  --text-hint: #9E9E9E;
-  --bg-page: #F5F5F5;
+  --primary: #7C6BE8;
+  --primary-light: #8B79EC;
+  --primary-dark: #5A4AC8;
+  --success: #27ae60;
+  --danger: #e74c3c;
+  --warning: #f39c12;
+  --text-primary: #33304F;
+  --text-secondary: #8A87A8;
+  --text-hint: #95a5a6;
+  --bg-page: #F7F6FB;
   --bg-card: #FFFFFF;
-  --border: #E0E0E0;
+  --border: #E3DFF5;
   --overlay: rgba(0, 0, 0, 0.5);
 
   font-family: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -95,7 +95,7 @@ page {
 }
 
 .tag-primary {
-  background: #EDE7F6;
+  background: #EFEBFC;
   color: var(--primary);
 }
 
@@ -163,3 +163,135 @@ page {
 .page-safe-bottom {
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
 }
+
+/* ============================================================
+   V2 视觉升级 — 全局主题质感
+   ============================================================ */
+page {
+  background: linear-gradient(180deg, #F7F6FB 0%, #F5F5F5 55%, #f0f4f8 100%);
+}
+
+/* 卡片质感(未被页面重定义的 .card) */
+.card {
+  border-radius: 20rpx;
+  box-shadow: 0 6rpx 24rpx rgba(26, 82, 118, 0.08);
+  border: 1rpx solid rgba(26, 82, 118, 0.06);
+}
+
+/* 主按钮渐变 + 按压反馈 */
+.btn-primary {
+  background: linear-gradient(135deg, #7C6BE8 0%, #8B79EC 100%) !important;
+  box-shadow: 0 8rpx 20rpx rgba(26, 82, 118, 0.30) !important;
+  border-radius: 44rpx !important;
+}
+.btn-primary:active { opacity: 0.85; }
+.btn-outline:active, .btn-danger:active { opacity: 0.85; }
+
+/* 数字字体(tabular) */
+.stat-num, .gpa-bignum, .cd-bignum, .grade-score {
+  font-family: "DIN Alternate", "Avenir Next", "Helvetica Neue", sans-serif;
+  font-weight: 800;
+}
+
+/* 统一分区标题 */
+.section-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #33304F;
+  letter-spacing: 0.5rpx;
+}
+
+/* 空状态图标: 渐变圆底 */
+.empty-state .icon {
+  width: 160rpx;
+  height: 160rpx;
+  line-height: 160rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #EFEBFC 0%, #F3E8FF 100%);
+  font-size: 72rpx;
+  margin-bottom: 28rpx;
+}
+
+
+/* ============================================================
+   V4 简约风格 — 白色为主, 克制的紫色点缀
+   ============================================================ */
+page {
+  background: #F7F6FB;
+}
+
+/* 卡片: 白底 + 轻阴影 */
+.card {
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 10rpx rgba(31, 25, 72, 0.05);
+  border: 1rpx solid rgba(0, 0, 0, 0.03);
+}
+
+/* 按钮: 纯色主紫, 去渐变去投影 */
+.btn-primary {
+  background: #7C6BE8 !important;
+  box-shadow: none !important;
+  border-radius: 16rpx !important;
+}
+.btn-primary:active { opacity: 0.88; }
+
+/* 主色文字 */
+.primary-text { color: var(--primary); }
+
+/* 空状态: 大图标, 去掉渐变圆底 */
+.empty-state .icon {
+  width: auto;
+  height: auto;
+  line-height: normal;
+  border-radius: 0;
+  background: none;
+  font-size: 100rpx;
+  margin-bottom: 24rpx;
+  filter: none;
+}
+
+
+/* ============================================================
+   V6 桌面端同款布局 — 全局
+   ============================================================ */
+/* 卡片: 桌面 --radius 10px / --shadow 0 2px 8px rgba(0,0,0,0.08) */
+.card {
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  border: none;
+}
+
+/* 按钮: 桌面 .btn padding 8px 16px / radius 8px; 主按钮 #8B79EC */
+.btn-primary {
+  background: #8B79EC !important;
+  box-shadow: none !important;
+  border-radius: 16rpx !important;
+}
+.btn-outline, .btn-secondary {
+  background: #fff !important;
+  color: #33304F !important;
+  border: 2rpx solid #E3DFF5 !important;
+  border-radius: 16rpx !important;
+}
+
+/* 分区标题: 桌面 .section-title 1.1rem 主色 */
+.section-title {
+  color: #7C6BE8;
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+/* 学期徽标(桌面 .semester-badge): 淡蓝底主色字胶囊 */
+.semester-badge {
+  background: #EFEBFC;
+  color: #7C6BE8;
+  padding: 8rpx 24rpx;
+  border-radius: 40rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+/* 空状态: 桌面 .empty-icon 4rem / h3 1.2rem */
+.empty-state .icon { font-size: 112rpx; }
+.empty-state .text { font-size: 28rpx; color: #8A87A8; }
+

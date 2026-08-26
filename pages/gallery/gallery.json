@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "校历",
+  "navigationBarTitleText": "校园工具",
   "usingComponents": {
     "loading-modal": "/components/loading-modal/loading-modal"
   }

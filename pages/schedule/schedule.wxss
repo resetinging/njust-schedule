@@ -324,3 +324,378 @@
   font-size: 28rpx;
   padding: 8rpx;
 }
+
+/* ============================================================
+   V2 视觉升级 — 课表页
+   ============================================================ */
+/* 顶部信息栏卡片化(白底悬浮) */
+.header {
+  background: #fff;
+  border-radius: 0 0 32rpx 32rpx;
+  box-shadow: 0 8rpx 24rpx rgba(26, 82, 118, 0.12);
+  padding-bottom: 20rpx;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+/* 学期选择胶囊 */
+.semester-picker {
+  background: #EFEBFC;
+  border-radius: 32rpx;
+  padding: 10rpx 24rpx;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* 当前周徽标 */
+.this-week-label {
+  background: linear-gradient(135deg, #7C6BE8, #8B79EC);
+  color: #fff;
+  border-radius: 16rpx;
+  padding: 2rpx 12rpx;
+  font-size: 20rpx;
+  margin-left: 8rpx;
+}
+
+/* 视图切换胶囊 */
+.view-toggle {
+  background: #EFEBFC;
+  border-radius: 32rpx;
+  padding: 6rpx;
+}
+.toggle-btn {
+  border-radius: 28rpx;
+  transition: all 0.15s;
+}
+.toggle-btn.active {
+  background: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(26, 82, 118, 0.18);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* 列表课程卡 */
+.course-card {
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+  border: 1rpx solid rgba(26, 82, 118, 0.05);
+}
+.course-card:active { transform: scale(0.985); }
+
+/* 日期分组标题 */
+.day-title {
+  border-left: 8rpx solid var(--primary);
+  padding-left: 16rpx;
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+/* 详情弹窗标题装饰 */
+.modal-title {
+  padding-bottom: 16rpx;
+  border-bottom: 2rpx solid #EFEBFC;
+}
+.modal-badge {
+  background: linear-gradient(135deg, #7C6BE8, #8B79EC);
+  color: #fff;
+  border-radius: 16rpx;
+  padding: 4rpx 16rpx;
+  font-size: 22rpx;
+}
+
+
+/* ============================================================
+   V3 视觉升级 — 课表页头部 Hero + 底部弹层
+   ============================================================ */
+/* 顶部 Hero 渐变(白字) */
+.header {
+  background: linear-gradient(135deg, #7C6BE8 0%, #8B79EC 55%, #3498db 100%);
+  color: #fff;
+}
+.header .semester-picker {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.header .arrow { color: rgba(255, 255, 255, 0.85); }
+.header .week-info { color: #fff; }
+.header .week-jump-hint { color: rgba(255, 255, 255, 0.85); }
+.header .week-btn {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 16rpx;
+}
+.this-week-label {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--primary);
+}
+.header .view-toggle { background: rgba(255, 255, 255, 0.20); }
+.header .toggle-btn { color: rgba(255, 255, 255, 0.95); }
+.header .toggle-btn.active {
+  background: #fff;
+  color: var(--primary);
+}
+.header .search-bar { margin-top: 4rpx; }
+.header .search-input {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: transparent;
+}
+
+/* 详情弹窗 → 底部弹出 */
+.modal-mask { align-items: flex-end; padding: 0; }
+.modal-card {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 40rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -8rpx 40rpx rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  max-height: 80vh;
+}
+.modal-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid #EFEBFC;
+}
+.modal-row { padding: 10rpx 0; }
+
+
+/* ============================================================
+   V4 简约风格 — 课表页
+   ============================================================ */
+/* 头部: 白底 + 底部分隔, 去渐变 */
+.header {
+  background: #fff;
+  box-shadow: none;
+  border-bottom: 1rpx solid #E9EDF2;
+  padding-bottom: 16rpx;
+}
+.header .semester-picker {
+  background: #EFEBFC;
+  color: var(--primary);
+  padding: 8rpx 20rpx;
+}
+.header .arrow { color: var(--primary); }
+.header .week-info { color: #333; }
+.header .week-jump-hint { color: var(--text-hint); }
+.header .week-btn {
+  background: #EFEBFC;
+  color: var(--primary);
+  border-radius: 12rpx;
+  font-size: 26rpx;
+}
+.this-week-label {
+  background: #EFEBFC;
+  color: var(--primary);
+}
+.header .view-toggle { background: #eaf1f8; }
+.header .toggle-btn { color: var(--text-secondary); }
+.header .toggle-btn.active { background: #fff; color: var(--primary); }
+.header .search-input {
+  background: #F6F5FA;
+  border: 1rpx solid #E6E2F2;
+}
+
+/* 列表课程卡: 白底轻阴影 */
+.course-card {
+  border-radius: 12rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  border: none;
+}
+
+/* 详情弹窗: 保持底部弹出, 白底 */
+.modal-card {
+  border-radius: 24rpx 24rpx 0 0;
+  box-shadow: 0 -4rpx 24rpx rgba(0, 0, 0, 0.10);
+}
+
+
+/* ============================================================
+   V6 桌面端同款 — 课表页
+   ============================================================ */
+/* 学期选择器 → 桌面学期徽标样式 */
+.header .semester-picker {
+  background: #EFEBFC;
+  color: #7C6BE8;
+  border-radius: 40rpx;
+  padding: 8rpx 24rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+/* 周次按钮 → 桌面 btn-secondary: 白底描边 */
+.header .week-btn {
+  background: #fff;
+  border: 2rpx solid #E3DFF5;
+  color: #33304F;
+  border-radius: 12rpx;
+}
+/* 本周徽标 → 桌面 badge 淡蓝胶囊 */
+.this-week-label {
+  background: #EFEBFC;
+  color: #7C6BE8;
+  border-radius: 24rpx;
+  font-size: 24rpx;
+}
+/* 视图切换 → 桌面 btn 组: 白底描边, 选中亮蓝 */
+.header .view-toggle { background: #F7F6FB; border-radius: 20rpx; padding: 4rpx; }
+.header .toggle-btn {
+  color: #8A87A8;
+  border-radius: 16rpx;
+}
+.header .toggle-btn.active {
+  background: #8B79EC;
+  color: #fff;
+}
+.header .search-input {
+  background: #fff;
+  border: 2rpx solid #E3DFF5;
+  border-radius: 18rpx;
+}
+/* 列表课程卡 → 桌面 exam-card 同款白卡 */
+.course-card {
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  padding: 20rpx 24rpx;
+}
+
+/* ============================================================
+   复刻目标 UI — 顶部紫渐变卡 + 工具栏
+   ============================================================ */
+.top-card {
+  margin: 16rpx 20rpx 0;
+  padding: 28rpx 28rpx 24rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #8F7DF0 0%, #A99BF5 55%, #BBAFF8 100%);
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 10rpx 30rpx rgba(120, 100, 220, 0.35);
+}
+
+.tc-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.tc-sem {
+  font-size: 40rpx;
+  font-weight: 700;
+  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.15);
+}
+
+.tc-user {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.tc-avatar {
+  width: 44rpx;
+  height: 44rpx;
+  line-height: 44rpx;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  font-size: 26rpx;
+}
+
+.tc-id { font-size: 24rpx; color: rgba(255, 255, 255, 0.8); }
+
+.tc-right {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.tc-week {
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.top-card .view-toggle {
+  display: flex;
+  gap: 8rpx;
+  background: rgba(255, 255, 255, 0.20);
+  border-radius: 16rpx;
+  padding: 6rpx;
+}
+
+.top-card .toggle-btn {
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  text-align: center;
+  font-size: 30rpx;
+  border-radius: 12rpx;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.top-card .toggle-btn.active {
+  background: rgba(255, 255, 255, 0.95);
+  color: #7C6BE8;
+}
+
+/* 工具栏 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin: 16rpx 20rpx 8rpx;
+}
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.week-btn {
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  text-align: center;
+  background: #fff;
+  border: 2rpx solid #E3DFF5;
+  color: #7C6BE8;
+  border-radius: 14rpx;
+  font-size: 26rpx;
+}
+
+.week-label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #4A4670;
+  min-width: 150rpx;
+  text-align: center;
+}
+
+.search-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 2rpx solid #E3DFF5;
+  border-radius: 30rpx;
+  padding: 0 8rpx 0 24rpx;
+  height: 64rpx;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 26rpx;
+  height: 60rpx;
+}
+
+.search-clear {
+  padding: 0 16rpx;
+  color: #9A96B8;
+  font-size: 26rpx;
+}

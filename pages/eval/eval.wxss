@@ -380,7 +380,7 @@
 
 .option-item.option-checked {
   border-color: var(--primary);
-  background: #EDE7F6;
+  background: #EFEBFC;
   color: var(--primary);
   font-weight: 500;
 }
@@ -546,3 +546,124 @@
   font-size: 28rpx;
   text-align: center;
 }
+
+/* ============================================================
+   V2 视觉升级 — 评教页
+   ============================================================ */
+.countdown-card {
+  border-radius: 20rpx;
+  box-shadow: 0 6rpx 18rpx rgba(0, 0, 0, 0.07);
+}
+.batch-card, .course-card, .indicator-card {
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 选项胶囊选中渐变 */
+.option-item {
+  border-radius: 28rpx;
+  transition: all 0.12s;
+}
+.option-item.option-checked {
+  background: linear-gradient(135deg, #7C6BE8, #8B79EC);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4rpx 12rpx rgba(26, 82, 118, 0.30);
+}
+.option-checked .option-score { color: #fff; }
+
+
+/* ============================================================
+   V3 视觉升级 — 评教页头部 Hero
+   ============================================================ */
+.top-bar {
+  background: linear-gradient(135deg, #7C6BE8 0%, #8B79EC 60%, #3498db 100%);
+  color: #fff;
+}
+.top-bar .refresh-btn {
+  background: #fff;
+  color: var(--primary);
+  border-radius: 24rpx;
+  padding: 8rpx 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
+}
+.summary-bar {
+  background: #fff;
+  border-radius: 0 0 20rpx 20rpx;
+  box-shadow: 0 4rpx 14rpx rgba(26, 82, 118, 0.10);
+  z-index: 10;
+}
+.summary-bar .batch-btn {
+  color: var(--primary);
+  background: #EFEBFC;
+  border-radius: 24rpx;
+  padding: 6rpx 20rpx;
+}
+
+
+/* ============================================================
+   V4 简约风格 — 评教页
+   ============================================================ */
+.top-bar {
+  background: #fff;
+  color: #333;
+  border-bottom: 1rpx solid #E9EDF2;
+}
+.top-bar .refresh-btn, .summary-bar .batch-btn {
+  background: #EFEBFC;
+  color: var(--primary);
+  box-shadow: none;
+}
+.summary-bar {
+  box-shadow: none;
+  border-bottom: 1rpx solid #E9EDF2;
+}
+
+.countdown-card {
+  background: #fff;
+  border: 1rpx solid #E9EDF2;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+.batch-card, .course-card, .indicator-card {
+  box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.03);
+}
+
+/* 选中选项: 浅紫底 + 主色字, 去渐变 */
+.option-item.option-checked {
+  background: #EFEBFC;
+  color: var(--primary);
+  border-color: #8B79EC;
+  box-shadow: none;
+}
+.option-checked .option-score { color: var(--primary); }
+
+
+/* ============================================================
+   V6 桌面端同款 — 评教页
+   ============================================================ */
+.countdown-card {
+  background: #fff;
+  border: none;
+  border-top: 8rpx solid transparent;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+}
+.batch-card, .course-card, .indicator-card {
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+}
+/* 选项胶囊 → 桌面 .option-item: 白底描边圆角 */
+.option-item {
+  background: #fff;
+  border: 2rpx solid #E3DFF5;
+  color: #33304F;
+  border-radius: 28rpx;
+}
+.option-item.option-checked {
+  background: #8B79EC;
+  border-color: #8B79EC;
+  color: #fff;
+  box-shadow: none;
+}
+.option-checked .option-score { color: #fff; }

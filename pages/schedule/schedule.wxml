@@ -1,45 +1,41 @@
 <!-- 课表页面 -->
 <view class="container">
 
-  <!-- 顶部信息栏 -->
-  <view class="header">
-    <view class="semester-row">
+  <!-- 顶部紫渐变信息卡 -->
+  <view class="top-card">
+    <view class="tc-main">
       <picker mode="selector" range="{{semesters}}" bindchange="onSemesterChange">
-        <view class="semester-picker">
-          <text>{{semester || '选择学期'}}</text>
-          <text class="arrow">▼</text>
-        </view>
+        <view class="tc-sem">{{semester || '选择学期'}}</view>
       </picker>
-      <view class="week-info">
-        <picker mode="selector" range="{{weekPickerRange}}" bindchange="onJumpWeek">
-          <view class="week-label-badge">
-            <text>第 {{currentWeek}} 周<text wx:if="{{currentWeek === actualWeek}}" class="this-week-label">（本周）</text></text>
-            <text class="week-jump-hint">跳转 ▾</text>
-          </view>
-        </picker>
-        <view class="week-nav">
-          <text class="week-btn" bindtap="prevWeek">◀</text>
-          <text class="week-btn" bindtap="nextWeek">▶</text>
-        </view>
+      <view class="tc-user">
+        <text class="tc-avatar">👤</text>
+        <text>{{studentName || '未登录'}}</text>
+        <text wx:if="{{studentId}}" class="tc-id">({{studentId}})</text>
       </view>
     </view>
-
-    <!-- 视图切换 -->
-    <view class="view-toggle">
-      <text
-        class="toggle-btn {{viewMode === 'grid' ? 'active' : ''}}"
-        data-mode="grid"
-        bindtap="switchView"
-      >📅 网格</text>
-      <text
-        class="toggle-btn {{viewMode === 'list' ? 'active' : ''}}"
-        data-mode="list"
-        bindtap="switchView"
-      >📋 列表</text>
+    <view class="tc-right">
+      <view class="view-toggle">
+        <text class="toggle-btn {{viewMode === 'grid' ? 'active' : ''}}"
+              data-mode="grid" bindtap="switchView">▦</text>
+        <text class="toggle-btn {{viewMode === 'list' ? 'active' : ''}}"
+              data-mode="list" bindtap="switchView">☰</text>
+      </view>
+      <picker mode="selector" range="{{weekPickerRange}}" bindchange="onJumpWeek">
+        <view class="tc-week">第 {{currentWeek}} 周 ▼</view>
+      </picker>
     </view>
+  </view>
 
-    <!-- 搜索课程/教师 -->
-    <view class="search-bar" wx:if="{{!loading && courses.length > 0}}">
+  <!-- 工具栏: 上下周 + 搜索 -->
+  <view class="toolbar">
+    <view class="week-nav">
+      <text class="week-btn" bindtap="prevWeek">◀</text>
+      <text class="week-label">
+        {{currentWeek === actualWeek ? '第 ' + currentWeek + ' 周（本周）' : '第 ' + currentWeek + ' 周'}}
+      </text>
+      <text class="week-btn" bindtap="nextWeek">▶</text>
+    </view>
+    <view class="search-box">
       <input class="search-input" placeholder="🔍 搜索课程 / 教师"
              value="{{searchText}}" bindinput="onSearchInput"
              confirm-type="search" />

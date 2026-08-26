@@ -6,6 +6,9 @@
 const config = require('./config')
 const storage = require('./storage')
 
+// 登录 token 存储键（多用户：请求携带 X-Auth-Token 标识会话）
+const TOKEN_KEY = 'token'
+
 // ============================================================
 // 底层请求封装
 // ============================================================
@@ -19,6 +22,8 @@ const storage = require('./storage')
  */
 function request(method, path, data = {}) {
   const header = { 'Content-Type': 'application/json' }
+  const token = storage.get(TOKEN_KEY, '')
+  if (token) header['X-Auth-Token'] = token
 
   // 本地联调: 直连本机 Flask(需开发者工具勾选「不校验合法域名」)
   if (config.USE_LOCAL) {
@@ -89,25 +94,31 @@ function getCaptcha() {
   return request('GET', '/api/get-captcha')
 }
 
-/** 手动输入验证码登录 */
-function login(studentId, password, captcha) {
+/** 手动输入验证码登录（多用户：携带 captcha_id 绑定验证码会话） */
+function login(studentId, password, captcha, captchaId) {
   return request('POST', '/api/login-manual', {
     student_id: studentId,
     password: password,
-    captcha: captcha
+    captcha: captcha,
+    captcha_id: captchaId || ''
   }).then(res => {
     if (res.success) {
       storage.setStudentId(studentId)
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
+      storage.set(TOKEN_KEY, res.token || '')
     }
     return res
   })
 }
 
-/** 退出登录 */
+/** 退出登录（销毁后端会话 + 清空本地） */
 function logout() {
-  storage.clearAll()
+  return request('POST', '/api/logout').then(() => {
+    storage.clearAll()
+  }).catch(() => {
+    storage.clearAll()
+  })
 }
 
 // ============================================================
@@ -264,21 +275,37 @@ function refreshCet() {
 // 智慧理工 SSO 登录接口
 // ============================================================
 
-/** Step 1: 智慧理工 SSO 登录并获取教务验证码 */
+/** Step 1: 智慧理工 SSO 登录并获取教务验证码（含 captcha_id / 直接登录 token） */
 function getWebvpnCaptcha(studentId, password) {
   return request('POST', '/api/get-webvpn-captcha', {
     student_id: studentId,
     password: password
+  }).then(res => {
+    // SSO 后已有教务会话：直接获得登录 token
+    if (res.success && res.already_logged_in && res.token) {
+      storage.setStudentId(studentId)
+      storage.set(TOKEN_KEY, res.token)
+    }
+    return res
   })
 }
 
-/** Step 2: 使用验证码完成教务登录（智慧理工模式） */
-function loginWebvpnManual(studentId, password, jwcPassword, captcha) {
+/** Step 2: 使用验证码完成教务登录（智慧理工模式，携带 captcha_id） */
+function loginWebvpnManual(studentId, password, jwcPassword, captcha, captchaId) {
   return request('POST', '/api/login-webvpn-manual', {
     student_id: studentId,
     password: password,
     jwc_password: jwcPassword || password,
-    captcha: captcha
+    captcha: captcha,
+    captcha_id: captchaId || ''
+  }).then(res => {
+    if (res.success) {
+      storage.setStudentId(studentId)
+      storage.setStudentName(res.student_name || '')
+      storage.setSemester(res.semester || '')
+      storage.set(TOKEN_KEY, res.token || '')
+    }
+    return res
   })
 }
 
@@ -288,6 +315,14 @@ function loginWebvpn(studentId, password, jwcPassword) {
     student_id: studentId,
     password: password,
     jwc_password: jwcPassword || password
+  }).then(res => {
+    if (res.success) {
+      storage.setStudentId(studentId)
+      storage.setStudentName(res.student_name || '')
+      storage.setSemester(res.semester || '')
+      storage.set(TOKEN_KEY, res.token || '')
+    }
+    return res
   })
 }
 

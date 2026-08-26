@@ -1,191 +1,126 @@
-/* 周课表网格组件 — 大节分组布局 */
+/* 周课表网格组件 — 小节行布局(复刻目标 UI) */
 
 .week-grid {
+  margin: 0;
   background: #fff;
-  margin: 12rpx 8rpx;
-  border-radius: 12rpx;
   overflow: hidden;
 }
 
 /* 表头 */
 .grid-header {
   display: flex;
-  border-bottom: 2rpx solid #E0E0E0;
-  background: #F5F5F5;
   position: sticky;
   top: 0;
   z-index: 10;
+  background: #F7F6FB;
+  border-bottom: 1rpx solid #EEEBF6;
 }
 
-.header-cell {
+.head-time {
+  flex: 0 0 110rpx;
+  min-width: 110rpx;
+}
+
+.head-day {
   flex: 1;
   text-align: center;
-  padding: 16rpx 4rpx;
+  padding: 14rpx 0;
   font-size: 24rpx;
-  font-weight: bold;
-  color: var(--text-secondary);
-  border-right: 1rpx solid #EEE;
+  font-weight: 600;
+  color: #4A4670;
+  border-left: 1rpx solid #F1EFF8;
 }
 
-.header-cell:last-child {
-  border-right: none;
-}
-
-/* 日期行 */
-.date-header {
-  background: #FAFAFA;
-  border-bottom: 1rpx solid #EEE;
-}
-
-.date-cell {
-  font-size: 22rpx;
-  font-weight: 500;
-  color: #999;
-  padding: 8rpx 4rpx;
-}
-
-/* 今日列高亮 */
-.header-cell.today-col {
-  background: #FFF8E1;
-  color: #E65100;
-  font-weight: bold;
-}
-
-.date-cell.today-col {
-  color: #E65100;
-  font-weight: bold;
-}
-
-.day-cell.today-col {
-  background: #FFFDE7;
-}
-
-.period-header {
-  flex: 0 0 80rpx;
-  min-width: 80rpx;
-}
-
-/* 大节行 */
+/* 网格体 */
 .grid-body {
-  overflow-y: auto;
-  max-height: calc(100vh - 200rpx);
-}
-
-.big-period-row {
   display: flex;
-  border-bottom: 2rpx solid #E0E0E0;
-  position: relative;
+  overflow-y: auto;
+  max-height: calc(100vh - 340rpx);
 }
 
-/* 节次标签 */
-.period-label {
-  flex: 0 0 80rpx;
-  min-width: 80rpx;
+/* 节次时间列 */
+.time-col {
+  flex: 0 0 110rpx;
+  min-width: 110rpx;
+}
+
+.time-cell {
+  height: 112rpx;
+  box-sizing: border-box;
+  border-bottom: 1rpx solid #F1EFF8;
+  border-right: 1rpx solid #F1EFF8;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #FAFAFA;
-  border-right: 1rpx solid #E0E0E0;
-  padding: 6rpx;
-  box-sizing: border-box;
+  gap: 2rpx;
 }
 
-.period-name {
-  font-size: 24rpx;
-  font-weight: bold;
-  color: #333;
-  line-height: 1.3;
+.t-num {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #4A4670;
 }
 
-.period-time {
-  font-size: 20rpx;
-  color: #999;
-  line-height: 1.3;
+.t-time {
+  font-size: 16rpx;
+  color: #9A96B8;
 }
 
-/* 每天格 */
-.day-cell {
+/* 每天列: 相对容器 + 行线背景 */
+.day-col {
   flex: 1;
   min-width: 0;
-  border-right: 1rpx solid #F0F0F0;
+  position: relative;
+  border-left: 1rpx solid #F1EFF8;
+  height: 1568rpx; /* 14 * 112 */
+  background-image: repeating-linear-gradient(
+    180deg,
+    #F1EFF8 0,
+    #F1EFF8 1rpx,
+    transparent 1rpx,
+    transparent 112rpx
+  );
 }
 
-.day-cell:last-child {
-  border-right: none;
-}
-
-/* 大节内偏移占位（课程不从大节顶部开始时，与桌面端 spacer 一致） */
-.course-offset {
-  width: 100%;
-}
-
-/* 课程块 */
+/* 课程块: 绝对定位 + 圆角 + 左侧深色条 */
 .course-block {
+  position: absolute;
+  left: 4rpx;
+  right: 4rpx;
+  box-sizing: border-box;
+  border-left: 5rpx solid;
+  border-radius: 10rpx;
+  padding: 6rpx 8rpx 4rpx;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  border-radius: 8rpx;
-  padding: 6rpx 8rpx;
-  overflow: hidden;
-  box-shadow: 0 1rpx 3rpx rgba(0, 0, 0, 0.12);
-  margin: 2rpx;
-  box-sizing: border-box;
+  gap: 2rpx;
+  box-shadow: 0 2rpx 8rpx rgba(76, 70, 122, 0.10);
 }
 
-/* 单双周左边框标识 */
-.course-block.type-odd {
-  border-left: 5rpx solid #FF9800;
-}
-
-.course-block.type-even {
-  border-left: 5rpx solid #2196F3;
-}
-
-.course-name {
-  font-size: 24rpx;
+/* 课程名: 占满剩余空间、按块高自然换行 */
+.cb-name {
+  flex: 1;
+  min-height: 0;
+  font-size: 20rpx;
   font-weight: 600;
-  color: #fff;
+  line-height: 1.25;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.4;
+  word-break: break-all;
 }
 
-.course-teacher {
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.85);
+.cb-code {
+  flex-shrink: 0;
+  font-size: 16rpx;
+  line-height: 1.2;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1.3;
-}
-
-.course-room {
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.75);
-  overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.3;
 }
 
-/* 单双周角标 */
-.week-badge {
-  position: absolute;
-  top: 2rpx;
-  right: 2rpx;
-  font-size: 18rpx;
-  color: #fff;
-  background: #FF9800;
-  border-radius: 50%;
-  width: 32rpx;
-  height: 32rpx;
-  text-align: center;
-  line-height: 32rpx;
-  font-weight: bold;
-}
-
-.week-badge.even {
-  background: #2196F3;
+.cb-range {
+  flex-shrink: 0;
+  font-size: 16rpx;
+  line-height: 1.2;
 }

@@ -5,7 +5,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
-const { calcCurrentWeek, calcTodayDay, isWeekInRange, getWeekBounds } = require('../../utils/date')
+const { calcCurrentWeek, calcTodayDay, isWeekInRange } = require('../../utils/date')
 
 Page({
   data: {
@@ -24,7 +24,9 @@ Page({
     firstWeekDate: '',       // 学期第一周周一日期
 
     searchText: '',          // 课程/教师搜索
-    weekPickerRange: []      // 周次跳转选择器 (1-20)
+    weekPickerRange: [],     // 周次跳转选择器 (1-20)
+    studentName: '',         // 学生姓名(顶部信息卡)
+    studentId: ''            // 学号(顶部信息卡)
   },
 
   onLoad() {
@@ -34,6 +36,7 @@ Page({
     this.setData({
       weekPickerRange: Array.from({ length: 20 }, (_, i) => String(i + 1))
     })
+    this._syncUser()
   },
 
   onShow() {
@@ -41,9 +44,20 @@ Page({
     if (app.globalData.semester) {
       this.setData({ semester: app.globalData.semester })
     }
+    this._syncUser()
+    // 从「我的」页设置第一周日期后回到课表页,自动刷新定位本周
+    this.loadFirstWeekDate()
   },
 
-  /** 获取校历设置 */
+  /** 同步学生姓名/学号到顶部信息卡 */
+  _syncUser() {
+    this.setData({
+      studentName: storage.getStudentName(),
+      studentId: storage.getStudentId()
+    })
+  },
+
+  /** 获取校历设置并定位当前周 */
   async loadFirstWeekDate() {
     try {
       const res = await api.getStatus()
@@ -64,6 +78,15 @@ Page({
       } else {
         const todayDay = calcTodayDay()
         this.setData({ todayDay })
+        // 未设置校历日期时与桌面端一致默认第 1 周,提示用户去设置
+        if (!this._weekHintShown) {
+          this._weekHintShown = true
+          wx.showToast({
+            title: '未设置第一周日期,默认第1周;可在「我的」页设置以自动定位本周',
+            icon: 'none',
+            duration: 3500
+          })
+        }
       }
     } catch (e) {
       const todayDay = calcTodayDay()
@@ -103,15 +126,6 @@ Page({
         storage.setCached('cached_courses', res.courses)
         if (res.semester) storage.setSemester(res.semester)
         this.filterByWeek(this.data.currentWeek)
-
-        // 估算当前学期所处周次（仅在校历未设置时使用）
-        if (res.courses.length > 0 && !this.data.firstWeekDate) {
-          const minWeek = Math.min(...res.courses.map(c => getWeekBounds(c.weeks).min))
-          const maxWeek = Math.max(...res.courses.map(c => getWeekBounds(c.weeks).max))
-          const midWeek = Math.floor((minWeek + maxWeek) / 2)
-          this.setData({ currentWeek: Math.max(1, midWeek) })
-          this.filterByWeek(midWeek)
-        }
       } else {
         this.setData({ loading: false })
         if (!res.success && res.message) {

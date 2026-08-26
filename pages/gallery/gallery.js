@@ -33,6 +33,7 @@ Page({
           if (imgRes.success && imgRes.data_b64) {
             images.push({
               name,
+              title: name.replace(/\.[^.]+$/, ''),
               src: 'data:' + (imgRes.mime || 'image/png') + ';base64,' + imgRes.data_b64
             })
             // 边下载边显示

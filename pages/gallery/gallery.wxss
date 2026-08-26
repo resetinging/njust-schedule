@@ -1,55 +1,45 @@
-/* 校历 & 照片墙样式 */
+/* 校园工具样式 — 复刻目标 UI: 淡紫底 + 白色大圆角卡片 */
 
 .container {
   padding-bottom: 40rpx;
+  background: #F2F0FA;
+  min-height: 100vh;
 }
 
-.gallery-list {
-  padding: 20rpx;
+.tool-list {
+  padding: 20rpx 20rpx 40rpx;
 }
 
-.section-title {
-  font-size: 30rpx;
-  font-weight: bold;
-  margin: 12rpx 0 20rpx;
-}
-
-.gallery-item {
+.tool-card {
   background: #fff;
-  border-radius: 16rpx;
-  overflow: hidden;
+  border-radius: 28rpx;
+  padding: 24rpx;
   margin-bottom: 24rpx;
-  padding-bottom: 16rpx;
+  box-shadow: 0 6rpx 24rpx rgba(87, 74, 160, 0.08);
 }
 
-.gallery-img {
+.tool-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #33304F;
+  margin-bottom: 16rpx;
+}
+
+.tool-img {
   width: 100%;
   display: block;
-}
-
-.gallery-name {
-  font-size: 26rpx;
-  font-weight: bold;
-  padding: 12rpx 20rpx 4rpx;
-}
-
-.gallery-hint {
-  font-size: 22rpx;
-  color: var(--text-hint);
-  padding: 0 20rpx;
+  border-radius: 16rpx;
+  background: #F7F6FB;
 }
 
 .empty-state {
+  padding: 160rpx 40rpx;
   text-align: center;
-  padding: 120rpx 40rpx;
 }
 
-.empty-state .icon {
-  font-size: 100rpx;
-}
-
+.empty-state .icon { font-size: 100rpx; }
 .empty-state .text {
-  font-size: 26rpx;
-  color: var(--text-secondary);
-  margin: 20rpx 0 30rpx;
+  font-size: 28rpx;
+  color: #8A87A8;
+  margin: 20rpx 0 32rpx;
 }

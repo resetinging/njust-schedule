@@ -1,4 +1,4 @@
-<!-- 校历 & 照片墙 -->
+<!-- 校园工具 — 校历 & 地图卡片墙(复刻目标 UI) -->
 <view class="container">
 
   <loading-modal visible="{{loading}}" title="加载图片…" />
@@ -10,14 +10,12 @@
     <button class="btn-primary" bindtap="loadImages">重新加载</button>
   </view>
 
-  <!-- 图片列表 -->
-  <view wx:if="{{!loading && !errorMsg}}" class="gallery-list">
-    <view class="section-title">📅 校历 & 照片墙</view>
-    <view class="gallery-item" wx:for="{{images}}" wx:key="name"
+  <!-- 卡片列表 -->
+  <view wx:if="{{!loading && !errorMsg}}" class="tool-list">
+    <view class="tool-card" wx:for="{{images}}" wx:key="name"
           data-index="{{index}}" bindtap="onImageTap">
-      <image class="gallery-img" src="{{item.src}}" mode="widthFix" lazy-load />
-      <view class="gallery-name">{{item.name}}</view>
-      <view class="gallery-hint">点击查看大图</view>
+      <view class="tool-title">{{item.title}}</view>
+      <image class="tool-img" src="{{item.src}}" mode="widthFix" lazy-load />
     </view>
   </view>
 

@@ -90,7 +90,7 @@ function calcSemesterGpas(grades) {
     result.push({
       semester: sem,
       gpa: calcGpa(items, true),
-      gpaAll: calcGpa(items, false),
+      gpa_all: calcGpa(items, false),
       credits: _round(counted.reduce((sum, g) => sum + (parseFloat(g.credit) || 0), 0), 1),
       count: counted.length
     })

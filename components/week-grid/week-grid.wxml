@@ -1,70 +1,39 @@
-<!-- 周课表网格组件 — 大节分组布局 -->
+<!-- 周课表网格组件 — 小节行布局 -->
 <view class="week-grid">
 
-  <!-- 表头：日期行 -->
-  <view class="grid-header date-header">
-    <view class="header-cell period-header"></view>
-    <view
-      class="header-cell date-cell {{index + 1 === todayDay ? 'today-col' : ''}}"
-      wx:for="{{dateLabels}}"
-      wx:key="index"
-    >
-      <text>{{item}}</text>
-    </view>
-  </view>
-
-  <!-- 表头：星期 -->
+  <!-- 表头: 星期 -->
   <view class="grid-header">
-    <view class="header-cell period-header">节次</view>
-    <view
-      class="header-cell {{index + 1 === todayDay ? 'today-col' : ''}}"
-      wx:for="{{weekdays}}"
-      wx:key="*this"
-    >
+    <view class="head-time"></view>
+    <view class="head-day" wx:for="{{weekdays}}" wx:key="*this">
       <text>{{item}}</text>
     </view>
   </view>
 
-  <!-- 大节行 -->
+  <!-- 网格体: 时间列 + 7 天列(课程块绝对定位) -->
   <view class="grid-body">
-    <view
-      class="big-period-row"
-      wx:for="{{bigPeriodRows}}"
-      wx:key="label"
-      wx:for-item="row"
-      style="min-height: {{row.height}}rpx"
-    >
-      <!-- 节次标签 -->
-      <view class="period-label" style="min-height: {{row.height}}rpx">
-        <text class="period-name">{{row.label}}</text>
-        <text class="period-time">{{row.time}}</text>
+    <!-- 节次时间列 -->
+    <view class="time-col">
+      <view class="time-cell" wx:for="{{timeRows}}" wx:key="index">
+        <text class="t-num">{{item.index}}</text>
+        <text class="t-time">{{item.time}}</text>
       </view>
+    </view>
 
-      <!-- 每天的这一大节 -->
+    <!-- 每天一列 -->
+    <view class="day-col" wx:for="{{dayCols}}" wx:key="day">
+      <!-- 课程块 -->
       <view
-        class="day-cell {{index + 1 === todayDay ? 'today-col' : ''}}"
-        wx:for="{{row.days}}"
-        wx:key="index"
-        wx:for-item="dayCell"
+        wx:for="{{item.blocks}}"
+        wx:key="name"
+        wx:for-item="b"
+        class="course-block"
+        style="top: {{b._top}}rpx; height: {{b._height}}rpx; background: {{b._bg}}; border-left-color: {{b._bar}}"
+        bindtap="onCourseTap"
+        data-course="{{b}}"
       >
-        <!-- 课程块（不从大节顶部开始时带偏移占位，与桌面端一致） -->
-        <block wx:for="{{dayCell.courses}}" wx:key="name" wx:for-item="course">
-          <view wx:if="{{course._offsetHeight > 0}}" class="course-offset"
-                style="height: {{course._offsetHeight}}rpx"></view>
-          <view
-            class="course-block {{course._cssClass}}"
-            style="height: {{course._height}}rpx; background: {{course._color}}"
-            bindtap="onCourseTap"
-            data-course="{{course}}"
-          >
-            <text class="course-name">{{course.name}}</text>
-            <text class="course-teacher" wx:if="{{course.teacher && course._isFirst}}">{{course.teacher}}</text>
-            <text class="course-room" wx:if="{{course.classroom && course._isFirst}}">{{course.classroom}}</text>
-            <!-- 单双周角标 -->
-            <text class="week-badge" wx:if="{{course.week_type === 1 && course._isFirst}}">单</text>
-            <text class="week-badge even" wx:if="{{course.week_type === 2 && course._isFirst}}">双</text>
-          </view>
-        </block>
+        <text class="cb-name" style="color: {{b._text}}">{{b.name}}</text>
+        <text class="cb-code" wx:if="{{b.classroom}}" style="color: {{b._text}}">{{b.classroom}}</text>
+        <text class="cb-range" style="color: {{b._text}}">{{b._range}}</text>
       </view>
     </view>
   </view>

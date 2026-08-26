@@ -178,3 +178,115 @@
   color: var(--text-hint);
   margin-top: 24rpx;
 }
+
+/* ============================================================
+   V2 视觉升级 — 设置页
+   ============================================================ */
+/* 用户卡渐变头部 */
+.user-card {
+  background: linear-gradient(135deg, #7C6BE8 0%, #8B79EC 100%);
+  border-radius: 24rpx;
+  box-shadow: 0 10rpx 30rpx rgba(26, 82, 118, 0.30);
+}
+.user-card .user-name { color: #fff; }
+.user-card .user-id { color: rgba(255, 255, 255, 0.85); }
+.user-card .user-semester { color: rgba(255, 255, 255, 0.95); }
+
+/* 操作项按压反馈 */
+.action-item {
+  border-radius: 12rpx;
+  margin: 0 12rpx;
+}
+.action-item:active { background: #EFEBFC; }
+
+/* 登录模式胶囊 */
+.mode-tabs { border-radius: 36rpx; }
+.mode-tab { border-radius: 28rpx; }
+.mode-tab.active {
+  font-weight: 700;
+  box-shadow: 0 4rpx 12rpx rgba(26, 82, 118, 0.25);
+}
+
+/* 校历设置卡装饰 */
+.setting-card { border-left: 8rpx solid #8B79EC; }
+
+
+/* ============================================================
+   V3 视觉升级 — 设置页头像与细节
+   ============================================================ */
+.user-card .avatar {
+  width: 104rpx;
+  height: 104rpx;
+  line-height: 104rpx;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.20);
+  border-radius: 50%;
+  font-size: 60rpx;
+}
+.setting-card .setting-value {
+  background: #EFEBFC;
+  border-radius: 12rpx;
+  padding: 18rpx 20rpx;
+}
+.login-card {
+  border-radius: 24rpx;
+  box-shadow: 0 10rpx 32rpx rgba(26, 82, 118, 0.12);
+}
+
+/* ============================================================
+   V4 简约风格 — 设置页
+   ============================================================ */
+.user-card {
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(31, 25, 72, 0.05);
+}
+.user-card .user-name { color: var(--primary-dark); }
+.user-card .user-id { color: var(--text-secondary); }
+.user-card .user-semester { color: var(--primary); }
+.user-card .avatar {
+  background: #EFEBFC;
+  color: var(--primary);
+}
+.mode-tabs { background: #eaf1f8; }
+.mode-tab.active { box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.06); }
+.setting-card { border-left: 6rpx solid #8B79EC; }
+
+
+/* ============================================================
+   V6 桌面端同款 — 设置页
+   ============================================================ */
+/* 用户卡 → 桌面信息卡: 白底 + 主色头像 */
+.user-card {
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+}
+.user-card .user-name { color: #33304F; }
+.user-card .user-id { color: #8A87A8; }
+.user-card .user-semester { color: #7C6BE8; }
+.user-card .avatar {
+  background: #EFEBFC;
+  color: #7C6BE8;
+}
+/* 操作项 → 桌面卡片行 */
+.action-item { border-radius: 12rpx; }
+/* 登录模式 → 桌面 .gpa-mode-bar 同款 */
+.mode-tabs {
+  display: flex;
+  background: none;
+  padding: 0;
+  gap: 12rpx;
+}
+.mode-tab {
+  background: #fff;
+  border: 2rpx solid #E3DFF5;
+  color: #33304F;
+  border-radius: 16rpx;
+}
+.mode-tab.active {
+  background: #8B79EC;
+  border-color: #8B79EC;
+  color: #fff;
+  box-shadow: none;
+}
+

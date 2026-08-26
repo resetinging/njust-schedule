@@ -33,3 +33,36 @@
   font-size: 22rpx;
   color: var(--primary);
 }
+
+/* ============================================================
+   V3 视觉升级 — 验证码组件
+   ============================================================ */
+.input {
+  background: #fff;
+  border-radius: 16rpx;
+  border-color: #D8D0F0;
+}
+.img {
+  border-radius: 12rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.10);
+}
+.placeholder {
+  border-radius: 12rpx;
+  background: linear-gradient(135deg, #EFEBFC, #EFEBFC);
+  border-style: solid;
+  font-weight: 600;
+}
+
+
+/* ============================================================
+   V4 简约风格 — 验证码组件
+   ============================================================ */
+.input {
+  background: #fff;
+  border-color: #DDD8EC;
+}
+.placeholder {
+  background: #EFEBFC;
+  border-color: #D8D2EC;
+  color: var(--primary);
+}

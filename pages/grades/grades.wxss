@@ -1,381 +1,256 @@
-/* 成绩查询页面样式 */
+/* 成绩查询页面样式 — 复刻目标 UI: 淡紫底 + 白卡 + 分数胶囊 */
 
 .container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: var(--bg-page);
-}
-
-.content {
   padding-bottom: 40rpx;
+  background: #F2F0FA;
+  min-height: 100vh;
 }
 
-/* 顶部操作栏 */
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16rpx 28rpx;
+/* ============ 已勾选课程统计卡 ============ */
+.stats-card {
+  margin: 20rpx 20rpx 24rpx;
   background: #fff;
-  border-bottom: 1rpx solid #EEE;
+  border-radius: 28rpx;
+  padding: 28rpx 28rpx 24rpx;
+  box-shadow: 0 6rpx 24rpx rgba(87, 74, 160, 0.08);
 }
 
-.picker-text {
-  font-size: 28rpx;
-  color: var(--primary);
-  font-weight: 500;
-}
-
-.top-actions {
+.sc-head {
   display: flex;
-  gap: 24rpx;
+  align-items: center;
+  gap: 16rpx;
 }
 
-.action-btn {
-  font-size: 26rpx;
-  color: var(--primary);
-  font-weight: 500;
-}
-
-/* GPA 模式切换 */
-.mode-tabs {
-  display: flex;
-  margin: 20rpx 24rpx;
-  background: #F0F0F0;
-  border-radius: 12rpx;
-  overflow: hidden;
-}
-
-.mode-tab {
+.sc-title {
   flex: 1;
-  text-align: center;
-  padding: 16rpx 0;
-  font-size: 28rpx;
-  color: #666;
-  transition: all 0.2s;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #33304F;
 }
 
-.mode-tab.active {
-  background: var(--primary);
-  color: #fff;
-  font-weight: bold;
+.mode-seg {
+  display: flex;
+  background: #F2F0FA;
+  border-radius: 24rpx;
+  padding: 4rpx;
 }
 
-/* GPA 汇总卡片 */
-.gpa-summary {
-  margin: 0 24rpx 20rpx;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 28rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
-}
-
-.gpa-main-card {
-  text-align: center;
-  margin-bottom: 24rpx;
-}
-
-.gpa-bignum {
-  font-size: 80rpx;
-  font-weight: bold;
-  line-height: 1;
-}
-
-.gpa-label {
+.seg {
+  padding: 8rpx 20rpx;
   font-size: 24rpx;
-  color: #999;
-  margin-top: 8rpx;
+  color: #8A87A8;
+  border-radius: 20rpx;
 }
 
-.gpa-stats {
-  display: flex;
-  justify-content: space-around;
-  border-top: 1rpx solid #F0F0F0;
-  padding-top: 20rpx;
+.seg.on {
+  background: #8B79EC;
+  color: #fff;
+  font-weight: 600;
 }
 
-.gpa-stat-item {
+.sc-refresh {
+  font-size: 32rpx;
+  padding: 4rpx;
+}
+
+.sc-pills {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+
+.pill {
+  background: #F2F0FA;
+  border-radius: 20rpx;
+  padding: 10rpx 22rpx;
+  font-size: 24rpx;
+  color: #5B5778;
+}
+
+.pill-num {
+  font-weight: 700;
+  color: #33304F;
+}
+
+.pill-num.gpa-high { color: #27ae60; }
+.pill-num.gpa-mid { color: #f39c12; }
+.pill-num.gpa-low { color: #e74c3c; }
+
+/* 四六级行 */
+.sc-cet {
+  margin-top: 20rpx;
+  background: #F7F6FB;
+  border-radius: 20rpx;
+  padding: 18rpx 22rpx;
+}
+
+.sc-cet-top {
+  display: flex;
   align-items: center;
+  gap: 12rpx;
 }
 
-.stat-num {
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #333;
+.sc-cet-title {
+  font-size: 27rpx;
+  font-weight: 600;
+  color: #33304F;
 }
 
-.stat-label {
-  font-size: 22rpx;
-  color: #999;
-  margin-top: 4rpx;
+.sc-cet-date {
+  margin-left: auto;
+  font-size: 24rpx;
+  color: #8A87A8;
 }
 
-/* 各学期绩点 */
-.section-title {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #333;
-  padding: 24rpx 28rpx 12rpx;
+.sc-cet-line {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #5B5778;
+  padding-left: 44rpx;
 }
 
-.semester-gpa-list {
-  margin: 0 24rpx;
+/* ============ 勾选框 ============ */
+.chk {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 10rpx;
+  border: 3rpx solid #C9C4E4;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.chk.on {
+  background: #6C5CE0;
+  border-color: #6C5CE0;
+}
+
+.chk.sm { width: 34rpx; height: 34rpx; font-size: 22rpx; }
+
+/* ============ 分学期卡片 ============ */
+.sem-card {
+  margin: 0 20rpx 20rpx;
   background: #fff;
-  border-radius: 16rpx;
-  overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+  border-radius: 28rpx;
+  padding: 24rpx 28rpx 8rpx;
+  box-shadow: 0 6rpx 24rpx rgba(87, 74, 160, 0.08);
 }
 
-.sem-gpa-row {
+.sem-head {
   display: flex;
   align-items: center;
-  padding: 20rpx 28rpx;
-  border-bottom: 1rpx solid #F5F5F5;
+  gap: 12rpx;
+  padding: 8rpx 0 16rpx;
 }
 
-.sem-gpa-row:last-child {
-  border-bottom: none;
-}
+.sem-ico { font-size: 30rpx; }
 
 .sem-name {
   flex: 1;
-  font-size: 26rpx;
-  color: #333;
-}
-
-.sem-gpa {
   font-size: 32rpx;
-  font-weight: bold;
-  margin-right: 16rpx;
+  font-weight: 700;
+  color: #33304F;
 }
 
-.sem-credits {
-  font-size: 22rpx;
-  color: #999;
+.sem-count {
+  font-size: 25rpx;
+  color: #8A87A8;
 }
 
-/* 当前学期绩点 */
-.current-sem-gpa {
-  padding: 20rpx 28rpx;
-  font-size: 28rpx;
-  color: #666;
-  text-align: center;
-  background: #fff;
-  margin: 0 24rpx;
-  border-radius: 12rpx;
+.sem-fold {
+  font-size: 24rpx;
+  color: #8A87A8;
+  padding: 0 6rpx;
 }
 
-/* 四六级 */
-.cet-section {
-  margin: 0 24rpx 20rpx;
-  background: #fff;
-  border-radius: 16rpx;
-  overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
-}
-
-.cet-list {
-  padding: 0 28rpx 20rpx;
-}
-
-.cet-row {
+.sem-stats {
   display: flex;
   align-items: center;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #F5F5F5;
+  gap: 12rpx;
+  padding: 14rpx 0;
+  border-top: 1rpx solid #F1EFF8;
+  border-bottom: 1rpx solid #F1EFF8;
 }
 
-.cet-row:last-child {
-  border-bottom: none;
-}
+.ss-tag { font-size: 28rpx; }
 
-.cet-type {
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #333;
-  margin-right: 20rpx;
-  min-width: 80rpx;
-}
-
-.cet-score {
-  font-size: 36rpx;
-  font-weight: bold;
-  color: var(--primary);
+.ss-title {
   flex: 1;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #33304F;
 }
 
-.cet-date {
-  font-size: 22rpx;
-  color: #999;
+.ss-avg {
+  font-size: 25rpx;
+  color: #8A87A8;
 }
 
-.cet-empty {
-  padding: 24rpx 28rpx;
-  font-size: 26rpx;
-  color: #999;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* 成绩列表 */
-.grade-list {
-  margin: 0 24rpx;
-  background: #fff;
-  border-radius: 16rpx;
-  overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
-}
-
+/* ============ 课程行 ============ */
 .grade-row {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 20rpx 28rpx;
-  border-bottom: 1rpx solid #F5F5F5;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F5F4FA;
 }
 
-.grade-row:last-child {
-  border-bottom: none;
-}
+.grade-row:last-child { border-bottom: none; }
 
-.grade-left {
+.g-main {
   flex: 1;
-  overflow: hidden;
+  min-width: 0;
 }
 
-.grade-name {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #222;
+.g-name {
   display: block;
-  margin-bottom: 8rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #33304F;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.grade-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8rpx;
+.g-meta {
+  display: block;
+  margin-top: 6rpx;
   font-size: 22rpx;
-  color: #999;
+  color: #8A87A8;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.grade-code,
-.grade-type,
-.grade-nature,
-.grade-credit {
-  font-size: 20rpx;
-  color: #999;
-}
-
-.grade-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  margin-left: 16rpx;
-  min-width: 100rpx;
-}
-
-.grade-score {
-  font-size: 36rpx;
-  font-weight: bold;
-}
-
-.grade-gp {
-  font-size: 22rpx;
-  color: #999;
-  margin-top: 4rpx;
-}
-
-/* 分数/绩点颜色 */
-.score-high {
-  color: #27AE60;
-}
-
-.score-mid {
-  color: #F39C12;
-}
-
-.score-low {
-  color: #E74C3C;
+/* 分数胶囊(紫色渐变) */
+.g-score {
+  flex-shrink: 0;
+  min-width: 76rpx;
+  text-align: center;
+  padding: 8rpx 18rpx;
+  border-radius: 26rpx;
+  background: linear-gradient(135deg, #6C5CE0, #8B79EC);
+  color: #fff;
+  font-size: 27rpx;
+  font-weight: 700;
+  box-shadow: 0 4rpx 12rpx rgba(108, 92, 224, 0.30);
 }
 
 /* 空状态 */
 .empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80rpx 40rpx;
+  padding: 160rpx 40rpx;
+  text-align: center;
 }
 
-.empty-state .icon {
-  font-size: 80rpx;
-  margin-bottom: 20rpx;
-}
-
+.empty-state .icon { font-size: 100rpx; }
 .empty-state .text {
   font-size: 28rpx;
-  color: #666;
-  margin-bottom: 8rpx;
-}
-
-.empty-state .hint {
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 40rpx;
-}
-
-/* 按钮 */
-.btn-primary {
-  display: block;
-  width: 70%;
-  padding: 20rpx;
-  background: var(--primary);
-  color: #fff;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-  text-align: center;
-  border: none;
-}
-
-.btn-secondary {
-  display: block;
-  width: 60%;
-  margin: 0 auto;
-  padding: 16rpx;
-  background: #F5F5F5;
-  color: #666;
-  border-radius: 40rpx;
-  font-size: 26rpx;
-  text-align: center;
-  border: none;
-}
-
-.bottom-actions {
-  padding: 32rpx 0 20rpx;
-}
-
-/* ==== 优化: 保研说明 + 加载更多 ==== */
-.baoyan-tip {
-  margin: 0 20rpx 16rpx;
-  padding: 16rpx 20rpx;
-  background: #EDEBF8;
-  border-radius: 12rpx;
-  font-size: 22rpx;
-  color: var(--primary-dark);
-  line-height: 1.5;
-}
-.load-more {
-  text-align: center;
-  padding: 24rpx;
-  color: var(--primary);
-  font-size: 26rpx;
-  background: var(--bg-card);
-  border-radius: 12rpx;
-  margin: 16rpx 20rpx;
+  color: #8A87A8;
+  margin: 20rpx 0 32rpx;
 }

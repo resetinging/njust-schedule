@@ -38,3 +38,34 @@
   from { opacity: 0.3; transform: scale(0.8); }
   to { opacity: 1; transform: scale(1.2); }
 }
+
+/* ============================================================
+   V3 视觉升级 — 加载/进度弹窗
+   ============================================================ */
+.modal-mask .modal-card {
+  border-radius: 28rpx;
+  box-shadow: 0 12rpx 48rpx rgba(17, 12, 60, 0.22);
+}
+.title {
+  padding-left: 20rpx;
+  border-left: 8rpx solid;
+  border-image: linear-gradient(180deg, #7C6BE8, #8B79EC) 1;
+}
+.message { color: #555; }
+.dot {
+  background: linear-gradient(135deg, #7C6BE8, #8B79EC);
+  box-shadow: 0 2rpx 6rpx rgba(26, 82, 118, 0.3);
+}
+.progress-bar progress { border-radius: 99rpx; overflow: hidden; }
+
+
+/* ============================================================
+   V4 简约风格 — 加载弹窗
+   ============================================================ */
+.title {
+  border-left: 6rpx solid #7C6BE8;
+  border-image: none;
+}
+.dot { background: #7C6BE8; box-shadow: none; }
+.modal-mask .modal-card { box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12); }
+
