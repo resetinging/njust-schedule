@@ -251,17 +251,23 @@ def save_cet_scores(scores: list):
 
 
 def get_cet_scores() -> list:
-    """获取四六级成绩（每种取最高分）"""
-    rows = db.session.query(
-        CetScore.cet_type,
-        db.func.max(CetScore.total_score).label('total_score'),
-        CetScore.exam_date,
-    ).group_by(CetScore.cet_type).order_by(CetScore.cet_type).all()
-    result = []
+    """获取四六级成绩（每种取最高分）
+
+    注：不能在 SQL 里对 (cet_type) 分组并同时 SELECT exam_date ——
+    MySQL 5.7+ 的 ONLY_FULL_GROUP_BY 会直接报错（SQLite 不检查，本地测不出来）。
+    数据量极小，改为全量读取后在 Python 中取最高分。
+    """
+    rows = CetScore.query.all()
+    best = {}
     for r in rows:
+        if r.cet_type not in best or r.total_score > best[r.cet_type][0]:
+            best[r.cet_type] = (r.total_score, r.exam_date)
+    result = []
+    for t in sorted(best):
+        s, d = best[t]
         result.append({
-            "type": r[0],
-            "score": float(r[1] or 0),
-            "exam_date": r[2] or "",
+            "type": t,
+            "score": float(s or 0),
+            "exam_date": d or "",
         })
     return result
