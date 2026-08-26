@@ -42,6 +42,7 @@ Page({
         this._processExams(res.exams)
       } else {
         this.setData({ loading: false })
+        wx.showToast({ title: res.message || '加载失败', icon: 'none' })
       }
     } catch (e) {
       this.setData({ loading: false })

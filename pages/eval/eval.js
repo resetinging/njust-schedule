@@ -70,6 +70,8 @@ Page({
         this.setData({ batches })
         this._processBatches(batches)
         storage.setCached('cached_evaluations', res)
+      } else {
+        wx.showToast({ title: res.message || '加载失败', icon: 'none' })
       }
     } catch (e) {
       this.setData({ loading: false })
