@@ -597,18 +597,25 @@ def _require_login() -> Tuple[Optional[JWCClient], Optional[Tuple]]:
 
 
 def _retry_with_relogin(client: JWCClient, fetch_func, error_msg: str):
-    """执行数据获取。会话过期时返回 401 提示手动登录，不自动重登录。
+    """执行数据获取。失败时区分两种情况:
+      - 明确会话过期(错误信息提示需登录) → 401 踢下线
+      - 暂无数据/临时故障 → 保留会话, 返回 500 提示重试(不再误踢用户)
     返回 (data, error_tuple)，成功时 error_tuple 为 None，
     失败时 data 为 []，error_tuple 为 (flask_response, status_code)。"""
     result = fetch_func()
     if result:
         return result, None
-    # 会话过期（或教务侧拒绝）；仅支持手动登录，直接要求重新登录
-    client.logged_in = False
+    last_err = client.last_error or ""
+    if "登录" in last_err or "logon" in last_err.lower():
+        client.logged_in = False
+        return [], (jsonify({
+            "success": False,
+            "message": "会话已过期，请重新登录",
+        }), 401)
     return [], (jsonify({
         "success": False,
-        "message": f"{error_msg}: 会话已过期，请重新登录",
-    }), 401)
+        "message": f"{error_msg}: {last_err or '可能暂无数据，请稍后重试'}",
+    }), 500)
 
 
 @app.route('/api/refresh-schedule', methods=['POST'])
