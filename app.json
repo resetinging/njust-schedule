@@ -3,22 +3,22 @@
     "pages/schedule/schedule",
     "pages/exams/exams",
     "pages/eval/eval",
-    "pages/settings/settings",
     "pages/grades/grades",
+    "pages/settings/settings",
     "pages/gallery/gallery"
   ],
   "window": {
     "navigationBarTitleText": "课表助手",
-    "navigationBarBackgroundColor": "#5B3CC4",
+    "navigationBarBackgroundColor": "#7C6BE8",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#F5F5F5",
+    "backgroundColor": "#F7F6FB",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#5B3CC4",
+    "color": "#9A96B8",
+    "selectedColor": "#7C6BE8",
     "backgroundColor": "#FFFFFF",
-    "borderStyle": "black",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/schedule/schedule",
@@ -54,5 +54,6 @@
   },
   "style": "v2",
   "cloud": true,
+  "lazyCodeLoading": "requiredComponents",
   "sitemapLocation": "sitemap.json"
 }
