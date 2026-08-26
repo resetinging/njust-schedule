@@ -21,7 +21,7 @@
               data-mode="list" bindtap="switchView">☰</text>
       </view>
       <picker mode="selector" range="{{weekPickerRange}}" bindchange="onJumpWeek">
-        <view class="tc-week">第 {{currentWeek}} 周 ▼</view>
+        <view class="tc-week">第 {{currentWeek || 1}} 周 ▼</view>
       </picker>
     </view>
   </view>
@@ -31,7 +31,7 @@
     <view class="week-nav">
       <text class="week-btn" bindtap="prevWeek">◀</text>
       <text class="week-label">
-        {{currentWeek === actualWeek ? '第 ' + currentWeek + ' 周（本周）' : '第 ' + currentWeek + ' 周'}}
+        {{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周（本周）' : '第 ' + (currentWeek || 1) + ' 周'}}
       </text>
       <text class="week-btn" bindtap="nextWeek">▶</text>
     </view>

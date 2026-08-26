@@ -144,13 +144,14 @@ Page({
     }
   },
 
-  /** 按周次过滤课程（含搜索关键词） */
+  /** 按周次过滤课程（含搜索关键词）；week 非法时兜底为 1，避免显示 null 周 */
   filterByWeek(week) {
+    const w = (typeof week === 'number' && !isNaN(week) && week >= 1 && week <= 20) ? week : 1
     const kw = (this.data.searchText || '').trim().toLowerCase()
     let filtered = this.data.courses.filter(c => {
-      if (c.week_type === 1 && week % 2 === 0) return false
-      if (c.week_type === 2 && week % 2 === 1) return false
-      return isWeekInRange(week, c.weeks)
+      if (c.week_type === 1 && w % 2 === 0) return false
+      if (c.week_type === 2 && w % 2 === 1) return false
+      return isWeekInRange(w, c.weeks)
     })
 
     if (kw) {
@@ -163,7 +164,7 @@ Page({
     // 构建列表视图分组（按天分组 + 去重）
     const listDayGroups = this._buildListGroups(filtered)
 
-    this.setData({ filteredCourses: filtered, currentWeek: week, listDayGroups })
+    this.setData({ filteredCourses: filtered, currentWeek: w, listDayGroups })
   },
 
   /**
@@ -238,13 +239,13 @@ Page({
 
   /** 上一周 */
   prevWeek() {
-    const w = Math.max(1, this.data.currentWeek - 1)
+    const w = Math.max(1, (this.data.currentWeek || 1) - 1)
     this.filterByWeek(w)
   },
 
   /** 下一周 */
   nextWeek() {
-    const w = Math.min(20, this.data.currentWeek + 1)
+    const w = Math.min(20, (this.data.currentWeek || 1) + 1)
     this.filterByWeek(w)
   },
 
@@ -288,9 +289,12 @@ Page({
     this.setData({ showDetail: false })
   },
 
-  /** 下拉刷新 */
-  onPullDownRefresh() {
-    this.onRefresh()
-    wx.stopPullDownRefresh()
+  /** 下拉刷新（等待完成后再收起下拉动画） */
+  async onPullDownRefresh() {
+    try {
+      await this.onRefresh()
+    } finally {
+      wx.stopPullDownRefresh()
+    }
   }
 })
