@@ -37,10 +37,11 @@ App({
     this.globalData.semester = semester || ''
   },
 
-  /** 退出登录 */
-  doLogout() {
-    api.logout()
+  /** 退出登录（等待后端登出 + 本地清理完成） */
+  async doLogout() {
+    await api.logout()
     this.globalData.isLoggedIn = false
     this.globalData.studentName = ''
+    this.globalData.semester = ''
   }
 })

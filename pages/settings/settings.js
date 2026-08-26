@@ -342,14 +342,15 @@ Page({
     wx.showModal({
       title: '确认退出',
       content: '退出后需要重新登录才能查看数据',
-      success: (res) => {
+      success: async (res) => {
         if (res.confirm) {
-          getApp().doLogout()
+          await getApp().doLogout()   // 等待后端登出 + 本地清理完成, 避免状态未清导致要点两次
           this.refreshState()
           this.setData({
             password: '',
             jwcPassword: '',
             captcha: '',
+            captchaId: '',
             captchaSrc: '',
             ssoStepDone: false
           })
