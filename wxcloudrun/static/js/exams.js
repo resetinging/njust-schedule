@@ -1,4 +1,4 @@
-﻿let allExams = [];
+let allExams = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     loadStatus();
@@ -61,8 +61,8 @@ async function loadExams() {
         const resp = await fetch('/api/exams');
         const data = await resp.json();
         allExams = data.exams || [];
-        window.currentSemester = data.semester;
-        document.getElementById('semester-badge').textContent = data.semester;
+        window.currentSemester = data.semester || '';
+        document.getElementById('semester-badge').textContent = data.semester || '';
 
         if (allExams.length === 0) {
             document.getElementById('exam-empty').style.display = 'flex';

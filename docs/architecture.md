@@ -39,7 +39,7 @@
 |---|---|
 | 会话与 Cookie 管理 | 自定义 `_DedupCookieJar` 解决教务返回重复 `JSESSIONID` 导致的崩溃;按 (domain, path) 去重,保留跨服务器 Cookie |
 | 登录(3 种方式) | ① 教务直连自动 OCR(`ddddocr`,5 次重试 + 图片预处理);② 教务直连手动验证码;③ 智慧理工 SSO 两步(直连 SSO 表单 + AES-128-CBC 密码加密 + CAS ticket 尝试 + 8080 标准流程兜底) |
-| 会话保活 | `is_session_valid()` 轻量探测;`_auto_login()` 服务重启/会话过期后凭已存密码自动重新登录(30 秒节流) |
+| 会话保活 | `is_session_valid()` 轻量探测;默认**无账号模式**(不自动登录,所有访问者需在设置页手动登录);设环境变量 `AUTO_LOGIN_ENABLED=True` 时 `_auto_login()` 凭已存密码自动重新登录(30 秒节流) |
 | 课表抓取 | API(`app.do?method=getKbcxAzc`)优先,降级 HTML:`#kbtable`(周次/教室/教师,从 `font[title]` 提取)与 `#dataList`(精确小节/学分)双表合并 |
 | 考试抓取 | 查询页表单提交 → `#dataList` 解析,含 3 个降级策略(表单 POST / 直接 POST / GET) |
 | 评教抓取 | 批次列表(`.Nsb_r_list`)、课程列表(`#dataList` + `openWindow` 链接)、评价表单(`#table1` 指标 + `pj0601fz_*` 分值 + radio 选项) |
@@ -79,7 +79,7 @@
 | `grades` / `cet_scores` | 成绩(按学年学期)、四六级(全量替换,查询时取最高) |
 | `settings` | 键值设置:学号/姓名/学期/第一周日期/加密密码等 |
 
-- **密码安全**:教务密码与智慧理工密码**分开加密存储**(`password_enc` / `jwc_password_enc`),`itsdangerous` 签名加密;密钥优先取环境变量 `PASSWORD_SECRET`,否则自动生成存入 `settings`,兼容旧 Base64 数据;自动登录优先使用教务密码
+- **密码安全**:教务密码与智慧理工密码**分开加密存储**(`password_enc` / `jwc_password_enc`),`itsdangerous` 签名加密;密钥优先取环境变量 `PASSWORD_SECRET`,否则自动生成存入 `settings`,兼容旧 Base64 数据;开启自动登录(`AUTO_LOGIN_ENABLED=True`)时优先使用教务密码
 - 小程序本地**不保存密码**
 
 ### 4. 业务计算(方案 A:全部在前端)

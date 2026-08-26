@@ -38,8 +38,8 @@ async function loadEvaluations() {
         const resp = await fetch('/api/evaluations');
         const data = await resp.json();
         allEvaluations = data.evaluations || [];
-        window.currentSemester = data.semester;
-        document.getElementById('semester-badge').textContent = data.semester;
+        window.currentSemester = data.semester || '';
+        document.getElementById('semester-badge').textContent = data.semester || '';
 
         if (allEvaluations.length === 0) {
             document.getElementById('eval-empty').style.display = 'flex';

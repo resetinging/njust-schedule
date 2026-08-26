@@ -1050,6 +1050,9 @@ def api_jw_proxy():
 # ============================================================
 @app.route('/api/clear-data', methods=['POST'])
 def api_clear_data():
+    err = _require_login()
+    if err:
+        return err
     semester = dao.get_setting("semester", jwc_client._current_semester())
     dao.clear_data(semester)
     return jsonify({"success": True, "message": "数据已清除"})

@@ -84,6 +84,7 @@ for name, path, method in [
     ("evaluations", "/api/evaluations", "get"),
     ("grades", "/api/grades", "get"),
     ("cet-scores", "/api/cet-scores", "get"),
+    ("clear-data", "/api/clear-data", "post"),
 ]:
     resp = client.post(path, json={}) if method == "post" else client.get(path)
     check(name, resp, 401)

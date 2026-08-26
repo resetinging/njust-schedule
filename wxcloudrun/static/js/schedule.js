@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    南理工课表管理系统 - 课表页面逻辑
    ============================================================ */
 
@@ -60,8 +60,8 @@ async function loadSchedule() {
         const resp = await fetch('/api/courses');
         const data = await resp.json();
         allCourses = data.courses || [];
-        window.currentSemester = data.semester;
-        document.getElementById('semester-badge').textContent = data.semester;
+        window.currentSemester = data.semester || '';
+        document.getElementById('semester-badge').textContent = data.semester || '';
 
         if (allCourses.length === 0) {
             document.getElementById('schedule-empty').style.display = 'flex';
