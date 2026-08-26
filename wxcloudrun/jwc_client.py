@@ -1356,10 +1356,16 @@ class JWCClient:
     # ================================================================
 
     def _current_semester(self) -> str:
-        y, m = time.localtime().tm_year, time.localtime().tm_mon
-        if m >= 9: return f"{y}-{y+1}-1"
-        elif m >= 2: return f"{y-1}-{y}-2"
-        else: return f"{y-1}-{y}-1"
+        """计算当前学期（强制使用北京时间，不依赖容器系统时区）"""
+        import datetime as _dt
+        now = _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=8)))
+        y, m = now.year, now.month
+        if m >= 9:
+            return f"{y}-{y+1}-1"
+        elif m >= 2:
+            return f"{y-1}-{y}-2"
+        else:
+            return f"{y-1}-{y}-1"
 
     def get_semester_list(self) -> list[str]:
         cur = self._current_semester()

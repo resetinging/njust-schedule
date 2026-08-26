@@ -37,18 +37,14 @@ db = SQLAlchemy(app)
 
 
 def _migrate_student_id():
-    """存量库迁移：为业务表补充 student_id 列（多用户改造）。
+    """存量库迁移：为业务表补充 student_id 列与索引（多用户改造）。
 
     旧版本的表没有该列；新模型 create_all 不会自动加列，
     这里用 ALTER TABLE 补上（MySQL / SQLite 均支持）。
     旧数据 student_id 为空，查询时会被过滤（用户重新刷新即可重建）。
     """
     from sqlalchemy import inspect as sa_inspect, text as sa_text
-    tables = {
-        "courses": model.Course, "exams": model.Exam,
-        "evaluations": model.Evaluation, "grades": model.Grade,
-        "cet_scores": model.CetScore,
-    }
+    tables = ["courses", "exams", "evaluations", "grades", "cet_scores"]
     insp = sa_inspect(db.engine)
     for tbl_name in tables:
         if not insp.has_table(tbl_name):
@@ -61,6 +57,15 @@ def _migrate_student_id():
                     "ADD COLUMN student_id VARCHAR(50) DEFAULT ''"
                 ))
             app.logger.info("[migrate] %s 已补充 student_id 列", tbl_name)
+        # 存量库补索引（新库由 create_all 的 index=True 自动创建）
+        idx_names = {i["name"] for i in insp.get_indexes(tbl_name)}
+        if not any("student_id" in n for n in idx_names):
+            with db.engine.begin() as conn:
+                conn.execute(sa_text(
+                    f"CREATE INDEX ix_{tbl_name}_student_id "
+                    f"ON `{tbl_name}` (student_id)"
+                ))
+            app.logger.info("[migrate] %s 已创建 student_id 索引", tbl_name)
 
 
 # 确保数据表存在（container.config.json 的 executeSQLs 可能未执行）
@@ -68,6 +73,20 @@ from wxcloudrun import model  # noqa: E402
 with app.app_context():
     db.create_all()
     _migrate_student_id()
+
+
+# 静态资源长缓存（仅非 DEBUG 模式；Flask 会校验 Last-Modified/ETag，
+# 文件变化时仍能 304/重新拉取）
+if not config.DEBUG:
+    from flask import request as _flask_request
+
+    @app.after_request
+    def _cache_static(resp):
+        if _flask_request.path.startswith("/static/"):
+            resp.cache_control.max_age = 86400
+            resp.cache_control.public = True
+        return resp
+
 
 # 加载 NJUST 路由（必须在 db 初始化之后导入，避免循环引用）
 from wxcloudrun import views  # noqa: E402, F401

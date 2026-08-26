@@ -78,6 +78,8 @@ python run.py 127.0.0.1 5000
 
 使用微信云托管控制台选择本仓库部署(参考[云托管快速开始](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/basic/guide.html)),数据表由 `container.config.json` 的建表 SQL 与应用启动时的 `db.create_all()` 双保险创建。
 
+**单实例部署**(`minNum`/`maxNum` 已设为 1):教务会话保存在容器内存中,多实例弹性扩容会导致用户登录态被负载均衡随机丢失;单实例 1 核 2G 对几十人规模足够(并发由访问池限流保护),且 `minNum=1` 常驻避免冷启动。
+
 ## 主要 API
 
 | 端点 | 说明 |

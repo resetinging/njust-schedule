@@ -2,8 +2,10 @@
 # 基于官方模板框架，更换基础镜像以兼容 ddddocr（onnxruntime）
 FROM python:3.10-slim
 
-# 容器默认时区为UTC，如需使用上海时间请启用以下时区设置命令
-# RUN apt-get update && apt-get install -y tzdata && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo Asia/Shanghai > /etc/timezone
+# 容器默认时区为UTC，启用上海时区（学期计算/日志时间依赖北京时间）
+RUN apt-get update && apt-get install -y tzdata \
+    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo Asia/Shanghai > /etc/timezone
 
 # 安装系统依赖（ddddocr 的 onnxruntime 需要 libgomp）
 RUN apt-get update && apt-get install -y \

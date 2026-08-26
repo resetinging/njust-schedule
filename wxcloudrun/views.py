@@ -10,12 +10,11 @@ import secrets
 import threading
 import time
 from contextlib import contextmanager
-from datetime import datetime
 from typing import Optional, Tuple
 from flask import render_template, request, jsonify, Response
 from bs4 import BeautifulSoup
 
-from wxcloudrun import app, db
+from wxcloudrun import app
 from wxcloudrun.jwc_client import JWCClient
 from wxcloudrun import dao
 
@@ -143,6 +142,13 @@ def _current_semester() -> str:
     return jwc_client._current_semester()
 
 
+def _beijing_now() -> str:
+    """北京时间字符串（容器系统时区可能为 UTC）"""
+    import datetime as _dt
+    now = _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=8)))
+    return now.strftime("%Y-%m-%d %H:%M:%S")
+
+
 EVAL_HEADERS = {
     "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
     "Host": "202.119.81.112:9080",
@@ -242,6 +248,32 @@ def proxy_jw(target_path):
 # ============================================================
 # API — 状态 / 连接测试
 # ============================================================
+# 数据统计缓存: (sid, semester) -> (ts, has_courses, has_exams)
+# 每个页面加载都会请求 /api/status, 避免每次都 COUNT 两次数据库
+_stats_cache = {}
+_stats_cache_lock = threading.Lock()
+STATS_CACHE_TTL = 30
+
+
+def _get_data_stats(student_id: str, semester: str) -> Tuple[bool, bool]:
+    now = time.time()
+    key = (student_id, semester)
+    with _stats_cache_lock:
+        item = _stats_cache.get(key)
+        if item is not None and now - item[0] < STATS_CACHE_TTL:
+            return item[1], item[2]
+    has_courses = dao.count_courses(semester, student_id) > 0
+    has_exams = dao.count_exams(semester, student_id) > 0
+    with _stats_cache_lock:
+        _stats_cache[key] = (now, has_courses, has_exams)
+        # 防止缓存无限增长
+        if len(_stats_cache) > 512:
+            expired_keys = [k for k, v in _stats_cache.items() if now - v[0] > STATS_CACHE_TTL]
+            for k in expired_keys:
+                _stats_cache.pop(k, None)
+    return has_courses, has_exams
+
+
 @app.route('/api/status')
 def api_status():
     # 仅支持手动登录：登录态只取决于当前请求 token 对应的会话
@@ -255,8 +287,7 @@ def api_status():
     has_courses = False
     has_exams = False
     if logged_in and semester:
-        has_courses = dao.count_courses(semester, student_id) > 0
-        has_exams = dao.count_exams(semester, student_id) > 0
+        has_courses, has_exams = _get_data_stats(student_id, semester)
 
     # 教务连通性(桌面端导航栏/设置页依赖, 30 秒缓存)
     try:
@@ -282,7 +313,7 @@ def api_status():
         "login_method": client.login_method if logged_in else "",
         "auto_login_attempted": False,
         "auto_login_error": "",
-        "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "server_time": _beijing_now(),
         "first_week_date": dao.get_setting("first_week_date", ""),
         "network": network,
     })
@@ -319,15 +350,21 @@ def _sniff_image_mime(data: bytes) -> str:
     return "image/png"
 
 
+def _invalidate_stats(student_id: str, semester: str):
+    """数据变更后清除统计缓存"""
+    with _stats_cache_lock:
+        _stats_cache.pop((student_id, semester), None)
+
+
 def _on_login_success(client: JWCClient, token: str):
     """登录成功后的公共处理：签发 token 并返回会话信息。
 
     不保存密码；学期等用户级设置在登录时初始化（沿用全局默认）。
     """
     sid = client.student_id
-    semester = dao.get_user_setting(sid, "semester") or \
-        dao.get_setting("semester") or client._current_semester()
-    if not dao.get_user_setting(sid, "semester"):
+    user_semester = dao.get_user_setting(sid, "semester")
+    semester = user_semester or dao.get_setting("semester") or client._current_semester()
+    if not user_semester:
         dao.set_user_setting(sid, "semester", semester)
     return jsonify({
         "success": True,
@@ -430,10 +467,13 @@ def api_get_webvpn_captcha():
         client.logged_in = True
         client.login_method = "webvpn"
         token = _register_session(client)
+        _on_login_success(client, token)  # 初始化用户学期设置（不重复返回 JSON）
         return jsonify({
             "success": True,
             "already_logged_in": True,
             "token": token,
+            "student_id": client.student_id,
+            "student_name": client.student_name or client.student_id,
             "message": "已有教务会话，无需重复登录",
         })
 
@@ -576,6 +616,7 @@ def api_refresh_schedule():
         return retry_err
     dao.save_courses(courses, semester, sid)
     dao.set_user_setting(sid, "semester", semester)
+    _invalidate_stats(sid, semester)
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(courses)} 门课程",
@@ -597,6 +638,7 @@ def api_refresh_exams():
     if retry_err:
         return retry_err
     dao.save_exams(exams, semester, sid)
+    _invalidate_stats(sid, semester)
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(exams)} 场考试",
@@ -630,6 +672,7 @@ def api_refresh_all():
             results["exams"] = {"count": 0, "ok": False, "error": client.last_error}
 
     dao.set_user_setting(sid, "semester", semester)
+    _invalidate_stats(sid, semester)
     return jsonify({
         "success": True,
         "semester": semester,
@@ -1136,6 +1179,7 @@ def api_clear_data():
     sid = client.student_id or ""
     semester = dao.get_user_setting(sid, "semester") or _current_semester()
     dao.clear_data(semester, sid)
+    _invalidate_stats(sid, semester)
     return jsonify({"success": True, "message": "数据已清除"})
 
 
