@@ -127,6 +127,25 @@ sB = client.get("/api/status", headers=hB).get_json()
 check("甲的状态为已登录本人", sA["logged_in"] and sA["student_id"] == "10001", sA)
 check("乙的状态为已登录本人", sB["logged_in"] and sB["student_id"] == "10002", sB)
 
+print("== 验证码隔离验证 ==")
+# 模拟两个用户同时获取验证码
+cid1, c1 = views._new_captcha_client()
+cid2, c2 = views._new_captcha_client()
+check("两个验证码会话 ID 不同", cid1 != cid2, (cid1[:8], cid2[:8]))
+check("两个验证码会话客户端实例独立", c1 is not c2)
+check("两个客户端 Cookie 罐相互独立", c1.session.cookies is not c2.session.cookies)
+check("两个客户端 Session 对象相互独立", c1.session is not c2.session)
+# 客户端内验证码状态也是实例级的
+c1._captcha_ready = True
+c2._captcha_ready = False
+check("验证码就绪状态互不影响", c1._captcha_ready is True and c2._captcha_ready is False)
+# 登录消耗后互不影响
+views._pop_captcha_client(cid1)
+check("pop 仅删除对应用户的验证码会话",
+      cid1 not in views._captcha_clients and cid2 in views._captcha_clients)
+views._pop_captcha_client(cid2)
+check("两个验证码会话均已消费删除", len(views._captcha_clients) == 0)
+
 print("== 登出隔离验证 ==")
 r = client.post("/api/logout", headers=hA)
 check("甲 退出登录", r.status_code == 200)
