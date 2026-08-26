@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 校历 & 照片墙 — 横向滚动 + Lightbox 查看
  */
 (function () {
@@ -13,7 +13,7 @@
 
     async function init() {
         try {
-            const resp = await fetch('/api/gallery-images');
+            const resp = await apiFetch('/api/gallery-images');
             const data = await resp.json();
             images = data.images || [];
         } catch (e) {

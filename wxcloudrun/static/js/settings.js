@@ -1,5 +1,7 @@
 // 当前登录模式: 'direct' | 'webvpn'
 let currentLoginMode = 'direct';
+// 当前验证码会话 ID（获取验证码时由后端签发，登录时回传；多用户下验证码与登录绑定）
+let captchaId = '';
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadStatus();                  // main.js 共享版本
@@ -53,7 +55,7 @@ async function checkNetworkStatus() {
     const label = document.getElementById('network-label');
     const latency = document.getElementById('network-latency');
     try {
-        const resp = await fetch('/api/status');
+        const resp = await apiFetch('/api/status');
         const data = await resp.json();
         const net = data.network || {};
         if (net.reachable) {
@@ -80,7 +82,7 @@ async function checkNetworkStatus() {
 // 加载设置 + 更新登录状态面板（settings 页面特有）
 async function loadSettingsAndLoginInfo() {
     try {
-        const resp = await fetch('/api/status');
+        const resp = await apiFetch('/api/status');
         const data = await resp.json();
         updateLoginInfo(data);
         await loadSettings();
@@ -91,7 +93,7 @@ async function loadSettingsAndLoginInfo() {
 
 async function loadSettings() {
     try {
-        const resp = await fetch('/api/settings');
+        const resp = await apiFetch('/api/settings');
         const data = await resp.json();
         document.getElementById('student-id').value = data.student_id || '';
         document.getElementById('semester-select').value = data.semester || data.current_semester || '';
@@ -116,7 +118,7 @@ async function loadSettings() {
 
 async function loadSemesters() {
     try {
-        const resp = await fetch('/api/settings');
+        const resp = await apiFetch('/api/settings');
         const data = await resp.json();
         const select = document.getElementById('semester-select');
         const list = data.semester_list || [];
@@ -170,10 +172,10 @@ function updateDataStats(data) {
         <p>📊 考试数据: <strong id="stats-exams">-</strong> 场考试</p>
     `;
     // 异步加载实际数量（未登录时接口返回 401，显示 '-'）
-    fetch('/api/courses').then(r => r.json()).then(d => {
+    apiFetch('/api/courses').then(r => r.json()).then(d => {
         document.getElementById('stats-courses').textContent = (d && d.success) ? d.count : '-';
     });
-    fetch('/api/exams').then(r => r.json()).then(d => {
+    apiFetch('/api/exams').then(r => r.json()).then(d => {
         document.getElementById('stats-exams').textContent = (d && d.success) ? d.count : '-';
     });
 }
@@ -182,7 +184,7 @@ function updateDataStats(data) {
 async function testConnection() {
     showToast('正在测试连接...', 'info');
     try {
-        const resp = await fetch('/api/connect-test');
+        const resp = await apiFetch('/api/connect-test');
         const data = await resp.json();
         if (data.ok) {
             showToast('✅ ' + data.message, 'success');
@@ -205,8 +207,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         showToast('❌ 请输入学号', 'error');
         return;
     }
-    // 密码为空但已保存 → 允许提交，后端用已存密码
-    if (!password && !window._hasSavedPassword) {
+    if (!password) {
         showToast('❌ 请输入密码', 'error');
         return;
     }
@@ -227,7 +228,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             return;
         }
         url = '/api/login-webvpn-manual';
-        body = JSON.stringify({ student_id: studentId, password, jwc_password: jwcPwd, captcha: captchaInput });
+        body = JSON.stringify({ student_id: studentId, password, jwc_password: jwcPwd, captcha: captchaInput, captcha_id: captchaId });
         showLoading('Step 2/2: 正在登录教务系统...');
         document.getElementById('loading-text').textContent = '正在提交教务密码和验证码...';
     } else if (isWebVPN) {
@@ -240,7 +241,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             '正在连接智慧理工并登录教务，请稍候...';
     } else if (useCaptcha) {
         url = '/api/login-manual';
-        body = JSON.stringify({ student_id: studentId, password, captcha: captchaInput });
+        body = JSON.stringify({ student_id: studentId, password, captcha: captchaInput, captcha_id: captchaId });
         showLoading('正在登录教务系统...');
         document.getElementById('loading-text').textContent =
             '正在使用手动验证码登录...';
@@ -253,7 +254,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     }
 
     try {
-        const resp = await fetch(url, {
+        const resp = await apiFetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body,
@@ -262,6 +263,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         hideLoading();
 
         if (data.success) {
+            setToken(data.token || '');   // 保存登录 token（多用户会话标识）
+            captchaId = '';
             showToast('✅ ' + data.message, 'success');
             document.getElementById('password').disabled = false;
             document.getElementById('captcha-input').value = '';
@@ -271,6 +274,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             loadSettings();
             checkNetworkStatus();
         } else {
+            captchaId = '';   // 登录失败，验证码会话作废
             showToast('❌ ' + data.message, 'error');
             // WebVPN 失败时显示调试日志
             if (isWebVPN && data.debug_log && data.debug_log.length > 0) {
@@ -310,7 +314,7 @@ document.getElementById('semester-form').addEventListener('submit', async (e) =>
     const firstWeekDate = document.getElementById('first-week-date').value;
 
     try {
-        const resp = await fetch('/api/semester', {
+        const resp = await apiFetch('/api/semester', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ semester }),
@@ -320,7 +324,7 @@ document.getElementById('semester-form').addEventListener('submit', async (e) =>
                   data.success ? 'success' : 'error');
         // 同时保存第一周日期
         if (firstWeekDate) {
-            await fetch('/api/settings', {
+            await apiFetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ first_week_date: firstWeekDate }),
@@ -338,7 +342,7 @@ async function refreshAll() {
         '正在连接教务系统，可能需要半分钟左右...';
 
     try {
-        const resp = await fetch('/api/refresh-all', { method: 'POST' });
+        const resp = await apiFetch('/api/refresh-all', { method: 'POST' });
         const data = await resp.json();
         hideLoading();
         showToast('✅ ' + data.message, 'success');
@@ -355,7 +359,7 @@ async function clearData() {
         return;
     }
     try {
-        const resp = await fetch('/api/clear-data', { method: 'POST' });
+        const resp = await apiFetch('/api/clear-data', { method: 'POST' });
         const data = await resp.json();
         showToast('✅ ' + data.message, 'success');
         loadSettings();
@@ -381,7 +385,7 @@ async function logout() {
 document.getElementById('first-week-date').addEventListener('change', async function () {
     const date = this.value;
     try {
-        await fetch('/api/settings', {
+        await apiFetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ first_week_date: date }),
@@ -423,7 +427,7 @@ async function loadCaptcha() {
                 return;
             }
             showLoading('Step 1/2: 正在登录智慧理工...');
-            resp = await fetch('/api/get-webvpn-captcha', {
+            resp = await apiFetch('/api/get-webvpn-captcha', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ student_id: studentId, password }),
@@ -432,11 +436,12 @@ async function loadCaptcha() {
             hideLoading();
         } else {
             // 直连模式
-            resp = await fetch('/api/get-captcha');
+            resp = await apiFetch('/api/get-captcha');
             data = await resp.json();
         }
 
         if (data.success && data.captcha_b64) {
+            captchaId = data.captcha_id || '';   // 绑定本次验证码会话
             img.src = 'data:image/png;base64,' + data.captcha_b64;
             img.style.display = 'block';
             input.value = '';
@@ -455,13 +460,16 @@ async function loadCaptcha() {
                 showToast('✅ ' + data.message, 'info');
             }
         } else if (data.already_logged_in) {
-            // 已有教务会话，无需验证码
+            // 已有教务会话，无需验证码（SSO 直接完成登录）
+            captchaId = '';
+            setToken(data.token || '');   // 直接获得登录 token
             document.getElementById('sso-step-hint').style.display = 'none';
             resetPasswordLabel();
             showToast('✅ ' + data.message, 'success');
             loadStatus();
             loadSettings();
         } else {
+            captchaId = '';
             document.getElementById('sso-step-hint').style.display = 'none';
             showToast('❌ ' + (data.message || '获取验证码失败'), 'error');
             if (loadBtn) loadBtn.style.display = 'inline-block';
@@ -471,6 +479,21 @@ async function loadCaptcha() {
         showToast('❌ 获取验证码失败: ' + e.message, 'error');
         if (loadBtn) loadBtn.style.display = 'inline-block';
     }
+}
+
+// 退出登录（多用户：销毁后端会话 token）
+async function logout() {
+    try {
+        await apiFetch('/api/logout', { method: 'POST' });
+    } catch (e) {
+        console.error('退出登录请求失败:', e);
+    }
+    clearToken();
+    captchaId = '';
+    showToast('✅ 已退出登录', 'success');
+    loadStatus();
+    loadSettings();
+    checkNetworkStatus();
 }
 
 // 重置密码标签为默认状态

@@ -24,6 +24,7 @@ class Counters(db.Model):
 class Course(db.Model):
     __tablename__ = 'courses'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.String(50), default='', index=True)  # 数据归属用户
     name = db.Column(db.String(200), nullable=False, default='')
     teacher = db.Column(db.String(100), default='')
     classroom = db.Column(db.String(100), default='')
@@ -60,6 +61,7 @@ class Course(db.Model):
 class Exam(db.Model):
     __tablename__ = 'exams'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.String(50), default='', index=True)  # 数据归属用户
     course_name = db.Column(db.String(200), nullable=False, default='')
     exam_date = db.Column(db.String(50), default='')
     exam_time = db.Column(db.String(50), default='')
@@ -87,6 +89,7 @@ class Exam(db.Model):
 class Evaluation(db.Model):
     __tablename__ = 'evaluations'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.String(50), default='', index=True)  # 数据归属用户
     semester = db.Column(db.String(50), default='')
     category = db.Column(db.String(100), default='')
     batch = db.Column(db.String(200), default='')
@@ -112,6 +115,7 @@ class Setting(db.Model):
 class Grade(db.Model):
     __tablename__ = 'grades'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.String(50), default='', index=True)  # 数据归属用户
     academic_year = db.Column(db.String(20), default='')
     semester = db.Column(db.String(10), default='')
     course_code = db.Column(db.String(50), default='')
@@ -146,6 +150,7 @@ class Grade(db.Model):
 class CetScore(db.Model):
     __tablename__ = 'cet_scores'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.String(50), default='', index=True)  # 数据归属用户
     cet_type = db.Column(db.String(10), nullable=False, default='')
     total_score = db.Column(db.Float, default=0)
     exam_date = db.Column(db.String(20), default='')

@@ -1,14 +1,15 @@
 """
 NJUST 课表 — Flask 路由
 =======================
-包含：页面路由 + 全量 API + 批量评教后台
+包含：页面路由 + 全量 API（多用户）+ 评教网关
 """
 import base64
 import os
 import re
+import secrets
 import threading
-import time
 from datetime import datetime
+from typing import Optional, Tuple
 from flask import render_template, request, jsonify, Response
 from bs4 import BeautifulSoup
 
@@ -17,15 +18,59 @@ from wxcloudrun.jwc_client import JWCClient
 from wxcloudrun import dao
 
 # ============================================================
-# 全局教务客户端
+# 用户会话管理（多用户）
 # ============================================================
-jwc_client = JWCClient()
-jwc_lock = threading.Lock()
+# 每个登录用户持有独立的 JWCClient 实例（独立教务会话 + Cookie），
+# 登录成功后签发随机 token，前端请求通过 X-Auth-Token 头携带。
+# 会话保存在进程内存：容器重启后所有用户需重新登录。
+_sessions = {}          # token -> JWCClient
+_captcha_clients = {}   # captcha_id -> JWCClient（登录尝试的临时会话）
+_sessions_lock = threading.Lock()
+jwc_lock = threading.Lock()  # 串行化教务 HTTP 请求（多用户共用）
+TOKEN_HEADER = "X-Auth-Token"
 
-# 本服务仅支持手动登录（无账号模式）：
-#   - 后端绝不使用数据库中的任何凭证自动登录教务
-#   - 任何访问者打开页面都是未登录状态，需在设置页手动输入
-#     学号/密码/验证码登录；数据接口未登录一律 401
+# 全局教务客户端：仅用于学期计算等无状态工具方法（不参与业务会话）
+jwc_client = JWCClient()
+
+
+def _new_captcha_client() -> Tuple[str, JWCClient]:
+    """创建一次登录尝试的临时教务会话，返回 (captcha_id, client)"""
+    cid = secrets.token_urlsafe(16)
+    client = JWCClient()
+    with _sessions_lock:
+        _captcha_clients[cid] = client
+    return cid, client
+
+
+def _pop_captcha_client(captcha_id: str) -> Optional[JWCClient]:
+    """取出并删除登录尝试会话（验证码与教务 Cookie 绑定同一实例）"""
+    with _sessions_lock:
+        return _captcha_clients.pop(captcha_id or "", None)
+
+
+def _register_session(client: JWCClient) -> str:
+    """登录成功后注册用户会话，返回 token"""
+    token = secrets.token_urlsafe(32)
+    with _sessions_lock:
+        _sessions[token] = client
+    return token
+
+
+def _get_session_client() -> Optional[JWCClient]:
+    """从当前请求头取 token 并返回对应会话客户端（未登录返回 None）"""
+    token = request.headers.get(TOKEN_HEADER) or ""
+    with _sessions_lock:
+        return _sessions.get(token)
+
+
+def _logout_session(token: str):
+    with _sessions_lock:
+        _sessions.pop(token or "", None)
+
+
+def _current_semester() -> str:
+    return jwc_client._current_semester()
+
 
 EVAL_HEADERS = {
     "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
@@ -37,8 +82,8 @@ EVAL_HEADERS = {
 }
 
 
-def _warm_eval_session():
-    jwc_client.session.get(
+def _warm_eval_session(client: JWCClient):
+    client.session.get(
         "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
         headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
         timeout=10)
@@ -80,7 +125,8 @@ def gallery_page():
 
 @app.route('/proxy/jw/<path:target_path>', methods=['GET', 'POST'])
 def proxy_jw(target_path):
-    if not jwc_client.logged_in:
+    client = _get_session_client()
+    if client is None or not client.logged_in:
         return "请先登录教务系统", 401
     target_url = f"http://202.119.81.112:9080/njlgdx/{target_path}"
     qs = request.query_string.decode()
@@ -88,11 +134,11 @@ def proxy_jw(target_path):
         target_url += "?" + qs
     try:
         if request.method == 'POST':
-            resp = jwc_client.session.post(target_url, data=request.form,
-                                           headers=EVAL_HEADERS, timeout=15)
+            resp = client.session.post(target_url, data=request.form,
+                                       headers=EVAL_HEADERS, timeout=15)
         else:
-            _warm_eval_session()
-            resp = jwc_client.session.get(target_url, headers=EVAL_HEADERS, timeout=15)
+            _warm_eval_session(client)
+            resp = client.session.get(target_url, headers=EVAL_HEADERS, timeout=15)
     except Exception as e:
         return f"代理请求失败: {e}", 502
     if "text/html" in (resp.headers.get("content-type") or ""):
@@ -127,22 +173,24 @@ def proxy_jw(target_path):
 # ============================================================
 @app.route('/api/status')
 def api_status():
-    # 无账号模式：登录态只取决于当前进程内的教务会话（jwc_client），
-    # 不读取数据库里保存的账号，也绝不在这里触发自动登录。
-    logged_in = bool(jwc_client.logged_in)
-    student_id = jwc_client.student_id if logged_in else ""
-    student_name = jwc_client.student_name if logged_in else ""
-    semester = dao.get_setting("semester", jwc_client._current_semester())
+    # 仅支持手动登录：登录态只取决于当前请求 token 对应的会话
+    client = _get_session_client()
+    logged_in = bool(client and client.logged_in)
+    student_id = client.student_id if logged_in else ""
+    student_name = client.student_name if logged_in else ""
+    semester = (dao.get_user_setting(student_id, "semester")
+                if logged_in else "") or dao.get_setting("semester") or _current_semester()
 
     has_courses = False
     has_exams = False
     if logged_in and semester:
-        has_courses = dao.count_courses(semester) > 0
-        has_exams = dao.count_exams(semester) > 0
+        has_courses = dao.count_courses(semester, student_id) > 0
+        has_exams = dao.count_exams(semester, student_id) > 0
 
     # 教务连通性(桌面端导航栏/设置页依赖)
+    probe = JWCClient()
     try:
-        ok, _msg = jwc_client.test_connection()
+        ok, _msg = probe.test_connection()
         network = {
             "reachable": ok,
             "method": "direct" if ok else "offline",
@@ -158,10 +206,10 @@ def api_status():
         "logged_in": logged_in,
         "student_id": student_id,
         "student_name": student_name,
-        "semester": semester or jwc_client._current_semester(),
+        "semester": semester,
         "has_courses": has_courses,
         "has_exams": has_exams,
-        "login_method": jwc_client.login_method if logged_in else "",
+        "login_method": client.login_method if logged_in else "",
         "auto_login_attempted": False,
         "auto_login_error": "",
         "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -172,49 +220,21 @@ def api_status():
 
 @app.route('/api/connect-test')
 def api_connect_test():
-    ok, msg = jwc_client.test_connection()
+    probe = JWCClient()
+    ok, msg = probe.test_connection()
     return jsonify({"ok": ok, "message": msg})
 
 
 # ============================================================
-# API — 登录
+# API — 登录（多用户：登录成功后签发 token）
 # ============================================================
 # 本服务仅支持手动登录：登录密码只用于本次登录流程，
 # 不加密保存到数据库（无任何自动登录机制，保存密码无意义）。
-#
-# 注: settings 表中可能残留历史版本的 password_enc / secret_key
-# 数据, 它们已无任何读取入口, 可忽略。
 
 
 def _resolve_password(student_id: str, provided: str) -> str:
-    """解析登录密码。
-
-    无账号模式：登录必须显式提供密码，不再回退到数据库里保存的凭证
-    （避免"空密码登录"隐式使用他人保存的账号密码）。
-    """
+    """解析登录密码：必须显式提供，不回退任何已保存凭证。"""
     return provided or ""
-
-
-def _on_login_success(student_id: str, password: str = ""):
-    """登录成功后的公共处理。
-
-    只保存学号/姓名/学期等非敏感信息；**不保存密码**（本服务仅支持
-    手动登录，密码不会用于任何自动登录）。
-    """
-    dao.set_setting("student_id", student_id)
-    if jwc_client.student_name:
-        dao.set_setting("student_name", jwc_client.student_name)
-    semester = dao.get_setting("semester")
-    if not semester:
-        semester = jwc_client._current_semester()
-        dao.set_setting("semester", semester)
-    return jsonify({
-        "success": True,
-        "message": f"登录成功！欢迎 {jwc_client.student_name or student_id}",
-        "student_name": jwc_client.student_name or student_id,
-        "semester": semester,
-        "login_method": jwc_client.login_method,
-    })
 
 
 def _sniff_image_mime(data: bytes) -> str:
@@ -230,17 +250,41 @@ def _sniff_image_mime(data: bytes) -> str:
     return "image/png"
 
 
+def _on_login_success(client: JWCClient, token: str):
+    """登录成功后的公共处理：签发 token 并返回会话信息。
+
+    不保存密码；学期等用户级设置在登录时初始化（沿用全局默认）。
+    """
+    sid = client.student_id
+    semester = dao.get_user_setting(sid, "semester") or \
+        dao.get_setting("semester") or client._current_semester()
+    if not dao.get_user_setting(sid, "semester"):
+        dao.set_user_setting(sid, "semester", semester)
+    return jsonify({
+        "success": True,
+        "message": f"登录成功！欢迎 {client.student_name or sid}",
+        "student_id": sid,
+        "student_name": client.student_name or sid,
+        "semester": semester,
+        "login_method": client.login_method,
+        "token": token,
+    })
+
+
 @app.route('/api/get-captcha')
 def api_get_captcha():
+    cid, client = _new_captcha_client()
     with jwc_lock:
-        b64, error = jwc_client.get_captcha_base64()
+        b64, error = client.get_captcha_base64()
     if error or not b64:
+        _pop_captcha_client(cid)
         return jsonify({
             "success": False,
             "message": error or "获取验证码失败",
         }), 500
     return jsonify({
         "success": True,
+        "captcha_id": cid,
         "captcha_b64": b64,
         "captcha_mime": _sniff_image_mime(base64.b64decode(b64)),
         "message": "验证码获取成功",
@@ -249,46 +293,53 @@ def api_get_captcha():
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
+    """教务直连自动 OCR 登录（无需验证码输入）"""
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
     password = _resolve_password(student_id, data.get("password") or "")
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
+    client = JWCClient()
     with jwc_lock:
-        success = jwc_client.login(student_id, password)
+        success = client.login(student_id, password)
     if success:
-        return _on_login_success(student_id, password)
-    else:
-        return jsonify({
-            "success": False,
-            "message": jwc_client.last_error or "登录失败",
-            "need_captcha": "验证码" in (jwc_client.last_error or ""),
-        }), 401
+        token = _register_session(client)
+        return _on_login_success(client, token)
+    return jsonify({
+        "success": False,
+        "message": client.last_error or "登录失败",
+        "need_captcha": "验证码" in (client.last_error or ""),
+    }), 401
 
 
 @app.route('/api/login-manual', methods=['POST'])
 def api_login_manual():
+    """教务直连手动验证码登录（验证码与临时会话绑定）"""
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
     password = _resolve_password(student_id, data.get("password") or "")
     captcha_text = (data.get("captcha") or "").strip()
+    captcha_id = data.get("captcha_id") or ""
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
     if not captcha_text:
         return jsonify({"success": False, "message": "请先输入验证码"}), 400
+    client = _pop_captcha_client(captcha_id)
+    if client is None:
+        return jsonify({"success": False, "message": "验证码会话已过期，请重新获取"}), 400
     with jwc_lock:
-        success = jwc_client.login_with_manual_captcha(student_id, password, captcha_text)
+        success = client.login_with_manual_captcha(student_id, password, captcha_text)
     if success:
-        return _on_login_success(student_id, password)
-    else:
-        return jsonify({
-            "success": False,
-            "message": jwc_client.last_error or "登录失败",
-        }), 401
+        token = _register_session(client)
+        return _on_login_success(client, token)
+    return jsonify({
+        "success": False,
+        "message": client.last_error or "登录失败",
+    }), 401
 
 
 # ============================================================
-# API — 智慧理工 SSO 登录（校外/备用方式）
+# API — 智慧理工 SSO 登录（校外/备用方式，多用户）
 # ============================================================
 @app.route('/api/get-webvpn-captcha', methods=['POST'])
 def api_get_webvpn_captcha():
@@ -300,29 +351,35 @@ def api_get_webvpn_captcha():
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
 
+    cid, client = _new_captcha_client()
     with jwc_lock:
-        b64, error = jwc_client.get_webvpn_captcha_base64(student_id, password)
+        b64, error = client.get_webvpn_captcha_base64(student_id, password)
 
     if b64 == "__ALREADY_LOGGED_IN__":
-        # SSO 后已有教务会话，无需再输验证码
-        jwc_client.logged_in = True
-        jwc_client.login_method = "webvpn"
+        # SSO 后已有教务会话，无需再输验证码 → 直接注册用户会话
+        _pop_captcha_client(cid)
+        client.logged_in = True
+        client.login_method = "webvpn"
+        token = _register_session(client)
         return jsonify({
             "success": True,
             "already_logged_in": True,
+            "token": token,
             "message": "已有教务会话，无需重复登录",
         })
 
     if error:
+        _pop_captcha_client(cid)
         return jsonify({
             "success": False,
             "message": error,
-            "debug_log": jwc_client.debug_log[-20:],
+            "debug_log": client.debug_log[-20:],
         }), 500
 
-    # 验证码获取成功说明 SSO 登录成功（不保存密码）
+    # 验证码获取成功说明 SSO 登录成功（不保存密码），返回 captcha_id 供第二步使用
     return jsonify({
         "success": True,
+        "captcha_id": cid,
         "captcha_b64": b64,
         "captcha_mime": _sniff_image_mime(base64.b64decode(b64)),
         "message": "智慧理工登录成功，请输入教务密码和验证码",
@@ -336,23 +393,27 @@ def api_login_webvpn_manual():
     student_id = (data.get("student_id") or "").strip()
     password = _resolve_password(student_id, data.get("password") or "")
     captcha_text = (data.get("captcha") or "").strip()
+    captcha_id = data.get("captcha_id") or ""
 
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
     if not captcha_text:
         return jsonify({"success": False, "message": "请先获取验证码并输入"}), 400
+    client = _pop_captcha_client(captcha_id)
+    if client is None:
+        return jsonify({"success": False, "message": "验证码会话已过期，请重新获取"}), 400
 
     with jwc_lock:
-        success = jwc_client.complete_webvpn_login(student_id, password, captcha_text)
+        success = client.complete_webvpn_login(student_id, password, captcha_text)
 
     if success:
-        # 不保存教务密码（仅支持手动登录）
-        return _on_login_success(student_id, password)
-    else:
-        return jsonify({
-            "success": False,
-            "message": jwc_client.last_error or "登录失败，请检查验证码",
-        }), 401
+        client.login_method = "webvpn"
+        token = _register_session(client)
+        return _on_login_success(client, token)
+    return jsonify({
+        "success": False,
+        "message": client.last_error or "登录失败，请检查验证码",
+    }), 401
 
 
 @app.route('/api/login-webvpn', methods=['POST'])
@@ -365,46 +426,67 @@ def api_login_webvpn():
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
 
+    client = JWCClient()
     with jwc_lock:
-        success = jwc_client.login_webvpn(student_id, password)
+        success = client.login_webvpn(student_id, password)
 
     if success:
-        # 不保存教务密码（仅支持手动登录）
-        return _on_login_success(student_id, password)
-    else:
-        return jsonify({
-            "success": False,
-            "message": jwc_client.last_error or "智慧理工登录失败",
-            "debug_log": jwc_client.debug_log[-20:],
-        }), 401
+        token = _register_session(client)
+        return _on_login_success(client, token)
+    return jsonify({
+        "success": False,
+        "message": client.last_error or "智慧理工登录失败",
+        "debug_log": client.debug_log[-20:],
+    }), 401
+
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    """退出登录：销毁当前 token 对应的教务会话"""
+    token = request.headers.get(TOKEN_HEADER) or ""
+    client = None
+    with _sessions_lock:
+        client = _sessions.pop(token, None)
+    if client is not None:
+        try:
+            client.logout()
+        except Exception:
+            pass
+    return jsonify({"success": True, "message": "已退出登录"})
 
 
 # ============================================================
-# API — 数据刷新
+# API — 数据刷新（多用户：使用请求 token 对应的会话）
 # ============================================================
-def _require_login():
-    """数据/操作接口的登录守卫：未登录（或教务会话过期）一律 401。
+def _require_login() -> Tuple[Optional[JWCClient], Optional[Tuple]]:
+    """登录守卫：返回 (client, None) 或 (None, error_response)。
 
-    本服务仅支持手动登录，不自动重登录。
+    未登录/会话过期一律 401；本服务仅支持手动登录，不自动重登录。
     """
-    if not jwc_client.logged_in or not jwc_client.is_session_valid():
-        jwc_client.logged_in = False
-        return jsonify({
+    client = _get_session_client()
+    if client is None or not client.logged_in:
+        return None, (jsonify({
             "success": False,
-            "message": "尚未登录，请先在设置页面登录",
-        }), 401
-    return None
+            "message": "尚未登录，请先登录",
+        }), 401)
+    if not client.is_session_valid():
+        client.logged_in = False
+        return None, (jsonify({
+            "success": False,
+            "message": "会话已过期，请重新登录",
+        }), 401)
+    return client, None
 
 
-def _retry_with_relogin(fetch_func, error_msg: str):
+def _retry_with_relogin(client: JWCClient, fetch_func, error_msg: str):
     """执行数据获取。会话过期时返回 401 提示手动登录，不自动重登录。
     返回 (data, error_tuple)，成功时 error_tuple 为 None，
     失败时 data 为 []，error_tuple 为 (flask_response, status_code)。"""
     result = fetch_func()
     if result:
         return result, None
-    # 会话过期（或教务侧拒绝）；无自动登录，直接要求手动登录
-    jwc_client.logged_in = False
+    # 会话过期（或教务侧拒绝）；仅支持手动登录，直接要求重新登录
+    client.logged_in = False
     return [], (jsonify({
         "success": False,
         "message": f"{error_msg}: 会话已过期，请重新登录",
@@ -413,19 +495,18 @@ def _retry_with_relogin(fetch_func, error_msg: str):
 
 @app.route('/api/refresh-schedule', methods=['POST'])
 def api_refresh_schedule():
-    semester = dao.get_setting("semester", jwc_client._current_semester())
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
+    semester = dao.get_user_setting(sid, "semester") or _current_semester()
     with jwc_lock:
         courses, retry_err = _retry_with_relogin(
-            lambda: jwc_client.get_schedule(semester),
-            "获取课表失败",
-        )
+            client, lambda: client.get_schedule(semester), "获取课表失败")
     if retry_err:
         return retry_err
-    dao.save_courses(courses, semester)
-    dao.set_setting("semester", semester)
+    dao.save_courses(courses, semester, sid)
+    dao.set_user_setting(sid, "semester", semester)
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(courses)} 门课程",
@@ -436,18 +517,17 @@ def api_refresh_schedule():
 
 @app.route('/api/refresh-exams', methods=['POST'])
 def api_refresh_exams():
-    semester = dao.get_setting("semester", jwc_client._current_semester())
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
+    semester = dao.get_user_setting(sid, "semester") or _current_semester()
     with jwc_lock:
         exams, retry_err = _retry_with_relogin(
-            lambda: jwc_client.get_exams(semester),
-            "获取考试失败",
-        )
+            client, lambda: client.get_exams(semester), "获取考试失败")
     if retry_err:
         return retry_err
-    dao.save_exams(exams, semester)
+    dao.save_exams(exams, semester, sid)
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(exams)} 场考试",
@@ -457,33 +537,30 @@ def api_refresh_exams():
 
 @app.route('/api/refresh-all', methods=['POST'])
 def api_refresh_all():
-    semester = dao.get_setting("semester", jwc_client._current_semester())
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
+    semester = dao.get_user_setting(sid, "semester") or _current_semester()
     results = {"schedule": None, "exams": None}
     with jwc_lock:
         courses, sched_err = _retry_with_relogin(
-            lambda: jwc_client.get_schedule(semester),
-            "获取课表失败",
-        )
+            client, lambda: client.get_schedule(semester), "获取课表失败")
         if not sched_err:
-            dao.save_courses(courses, semester)
+            dao.save_courses(courses, semester, sid)
             results["schedule"] = {"count": len(courses), "ok": True}
         else:
-            results["schedule"] = {"count": 0, "ok": False, "error": jwc_client.last_error}
+            results["schedule"] = {"count": 0, "ok": False, "error": client.last_error}
 
         exams, exam_err = _retry_with_relogin(
-            lambda: jwc_client.get_exams(semester),
-            "获取考试失败",
-        )
+            client, lambda: client.get_exams(semester), "获取考试失败")
         if not exam_err:
-            dao.save_exams(exams, semester)
+            dao.save_exams(exams, semester, sid)
             results["exams"] = {"count": len(exams), "ok": True}
         else:
-            results["exams"] = {"count": 0, "ok": False, "error": jwc_client.last_error}
+            results["exams"] = {"count": 0, "ok": False, "error": client.last_error}
 
-    dao.set_setting("semester", semester)
+    dao.set_user_setting(sid, "semester", semester)
     return jsonify({
         "success": True,
         "semester": semester,
@@ -494,7 +571,7 @@ def api_refresh_all():
 
 
 # ============================================================
-# API — 数据查询
+# API — 数据查询（按用户隔离）
 # ============================================================
 def _dedupe_courses(courses: list) -> list:
     """去掉跨大节课程在 kbtable 每个大节格产生的重复条目。
@@ -517,12 +594,13 @@ def _dedupe_courses(courses: list) -> list:
 
 @app.route('/api/courses')
 def api_get_courses():
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
     semester = (request.args.get("semester") or "").strip() or \
-        dao.get_setting("semester", jwc_client._current_semester())
-    courses = _dedupe_courses(dao.get_courses(semester))
+        dao.get_user_setting(sid, "semester") or _current_semester()
+    courses = _dedupe_courses(dao.get_courses(semester, sid))
     return jsonify({
         "success": True,
         "semester": semester,
@@ -533,12 +611,13 @@ def api_get_courses():
 
 @app.route('/api/exams')
 def api_get_exams():
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
     semester = (request.args.get("semester") or "").strip() or \
-        dao.get_setting("semester", jwc_client._current_semester())
-    exams = dao.get_exams(semester)
+        dao.get_user_setting(sid, "semester") or _current_semester()
+    exams = dao.get_exams(semester, sid)
     return jsonify({
         "success": True,
         "semester": semester,
@@ -549,28 +628,29 @@ def api_get_exams():
 
 @app.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
+    client = _get_session_client()
+    logged_in = bool(client and client.logged_in)
+    sid = client.student_id if logged_in else ""
     if request.method == 'GET':
-        # 无账号模式：未登录时不返回数据库里保存的账号与密码状态
-        logged_in = bool(jwc_client.logged_in)
         settings = {
-            "student_id": (jwc_client.student_id if logged_in else ""),
-            "student_name": (jwc_client.student_name if logged_in else ""),
-            "semester": dao.get_setting("semester"),
+            "student_id": sid,
+            "student_name": client.student_name if logged_in else "",
+            "semester": (dao.get_user_setting(sid, "semester") if logged_in else "")
+                        or dao.get_setting("semester"),
             "auto_refresh": dao.get_setting("auto_refresh", "false"),
             "refresh_interval": dao.get_setting("refresh_interval", "3600"),
             "first_week_date": dao.get_setting("first_week_date", ""),
             "semester_list": jwc_client.get_semester_list(),
-            "current_semester": jwc_client._current_semester(),
-            "has_password": bool(dao.get_setting("password_enc", "")) if logged_in else False,
-            "has_jwc_password": bool(dao.get_setting("jwc_password_enc", "")) if logged_in else False,
+            "current_semester": _current_semester(),
         }
         return jsonify(settings)
     else:
-        data = request.get_json()
+        data = request.get_json() or {}
         for key, value in data.items():
-            if key in ("student_id", "student_name", "semester",
-                       "auto_refresh", "refresh_interval", "first_week_date"):
+            if key in ("auto_refresh", "refresh_interval", "first_week_date"):
                 dao.set_setting(key, str(value))
+            elif key == "semester" and logged_in and sid:
+                dao.set_user_setting(sid, "semester", str(value))
         return jsonify({"success": True, "message": "设置已保存"})
 
 
@@ -611,7 +691,7 @@ def api_get_semesters():
     """获取可用学期列表"""
     try:
         semesters = jwc_client.get_semester_list()
-        current = jwc_client._current_semester()
+        current = _current_semester()
         return jsonify({"success": True, "semesters": semesters, "current": current})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -623,18 +703,23 @@ def api_set_semester():
     semester = (data.get("semester") or "").strip()
     if not semester:
         return jsonify({"success": False, "message": "学期不能为空"}), 400
-    dao.set_setting("semester", semester)
+    client = _get_session_client()
+    if client is not None and client.logged_in and client.student_id:
+        dao.set_user_setting(client.student_id, "semester", semester)
+    else:
+        dao.set_setting("semester", semester)
     return jsonify({"success": True, "message": f"已切换到学期: {semester}"})
 
 
 @app.route('/api/evaluations')
 def api_get_evaluations():
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
     semester = (request.args.get("semester") or "").strip() or \
-        dao.get_setting("semester", jwc_client._current_semester())
-    evals = dao.get_evaluations(semester)
+        dao.get_user_setting(sid, "semester") or _current_semester()
+    evals = dao.get_evaluations(semester, sid)
     return jsonify({
         "success": True,
         "semester": semester,
@@ -645,18 +730,17 @@ def api_get_evaluations():
 
 @app.route('/api/refresh-evaluations', methods=['POST'])
 def api_refresh_evaluations():
-    semester = dao.get_setting("semester", jwc_client._current_semester())
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
+    semester = dao.get_user_setting(sid, "semester") or _current_semester()
     with jwc_lock:
         evals, retry_err = _retry_with_relogin(
-            lambda: jwc_client.get_evaluations(semester),
-            "获取评价数据失败",
-        )
+            client, lambda: client.get_evaluations(semester), "获取评价数据失败")
     if retry_err:
         return retry_err
-    dao.save_evaluations(evals, semester)
+    dao.save_evaluations(evals, semester, sid)
     undone = sum(1 for e in evals if not e.get("is_done"))
     return jsonify({
         "success": True,
@@ -667,7 +751,7 @@ def api_refresh_evaluations():
 
 
 # ============================================================
-# 评教 — 页面解析
+# 评教 — 页面解析（网关层，评分由前端完成）
 # ============================================================
 def _parse_eval_courses_page(html: str) -> dict:
     soup = BeautifulSoup(html, "lxml")
@@ -824,21 +908,30 @@ def _build_ordered_eval_post_data(form_data: dict, batch_hidden_fields=None,
 
 
 # ============================================================
-# API — 评教操作
+# API — 评教操作（多用户：使用请求 token 对应的会话）
 # ============================================================
+def _fetch_with_client(client: JWCClient, url: str):
+    """用用户会话 GET 教务页面，检查非法访问"""
+    target = f"http://202.119.81.112:9080{url}" if url.startswith("/") else url
+    _warm_eval_session(client)
+    resp = client.session.get(target, headers=EVAL_HEADERS, timeout=15)
+    if "非法访问" in resp.text or "非法操作" in resp.text:
+        return None, jsonify({"success": False, "message": "教务系统拒绝了请求"}), 403
+    return resp, None, None
+
+
 @app.route('/api/eval-courses')
 def api_eval_courses():
     url = request.args.get("url", "")
     if not url:
         return jsonify({"success": False, "message": "缺少 URL"}), 400
-    if not jwc_client.logged_in:
-        return jsonify({"success": False, "message": "请先登录"}), 401
-    target = f"http://202.119.81.112:9080{url}" if url.startswith("/") else url
+    client, err = _require_login()
+    if err:
+        return err
     try:
-        _warm_eval_session()
-        resp = jwc_client.session.get(target, headers=EVAL_HEADERS, timeout=15)
-        if "非法访问" in resp.text or "非法操作" in resp.text:
-            return jsonify({"success": False, "message": "教务系统拒绝了请求"}), 403
+        resp, err_resp, status = _fetch_with_client(client, url)
+        if err_resp is not None:
+            return err_resp, status
     except Exception as e:
         return jsonify({"success": False, "message": f"请求失败: {e}"}), 500
     parsed = _parse_eval_courses_page(resp.text)
@@ -857,14 +950,13 @@ def api_eval_form():
     url = request.args.get("url", "")
     if not url:
         return jsonify({"success": False, "message": "缺少评教 URL"}), 400
-    if not jwc_client.logged_in:
-        return jsonify({"success": False, "message": "请先登录"}), 401
-    target = f"http://202.119.81.112:9080{url}" if url.startswith("/") else url
+    client, err = _require_login()
+    if err:
+        return err
     try:
-        _warm_eval_session()
-        resp = jwc_client.session.get(target, headers=EVAL_HEADERS, timeout=15)
-        if "非法访问" in resp.text or "非法操作" in resp.text:
-            return jsonify({"success": False, "message": "教务系统拒绝了请求"}), 403
+        resp, err_resp, status = _fetch_with_client(client, url)
+        if err_resp is not None:
+            return err_resp, status
     except Exception as e:
         return jsonify({"success": False, "message": f"请求失败: {e}"}), 500
     parsed = _parse_eval_form_page(resp.text)
@@ -881,8 +973,9 @@ def api_eval_form():
 
 @app.route('/api/submit-eval', methods=['POST'])
 def api_submit_eval():
-    if not jwc_client.logged_in:
-        return jsonify({"success": False, "message": "请先登录"}), 401
+    client, err = _require_login()
+    if err:
+        return err
     data = request.get_json()
     form_data = data.get("form_data", {})
     submit_type = data.get("submit_type", "0")
@@ -890,9 +983,9 @@ def api_submit_eval():
     form_data["issubmit"] = submit_type
     target_url = f"http://202.119.81.112:9080{action_path}"
     try:
-        _warm_eval_session()
+        _warm_eval_session(client)
         post_data = _build_ordered_eval_post_data(form_data, submit_type=submit_type)
-        resp = jwc_client.session.post(target_url, data=post_data, headers=EVAL_HEADERS, timeout=15)
+        resp = client.session.post(target_url, data=post_data, headers=EVAL_HEADERS, timeout=15)
         if "评价成功" in resp.text or "提交成功" in resp.text or "保存成功" in resp.text:
             return jsonify({"success": True, "message": "评教提交成功！"})
         return jsonify({"success": True, "message": "已提交（请返回教务确认）"})
@@ -902,7 +995,7 @@ def api_submit_eval():
 
 @app.route('/api/jw-proxy', methods=['POST'])
 def api_jw_proxy():
-    """通用教务网关: 用已登录会话转发任意 9080 请求,返回原始内容。
+    """通用教务网关: 用当前用户会话转发任意 9080 请求,返回原始内容。
 
     方案 A(薄后端)核心接口: 前端负责业务逻辑,后端只做认证 + 转发。
 
@@ -914,7 +1007,7 @@ def api_jw_proxy():
     返回:
         success/status/content_type/text(文本) 或 data_b64(二进制)
     """
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
     data = request.get_json() or {}
@@ -937,12 +1030,12 @@ def api_jw_proxy():
 
     try:
         with jwc_lock:
-            _warm_eval_session()
+            _warm_eval_session(client)
             if method == "POST":
-                resp = jwc_client.session.post(target, data=form_data,
-                                               headers=EVAL_HEADERS, timeout=15)
+                resp = client.session.post(target, data=form_data,
+                                           headers=EVAL_HEADERS, timeout=15)
             else:
-                resp = jwc_client.session.get(target, headers=EVAL_HEADERS, timeout=15)
+                resp = client.session.get(target, headers=EVAL_HEADERS, timeout=15)
     except Exception as e:
         return jsonify({"success": False, "message": f"请求失败: {e}"}), 502
 
@@ -961,38 +1054,41 @@ def api_jw_proxy():
         "content_type": content_type,
         "data_b64": base64.b64encode(resp.content).decode(),
     })
+
+
 # ============================================================
-# API — 清除数据
+# API — 清除数据（按用户隔离）
 # ============================================================
 @app.route('/api/clear-data', methods=['POST'])
 def api_clear_data():
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
-    semester = dao.get_setting("semester", jwc_client._current_semester())
-    dao.clear_data(semester)
+    sid = client.student_id or ""
+    semester = dao.get_user_setting(sid, "semester") or _current_semester()
+    dao.clear_data(semester, sid)
     return jsonify({"success": True, "message": "数据已清除"})
 
 
 # ============================================================
-# API — 成绩查询
+# API — 成绩查询（按用户隔离）
 # ============================================================
-
 @app.route('/api/grades')
 def api_get_grades():
-    """返回已存储的成绩原始数据(方案 A: GPA 等业务计算已移至前端)
+    """返回当前用户已存储的成绩原始数据(方案 A: GPA 等业务计算已移至前端)
 
     参数:
         semester: 学期代码(如 "2024-2025-1"),传 "__all__" 或不传查看全部学期
     """
-    err = _require_login()
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
     semester = request.args.get("semester", "")
     view_all = (semester == "__all__" or not semester)
 
-    all_grades = dao.get_grades()
-    available_semesters = dao.get_grade_semesters()
+    all_grades = dao.get_grades(student_id=sid)
+    available_semesters = dao.get_grade_semesters(sid)
 
     if view_all:
         grades = all_grades
@@ -1001,7 +1097,7 @@ def api_get_grades():
         parts = semester.split("-") if semester else []
         academic_year = f"{parts[0]}-{parts[1]}" if len(parts) >= 2 else ""
         sem = parts[2] if len(parts) >= 3 else ""
-        grades = dao.get_grades(academic_year, sem) if academic_year and sem else []
+        grades = dao.get_grades(academic_year, sem, sid) if academic_year and sem else []
         display_semester = semester
 
     return jsonify({
@@ -1015,18 +1111,19 @@ def api_get_grades():
 
 @app.route('/api/refresh-grades', methods=['POST'])
 def api_refresh_grades():
-    """刷新成绩数据（从教务系统拉取）"""
-    err = _require_login()
+    """刷新当前用户成绩数据（从教务系统拉取）"""
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
 
     with jwc_lock:
-        grades = jwc_client.get_grades("")
+        grades = client.get_grades("")
 
-    if not grades and jwc_client.last_error:
+    if not grades and client.last_error:
         return jsonify({
             "success": False,
-            "message": jwc_client.last_error or "获取成绩失败",
+            "message": client.last_error or "获取成绩失败",
         }), 500
 
     from collections import defaultdict
@@ -1037,7 +1134,7 @@ def api_refresh_grades():
 
     total_count = 0
     for (ay, s), group in grouped.items():
-        dao.save_grades(group, ay, s)
+        dao.save_grades(group, ay, s, sid)
         total_count += len(group)
 
     return jsonify({
@@ -1048,18 +1145,18 @@ def api_refresh_grades():
 
 
 # ============================================================
-# API — 四六级
+# API — 四六级（按用户隔离）
 # ============================================================
-
 @app.route('/api/refresh-cet', methods=['POST'])
 def api_refresh_cet():
-    """刷新四六级成绩（从教务系统拉取）"""
-    err = _require_login()
+    """刷新当前用户四六级成绩（从教务系统拉取）"""
+    client, err = _require_login()
     if err:
         return err
+    sid = client.student_id or ""
 
     with jwc_lock:
-        scores = jwc_client.get_cet_scores()
+        scores = client.get_cet_scores()
 
     if not scores:
         return jsonify({
@@ -1067,7 +1164,7 @@ def api_refresh_cet():
             "message": "未获取到四六级成绩",
         }), 404
 
-    dao.save_cet_scores(scores)
+    dao.save_cet_scores(scores, sid)
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(scores)} 条四六级成绩",
@@ -1077,11 +1174,12 @@ def api_refresh_cet():
 
 @app.route('/api/cet-scores')
 def api_cet_scores():
-    """获取已存储的四六级原始成绩(折算计算已移至前端)"""
-    err = _require_login()
+    """获取当前用户已存储的四六级原始成绩(折算计算已移至前端)"""
+    client, err = _require_login()
     if err:
         return err
-    scores = dao.get_cet_scores()
+    sid = client.student_id or ""
+    scores = dao.get_cet_scores(sid)
     return jsonify({"success": True, "scores": scores})
 
 

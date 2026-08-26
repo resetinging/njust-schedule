@@ -9,6 +9,23 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+// --- 登录 token 管理（多用户：请求携带 X-Auth-Token） ---
+const TOKEN_KEY = '_njust_token';
+function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
+function setToken(token) {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+}
+function clearToken() { localStorage.removeItem(TOKEN_KEY); }
+
+// 带 token 的 fetch 封装（所有页面统一使用）
+async function apiFetch(url, options = {}) {
+    const headers = Object.assign({}, options.headers || {});
+    const token = getToken();
+    if (token) headers['X-Auth-Token'] = token;
+    return fetch(url, Object.assign({}, options, { headers }));
+}
+
 // --- Toast 消息 ---
 function showToast(message, type = 'info') {
     let container = document.querySelector('.toast-container');
@@ -118,7 +135,7 @@ function formatDate(str) {
 // --- 通用状态加载（各页面共用） ---
 async function loadStatus() {
     try {
-        const resp = await fetch('/api/status');
+        const resp = await apiFetch('/api/status');
         const data = await resp.json();
         window.currentSemester = data.semester || '';
         window.isLoggedIn = data.logged_in || false;

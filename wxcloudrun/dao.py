@@ -1,7 +1,9 @@
 """
 数据访问层 — SQLAlchemy ORM
 ===========================
-包含：模板 Counter + NJUST 课表/考试/评教/设置
+包含：模板 Counter + NJUST 课表/考试/评教/设置/成绩/四六级
+多用户：业务数据（课表/考试/评教/成绩/四六级）全部按 student_id 隔离，
+学期等用户级设置以 "{student_id}:{key}" 前缀存储。
 """
 import json
 import logging
@@ -54,7 +56,7 @@ def update_counterbyid(counter):
 
 
 # ============================================================
-# NJUST — 设置
+# NJUST — 设置（全局 + 用户级）
 # ============================================================
 def get_setting(key: str, default: str = "") -> str:
     row = Setting.query.filter(Setting.k == key).first()
@@ -70,13 +72,27 @@ def set_setting(key: str, value: str):
     db.session.commit()
 
 
+def get_user_setting(student_id: str, key: str, default: str = "") -> str:
+    """读取用户级设置（key 带用户前缀，如 '{sid}:semester'）"""
+    return get_setting(f"{student_id}:{key}", default)
+
+
+def set_user_setting(student_id: str, key: str, value: str):
+    """写入用户级设置（key 带用户前缀，如 '{sid}:semester'）"""
+    set_setting(f"{student_id}:{key}", value)
+
+
 # ============================================================
-# NJUST — 课表
+# NJUST — 课表（按用户隔离）
 # ============================================================
-def save_courses(courses: list, semester: str):
-    Course.query.filter(Course.semester == semester).delete()
+def save_courses(courses: list, semester: str, student_id: str = ""):
+    Course.query.filter(
+        Course.semester == semester,
+        Course.student_id == student_id,
+    ).delete()
     for c in courses:
         db.session.add(Course(
+            student_id=student_id,
             name=c.get("name", ""),
             teacher=c.get("teacher", ""),
             classroom=c.get("classroom", ""),
@@ -93,23 +109,32 @@ def save_courses(courses: list, semester: str):
     db.session.commit()
 
 
-def get_courses(semester: str) -> list:
-    rows = Course.query.filter(Course.semester == semester) \
-        .order_by(Course.day_of_week, Course.start_period).all()
+def get_courses(semester: str, student_id: str = "") -> list:
+    rows = Course.query.filter(
+        Course.semester == semester,
+        Course.student_id == student_id,
+    ).order_by(Course.day_of_week, Course.start_period).all()
     return [r.to_dict() for r in rows]
 
 
-def count_courses(semester: str) -> int:
-    return Course.query.filter(Course.semester == semester).count()
+def count_courses(semester: str, student_id: str = "") -> int:
+    return Course.query.filter(
+        Course.semester == semester,
+        Course.student_id == student_id,
+    ).count()
 
 
 # ============================================================
-# NJUST — 考试
+# NJUST — 考试（按用户隔离）
 # ============================================================
-def save_exams(exams: list, semester: str):
-    Exam.query.filter(Exam.semester == semester).delete()
+def save_exams(exams: list, semester: str, student_id: str = ""):
+    Exam.query.filter(
+        Exam.semester == semester,
+        Exam.student_id == student_id,
+    ).delete()
     for e in exams:
         db.session.add(Exam(
+            student_id=student_id,
             course_name=e.get("course_name", ""),
             exam_date=e.get("date", ""),
             exam_time=e.get("time", ""),
@@ -121,23 +146,32 @@ def save_exams(exams: list, semester: str):
     db.session.commit()
 
 
-def get_exams(semester: str) -> list:
-    rows = Exam.query.filter(Exam.semester == semester) \
-        .order_by(Exam.exam_date).all()
+def get_exams(semester: str, student_id: str = "") -> list:
+    rows = Exam.query.filter(
+        Exam.semester == semester,
+        Exam.student_id == student_id,
+    ).order_by(Exam.exam_date).all()
     return [r.to_dict() for r in rows]
 
 
-def count_exams(semester: str) -> int:
-    return Exam.query.filter(Exam.semester == semester).count()
+def count_exams(semester: str, student_id: str = "") -> int:
+    return Exam.query.filter(
+        Exam.semester == semester,
+        Exam.student_id == student_id,
+    ).count()
 
 
 # ============================================================
-# NJUST — 评教
+# NJUST — 评教（按用户隔离）
 # ============================================================
-def save_evaluations(evaluations: list, semester: str):
-    Evaluation.query.filter(Evaluation.semester == semester).delete()
+def save_evaluations(evaluations: list, semester: str, student_id: str = ""):
+    Evaluation.query.filter(
+        Evaluation.semester == semester,
+        Evaluation.student_id == student_id,
+    ).delete()
     for e in evaluations:
         db.session.add(Evaluation(
+            student_id=student_id,
             semester=e.get("semester", ""),
             category=e.get("category", ""),
             batch=e.get("batch", ""),
@@ -149,9 +183,11 @@ def save_evaluations(evaluations: list, semester: str):
     db.session.commit()
 
 
-def get_evaluations(semester: str) -> list:
-    rows = Evaluation.query.filter(Evaluation.semester == semester) \
-        .order_by(Evaluation.end_date).all()
+def get_evaluations(semester: str, student_id: str = "") -> list:
+    rows = Evaluation.query.filter(
+        Evaluation.semester == semester,
+        Evaluation.student_id == student_id,
+    ).order_by(Evaluation.end_date).all()
     result = []
     for r in rows:
         result.append({
@@ -168,25 +204,33 @@ def get_evaluations(semester: str) -> list:
 
 
 # ============================================================
-# NJUST — 清除
+# NJUST — 清除（按用户隔离）
 # ============================================================
-def clear_data(semester: str):
-    Course.query.filter(Course.semester == semester).delete()
-    Exam.query.filter(Exam.semester == semester).delete()
+def clear_data(semester: str, student_id: str = ""):
+    Course.query.filter(
+        Course.semester == semester,
+        Course.student_id == student_id,
+    ).delete()
+    Exam.query.filter(
+        Exam.semester == semester,
+        Exam.student_id == student_id,
+    ).delete()
     db.session.commit()
 
 
 # ============================================================
-# NJUST — 成绩
+# NJUST — 成绩（按用户隔离）
 # ============================================================
-def save_grades(grades: list, academic_year: str, semester: str):
+def save_grades(grades: list, academic_year: str, semester: str, student_id: str = ""):
     """保存某学期成绩（先删后插）"""
     Grade.query.filter(
         Grade.academic_year == academic_year,
         Grade.semester == semester,
+        Grade.student_id == student_id,
     ).delete()
     for g in grades:
         db.session.add(Grade(
+            student_id=student_id,
             academic_year=g.get("academic_year", academic_year),
             semester=g.get("semester", semester),
             course_code=g.get("course_code", ""),
@@ -201,9 +245,11 @@ def save_grades(grades: list, academic_year: str, semester: str):
     db.session.commit()
 
 
-def get_grades(academic_year: str = "", semester: str = "") -> list:
-    """查询成绩，可选按学期过滤"""
+def get_grades(academic_year: str = "", semester: str = "", student_id: str = "") -> list:
+    """查询成绩，可选按学期过滤（均限定当前用户）"""
     q = Grade.query
+    if student_id:
+        q = q.filter(Grade.student_id == student_id)
     if academic_year:
         q = q.filter(Grade.academic_year == academic_year)
     if semester:
@@ -215,34 +261,28 @@ def get_grades(academic_year: str = "", semester: str = "") -> list:
     return [r.to_dict() for r in rows]
 
 
-def count_grades(academic_year: str = "", semester: str = "") -> int:
-    """统计成绩数量"""
-    q = Grade.query
-    if academic_year:
-        q = q.filter(Grade.academic_year == academic_year)
-    if semester:
-        q = q.filter(Grade.semester == semester)
-    return q.count()
-
-
-def get_grade_semesters() -> list:
-    """获取已有成绩的学期列表"""
-    rows = db.session.query(
+def get_grade_semesters(student_id: str = "") -> list:
+    """获取当前用户已有成绩的学期列表"""
+    q = db.session.query(
         Grade.academic_year, Grade.semester
-    ).distinct().order_by(
+    )
+    if student_id:
+        q = q.filter(Grade.student_id == student_id)
+    rows = q.distinct().order_by(
         Grade.academic_year.desc(), Grade.semester.desc()
     ).all()
     return [f"{r[0]}-{r[1]}" for r in rows]
 
 
 # ============================================================
-# NJUST — 四六级
+# NJUST — 四六级（按用户隔离）
 # ============================================================
-def save_cet_scores(scores: list):
-    """全量替换四六级成绩"""
-    CetScore.query.delete()
+def save_cet_scores(scores: list, student_id: str = ""):
+    """全量替换当前用户的四六级成绩"""
+    CetScore.query.filter(CetScore.student_id == student_id).delete()
     for s in scores:
         db.session.add(CetScore(
+            student_id=student_id,
             cet_type=s.get("type", ""),
             total_score=float(s.get("score", 0) or 0),
             exam_date=s.get("exam_date", ""),
@@ -250,14 +290,17 @@ def save_cet_scores(scores: list):
     db.session.commit()
 
 
-def get_cet_scores() -> list:
-    """获取四六级成绩（每种取最高分）
+def get_cet_scores(student_id: str = "") -> list:
+    """获取当前用户四六级成绩（每种取最高分）
 
     注：不能在 SQL 里对 (cet_type) 分组并同时 SELECT exam_date ——
     MySQL 5.7+ 的 ONLY_FULL_GROUP_BY 会直接报错（SQLite 不检查，本地测不出来）。
     数据量极小，改为全量读取后在 Python 中取最高分。
     """
-    rows = CetScore.query.all()
+    q = CetScore.query
+    if student_id:
+        q = q.filter(CetScore.student_id == student_id)
+    rows = q.all()
     best = {}
     for r in rows:
         if r.cet_type not in best or r.total_score > best[r.cet_type][0]:

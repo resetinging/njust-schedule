@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadSchedule() {
     showLoading('正在加载课表...');
     try {
-        const resp = await fetch('/api/courses');
+        const resp = await apiFetch('/api/courses');
         const data = await resp.json();
         allCourses = data.courses || [];
         window.currentSemester = data.semester || '';
@@ -303,7 +303,7 @@ async function refreshSchedule() {
         '正在连接教务系统，可能需要十几秒钟...';
 
     try {
-        const resp = await fetch('/api/refresh-schedule', { method: 'POST' });
+        const resp = await apiFetch('/api/refresh-schedule', { method: 'POST' });
         const data = await resp.json();
         hideLoading();
 

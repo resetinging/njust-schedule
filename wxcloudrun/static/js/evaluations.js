@@ -35,7 +35,7 @@ function timeUntilDeadline(endDateStr) {
 async function loadEvaluations() {
     showLoading('正在加载评价数据...');
     try {
-        const resp = await fetch('/api/evaluations');
+        const resp = await apiFetch('/api/evaluations');
         const data = await resp.json();
         allEvaluations = data.evaluations || [];
         window.currentSemester = data.semester || '';
@@ -177,7 +177,7 @@ async function refreshEvaluations() {
     document.getElementById('loading-text').textContent = '正在连接教务系统...';
 
     try {
-        const resp = await fetch('/api/refresh-evaluations', { method: 'POST' });
+        const resp = await apiFetch('/api/refresh-evaluations', { method: 'POST' });
         const data = await resp.json();
         hideLoading();
 
@@ -224,7 +224,7 @@ async function openEvalModal(title, itemUrl) {
     currentView = 'courses';
 
     try {
-        const resp = await fetch('/api/eval-courses?url=' + encodeURIComponent(currentBatchUrl));
+        const resp = await apiFetch('/api/eval-courses?url=' + encodeURIComponent(currentBatchUrl));
         const data = await resp.json();
         if (!data.success) {
             body.innerHTML = `<div class="eval-modal-message error"><p>❌ ${data.message}</p></div>`;
@@ -325,7 +325,7 @@ async function openEvalForm(evalUrl, courseName, teacherName, readonly = false) 
     currentView = 'form';
 
     try {
-        const resp = await fetch('/api/eval-form?url=' + encodeURIComponent(evalUrl));
+        const resp = await apiFetch('/api/eval-form?url=' + encodeURIComponent(evalUrl));
         const data = await resp.json();
         if (!data.success) {
             body.innerHTML = `<div class="eval-modal-message">
@@ -385,7 +385,7 @@ async function refreshCourseList() {
     currentView = 'courses';
 
     try {
-        const resp = await fetch('/api/eval-courses?url=' + encodeURIComponent(currentBatchUrl));
+        const resp = await apiFetch('/api/eval-courses?url=' + encodeURIComponent(currentBatchUrl));
         const data = await resp.json();
         if (data.success) {
             currentBatchData = data;
@@ -582,7 +582,7 @@ async function submitEval(submitType) {
 
     showLoading('正在提交评教...');
     try {
-        const resp = await fetch('/api/submit-eval', {
+        const resp = await apiFetch('/api/submit-eval', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -913,7 +913,7 @@ async function startBatchEval() {
         const statusEl = document.getElementById('batch-progress-status');
         try {
             statusEl.textContent = `正在加载 ${course.name}...`;
-            const resp = await fetch('/api/eval-form?url=' + encodeURIComponent(course.eval_url));
+            const resp = await apiFetch('/api/eval-form?url=' + encodeURIComponent(course.eval_url));
             const data = await resp.json();
             if (!data.success || !(data.indicators || []).length) {
                 results.push({ course: course.name, status: 'failed', error: data.message || '无法解析表单' });
@@ -933,7 +933,7 @@ async function startBatchEval() {
                 }
                 payload.issubmit = '1';
                 statusEl.textContent = `正在提交 ${course.name}...`;
-                const sub = await fetch('/api/submit-eval', {
+                const sub = await apiFetch('/api/submit-eval', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

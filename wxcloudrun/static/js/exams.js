@@ -58,7 +58,7 @@ function timeUntil(targetDate) {
 async function loadExams() {
     showLoading('正在加载考试安排...');
     try {
-        const resp = await fetch('/api/exams');
+        const resp = await apiFetch('/api/exams');
         const data = await resp.json();
         allExams = data.exams || [];
         window.currentSemester = data.semester || '';
@@ -222,7 +222,7 @@ async function refreshExams() {
         '正在连接教务系统，可能需要十几秒钟...';
 
     try {
-        const resp = await fetch('/api/refresh-exams', { method: 'POST' });
+        const resp = await apiFetch('/api/refresh-exams', { method: 'POST' });
         const data = await resp.json();
         hideLoading();
 

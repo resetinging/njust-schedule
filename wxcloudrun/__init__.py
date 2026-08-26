@@ -35,10 +35,39 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 # 初始化 SQLAlchemy
 db = SQLAlchemy(app)
 
+
+def _migrate_student_id():
+    """存量库迁移：为业务表补充 student_id 列（多用户改造）。
+
+    旧版本的表没有该列；新模型 create_all 不会自动加列，
+    这里用 ALTER TABLE 补上（MySQL / SQLite 均支持）。
+    旧数据 student_id 为空，查询时会被过滤（用户重新刷新即可重建）。
+    """
+    from sqlalchemy import inspect as sa_inspect, text as sa_text
+    tables = {
+        "courses": model.Course, "exams": model.Exam,
+        "evaluations": model.Evaluation, "grades": model.Grade,
+        "cet_scores": model.CetScore,
+    }
+    insp = sa_inspect(db.engine)
+    for tbl_name in tables:
+        if not insp.has_table(tbl_name):
+            continue
+        cols = [c["name"] for c in insp.get_columns(tbl_name)]
+        if "student_id" not in cols:
+            with db.engine.begin() as conn:
+                conn.execute(sa_text(
+                    f"ALTER TABLE `{tbl_name}` "
+                    "ADD COLUMN student_id VARCHAR(50) DEFAULT ''"
+                ))
+            app.logger.info("[migrate] %s 已补充 student_id 列", tbl_name)
+
+
 # 确保数据表存在（container.config.json 的 executeSQLs 可能未执行）
 from wxcloudrun import model  # noqa: E402
 with app.app_context():
     db.create_all()
+    _migrate_student_id()
 
 # 加载 NJUST 路由（必须在 db 初始化之后导入，避免循环引用）
 from wxcloudrun import views  # noqa: E402, F401

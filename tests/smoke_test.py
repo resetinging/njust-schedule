@@ -64,7 +64,7 @@ assert st["logged_in"] is False and st["student_id"] == "" and st["student_name"
 assert st["auto_login_attempted"] is False and st["login_method"] == ""
 print("  [PASS] /api/status 未登录: 无账号信息、不触发自动登录")
 se = client.get("/api/settings").get_json()
-assert se["student_id"] == "" and se["has_password"] is False and se["has_jwc_password"] is False
+assert se["student_id"] == "" and se["student_name"] == ""
 print("  [PASS] /api/settings 未登录: 不泄露保存的账号/密码状态")
 
 print("== 未登录保护 (期望 401) ==")
@@ -115,8 +115,8 @@ dao.save_courses([{
     "name": "高等数学", "teacher": "张三", "classroom": "A101",
     "day": 1, "start": 1, "end": 2, "weeks": "1-16", "week_type": 0,
     "credits": "4.0", "course_type": "必修", "raw": {},
-}], "2025-2026-1")
-courses = dao.get_courses("2025-2026-1")
+}], "2025-2026-1", "10001")
+courses = dao.get_courses("2025-2026-1", "10001")
 assert len(courses) == 1 and courses[0]["name"] == "高等数学", courses
 print("  [PASS] courses 存取")
 
@@ -124,8 +124,8 @@ print("  [PASS] courses 存取")
 dao.save_exams([{
     "course_name": "高等数学", "date": "2026-01-15", "time": "09:00-11:00",
     "location": "一工101", "seat": "12", "type": "期末考试",
-}], "2025-2026-1")
-exams = dao.get_exams("2025-2026-1")
+}], "2025-2026-1", "10001")
+exams = dao.get_exams("2025-2026-1", "10001")
 assert len(exams) == 1 and exams[0]["seat"] == "12", exams
 print("  [PASS] exams 存取")
 
@@ -134,17 +134,17 @@ dao.save_grades([{
     "course_name": "高等数学", "score": "95", "credit": 4.0, "grade_point": 4.0,
     "academic_year": "2025-2026", "semester": "1", "course_type": "必修",
     "course_nature": "公共基础", "exam_type": "正常考试",
-}], "2025-2026", "1")
-grades = dao.get_grades("2025-2026", "1")
+}], "2025-2026", "1", "10001")
+grades = dao.get_grades("2025-2026", "1", "10001")
 assert len(grades) == 1 and grades[0]["course_name"] == "高等数学" and grades[0]["credit"] == 4.0, grades
-assert dao.get_grade_semesters() == ["2025-2026-1"], dao.get_grade_semesters()
+assert dao.get_grade_semesters("10001") == ["2025-2026-1"], dao.get_grade_semesters()
 print("  [PASS] grades 存取与学期列表")
 
 # 四六级 全量替换
 dao.save_cet_scores([{"type": "CET4", "score": 550, "exam_date": "2025-06"},
                      {"type": "CET4", "score": 580, "exam_date": "2025-12"},
-                     {"type": "CET6", "score": 500, "exam_date": "2025-12"}])
-cet = dao.get_cet_scores()
+                     {"type": "CET6", "score": 500, "exam_date": "2025-12"}], "10001")
+cet = dao.get_cet_scores("10001")
 assert len(cet) == 2 and cet[0]["type"] == "CET4" and cet[0]["score"] == 580, cet
 print("  [PASS] cet_scores 存取（每种取最高分）")
 
@@ -153,15 +153,25 @@ dao.save_evaluations([{
     "semester": "2025-2026-1", "category": "理论课", "batch": "第1批",
     "start_date": "2025-12-01", "end_date": "2025-12-31", "is_done": False,
     "items": [{"name": "进入评教", "url": "/njlgdx/xspj/xspj_find.do"}],
-}], "2025-2026-1")
-evs = dao.get_evaluations("2025-2026-1")
+}], "2025-2026-1", "10001")
+evs = dao.get_evaluations("2025-2026-1", "10001")
 assert len(evs) == 1 and evs[0]["batch"] == "第1批" and evs[0]["is_done"] is False
 assert evs[0]["items"][0]["name"] == "进入评教", evs
 print("  [PASS] evaluations 存取（含 items JSON）")
 
+# 多用户数据隔离: 用户 10002 看不到用户 10001 的任何数据
+assert dao.get_courses("2025-2026-1", "10002") == []
+assert dao.get_exams("2025-2026-1", "10002") == []
+assert dao.get_grades(student_id="10002") == []
+assert dao.get_cet_scores("10002") == []
+assert dao.get_evaluations("2025-2026-1", "10002") == []
+assert dao.get_grade_semesters("10002") == []
+print("  [PASS] 多用户数据隔离（10001/10002 互不可见）")
+
 # 清除数据
-dao.clear_data("2025-2026-1")
-assert dao.count_courses("2025-2026-1") == 0 and dao.count_exams("2025-2026-1") == 0
+dao.clear_data("2025-2026-1", "10001")
+assert dao.count_courses("2025-2026-1", "10001") == 0 \
+    and dao.count_exams("2025-2026-1", "10001") == 0
 print("  [PASS] clear_data")
 
 print("== 业务逻辑 ==")
@@ -205,6 +215,61 @@ i1, i2 = post.index(("pj06xh", "1")), post.index(("pj06xh", "2"))
 assert post[i1 + 1] == ("pj0601fz_1", "100") and post[i1 + 2] == ("pj0601id_1", "11"), post
 assert post[i2 + 1] == ("pj0601fz_2", "100") and post[i2 + 2] == ("pj0601id_2", "22"), post
 print("  [PASS] 评教提交参数排序:", keys)
+
+print("== 多用户会话（token） ==")
+from wxcloudrun import views  # noqa: E402
+
+# 模拟两个已登录用户（跳过真实教务探测）
+c1 = JWCClient()
+c1.logged_in = True
+c1.student_id = "10001"
+c1.student_name = "测试甲"
+c1.is_session_valid = lambda: True
+c2 = JWCClient()
+c2.logged_in = True
+c2.student_id = "10002"
+c2.student_name = "测试乙"
+c2.is_session_valid = lambda: True
+token1 = views._register_session(c1)
+token2 = views._register_session(c2)
+h1 = {"X-Auth-Token": token1}
+h2 = {"X-Auth-Token": token2}
+
+# token 会话可访问数据接口；无 token 仍 401
+r1 = client.get("/api/courses", headers=h1)
+assert r1.status_code == 200 and r1.get_json()["courses"] == [], r1.status_code
+check("带 token 访问 /api/courses", r1, 200)
+st = client.get("/api/status", headers=h1).get_json()
+assert st["logged_in"] is True and st["student_id"] == "10001", st
+print("  [PASS] /api/status 返回 token 对应用户")
+
+# 用户1 写入课表 → 用户1 可见，用户2 不可见
+dao.save_courses([{
+    "name": "甲的专业课", "teacher": "T1", "classroom": "A101",
+    "day": 1, "start": 1, "end": 2, "weeks": "1-16", "week_type": 0,
+    "credits": "2.0", "course_type": "必修", "raw": {},
+}], "2025-2026-1", "10001")
+r1 = client.get("/api/courses?semester=2025-2026-1", headers=h1).get_json()
+r2 = client.get("/api/courses?semester=2025-2026-1", headers=h2).get_json()
+assert len(r1["courses"]) == 1 and r1["courses"][0]["name"] == "甲的专业课", r1
+assert r2["courses"] == [], r2
+print("  [PASS] API 层数据隔离：用户1 的课表用户2 看不到")
+
+# 学期按用户独立
+client.post("/api/semester", json={"semester": "2026-2027-1"}, headers=h1)
+client.post("/api/semester", json={"semester": "2025-2026-2"}, headers=h2)
+assert dao.get_user_setting("10001", "semester") == "2026-2027-1"
+assert dao.get_user_setting("10002", "semester") == "2025-2026-2"
+print("  [PASS] 学期设置按用户隔离")
+
+# 退出登录：token 失效
+r = client.post("/api/logout", headers=h1)
+assert r.status_code == 200
+st = client.get("/api/status", headers=h1).get_json()
+assert st["logged_in"] is False, st
+r = client.get("/api/courses", headers=h1)
+assert r.status_code == 401
+print("  [PASS] 退出登录后 token 失效（401）")
 
 print()
 print(f"结果: {PASS} 通过, {FAIL} 失败")

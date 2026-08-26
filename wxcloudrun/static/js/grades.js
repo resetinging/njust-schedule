@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadCet() {
     try {
-        const resp = await fetch('/api/cet-scores');
+        const resp = await apiFetch('/api/cet-scores');
         const data = await resp.json();
         // 原始数据 → 前端折算
         const scores = (data.scores || []).map(s => ({
@@ -215,7 +215,7 @@ function renderCetBar(data) {
 async function refreshCet() {
     showLoading('正在获取四六级成绩...');
     try {
-        const resp = await fetch('/api/refresh-cet', { method: 'POST' });
+        const resp = await apiFetch('/api/refresh-cet', { method: 'POST' });
         const data = await resp.json();
         hideLoading();
         if (data.success) {
@@ -254,7 +254,7 @@ async function loadGrades() {
     try {
         const urlSemester = getUrlParam('semester');
         // 方案 A: 后端只返回原始数据, 始终取全部并前端过滤
-        const resp = await fetch('/api/grades');
+        const resp = await apiFetch('/api/grades');
         const data = await resp.json();
         allGrades = data.grades || [];
         availableSemesters = data.available_semesters || [];
@@ -464,7 +464,7 @@ async function refreshGrades() {
         '正在连接教务系统，可能需要十几秒钟...';
 
     try {
-        const resp = await fetch('/api/refresh-grades', { method: 'POST' });
+        const resp = await apiFetch('/api/refresh-grades', { method: 'POST' });
         const data = await resp.json();
         hideLoading();
 
