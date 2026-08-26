@@ -1886,3 +1886,37 @@ a:hover { text-decoration: underline; }
         height: 220px;
     }
 }
+
+/* ============================================================
+   密码输入框 + 明文切换按钮
+   ============================================================ */
+.pwd-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.pwd-input-wrap input {
+    width: 100%;
+    padding-right: 44px;
+}
+
+.pwd-toggle {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.7;
+}
+
+.pwd-toggle:hover {
+    opacity: 1;
+}

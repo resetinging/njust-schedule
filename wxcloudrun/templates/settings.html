@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}设置 - 南理工课表管理{% endblock %}
 {% block nav_settings %}active{% endblock %}
 
@@ -52,8 +52,12 @@
                 <label for="password" id="password-label">密码
                     <span id="password-saved-badge" class="badge badge-success" style="display:none;">✅ 已保存</span>
                 </label>
-                <input type="password" id="password" placeholder="请输入密码"
-                       required autocomplete="current-password">
+                <div class="pwd-input-wrap">
+                    <input type="password" id="password" placeholder="请输入密码"
+                           required autocomplete="current-password">
+                    <button type="button" class="pwd-toggle" onclick="togglePwdVisibility('password')"
+                            title="显示/隐藏密码">👁</button>
+                </div>
             </div>
 
             <!-- 教务密码（智慧理工模式专用，与智慧理工密码分开存储） -->
@@ -61,8 +65,12 @@
                 <label for="jwc-password">教务密码
                     <span id="jwc-password-saved-badge" class="badge badge-success" style="display:none;">✅ 已保存</span>
                 </label>
-                <input type="password" id="jwc-password" placeholder="请输入教务系统密码"
-                       autocomplete="off">
+                <div class="pwd-input-wrap">
+                    <input type="password" id="jwc-password" placeholder="请输入教务系统密码"
+                           autocomplete="off">
+                    <button type="button" class="pwd-toggle" onclick="togglePwdVisibility('jwc-password')"
+                            title="显示/隐藏密码">👁</button>
+                </div>
                 <small style="color:#888;">教务系统密码可能与智慧理工密码不同</small>
             </div>
 

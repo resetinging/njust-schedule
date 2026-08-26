@@ -499,6 +499,16 @@ async function logout() {
     checkNetworkStatus();
 }
 
+// 密码明文切换（👁/🙈）
+function togglePwdVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const show = (input.type === 'password');
+    input.type = show ? 'text' : 'password';
+    const btn = input.parentElement.querySelector('.pwd-toggle');
+    if (btn) btn.textContent = show ? '🙈' : '👁';
+}
+
 // 重置密码标签为默认状态
 function resetPasswordLabel() {
     document.getElementById('password-label').innerHTML =
