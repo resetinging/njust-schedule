@@ -38,12 +38,17 @@ function switchLoginMode(mode) {
         document.getElementById('password').placeholder = '请输入智慧理工密码';
         document.getElementById('jwc-password-group').style.display = 'block';
         document.getElementById('sso-step-hint').style.display = 'none';
+        // 默认密码提示仅教务直连模式展示
+        const hint = document.getElementById('pwd-default-hint');
+        if (hint) hint.style.display = 'none';
     } else {
         desc.innerHTML = '直接登录教务系统，无需校园网环境。';
         if (btnCaptcha) btnCaptcha.style.display = '';
         if (btnCaptcha2) btnCaptcha2.style.display = '';
         document.getElementById('jwc-password-group').style.display = 'none';
         resetPasswordLabel();
+        const hint = document.getElementById('pwd-default-hint');
+        if (hint) hint.style.display = '';
     }
 }
 
