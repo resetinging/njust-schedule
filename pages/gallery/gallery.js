@@ -1,20 +1,30 @@
 /**
  * 校历 & 照片墙页面
  * 通过云托管内网获取 static/gallery/ 下的图片（base64），支持全屏预览
- * 优化：边下载边显示（逐张追加），图片 lazy-load
+ * 优化：base64 写入本地临时文件，setData 只传路径字符串
+ *       （此前直接 setData base64（数 MB）触发"数据传输长度过长"性能警告）
  */
 
 const api = require('../../utils/api')
+const fs = wx.getFileSystemManager()
 
 Page({
   data: {
     loading: true,
     errorMsg: '',
-    images: []   // [{name, src}]
+    images: []   // [{name, title, src: 本地临时文件路径}]
   },
 
   onLoad() {
     this.loadImages()
+  },
+
+  /** base64 → 本地临时文件，返回文件路径 */
+  _b64ToTempFile(b64, mime, idx) {
+    const ext = (mime === 'image/jpeg') ? 'jpg' : (mime === 'image/png' ? 'png' : 'img')
+    const filePath = `${wx.env.USER_DATA_PATH}/gallery_${Date.now()}_${idx}.${ext}`
+    fs.writeFileSync(filePath, b64, 'base64')
+    return filePath
   },
 
   async loadImages() {
@@ -27,16 +37,18 @@ Page({
       }
 
       const images = []
-      for (const name of res.images) {
+      for (let i = 0; i < res.images.length; i++) {
+        const name = res.images[i]
         try {
           const imgRes = await api.getGalleryImage(name)
           if (imgRes.success && imgRes.data_b64) {
+            const src = this._b64ToTempFile(imgRes.data_b64, imgRes.mime, i)
             images.push({
               name,
               title: name.replace(/\.[^.]+$/, ''),
-              src: 'data:' + (imgRes.mime || 'image/png') + ';base64,' + imgRes.data_b64
+              src
             })
-            // 边下载边显示
+            // 边下载边显示（只传路径字符串，数据量极小）
             this.setData({ images: images.slice(), loading: false })
           }
         } catch (e) {
@@ -54,7 +66,7 @@ Page({
     }
   },
 
-  /** 点击图片 → 全屏预览 */
+  /** 点击图片 → 全屏预览（本地路径直接可用） */
   onImageTap(e) {
     const idx = e.currentTarget.dataset.index
     const urls = this.data.images.map(i => i.src)
