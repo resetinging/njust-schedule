@@ -54,14 +54,29 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSchedule();
 });
 
-async function loadSchedule() {
+const COURSES_CACHE_KEY = 'courses_cache';
+
+async function loadSchedule(forceRefresh = false) {
+    // 缓存优先：打开页面时若有缓存直接渲染，后端请求仅发生在主动刷新时
+    if (!forceRefresh) {
+        const cached = getLocalCache(COURSES_CACHE_KEY);
+        if (cached && cached.d && cached.d.courses && cached.d.courses.length > 0) {
+            allCourses = cached.d.courses;
+            window.currentSemester = cached.d.semester || '';
+            document.getElementById('semester-badge').textContent = cached.d.semester || '';
+            renderScheduleView();
+            showCacheToast(COURSES_CACHE_KEY);
+            return;
+        }
+    }
+
     showLoading('正在加载课表...');
     try {
         const resp = await apiFetch('/api/courses');
         const data = await resp.json();
         allCourses = data.courses || [];
-        window.currentSemester = data.semester || '';
-        document.getElementById('semester-badge').textContent = data.semester || '';
+        window.currentSemester = data.semester;
+        document.getElementById('semester-badge').textContent = data.semester;
 
         if (allCourses.length === 0) {
             document.getElementById('schedule-empty').style.display = 'flex';
@@ -70,12 +85,8 @@ async function loadSchedule() {
             document.getElementById('empty-message').textContent =
                 '请先在「设置」页面登录教务系统，然后点击「刷新课表」';
         } else {
-            document.getElementById('schedule-empty').style.display = 'none';
-            document.getElementById('schedule-table-wrapper').style.display = 'block';
-            document.getElementById('schedule-list').style.display = 'none';
-            updateWeekLabel();
-            renderTable(allCourses);
-            renderListView(allCourses);
+            setLocalCache(COURSES_CACHE_KEY, { semester: data.semester, courses: allCourses });
+            renderScheduleView();
         }
     } catch (e) {
         console.error('加载课表失败:', e);
@@ -85,6 +96,15 @@ async function loadSchedule() {
     } finally {
         hideLoading();
     }
+}
+
+function renderScheduleView() {
+    document.getElementById('schedule-empty').style.display = 'none';
+    document.getElementById('schedule-table-wrapper').style.display = 'block';
+    document.getElementById('schedule-list').style.display = 'none';
+    updateWeekLabel();
+    renderTable(allCourses);
+    renderListView(allCourses);
 }
 
 function renderTable(courses) {
@@ -309,7 +329,7 @@ async function refreshSchedule() {
 
         if (data.success) {
             showToast(`✅ ${data.message}`, 'success');
-            await loadSchedule();
+            await loadSchedule(true);   // 刷新后强制重新查询并更新缓存
         } else {
             showToast(`❌ ${data.message}`, 'error');
             if (data.message.includes('登录')) {

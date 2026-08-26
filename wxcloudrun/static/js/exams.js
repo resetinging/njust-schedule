@@ -55,7 +55,22 @@ function timeUntil(targetDate) {
     return { text: `还有 ${totalDays} 天`, cls: '' };
 }
 
-async function loadExams() {
+const EXAMS_CACHE_KEY = 'exams_cache';
+
+async function loadExams(forceRefresh = false) {
+    // 缓存优先：打开页面时若有缓存直接渲染，后端请求仅发生在主动刷新时
+    if (!forceRefresh) {
+        const cached = getLocalCache(EXAMS_CACHE_KEY);
+        if (cached && cached.d && cached.d.exams && cached.d.exams.length > 0) {
+            allExams = cached.d.exams;
+            window.currentSemester = cached.d.semester || '';
+            document.getElementById('semester-badge').textContent = cached.d.semester || '';
+            renderExamsView();
+            showCacheToast(EXAMS_CACHE_KEY);
+            return;
+        }
+    }
+
     showLoading('正在加载考试安排...');
     try {
         const resp = await apiFetch('/api/exams');
@@ -78,11 +93,8 @@ async function loadExams() {
                 document.getElementById('exam-empty').querySelector('.btn-primary').style.display = 'inline-flex';
             }
         } else {
-            document.getElementById('exam-empty').style.display = 'none';
-            document.getElementById('exam-list').style.display = 'block';
-            document.getElementById('countdown-row').style.display = 'flex';
-            renderExams(allExams);
-            renderCountdown(allExams);
+            setLocalCache(EXAMS_CACHE_KEY, { semester: data.semester, exams: allExams });
+            renderExamsView();
         }
     } catch (e) {
         console.error('加载考试失败:', e);
@@ -92,6 +104,14 @@ async function loadExams() {
     } finally {
         hideLoading();
     }
+}
+
+function renderExamsView() {
+    document.getElementById('exam-empty').style.display = 'none';
+    document.getElementById('exam-list').style.display = 'block';
+    document.getElementById('countdown-row').style.display = 'flex';
+    renderExams(allExams);
+    renderCountdown(allExams);
 }
 
 function renderExams(exams) {
@@ -228,7 +248,7 @@ async function refreshExams() {
 
         if (data.success) {
             showToast(`✅ ${data.message}`, 'success');
-            await loadExams();
+            await loadExams(true);   // 刷新后强制重新查询并更新缓存
         } else {
             showToast(`❌ ${data.message}`, 'error');
             if (data.message.includes('登录')) {

@@ -264,6 +264,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
         if (data.success) {
             setToken(data.token || '');   // 保存登录 token（多用户会话标识）
+            setSid(data.student_id || ''); // 保存学号（数据缓存按用户隔离）
             captchaId = '';
             showToast('✅ ' + data.message, 'success');
             document.getElementById('password').disabled = false;
@@ -481,14 +482,16 @@ async function loadCaptcha() {
     }
 }
 
-// 退出登录（多用户：销毁后端会话 token）
+// 退出登录（多用户：销毁后端会话 token + 清除本机缓存）
 async function logout() {
     try {
         await apiFetch('/api/logout', { method: 'POST' });
     } catch (e) {
         console.error('退出登录请求失败:', e);
     }
+    clearUserCaches();
     clearToken();
+    setSid('');
     captchaId = '';
     showToast('✅ 已退出登录', 'success');
     loadStatus();

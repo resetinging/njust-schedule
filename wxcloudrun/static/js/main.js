@@ -26,6 +26,64 @@ async function apiFetch(url, options = {}) {
     return fetch(url, Object.assign({}, options, { headers }));
 }
 
+// --- 数据缓存层（localStorage）---
+// 页面渲染只读本地缓存；后端请求仅发生在「主动刷新」时。
+// 结构: { t: 保存时间戳, d: 数据对象 }
+// 缓存键带学号后缀: 不同用户在同一浏览器的数据互相隔离（防串号）
+const SID_KEY = '_njust_sid';
+function getSid() { return localStorage.getItem(SID_KEY) || ''; }
+function setSid(sid) {
+    if (sid) localStorage.setItem(SID_KEY, sid);
+    else localStorage.removeItem(SID_KEY);
+}
+function _cacheKey(key) {
+    return key + '_' + (getSid() || 'anon');
+}
+function getLocalCache(key) {
+    try {
+        const raw = localStorage.getItem(_cacheKey(key));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' && 'd' in parsed ? parsed : null;
+    } catch (e) {
+        return null;
+    }
+}
+function setLocalCache(key, data) {
+    try {
+        localStorage.setItem(_cacheKey(key), JSON.stringify({ t: Date.now(), d: data }));
+    } catch (e) { /* 存储满/隐私模式，忽略 */ }
+}
+// 清除当前用户的所有数据缓存（退出登录时调用）
+function clearUserCaches() {
+    const sid = getSid();
+    const suffix = '_' + (sid || 'anon');
+    const doomed = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.endsWith(suffix) && k.includes('_cache_')) doomed.push(k);
+    }
+    doomed.forEach(k => localStorage.removeItem(k));
+}
+function getLocalCacheAge(key) {
+    const c = getLocalCache(key);
+    return c ? Date.now() - c.t : Infinity;
+}
+// 缓存过期提示（30 分钟）：进入页面时展示一次「更新于 xx:xx」
+function showCacheToast(key) {
+    const c = getLocalCache(key);
+    if (!c) return;
+    const d = new Date(c.t);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ageMin = Math.round((Date.now() - c.t) / 60000);
+    if (ageMin > 30) {
+        showToast(`📦 缓存数据 · 更新于 ${hh}:${mm}（${ageMin} 分钟前），点「刷新」获取最新`, 'warning');
+    } else {
+        showToast(`📦 缓存数据 · 更新于 ${hh}:${mm}`, 'info');
+    }
+}
+
 // --- Toast 消息 ---
 function showToast(message, type = 'info') {
     let container = document.querySelector('.toast-container');

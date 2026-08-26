@@ -157,7 +157,16 @@ document.addEventListener('DOMContentLoaded', () => {
 // CET 四六级
 // ============================================================
 
-async function loadCet() {
+async function loadCet(forceRefresh = false) {
+    // 缓存优先：打开页面时若有缓存直接渲染
+    if (!forceRefresh) {
+        const cached = getLocalCache(CET_CACHE_KEY);
+        if (cached && cached.d && cached.d.scores && cached.d.scores.length > 0) {
+            cetData = cached.d;
+            renderCetBar(cetData);
+            return;
+        }
+    }
     try {
         const resp = await apiFetch('/api/cet-scores');
         const data = await resp.json();
@@ -177,6 +186,9 @@ async function loadCet() {
             best_type: best ? best.type : '',
             best_percentage: best ? best.percentage : 0
         };
+        if (scores.length > 0) {
+            setLocalCache(CET_CACHE_KEY, cetData);
+        }
         renderCetBar(cetData);
     } catch (e) {
         console.error('加载CET失败:', e);
@@ -220,9 +232,9 @@ async function refreshCet() {
         hideLoading();
         if (data.success) {
             showToast(`✅ ${data.message}`, 'success');
-            await loadCet();
+            await loadCet(true);
             if (currentGpaMode === 'baoyan') {
-                await loadGrades();
+                await loadGrades(true);
             }
         } else {
             showToast(`❌ ${data.message}`, 'error');
@@ -249,72 +261,33 @@ function switchGpaMode(mode) {
 // 成绩加载(原始数据 + 前端计算)
 // ============================================================
 
-async function loadGrades() {
+const GRADES_CACHE_KEY = 'grades_cache';
+const CET_CACHE_KEY = 'cet_cache';
+
+async function loadGrades(forceRefresh = false) {
+    // 缓存优先：打开页面时若有缓存直接渲染，后端请求仅发生在主动刷新时
+    if (!forceRefresh) {
+        const cached = getLocalCache(GRADES_CACHE_KEY);
+        if (cached && cached.d && cached.d.grades && cached.d.grades.length > 0) {
+            applyGradesData({ grades: cached.d.grades, available_semesters: cached.d.available_semesters || [] });
+            showCacheToast(GRADES_CACHE_KEY);
+            return;
+        }
+    }
+
     showLoading('正在加载成绩...');
     try {
         const urlSemester = getUrlParam('semester');
         // 方案 A: 后端只返回原始数据, 始终取全部并前端过滤
         const resp = await apiFetch('/api/grades');
         const data = await resp.json();
-        allGrades = data.grades || [];
-        availableSemesters = data.available_semesters || [];
-
-        const viewSem = (urlSemester && urlSemester !== '__all__') ? urlSemester : '';
-        currentSemester = viewSem || '__all__';
-        displayGrades = viewSem
-            ? allGrades.filter(g => (g.academic_year || '') + '-' + (g.semester || '') === viewSem)
-            : allGrades;
-
-        window.currentSemester = currentSemester;
-        const badge = document.getElementById('semester-badge');
-        badge.textContent = currentSemester === '__all__' ? '全部学期' : currentSemester;
-
-        // 学期选择器
-        const sel = document.getElementById('semester-select');
-        if (availableSemesters.length >= 1) {
-            sel.style.display = 'inline-block';
-            let options = `<option value="__all__"${currentSemester === '__all__' ? ' selected' : ''}>📋 全部学期</option>`;
-            for (const s of availableSemesters) {
-                options += `<option value="${s}"${s === currentSemester ? ' selected' : ''}>${s}</option>`;
-            }
-            sel.innerHTML = options;
-        } else {
-            sel.style.display = 'none';
+        if (data.grades && data.grades.length > 0) {
+            setLocalCache(GRADES_CACHE_KEY, {
+                grades: data.grades,
+                available_semesters: data.available_semesters || [],
+            });
         }
-
-        // 保研推免模式仅在看全部学期时可用
-        if (currentSemester === '__all__') {
-            if (cetData && cetData.scores && cetData.scores.length > 0) {
-                document.getElementById('gpa-mode-bar').style.display = '';
-            }
-        } else {
-            document.getElementById('gpa-mode-bar').style.display = 'none';
-            if (currentGpaMode === 'baoyan') {
-                currentGpaMode = '';
-                document.querySelectorAll('.gpa-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === ''));
-            }
-        }
-
-        if (allGrades.length === 0) {
-            document.getElementById('grade-empty').style.display = 'flex';
-            document.getElementById('grade-summary').style.display = 'none';
-            document.getElementById('grade-table-wrapper').style.display = 'none';
-            document.getElementById('semester-gpa-section').style.display = 'none';
-            if (window.isLoggedIn) {
-                document.getElementById('empty-grade-message').textContent =
-                    '暂无成绩数据，请点击「刷新成绩」从教务系统获取';
-            } else {
-                document.getElementById('empty-grade-message').textContent =
-                    '请先在「设置」页面登录教务系统，然后刷新成绩';
-                document.getElementById('grade-empty').querySelector('.btn-primary').style.display = 'inline-flex';
-            }
-        } else {
-            document.getElementById('grade-empty').style.display = 'none';
-            document.getElementById('grade-summary').style.display = 'flex';
-            document.getElementById('grade-table-wrapper').style.display = 'block';
-            renderSummary();
-            renderGrades(displayGrades);
-        }
+        applyGradesData(data);
     } catch (e) {
         console.error('加载成绩失败:', e);
         document.getElementById('empty-grade-message').textContent = '加载失败: ' + e.message;
@@ -324,6 +297,69 @@ async function loadGrades() {
         document.getElementById('semester-gpa-section').style.display = 'none';
     } finally {
         hideLoading();
+    }
+}
+
+function applyGradesData(data) {
+    const urlSemester = getUrlParam('semester');
+    allGrades = data.grades || [];
+    availableSemesters = data.available_semesters || [];
+
+    const viewSem = (urlSemester && urlSemester !== '__all__') ? urlSemester : '';
+    currentSemester = viewSem || '__all__';
+    displayGrades = viewSem
+        ? allGrades.filter(g => (g.academic_year || '') + '-' + (g.semester || '') === viewSem)
+        : allGrades;
+
+    window.currentSemester = currentSemester;
+    const badge = document.getElementById('semester-badge');
+    badge.textContent = currentSemester === '__all__' ? '全部学期' : currentSemester;
+
+    // 学期选择器
+    const sel = document.getElementById('semester-select');
+    if (availableSemesters.length >= 1) {
+        sel.style.display = 'inline-block';
+        let options = `<option value="__all__"${currentSemester === '__all__' ? ' selected' : ''}>📋 全部学期</option>`;
+        for (const s of availableSemesters) {
+            options += `<option value="${s}"${s === currentSemester ? ' selected' : ''}>${s}</option>`;
+        }
+        sel.innerHTML = options;
+    } else {
+        sel.style.display = 'none';
+    }
+
+    // 保研推免模式仅在看全部学期时可用
+    if (currentSemester === '__all__') {
+        if (cetData && cetData.scores && cetData.scores.length > 0) {
+            document.getElementById('gpa-mode-bar').style.display = '';
+        }
+    } else {
+        document.getElementById('gpa-mode-bar').style.display = 'none';
+        if (currentGpaMode === 'baoyan') {
+            currentGpaMode = '';
+            document.querySelectorAll('.gpa-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === ''));
+        }
+    }
+
+    if (allGrades.length === 0) {
+        document.getElementById('grade-empty').style.display = 'flex';
+        document.getElementById('grade-summary').style.display = 'none';
+        document.getElementById('grade-table-wrapper').style.display = 'none';
+        document.getElementById('semester-gpa-section').style.display = 'none';
+        if (window.isLoggedIn) {
+            document.getElementById('empty-grade-message').textContent =
+                '暂无成绩数据，请点击「刷新成绩」从教务系统获取';
+        } else {
+            document.getElementById('empty-grade-message').textContent =
+                '请先在「设置」页面登录教务系统，然后刷新成绩';
+            document.getElementById('grade-empty').querySelector('.btn-primary').style.display = 'inline-flex';
+        }
+    } else {
+        document.getElementById('grade-empty').style.display = 'none';
+        document.getElementById('grade-summary').style.display = 'flex';
+        document.getElementById('grade-table-wrapper').style.display = 'block';
+        renderSummary();
+        renderGrades(displayGrades);
     }
 }
 
@@ -470,7 +506,7 @@ async function refreshGrades() {
 
         if (data.success) {
             showToast(`✅ ${data.message}`, 'success');
-            await loadGrades();
+            await loadGrades(true);   // 刷新后强制重新查询并更新缓存
         } else {
             showToast(`❌ ${data.message}`, 'error');
             if (data.message.includes('登录')) {

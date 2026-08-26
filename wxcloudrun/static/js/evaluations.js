@@ -32,7 +32,22 @@ function timeUntilDeadline(endDateStr) {
     return { text: `还有 ${totalDays} 天`, cls: '' };
 }
 
-async function loadEvaluations() {
+const EVALS_CACHE_KEY = 'evaluations_cache';
+
+async function loadEvaluations(forceRefresh = false) {
+    // 缓存优先：打开页面时若有缓存直接渲染，后端请求仅发生在主动刷新时
+    if (!forceRefresh) {
+        const cached = getLocalCache(EVALS_CACHE_KEY);
+        if (cached && cached.d && cached.d.evaluations && cached.d.evaluations.length > 0) {
+            allEvaluations = cached.d.evaluations;
+            window.currentSemester = cached.d.semester || '';
+            document.getElementById('semester-badge').textContent = cached.d.semester || '';
+            renderEvalsView();
+            showCacheToast(EVALS_CACHE_KEY);
+            return;
+        }
+    }
+
     showLoading('正在加载评价数据...');
     try {
         const resp = await apiFetch('/api/evaluations');
@@ -53,10 +68,8 @@ async function loadEvaluations() {
                     '请先在「设置」页面登录教务系统，然后刷新评价数据';
             }
         } else {
-            document.getElementById('eval-empty').style.display = 'none';
-            document.getElementById('eval-list').style.display = 'block';
-            renderEvaluations(allEvaluations);
-            renderCountdown(allEvaluations);
+            setLocalCache(EVALS_CACHE_KEY, { semester: data.semester, evaluations: allEvaluations });
+            renderEvalsView();
         }
     } catch (e) {
         console.error('加载评价失败:', e);
@@ -64,6 +77,13 @@ async function loadEvaluations() {
     } finally {
         hideLoading();
     }
+}
+
+function renderEvalsView() {
+    document.getElementById('eval-empty').style.display = 'none';
+    document.getElementById('eval-list').style.display = 'block';
+    renderEvaluations(allEvaluations);
+    renderCountdown(allEvaluations);
 }
 
 function renderCountdown(evals) {
@@ -183,7 +203,7 @@ async function refreshEvaluations() {
 
         if (data.success) {
             showToast(`✅ ${data.message}`, 'success');
-            await loadEvaluations();
+            await loadEvaluations(true);   // 刷新后强制重新查询并更新缓存
         } else {
             showToast(`❌ ${data.message}`, 'error');
             if (data.message.includes('登录')) {
