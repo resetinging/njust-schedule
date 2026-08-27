@@ -1,61 +1,110 @@
 /**
  * 校历 & 照片墙页面
- * 通过云托管内网获取 static/gallery/ 下的图片（base64），支持全屏预览
- * 优化：base64 写入本地临时文件，setData 只传路径字符串
- *       （此前直接 setData base64（数 MB）触发"数据传输长度过长"性能警告）
+ * 缓存策略: 图片下载后保存到本地文件(USER_DATA_PATH);
+ * 渲染时优先检索本地文件, 命中则零网络请求直接显示;
+ * 本地缺失(或图片列表缓存过期 24h)才向服务器请求列表, 且只下载缺失的图片。
  */
 
 const api = require('../../utils/api')
+const storage = require('../../utils/storage')
 const fs = wx.getFileSystemManager()
+
+const GALLERY_META_KEY = 'cached_gallery_meta'   // {t: 时间戳, names: [文件名]}
+const META_TTL = 24 * 60 * 60 * 1000            // 图片列表缓存 24h(已下载文件不再重传)
+const GALLERY_DIR = wx.env.USER_DATA_PATH
 
 Page({
   data: {
     loading: true,
     errorMsg: '',
-    images: []   // [{name, title, src: 本地临时文件路径}]
+    images: []   // [{name, title, src: 本地文件路径}]
   },
 
   onLoad() {
     this.loadImages()
   },
 
-  /** base64 → 本地临时文件，返回文件路径 */
-  _b64ToTempFile(b64, mime, idx) {
-    const ext = (mime === 'image/jpeg') ? 'jpg' : (mime === 'image/png' ? 'png' : 'img')
-    const filePath = `${wx.env.USER_DATA_PATH}/gallery_${Date.now()}_${idx}.${ext}`
-    fs.writeFileSync(filePath, b64, 'base64')
-    return filePath
+  /** 图片名 → 本地文件路径 */
+  _localPath(name) {
+    return `${GALLERY_DIR}/gallery_${name}`
+  },
+
+  /** base64 → 本地文件, 返回路径 */
+  _b64ToLocal(name, b64) {
+    const fp = this._localPath(name)
+    fs.writeFileSync(fp, b64, 'base64')
+    return fp
+  },
+
+  /** 本地文件是否存在 */
+  _localExists(name) {
+    try {
+      fs.accessSync(this._localPath(name))
+      return true
+    } catch (e) {
+      return false
+    }
   },
 
   async loadImages() {
     this.setData({ loading: true, errorMsg: '' })
+
+    // ── 1) 优先本地: 上次下载的图片文件仍在 → 直接渲染, 零网络请求 ──
+    const meta = storage.getCached(GALLERY_META_KEY)
+    let local = []
+    if (meta && meta.names && meta.names.length) {
+      local = meta.names
+        .filter(name => this._localExists(name))
+        .map(name => ({
+          name,
+          title: name.replace(/\.[^.]+$/, ''),
+          src: this._localPath(name)
+        }))
+    }
+    const metaFresh = !!meta && (Date.now() - (meta.t || 0) < META_TTL)
+    if (local.length > 0 && metaFresh) {
+      // 全部命中且列表未过期: 不再访问服务器
+      this.setData({ images: local, loading: false })
+      return
+    }
+
+    // ── 2) 本地缺失或列表过期: 请求服务器列表, 只下载缺失的图片 ──
     try {
       const res = await api.getGalleryImages()
       if (!res.success || !res.images || res.images.length === 0) {
-        this.setData({ loading: false, errorMsg: '暂无校历图片' })
+        if (local.length > 0) {
+          this.setData({ images: local, loading: false })
+        } else {
+          this.setData({ loading: false, errorMsg: '暂无校历图片' })
+        }
         return
       }
 
-      const images = []
-      for (let i = 0; i < res.images.length; i++) {
-        const name = res.images[i]
+      const images = local.slice()                      // 保留本地命中的
+      const have = new Set(images.map(i => i.name))
+      const serverNames = res.images.slice().sort()
+
+      for (const name of serverNames) {
+        if (have.has(name)) continue
         try {
           const imgRes = await api.getGalleryImage(name)
           if (imgRes.success && imgRes.data_b64) {
-            const src = this._b64ToTempFile(imgRes.data_b64, imgRes.mime, i)
+            const src = this._b64ToLocal(name, imgRes.data_b64)
             images.push({
               name,
               title: name.replace(/\.[^.]+$/, ''),
               src
             })
-            // 边下载边显示（只传路径字符串，数据量极小）
-            this.setData({ images: images.slice(), loading: false })
+            have.add(name)
+            this.setData({ images: images.slice(), loading: false })  // 边下边显示
           }
         } catch (e) {
-          // 单张加载失败跳过
+          // 单张失败跳过
         }
       }
 
+      // 更新本地元数据(已下载文件名列表)
+      storage.setCached(GALLERY_META_KEY, { t: Date.now(), names: images.map(i => i.name) })
       this.setData({
         loading: false,
         images,
