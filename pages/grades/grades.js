@@ -13,6 +13,16 @@ const gpaUtil = require('../../utils/gpa')
 // ============================================================
 const NON_GPA_NATURES = ['通识教育选修课']
 
+// 等级制成绩 → 百分制中值（NJUST 五级制惯例口径, 用于均分统计）
+// 优秀≥90 / 良好≥80 / 中等≥70 / 及格≥60 → 取区间中值
+const LEVEL_SCORE = {
+  '优': 95, '优秀': 95, '优+': 97,
+  '良': 85, '良好': 85, '良+': 88,
+  '中': 75, '中等': 75, '中+': 78,
+  '及格': 65, '通过': 65,
+  '不及格': 55, '不通过': 55
+}
+
 function _num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n }
 function _fixed(v, d) { const n = parseFloat(v); return isNaN(n) ? '-' : n.toFixed(d === undefined ? 2 : d) }
 function _gpOf(g) {
@@ -20,7 +30,13 @@ function _gpOf(g) {
   if (gp === 0) gp = gpaUtil.scoreToGp(g.score)
   return gp
 }
-function _scoreNum(g) { return parseFloat(g.score) }
+// 成绩 → 数值: 数字直接用; 等级制折算百分制中值; 其他(缓考/缺考等)返回 NaN 不参与均分
+function _scoreNum(g) {
+  const s = String(g.score == null ? '' : g.score).trim()
+  if (s in LEVEL_SCORE) return LEVEL_SCORE[s]
+  const v = parseFloat(s)
+  return isNaN(v) ? NaN : v
+}
 
 function _isNonGpa(g) { return NON_GPA_NATURES.includes((g.course_nature || '').trim()) }
 
