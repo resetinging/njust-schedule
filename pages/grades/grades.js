@@ -33,7 +33,7 @@ Page({
 
     // 统计卡
     stats: {
-      credits: '0', avg: '0', gpa: '0', gpaClass: '',
+      credits: '0', avg: '-', gpa: '0', gpaClass: '',
       mode: '',            // '' | 'baoyan'
       cet: null            // {line, date} | null
     },
@@ -121,7 +121,10 @@ Page({
     // --- 统计 ---
     const totalCredits = checked.reduce((s, g) => s + _num(g.credit), 0)
     const scored = checked.filter(g => !isNaN(_scoreNum(g)))
-    const avg = scored.length ? scored.reduce((s, g) => s + _scoreNum(g), 0) / scored.length : 0
+    // 均分仅统计百分制成绩; 无百分制课程(全等级制)时显示 '-', 而非 0
+    const avg = scored.length
+      ? _fixed(scored.reduce((s, g) => s + _scoreNum(g), 0) / scored.length)
+      : '-'
     const gpaV = isBaoyan
       ? gpaUtil.calcGpaBaoyan(checked, this._cetRaw, true)
       : gpaUtil.calcGpa(checked, true)
@@ -158,7 +161,9 @@ Page({
       const gs = groups[sem].slice().sort((a, b) => (a.course_name || '').localeCompare(b.course_name || ''))
       const semChecked = gs.filter(g => this._checked[g.id] !== false)
       const semScored = semChecked.filter(g => !isNaN(_scoreNum(g)))
-      const semAvg = semScored.length ? semScored.reduce((s, g) => s + _scoreNum(g), 0) / semScored.length : 0
+      const semAvg = semScored.length
+        ? _fixed(semScored.reduce((s, g) => s + _scoreNum(g), 0) / semScored.length)
+        : '-'   // 全等级制学期: 均分显示 '-', 而非 0
       // 每学期绩点（与总 GPA 同口径, 支持保研模式）
       const semGpa = isBaoyan
         ? gpaUtil.calcGpaBaoyan(semChecked, this._cetRaw, true)
