@@ -698,8 +698,13 @@
   background: #fff;
   border: 2rpx solid #E3DFF5;
   border-radius: 30rpx;
-  padding: 0 8rpx 0 24rpx;
+  padding: 0 8rpx 0 20rpx;
   height: 64rpx;
+}
+
+.search-icon {
+  font-size: 28rpx;
+  margin-right: 8rpx;
 }
 
 .search-input {

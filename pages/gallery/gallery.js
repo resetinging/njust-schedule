@@ -26,9 +26,9 @@ Page({
     this.loadImages()
   },
 
-  /** 图片名 → 本地文件路径 */
+  /** 图片名 → 本地文件路径（URL 编码文件名: 中文文件名会导致 image 组件渲染失败） */
   _localPath(name) {
-    return `${GALLERY_DIR}/gallery_${name}`
+    return `${GALLERY_DIR}/gallery_${encodeURIComponent(name)}`
   },
 
   /** base64 → 本地文件, 返回路径 */

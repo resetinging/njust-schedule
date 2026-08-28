@@ -39,7 +39,8 @@
       <text class="week-btn" bindtap="nextWeek">▶</text>
     </view>
     <view class="search-box">
-      <input class="search-input" placeholder="🔍 搜索课程 / 教师"
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索课程 / 教师"
              value="{{searchText}}" bindinput="onSearchInput"
              confirm-type="search" />
       <text wx:if="{{searchText}}" class="search-clear" bindtap="onClearSearch">✕</text>
