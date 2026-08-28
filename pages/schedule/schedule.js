@@ -238,7 +238,7 @@ Page({
     this.filterByWeek(week)
   },
 
-  /** 切换学期（显式传学期请求数据, 保证课表随学期切换） */
+  /** 切换学期（显式传学期请求数据 + 自动从教务拉取该学期课表） */
   async onSemesterChange(e) {
     const idx = e.detail.value
     const semester = this.data.semesters[idx]
@@ -246,13 +246,22 @@ Page({
       try {
         const res = await api.setSemester(semester)
         if (res && res.success) {
-          this.setData({ semester })
+          this.setData({ semester, loading: true })
           getApp().globalData.semester = semester   // 同步全局, 防止 onShow 覆盖回旧学期
-          this.loadFromServer(semester)   // 显式传参
+          // 自动从教务拉取该学期课表(避免无缓存学期显示空白, 需手动下拉)
+          const r = await api.refreshSchedule()
+          this.setData({ loading: false })
+          if (r && r.success) {
+            wx.showToast({ title: `已获取 ${r.count || 0} 门课程`, icon: 'success' })
+          } else {
+            wx.showToast({ title: (r && r.message) || '获取课表失败', icon: 'none' })
+          }
+          this.loadFromServer(semester)   // 显式传参加载最新数据
         } else {
           wx.showToast({ title: (res && res.message) || '切换学期失败', icon: 'none' })
         }
       } catch (e) {
+        this.setData({ loading: false })
         wx.showToast({ title: '切换学期失败', icon: 'none' })
       }
     }
