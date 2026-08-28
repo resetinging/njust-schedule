@@ -1,11 +1,12 @@
 <!-- 周课表网格组件 — 小节行布局 -->
 <view class="week-grid">
 
-  <!-- 表头: 星期 -->
+  <!-- 表头: 星期 + 日期 -->
   <view class="grid-header">
     <view class="head-time"></view>
-    <view class="head-day" wx:for="{{weekdays}}" wx:key="*this">
-      <text>{{item}}</text>
+    <view class="head-day" wx:for="{{weekdays}}" wx:key="index">
+      <text>{{item.name}}</text>
+      <text class="head-date" wx:if="{{item.date}}">{{item.date}}</text>
     </view>
   </view>
 

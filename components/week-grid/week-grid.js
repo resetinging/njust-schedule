@@ -3,7 +3,7 @@
  * 14 个小节行 × 7 天, 课程块按开始小节绝对定位, 高度=跨节数
  */
 
-const { WEEKDAY_NAMES, isWeekInRange } = require('../../utils/date')
+const { WEEKDAY_NAMES, isWeekInRange, getDateLabel } = require('../../utils/date')
 
 // 每小节行高(rpx); 第14节显示"网课"
 const ROW_H = 112
@@ -46,7 +46,8 @@ Component({
     },
     firstWeekDate: {
       type: String,
-      value: ''
+      value: '',
+      observer: '_buildLayout'
     },
     todayDay: {
       type: Number,
@@ -55,7 +56,7 @@ Component({
   },
 
   data: {
-    weekdays: WEEKDAY_NAMES.slice(1), // 周一~周日
+    weekdays: [],                     // [{name, date}] 周一~周日, 含按周次推算的日期
     timeRows: [],                     // [{index, time}] 节次时间列
     dayCols: []                       // [{day, blocks: [...]}]
   },
@@ -78,6 +79,12 @@ Component({
         if (c.week_type === 2 && week % 2 === 1) return false
         return isWeekInRange(week, c.weeks)
       })
+      // 表头日期: 按第一周周一 + 当前周次推算每天日期 ("M/D")
+      const fd = this.properties.firstWeekDate
+      const weekdays = WEEKDAY_NAMES.slice(1).map((name, i) => ({
+        name,
+        date: (fd ? getDateLabel(fd, week, i + 1) : '') || ''
+      }))
 
       // 2. 时间列
       const timeRows = TIME_ROWS.map((t, i) => ({ index: i + 1, time: t }))
@@ -125,7 +132,7 @@ Component({
         dayCols.push({ day: d, blocks })
       }
 
-      this.setData({ timeRows, dayCols })
+      this.setData({ timeRows, dayCols, weekdays })
     },
 
     /** 点击课程块 */

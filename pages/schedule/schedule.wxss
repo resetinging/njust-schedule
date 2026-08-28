@@ -677,6 +677,13 @@
   text-align: center;
 }
 
+/* 周次旁的日期范围 (如 "9/1 - 9/7") */
+.week-range {
+  font-size: 20rpx;
+  font-weight: 400;
+  color: #9B96B8;
+}
+
 .search-box {
   flex: 1;
   display: flex;

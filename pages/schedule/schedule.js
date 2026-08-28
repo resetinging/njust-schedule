@@ -5,7 +5,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
-const { calcCurrentWeek, calcTodayDay, isWeekInRange } = require('../../utils/date')
+const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel } = require('../../utils/date')
 
 Page({
   data: {
@@ -22,6 +22,7 @@ Page({
     showDetail: false,
     detailCourse: {},
     firstWeekDate: '',       // 学期第一周周一日期
+    weekRange: '',           // 当前周日期范围(如 "9/1-9/7")
 
     searchText: '',          // 课程/教师搜索
     weekPickerRange: [],     // 周次跳转选择器 (1-20)
@@ -148,6 +149,13 @@ Page({
   filterByWeek(week) {
     const w = (typeof week === 'number' && !isNaN(week) && week >= 1 && week <= 20) ? week : 1
     const kw = (this.data.searchText || '').trim().toLowerCase()
+    // 当前周日期范围
+    let weekRange = ''
+    if (this.data.firstWeekDate) {
+      const s = getDateLabel(this.data.firstWeekDate, w, 1)
+      const e = getDateLabel(this.data.firstWeekDate, w, 7)
+      if (s && e) weekRange = `${s} - ${e}`
+    }
     let filtered = this.data.courses.filter(c => {
       if (c.week_type === 1 && w % 2 === 0) return false
       if (c.week_type === 2 && w % 2 === 1) return false
@@ -164,7 +172,7 @@ Page({
     // 构建列表视图分组（按天分组 + 去重）
     const listDayGroups = this._buildListGroups(filtered)
 
-    this.setData({ filteredCourses: filtered, currentWeek: w, listDayGroups })
+    this.setData({ filteredCourses: filtered, currentWeek: w, listDayGroups, weekRange })
   },
 
   /**

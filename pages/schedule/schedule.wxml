@@ -32,6 +32,7 @@
       <text class="week-btn" bindtap="prevWeek">◀</text>
       <text class="week-label">
         {{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周（本周）' : '第 ' + (currentWeek || 1) + ' 周'}}
+        <text wx:if="{{weekRange}}" class="week-range"> · {{weekRange}}</text>
       </text>
       <text class="week-btn" bindtap="nextWeek">▶</text>
     </view>
