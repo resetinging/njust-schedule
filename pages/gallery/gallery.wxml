@@ -1,7 +1,10 @@
 <!-- 校园工具 — 校历 & 地图卡片墙(复刻目标 UI) -->
 <view class="container">
 
-  <loading-modal visible="{{loading}}" title="加载图片…" />
+  <loading-modal visible="{{loading}}" title="加载图片…"
+                 message="{{downloadMsg}}"
+                 showProgress="{{downloadPercent > 0}}"
+                 percent="{{downloadPercent}}" />
 
   <!-- 空状态 / 错误 -->
   <view wx:if="{{!loading && errorMsg}}" class="empty-state">

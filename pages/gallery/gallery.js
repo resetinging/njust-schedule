@@ -17,7 +17,9 @@ Page({
   data: {
     loading: true,
     errorMsg: '',
-    images: []   // [{name, title, src: 本地文件路径}]
+    images: [],        // [{name, title, src: 本地文件路径}]
+    downloadMsg: '',   // 下载进度文案
+    downloadPercent: 0 // 下载进度 0-100
   },
 
   onLoad() {
@@ -83,8 +85,14 @@ Page({
       const images = local.slice()                      // 保留本地命中的
       const have = new Set(images.map(i => i.name))
       const serverNames = res.images.slice().sort()
+      const need = serverNames.filter(n => !have.has(n))
+      if (need.length > 0) {
+        // 大图(高清地图等)优先传输: 显示下载进度
+        this.setData({ downloadMsg: `正在下载高清图片 (0/${need.length})…`, downloadPercent: 0 })
+      }
 
-      for (const name of serverNames) {
+      for (let i = 0; i < serverNames.length; i++) {
+        const name = serverNames[i]
         if (have.has(name)) continue
         try {
           const imgRes = await api.getGalleryImage(name)
@@ -96,7 +104,12 @@ Page({
               src
             })
             have.add(name)
-            this.setData({ images: images.slice(), loading: false })  // 边下边显示
+            this.setData({
+              images: images.slice(),
+              loading: false,
+              downloadMsg: `正在下载高清图片 (${i + 1}/${need.length})…`,
+              downloadPercent: Math.round(((i + 1) / need.length) * 100)
+            })
           }
         } catch (e) {
           // 单张失败跳过
@@ -108,6 +121,8 @@ Page({
       this.setData({
         loading: false,
         images,
+        downloadMsg: '',
+        downloadPercent: 0,
         errorMsg: images.length === 0 ? '图片加载失败' : ''
       })
     } catch (e) {
