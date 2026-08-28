@@ -817,6 +817,8 @@ class JWCClient:
             self.last_error = "未登录"
             return []
         courses = self._schedule_api(semester, week) or self._schedule_html(semester)
+        if courses:
+            self.last_error = ""   # 成功获取后清除 API 失败的残留错误
         return _dedupe_schedule_courses(courses)
 
     def _schedule_api(self, semester: str, week: int) -> list[dict]:
@@ -832,12 +834,93 @@ class JWCClient:
                 timeout=TIMEOUT)
             data = resp.json()
             items = data if isinstance(data, list) else data.get("data", [])
-            return self._parse_schedule(items) if isinstance(items, list) else []
-        except Exception:
+            if not isinstance(items, list):
+                self.last_error = "课表API返回格式异常"
+                return []
+            return self._parse_schedule(items)
+        except Exception as e:
+            # 记录失败原因(供诊断: API 经常失败导致降级 HTML, 而 HTML 默认学期)
+            self.last_error = f"课表API失败: {e}"
             return []
 
+    def _post_schedule_semester(self, soup, url: str, semester: str):
+        """通过课表页面的学期下拉表单提交目标学期, 返回响应或 None。
+
+        强智课表列表页通常带学期 select; 直接 GET 只显示教务默认学期,
+        指定学期时必须走表单提交, 否则不同学期会拿到同一份默认课表。
+        """
+        try:
+            form = soup.find("form")
+            if not form:
+                return None
+            form_data = {}
+            for inp in form.find_all("input"):
+                n, v = inp.get("name", ""), inp.get("value", "")
+                if n:
+                    form_data[n] = v
+            found_select = False
+            for sel in form.find_all("select"):
+                n = sel.get("name", "")
+                if not n:
+                    continue
+                matched = None
+                for opt in sel.find_all("option"):
+                    ov = opt.get("value", "")
+                    if semester and semester in ov:
+                        matched = ov
+                        break
+                if matched:
+                    form_data[n] = matched
+                    found_select = True
+                else:
+                    s = sel.find("option", selected=True)
+                    form_data[n] = s.get("value", "") if s else ""
+            if not found_select:
+                return None
+            action = form.get("action", "")
+            if action:
+                if action.startswith("/"):
+                    target = f"{BASE_9080}{action}"
+                elif action.startswith("http"):
+                    target = action
+                else:
+                    target = f"{BASE_9080}/njlgdx/xskb/{action}"
+            else:
+                target = url
+            logger.debug("[课表] 提交学期 %s → %s", semester, target[:80])
+            resp = self.session.post(target, data=form_data, timeout=TIMEOUT,
+                                     allow_redirects=True)
+            if resp.status_code == 200 and len(resp.text) > 2000:
+                return resp
+            return None
+        except Exception as e:
+            logger.debug("[课表] 学期表单提交失败: %s", e)
+            return None
+
     def _schedule_html(self, semester: str) -> list[dict]:
-        """NJUST 课表 HTML 解析 — 从主页链接获取正确的 Ves632DSdyV 参数"""
+        """NJUST 课表 HTML 解析 — 从主页链接获取正确的 Ves632DSdyV 参数
+
+        指定学期时优先通过页面学期下拉提交目标学期, 避免拿到
+        教务默认学期的课表(不同学期内容相同的问题)。
+        """
+        def _parse_soup(soup):
+            # 合并两个表格：kbtable(周次/教室) + dataList(精确小节)
+            grid = soup.find("table", id="kbtable")
+            data_table = soup.find("table", id="dataList")
+            if grid and data_table:
+                courses = self._parse_merged(grid, data_table)
+                if courses:
+                    return courses
+            if data_table:
+                courses = self._parse_datalist(data_table)
+                if courses:
+                    return courses
+            if grid:
+                courses = self._parse_kbtable(grid, {})
+                if courses:
+                    return courses
+            return None
+
         try:
             # Debug: 看看当前 cookie 状态（含域名，不含值）
             cks = [(c.name, c.domain) for c in self.session.cookies]
@@ -866,23 +949,18 @@ class JWCClient:
 
             soup = BeautifulSoup(resp.text, "lxml")
 
-            # ★ 合并两个表格：kbtable(周次/教室) + dataList(精确小节)
-            grid = soup.find("table", id="kbtable")
-            data_table = soup.find("table", id="dataList")
+            # ★ 指定学期时: 优先通过页面学期下拉提交目标学期
+            #   (直接 GET 只显示教务默认学期, 会导致不同学期拿到同一份课表)
+            if semester:
+                posted = self._post_schedule_semester(soup, real_schedule_url, semester)
+                if posted is not None:
+                    resp = posted
+                    soup = BeautifulSoup(resp.text, "lxml")
 
-            if grid and data_table:
-                courses = self._parse_merged(grid, data_table)
-                if courses:
-                    logger.debug("[课表] 合并解析完成: %d 条", len(courses))
-                    return courses
-
-            # 降级
-            if data_table:
-                courses = self._parse_datalist(data_table)
-                if courses: return courses
-            if grid:
-                courses = self._parse_kbtable(grid, {})
-                if courses: return courses
+            courses = _parse_soup(soup)
+            if courses:
+                logger.debug("[课表] 解析完成: %d 条 (semester=%s)", len(courses), semester)
+                return courses
 
             self.last_error = "课表表格未找到"
             return []
