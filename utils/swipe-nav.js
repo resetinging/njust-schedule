@@ -84,7 +84,9 @@ function attach(page, currentTab) {
     const s = this._swipe
     this._swipe = null
     if (!s || !s.active) return
-    const dx = s.dx
+    // 用触摸结束点计算最终位移(比 touchmove 记录的更准, 节流不会丢)
+    const t = e.changedTouches && e.changedTouches[0]
+    const dx = t ? (t.clientX - s.x) : s.dx
     const dt = Date.now() - s.t
     const over = Math.abs(dx) > THRESHOLD || (dt < SPEED_MS && Math.abs(dx) > FAST_PX)
     const next = dx < 0 ? idx + 1 : idx - 1
@@ -93,11 +95,19 @@ function attach(page, currentTab) {
       this.setData({ swipeX: 0, swipeTrans: true })
       return
     }
-    // 立即切换: 跟手已提供拖拽反馈, 新页滑入动画负责过渡;
-    // 不做"滑出延迟后切换", 避免旧页滑出后空白闪现(目标页首次创建慢时更明显)
-    this.setData({ swipeX: 0, swipeTrans: false })   // 复位防残留
+    // 复位防残留 + 立即切换
+    this.setData({ swipeX: 0, swipeTrans: false })
     getApp().globalData.swipeDir = dx < 0 ? 1 : -1   // 左滑(下一页) → 新页从右滑入
-    wx.switchTab({ url: '/' + TABS[next] })
+    const url = '/' + TABS[next]
+    console.log('[swipe] switch to', url, 'dx=' + dx, 'dt=' + dt)
+    // 切到下一事件循环再执行: 避免在 touchend 回调内同步调用
+    // switchTab 被运行时吞掉(部分环境/基础库偶发)
+    setTimeout(() => {
+      wx.switchTab({
+        url,
+        fail: (err) => { console.warn('[swipe] switchTab fail:', err) }
+      })
+    }, 0)
   }
 
   // 手势被系统中断(来电/下拉/滚动接管): 立即复位, 防止页面偏出屏幕
