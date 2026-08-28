@@ -190,7 +190,7 @@ function parseDateStr(str) {
  */
 function calcCurrentWeek(firstWeekDate) {
   const firstMonday = parseDateStr(firstWeekDate)
-  if (!firstMonday) return 1
+  if (!firstMonday || isNaN(firstMonday.getTime())) return 1
   const now = new Date()
   const diffMs = now.getTime() - firstMonday.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
@@ -216,7 +216,7 @@ function calcTodayDay() {
  */
 function getDateLabel(firstWeekDate, weekNum, dayOfWeek) {
   const firstMonday = parseDateStr(firstWeekDate)
-  if (!firstMonday) return ''
+  if (!firstMonday || isNaN(firstMonday.getTime())) return ''
   const date = new Date(firstMonday)
   date.setDate(date.getDate() + (weekNum - 1) * 7 + (dayOfWeek - 1))
   return `${date.getMonth() + 1}.${date.getDate()}`
