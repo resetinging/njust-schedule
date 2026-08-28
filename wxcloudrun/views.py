@@ -355,6 +355,13 @@ def api_status():
         network = {"reachable": False, "method": "offline", "latency_ms": 0,
                    "label": "离线", "hint": "请检查教务系统连接"}
 
+    # 学期第一周周一: 按学期分别存储({sid}:first_week_date:{semester}),
+    # 无学期值时回退全局设置(兼容旧数据)
+    first_week_date = dao.get_setting("first_week_date", "")
+    if logged_in and student_id and semester:
+        first_week_date = dao.get_setting(
+            f"{student_id}:first_week_date:{semester}", "") or first_week_date
+
     return jsonify({
         "logged_in": logged_in,
         "student_id": student_id,
@@ -366,7 +373,7 @@ def api_status():
         "auto_login_attempted": False,
         "auto_login_error": "",
         "server_time": _beijing_now(),
-        "first_week_date": dao.get_setting("first_week_date", ""),
+        "first_week_date": first_week_date,
         "network": network,
     })
 
@@ -826,14 +833,19 @@ def api_settings():
     logged_in = bool(client and client.logged_in)
     sid = client.student_id if logged_in else ""
     if request.method == 'GET':
+        # first_week_date: 当前学期的值优先, 回退全局(兼容旧数据)
+        fwd = dao.get_setting("first_week_date", "")
+        cur_sem = (dao.get_user_setting(sid, "semester") if logged_in else "") \
+            or dao.get_setting("semester")
+        if logged_in and sid and cur_sem:
+            fwd = dao.get_setting(f"{sid}:first_week_date:{cur_sem}", "") or fwd
         settings = {
             "student_id": sid,
             "student_name": client.student_name if logged_in else "",
-            "semester": (dao.get_user_setting(sid, "semester") if logged_in else "")
-                        or dao.get_setting("semester"),
+            "semester": cur_sem,
             "auto_refresh": dao.get_setting("auto_refresh", "false"),
             "refresh_interval": dao.get_setting("refresh_interval", "3600"),
-            "first_week_date": dao.get_setting("first_week_date", ""),
+            "first_week_date": fwd,
             "semester_list": jwc_client.get_semester_list(),
             "current_semester": _current_semester(),
         }
@@ -841,8 +853,15 @@ def api_settings():
     else:
         data = request.get_json() or {}
         for key, value in data.items():
-            if key in ("auto_refresh", "refresh_interval", "first_week_date"):
+            if key in ("auto_refresh", "refresh_interval"):
                 dao.set_setting(key, str(value))
+            elif key == "first_week_date":
+                # 按当前学期存储(登录时), 同时写全局兼容回退
+                dao.set_setting("first_week_date", str(value))
+                if logged_in and sid:
+                    cur_sem = dao.get_user_setting(sid, "semester")
+                    if cur_sem:
+                        dao.set_setting(f"{sid}:first_week_date:{cur_sem}", str(value))
             elif key == "semester" and logged_in and sid:
                 dao.set_user_setting(sid, "semester", str(value))
         return jsonify({"success": True, "message": "设置已保存"})
