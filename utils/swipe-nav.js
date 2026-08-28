@@ -25,16 +25,9 @@ const FAST_PX = 20      // px: 快速滑动(400ms内)的最低位移
 const SPEED_MS = 400    // 快速滑动判定时间窗
 const ACTIVATE_PX = 8   // 手势激活所需横向位移
 const DIR_RATIO = 1.2   // 横向/纵向主导比例
-const SWITCH_DELAY = 150 // ms: 旧页滑出动画时长后切换
 const SET_THROTTLE = 16 // ms: touchmove setData 节流(≈60fps)
-
-let _winWidth = 0
-function winWidth() {
-  if (!_winWidth) {
-    try { _winWidth = wx.getSystemInfoSync().windowWidth || 375 } catch (e) { _winWidth = 375 }
-  }
-  return _winWidth
-}
+const ANIM_DELAY = 30   // ms: 进入动画延迟(等页面首帧稳定, 避免闪现)
+const ANIM_CLEAR = 300  // ms: 动画播完清除类
 
 /**
  * 绑定滑动切换手势到页面
@@ -71,6 +64,8 @@ function attach(page, currentTab) {
       }
       if (Math.abs(dx) > ACTIVATE_PX && Math.abs(dx) > Math.abs(dy) * DIR_RATIO) {
         s.active = true
+        // 记录横滑激活时间: 用于下拉刷新防误触(横滑后短暂忽略下拉)
+        this._lastSwipeActiveT = Date.now()
       } else {
         return
       }
@@ -98,18 +93,11 @@ function attach(page, currentTab) {
       this.setData({ swipeX: 0, swipeTrans: true })
       return
     }
-    // 超阈值: 先滑出(带过渡), 再切换; 目标页从对应方向滑入
-    const out = dx < 0 ? -(winWidth() + 40) : (winWidth() + 40)
-    this.setData({ swipeX: out, swipeTrans: true })
+    // 立即切换: 跟手已提供拖拽反馈, 新页滑入动画负责过渡;
+    // 不做"滑出延迟后切换", 避免旧页滑出后空白闪现(目标页首次创建慢时更明显)
+    this.setData({ swipeX: 0, swipeTrans: false })   // 复位防残留
     getApp().globalData.swipeDir = dx < 0 ? 1 : -1   // 左滑(下一页) → 新页从右滑入
-    const self = this
-    setTimeout(() => {
-      wx.switchTab({ url: '/' + TABS[next] })
-      // 延迟复位, 保证下次进入时 transform 归零(防止残留偏出屏幕)
-      setTimeout(() => {
-        self.setData({ swipeX: 0, swipeTrans: false })
-      }, 50)
-    }, SWITCH_DELAY)
+    wx.switchTab({ url: '/' + TABS[next] })
   }
 
   // 手势被系统中断(来电/下拉/滚动接管): 立即复位, 防止页面偏出屏幕
@@ -119,6 +107,17 @@ function attach(page, currentTab) {
     }
     this._swipe = null
   }
+}
+
+/**
+ * 判断最近是否刚进行过横滑切换手势(用于下拉刷新防误触:
+ * 横滑激活后 ms 毫秒内的下拉视为误触, 应忽略)
+ * @param {object} page Page 实例
+ * @param {number} ms 时间窗(默认 600)
+ */
+function wasSwiping(page, ms) {
+  const win = ms || 600
+  return !!(page._lastSwipeActiveT && Date.now() - page._lastSwipeActiveT < win)
 }
 
 /**
@@ -132,13 +131,14 @@ function playEnterAnim(page) {
   app.globalData.swipeDir = 0
   page.setData({ swipeX: 0, swipeTrans: false, animClass: '' })
   if (!dir) return
-  wx.nextTick(() => {
+  // 等页面首帧渲染稳定后再播动画, 避免与页面数据渲染竞态导致闪现
+  setTimeout(() => {
     page.setData({ animClass: dir > 0 ? 'anim-slide-in-right' : 'anim-slide-in-left' })
     // 动画播完自动清除 class, 避免残留类影响后续手势样式
     setTimeout(() => {
       page.setData({ animClass: '' })
-    }, 320)
-  })
+    }, ANIM_CLEAR)
+  }, ANIM_DELAY)
 }
 
-module.exports = { attach, playEnterAnim, TABS }
+module.exports = { attach, playEnterAnim, wasSwiping, TABS }

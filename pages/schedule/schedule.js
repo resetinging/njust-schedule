@@ -379,6 +379,11 @@ Page({
 
   /** 下拉刷新（等待完成后再收起下拉动画） */
   async onPullDownRefresh() {
+    // 横滑切换手势后短暂时间内的下拉视为误触(等效增大下拉刷新阈值)
+    if (swipeNav.wasSwiping(this)) {
+      wx.stopPullDownRefresh()
+      return
+    }
     try {
       await this.onRefresh()
     } finally {

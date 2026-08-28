@@ -89,6 +89,11 @@ Page({
   },
 
   onPullDownRefresh() {
+    // 横滑切换手势后短暂时间内的下拉视为误触
+    if (swipeNav.wasSwiping(this)) {
+      wx.stopPullDownRefresh()
+      return
+    }
     this.loadGrades().finally(() => wx.stopPullDownRefresh())
   },
 

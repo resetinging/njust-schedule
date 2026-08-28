@@ -358,10 +358,10 @@ page {
    Tab 滑动切换动画
    ============================================================ */
 .anim-slide-in-right {
-  animation: slideInRight 0.28s ease-out;
+  animation: slideInRight 0.24s ease-out;
 }
 .anim-slide-in-left {
-  animation: slideInLeft 0.28s ease-out;
+  animation: slideInLeft 0.24s ease-out;
 }
 @keyframes slideInRight {
   from { transform: translateX(100%); }
