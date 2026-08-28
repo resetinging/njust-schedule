@@ -1,5 +1,7 @@
 <!-- 设置/登录页面 -->
-<view class="container">
+<view class="container {{animClass}}"
+      style="transform: translateX({{swipeX}}px); {{swipeTrans ? 'transition: transform .2s ease-out;' : ''}}"
+      bindtouchstart="onSwipeTouchStart" bindtouchmove="onSwipeTouchMove" bindtouchend="onSwipeTouchEnd">
 
   <!-- ============================================================ -->
   <!-- 已登录状态 -->

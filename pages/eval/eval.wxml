@@ -1,5 +1,7 @@
 <!-- 教学评价页面 — 参考桌面端 evaluations.html + evaluations.js -->
-<view class="container">
+<view class="container {{animClass}}"
+      style="transform: translateX({{swipeX}}px); {{swipeTrans ? 'transition: transform .2s ease-out;' : ''}}"
+      bindtouchstart="onSwipeTouchStart" bindtouchmove="onSwipeTouchMove" bindtouchend="onSwipeTouchEnd">
 
   <!-- 加载中 -->
   <view class="empty-state" wx:if="{{loading && batches.length === 0}}">

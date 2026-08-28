@@ -6,6 +6,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const config = require('../../utils/config')
+const swipeNav = require('../../utils/swipe-nav')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
 
 Page({
@@ -35,12 +36,17 @@ Page({
     firstWeekDate: '',
 
     // 版本标识（排查线上版本用）
-    build: config.BUILD || ''
+    build: config.BUILD || '',
+
+    swipeX: 0,         // Tab 滑动切换: 跟手平移
+    swipeTrans: false, // Tab 滑动切换: 回弹过渡
+    animClass: ''      // Tab 滑动切换: 进入动画类
   },
 
   onLoad() {
     this.refreshState()
     this.loadSettings()
+    swipeNav.attach(this, 'pages/settings/settings')
   },
 
   onShow() {
@@ -56,6 +62,7 @@ Page({
         this._updateCanLogin()
       }
     }
+    swipeNav.playEnterAnim(this)
   },
 
   /** 刷新页面状态 */

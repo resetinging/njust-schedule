@@ -1,5 +1,7 @@
 <!-- 课表页面 -->
-<view class="container" bindtouchstart="onTouchStart" bindtouchend="onTouchEnd">
+<view class="container {{animClass}}"
+      style="transform: translateX({{swipeX}}px); {{swipeTrans ? 'transition: transform .2s ease-out;' : ''}}"
+      bindtouchstart="onSwipeTouchStart" bindtouchmove="onSwipeTouchMove" bindtouchend="onSwipeTouchEnd">
 
   <!-- 顶部紫渐变信息卡 -->
   <view class="top-card">

@@ -5,6 +5,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const swipeNav = require('../../utils/swipe-nav')
 const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
 Page({
@@ -27,7 +28,11 @@ Page({
     searchText: '',          // 课程/教师搜索
     weekPickerRange: [],     // 周次跳转选择器 (1-20)
     studentName: '',         // 学生姓名(顶部信息卡)
-    studentId: ''            // 学号(顶部信息卡)
+    studentId: '',           // 学号(顶部信息卡)
+
+    swipeX: 0,               // Tab 滑动切换: 跟手平移
+    swipeTrans: false,       // Tab 滑动切换: 回弹过渡
+    animClass: ''            // Tab 滑动切换: 进入动画类
   },
 
   onLoad() {
@@ -39,6 +44,7 @@ Page({
       weekPickerRange: Array.from({ length: 20 }, (_, i) => String(i + 1))
     })
     this._syncUser()
+    swipeNav.attach(this, 'pages/schedule/schedule')
   },
 
   onShow() {
@@ -50,6 +56,7 @@ Page({
     this._syncUser()
     // 从「我的」页设置第一周日期后回到课表页,自动刷新定位本周
     this.loadFirstWeekDate()
+    swipeNav.playEnterAnim(this)
   },
 
   /** 同步学生姓名/学号到顶部信息卡 */
@@ -278,31 +285,6 @@ Page({
   nextWeek() {
     const w = Math.min(20, (this.data.currentWeek || 1) + 1)
     this.filterByWeek(w)
-  },
-
-  // ============================================================
-  // 左右滑动切换周次（网格视图; 列表视图为纵向滚动不启用）
-  // ============================================================
-  onTouchStart(e) {
-    if (this.data.showDetail || this.data.viewMode !== 'grid') return
-    const t = e.touches && e.touches[0]
-    if (!t) return
-    this._swipe = { x: t.clientX, y: t.clientY, t: Date.now() }
-  },
-
-  onTouchEnd(e) {
-    if (!this._swipe) return
-    const s = this._swipe
-    this._swipe = null
-    const t = e.changedTouches && e.changedTouches[0]
-    if (!t || this.data.showDetail || this.data.viewMode !== 'grid') return
-    const dx = t.clientX - s.x
-    const dy = t.clientY - s.y
-    const dt = Date.now() - s.t
-    // 横向位移足够大、横向主导(排除纵向滚动)、快速滑动(排除长按误触)
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5 || dt > 600) return
-    if (dx < 0) this.nextWeek()
-    else this.prevWeek()
   },
 
   /** 下拉刷新 */

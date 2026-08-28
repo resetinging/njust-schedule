@@ -1,5 +1,7 @@
 <!-- 成绩查询页面 — 网页版布局(绩点大卡 + 学期绩点明细 + 成绩明细), 保留小程序风格 -->
-<view class="container">
+<view class="container {{animClass}}"
+      style="transform: translateX({{swipeX}}px); {{swipeTrans ? 'transition: transform .2s ease-out;' : ''}}"
+      bindtouchstart="onSwipeTouchStart" bindtouchmove="onSwipeTouchMove" bindtouchend="onSwipeTouchEnd">
 
   <loading-modal visible="{{loading}}" title="加载成绩数据…" />
 

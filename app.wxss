@@ -353,3 +353,21 @@ page {
 .action-item {
   background: #F7F6FB !important;
 }
+
+/* ============================================================
+   Tab 滑动切换动画
+   ============================================================ */
+.anim-slide-in-right {
+  animation: slideInRight 0.28s ease-out;
+}
+.anim-slide-in-left {
+  animation: slideInLeft 0.28s ease-out;
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}

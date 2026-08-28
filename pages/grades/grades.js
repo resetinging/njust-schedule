@@ -7,6 +7,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const gpaUtil = require('../../utils/gpa')
+const swipeNav = require('../../utils/swipe-nav')
 
 // ============================================================
 // 工具
@@ -61,12 +62,17 @@ Page({
     },
 
     // 学期卡片组
-    semGroups: []          // [{sem, count, avg, folded, courses:[{id,name,checked,meta,score}]}]
+    semGroups: [],          // [{sem, count, avg, folded, courses:[{id,name,checked,meta,score}]}]
+
+    swipeX: 0,         // Tab 滑动切换: 跟手平移
+    swipeTrans: false, // Tab 滑动切换: 回弹过渡
+    animClass: ''      // Tab 滑动切换: 进入动画类
   },
 
   onLoad() {
     // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
     this.loadCached()
+    swipeNav.attach(this, 'pages/grades/grades')
   },
 
   onShow() {
@@ -74,6 +80,7 @@ Page({
     if (saved !== this._mode) {
       this.loadGrades()
     }
+    swipeNav.playEnterAnim(this)
   },
 
   onPullDownRefresh() {

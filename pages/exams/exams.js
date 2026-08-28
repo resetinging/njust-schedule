@@ -5,6 +5,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const swipeNav = require('../../utils/swipe-nav')
 const { timeUntil } = require('../../utils/date')
 
 Page({
@@ -13,12 +14,21 @@ Page({
     countdowns: [],    // 顶部倒计时卡片（最近 3 场）
     dayGroups: [],     // 按日期分组 [{date, weekday, urgency, exams}]
     loading: false,
-    collapsedDates: {} // 已结束日期组折叠状态
+    collapsedDates: {}, // 已结束日期组折叠状态
+
+    swipeX: 0,         // Tab 滑动切换: 跟手平移
+    swipeTrans: false, // Tab 滑动切换: 回弹过渡
+    animClass: ''      // Tab 滑动切换: 进入动画类
   },
 
   onLoad() {
     // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
     this.loadCachedData()
+    swipeNav.attach(this, 'pages/exams/exams')
+  },
+
+  onShow() {
+    swipeNav.playEnterAnim(this)
   },
 
   /** 考试缓存键按学期隔离 */

@@ -7,6 +7,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const swipeNav = require('../../utils/swipe-nav')
 const { timeUntilDeadline, parseDateStr } = require('../../utils/date')
 
 Page({
@@ -46,7 +47,11 @@ Page({
     batchMessage: '',
     batchPercent: 0,
     batchResults: [],
-    batchId: ''
+    batchId: '',
+
+    swipeX: 0,         // Tab 滑动切换: 跟手平移
+    swipeTrans: false, // Tab 滑动切换: 回弹过渡
+    animClass: ''      // Tab 滑动切换: 进入动画类
   },
 
   onLoad() {
@@ -57,6 +62,16 @@ Page({
       this.setData({ batches: batches.evaluations })
       this._processBatches(batches.evaluations)
     }
+    swipeNav.attach(this, 'pages/eval/eval')
+  },
+
+  onShow() {
+    swipeNav.playEnterAnim(this)
+  },
+
+  /** 弹窗/批量评教进行中不响应滑动切换 */
+  _swipeDisabled() {
+    return this.data.showForm || this.data.showBatchDialog || this.data.batchRunning
   },
 
   /** 加载评教批次 */
