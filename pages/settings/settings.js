@@ -5,6 +5,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const config = require('../../utils/config')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
 
 Page({
@@ -31,7 +32,10 @@ Page({
     showJwcPassword: false,// 教务密码明文显示开关
 
     // 校历设置
-    firstWeekDate: ''
+    firstWeekDate: '',
+
+    // 版本标识（排查线上版本用）
+    build: config.BUILD || ''
   },
 
   onLoad() {

@@ -13,6 +13,9 @@ const API_BASE = 'https://flask-5da7-276116-7-1448570339.sh.run.tcloudbase.com'
 // 请求超时（毫秒）— 云托管冷启动较慢，给 30s 余量
 const REQUEST_TIMEOUT = 30000
 
+// 构建标识（git 短 hash）— 设置页显示, 用于确认线上版本
+const BUILD = '85fe60f'
+
 // ============================================================
 // 本地联调开关（仅开发调试用！）
 // USE_LOCAL = true 时，所有请求直连本机 Flask（127.0.0.1:5000），
@@ -44,6 +47,7 @@ module.exports = {
   CLOUD_SERVICE,
   API_BASE,
   REQUEST_TIMEOUT,
+  BUILD,
   USE_LOCAL,
   LOCAL_BASE,
   CACHE_TTL,

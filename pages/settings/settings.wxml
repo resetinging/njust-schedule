@@ -127,4 +127,7 @@
     </view>
   </view>
 
+  <!-- 版本标识 -->
+  <view class="version-tip">v1.1.0 · build {{build}}</view>
+
 </view>

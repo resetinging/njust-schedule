@@ -361,3 +361,12 @@
   background: rgba(255, 255, 255, 0.25) !important;
   color: #fff;
 }
+
+/* 版本标识 */
+.version-tip {
+  text-align: center;
+  font-size: 20rpx;
+  color: var(--text-hint);
+  margin-top: 40rpx;
+  padding-bottom: 40rpx;
+}

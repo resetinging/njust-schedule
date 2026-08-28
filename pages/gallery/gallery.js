@@ -49,6 +49,11 @@ Page({
   async _downloadImage(name, onProgress) {
     const meta = await api.getGalleryImageMeta(name)
     if (!meta || !meta.success || !meta.parts) {
+      // meta 失败(旧版后端/网关异常): 兜底尝试整图接口一次
+      const whole = await api.getGalleryImage(name)
+      if (whole && whole.success && whole.data_b64) {
+        return this._b64ToLocal(name, whole.data_b64)
+      }
       throw new Error('获取图片信息失败')
     }
     const parts = meta.parts
