@@ -113,12 +113,12 @@ Page({
     }
   },
 
-  /** 从服务器加载 */
-  async loadFromServer() {
+  /** 从服务器加载（semester 参数可显式指定, 不依赖 storage 时序） */
+  async loadFromServer(semester) {
     this.setData({ loading: true })
     try {
       const [res, semRes] = await Promise.all([
-        api.getCourses(),
+        api.getCourses(semester),   // 切换学期时显式传参, 确保请求目标学期
         api.getSemesters()
       ])
       if (res.success && res.courses) {
@@ -234,7 +234,7 @@ Page({
     this.filterByWeek(week)
   },
 
-  /** 切换学期 */
+  /** 切换学期（显式传学期请求数据, 保证课表随学期切换） */
   async onSemesterChange(e) {
     const idx = e.detail.value
     const semester = this.data.semesters[idx]
@@ -243,7 +243,7 @@ Page({
         const res = await api.setSemester(semester)
         if (res && res.success) {
           this.setData({ semester })
-          this.loadFromServer()
+          this.loadFromServer(semester)   // 显式传参
         } else {
           wx.showToast({ title: (res && res.message) || '切换学期失败', icon: 'none' })
         }
