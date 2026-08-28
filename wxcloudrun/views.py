@@ -418,13 +418,12 @@ def _invalidate_stats(student_id: str, semester: str):
 def _on_login_success(client: JWCClient, token: str):
     """登录成功后的公共处理：签发 token 并返回会话信息。
 
-    不保存密码；学期等用户级设置在登录时初始化（沿用全局默认）。
+    不保存密码；登录默认重置为**当前学期**(课表默认显示本学期),
+    用户手动切换其他学期后重新登录会回到本学期。
     """
     sid = client.student_id
-    user_semester = dao.get_user_setting(sid, "semester")
-    semester = user_semester or dao.get_setting("semester") or client._current_semester()
-    if not user_semester:
-        dao.set_user_setting(sid, "semester", semester)
+    semester = client._current_semester()   # 登录即默认本学期
+    dao.set_user_setting(sid, "semester", semester)
     return jsonify({
         "success": True,
         "message": f"登录成功！欢迎 {client.student_name or sid}",
