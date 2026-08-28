@@ -18,9 +18,12 @@
   <!-- 评教批次列表 -->
   <!-- ============================================================ -->
   <view wx:if="{{!batchCourses.length && !showForm}}">
-    <view class="top-bar" wx:if="{{batches.length > 0}}">
-      <text>{{batches.length}} 个批次</text>
-      <text class="refresh-btn" bindtap="onRefresh">🔄 刷新</text>
+    <view class="page-hero" wx:if="{{batches.length > 0}}">
+      <view class="ph-main">
+        <text class="ph-title">📝 教学评价</text>
+        <text class="ph-sub">{{batches.length}} 个批次</text>
+      </view>
+      <text class="ph-refresh" bindtap="onRefresh">🔄 刷新</text>
     </view>
 
     <!-- 倒计时卡片 -->

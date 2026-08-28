@@ -344,3 +344,20 @@
   box-shadow: 0 4rpx 16rpx rgba(87, 74, 160, 0.06);
 }
 .login-card { box-shadow: 0 8rpx 28rpx rgba(87, 74, 160, 0.12); }
+
+/* ============================================================
+   风格统一 — 已登录用户卡改紫渐变(课表 top-card 同款)
+   ============================================================ */
+.user-card {
+  background: linear-gradient(135deg, #8F7DF0 0%, #A99BF5 55%, #BBAFF8 100%);
+  border: none;
+  border-radius: 28rpx;
+  box-shadow: 0 10rpx 30rpx rgba(120, 100, 220, 0.35);
+}
+.user-card .user-name { color: #fff; }
+.user-card .user-id { color: rgba(255, 255, 255, 0.9); }
+.user-card .user-semester { color: rgba(255, 255, 255, 0.95); }
+.user-card .avatar {
+  background: rgba(255, 255, 255, 0.25) !important;
+  color: #fff;
+}

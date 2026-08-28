@@ -295,3 +295,47 @@ page {
 .empty-state .icon { font-size: 112rpx; }
 .empty-state .text { font-size: 28rpx; color: #8A87A8; }
 
+
+/* ============================================================
+   全站统一页面头部 — 紫渐变卡片(课表 top-card 同款)
+   ============================================================ */
+.page-hero {
+  margin: 16rpx 20rpx 20rpx;
+  padding: 30rpx 30rpx 26rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #8F7DF0 0%, #A99BF5 55%, #BBAFF8 100%);
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 10rpx 30rpx rgba(120, 100, 220, 0.35);
+}
+
+.ph-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.ph-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.15);
+}
+
+.ph-sub {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ph-refresh {
+  font-size: 28rpx;
+  font-weight: 600;
+  padding: 8rpx 20rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.ph-refresh:active { background: rgba(255, 255, 255, 0.35); }

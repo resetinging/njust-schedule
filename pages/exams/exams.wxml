@@ -16,10 +16,13 @@
 
   <!-- 有数据 -->
   <block wx:if="{{exams.length > 0}}">
-    <!-- 顶部操作栏 -->
-    <view class="top-bar">
-      <text>共 {{exams.length}} 场考试</text>
-      <text class="refresh-btn" bindtap="onRefresh">🔄 刷新</text>
+    <!-- 顶部紫渐变卡片头(课表同款) -->
+    <view class="page-hero">
+      <view class="ph-main">
+        <text class="ph-title">📅 考试安排</text>
+        <text class="ph-sub">共 {{exams.length}} 场考试</text>
+      </view>
+      <text class="ph-refresh" bindtap="onRefresh">🔄 刷新</text>
     </view>
 
     <!-- 倒计时卡片 -->
