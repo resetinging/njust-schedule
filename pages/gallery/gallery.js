@@ -38,6 +38,31 @@ Page({
     return fp
   },
 
+  /**
+   * 分片下载图片 → 本地文件。
+   * callContainer 返回包限制约 1000KB, 高清图(base64 >700KB)必须分片:
+   * 先取 meta 得到片数, 再逐片请求 base64 拼接后写文件。
+   * @param {string} name 图片文件名
+   * @param {Function} onProgress (done, total) 进度回调
+   */
+  async _downloadImage(name, onProgress) {
+    const meta = await api.getGalleryImageMeta(name)
+    if (!meta || !meta.success || !meta.parts) {
+      throw new Error('获取图片信息失败')
+    }
+    const parts = meta.parts
+    let b64 = ''
+    for (let p = 0; p < parts; p++) {
+      const res = await api.getGalleryImagePart(name, p)
+      if (!res || !res.success || !res.data_b64) {
+        throw new Error(`分片 ${p + 1}/${parts} 下载失败`)
+      }
+      b64 += res.data_b64
+      if (onProgress) onProgress(p + 1, parts)
+    }
+    return this._b64ToLocal(name, b64)
+  },
+
   /** 本地文件是否存在 */
   _localExists(name) {
     try {
@@ -95,24 +120,27 @@ Page({
         const name = serverNames[i]
         if (have.has(name)) continue
         try {
-          const imgRes = await api.getGalleryImage(name)
-          if (imgRes.success && imgRes.data_b64) {
-            const src = this._b64ToLocal(name, imgRes.data_b64)
-            images.push({
-              name,
-              title: name.replace(/\.[^.]+$/, ''),
-              src
-            })
-            have.add(name)
+          const src = await this._downloadImage(name, (done, total) => {
             this.setData({
-              images: images.slice(),
-              loading: false,
-              downloadMsg: `正在下载高清图片 (${i + 1}/${need.length})…`,
-              downloadPercent: Math.round(((i + 1) / need.length) * 100)
+              downloadMsg: `正在下载高清图片 ${i + 1}/${need.length} (分片 ${done}/${total})…`,
+              downloadPercent: Math.round((i + (done / total)) / need.length * 100)
             })
-          }
+          })
+          images.push({
+            name,
+            title: name.replace(/\.[^.]+$/, ''),
+            src
+          })
+          have.add(name)
+          this.setData({
+            images: images.slice(),
+            loading: false
+          })
         } catch (e) {
-          // 单张失败跳过
+          // 单张失败不阻断其余图片, 但错误要可见
+          this.setData({
+            errorMsg: `「${name}」下载失败: ${(e && e.message) || '网络错误'}，请下拉重试`
+          })
         }
       }
 

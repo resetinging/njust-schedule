@@ -420,7 +420,17 @@ function getGalleryImages() {
   return request('GET', '/api/gallery-images')
 }
 
-/** 获取单张校历图片（base64） */
+/** 获取单张校历图片的分片元信息（大图需分片下载） */
+function getGalleryImageMeta(name) {
+  return request('GET', '/api/gallery-image-meta', { name })
+}
+
+/** 获取单张校历图片的第 part 片（base64, part 从 0 开始） */
+function getGalleryImagePart(name, part) {
+  return request('GET', '/api/gallery-image-part', { name, part })
+}
+
+/** 获取单张校历图片（base64, 仅限小图: callContainer 返回包限制 ~1000KB） */
 function getGalleryImage(name) {
   return request('GET', '/api/gallery-image', { name })
 }
@@ -454,5 +464,7 @@ module.exports = {
   loginWebvpn,
   saveSettings,
   getGalleryImages,
+  getGalleryImageMeta,
+  getGalleryImagePart,
   getGalleryImage
 }
