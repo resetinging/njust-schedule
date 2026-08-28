@@ -20,10 +20,10 @@ const TABS = [
   'pages/settings/settings'
 ]
 
-const THRESHOLD = 60    // px: 松手切换阈值
-const FAST_PX = 30      // px: 快速滑动(500ms内)的最低位移
-const SPEED_MS = 500    // 快速滑动判定时间窗
-const ACTIVATE_PX = 12  // 手势激活所需横向位移
+const THRESHOLD = 40    // px: 松手切换阈值
+const FAST_PX = 20      // px: 快速滑动(400ms内)的最低位移
+const SPEED_MS = 400    // 快速滑动判定时间窗
+const ACTIVATE_PX = 8   // 手势激活所需横向位移
 const DIR_RATIO = 1.2   // 横向/纵向主导比例
 const SWITCH_DELAY = 150 // ms: 旧页滑出动画时长后切换
 const SET_THROTTLE = 16 // ms: touchmove setData 节流(≈60fps)
