@@ -713,3 +713,33 @@
   color: #9A96B8;
   font-size: 26rpx;
 }
+
+/* ============================================================
+   V7 风格统一 — 课程详情弹窗对齐其他页面(紫色系主题)
+   ============================================================ */
+.modal-card {
+  box-shadow: 0 -6rpx 28rpx rgba(87, 74, 160, 0.16);
+}
+.modal-title {
+  color: #33304F;
+  justify-content: center;
+  text-align: center;
+}
+.modal-badge {
+  border-radius: 14rpx;
+}
+.modal-row {
+  color: #33304F;              /* 值: 深紫黑 */
+  border-bottom: 1rpx solid #F1EFF8;
+}
+.modal-row .label {
+  color: #6C5CE0;              /* 标签: 紫色 */
+  font-size: 22rpx;
+  font-weight: 600;
+  min-width: 104rpx;
+  background: #F2F0FA;         /* 浅紫胶囊 */
+  border-radius: 12rpx;
+  padding: 4rpx 12rpx;
+  text-align: center;
+  align-self: center;
+}
