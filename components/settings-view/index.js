@@ -7,6 +7,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const config = require('../../utils/config')
+const dataLoader = require('../../utils/data-loader')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
 
 Component({
@@ -269,7 +270,7 @@ Component({
           storage.setStudentId(studentId)
           storage.setStudentName(res.student_name || '')
           storage.setSemester(res.semester || '')
-          wx.showToast({ title: '登录成功，下拉刷新获取数据', icon: 'success' })
+          wx.showToast({ title: '登录成功，正在同步数据…', icon: 'success' })
           this.refreshState()
           // 通知全局
           getApp().setLoginState(true, res.student_name || studentId, res.semester || '')
@@ -277,6 +278,12 @@ Component({
             password: '', jwcPassword: '', captcha: '', captchaId: '', captchaSrc: '', ssoStepDone: false
           })
           this.loadSettings()
+          // 自动向后端获取全部数据并载入缓存(课表/考试/评教/成绩/CET/校历)
+          dataLoader.fetchAllData().then((ok) => {
+            if (ok > 0) {
+              wx.showToast({ title: '数据已更新', icon: 'success' })
+            }
+          })
         } else {
           wx.showToast({ title: res.message || '登录失败', icon: 'none' })
           // 自动识别失败 → 显示验证码图片，切换为手动输入

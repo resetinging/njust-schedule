@@ -59,6 +59,7 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      this.loadCachedData()            // 重新读缓存(登录后/刷新后数据自动生效)
       const app = getApp()
       // 仅当尚未选择学期时用全局值, 避免覆盖手动切换的学期
       if (app.globalData.semester && !this.data.semester) {

@@ -75,6 +75,12 @@ Component({
     /** 由 main 页面调用: 每次被激活时触发 */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      // 重新读缓存(登录后/刷新后数据自动生效)
+      const batches = storage.getCached('cached_evaluations')
+      if (batches && batches.evaluations) {
+        this.setData({ batches: batches.evaluations })
+        this._processBatches(batches.evaluations)
+      }
     },
 
     /** 加载评教批次（silent 为后台静默模式: 不显示 loading, 失败不弹提示） */
