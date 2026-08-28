@@ -138,12 +138,27 @@ def save_evaluations(evaluations: list, semester: str, student_id: str = ""):
 
 
 def get_evaluations(semester: str, student_id: str = "") -> list:
-    """获取当前用户全部评教批次（semester 参数仅作兼容, 不过滤）"""
+    """获取当前用户全部评教批次（semester 参数仅作兼容, 不过滤）
+
+    按 (batch, category, end_date) 去重: 兼容旧版按学期键存储导致的
+    同一批次多份残留; 优先保留 items 最全的一条。
+    """
     rows = Evaluation.query.filter(
         Evaluation.student_id == student_id,
     ).order_by(Evaluation.end_date).all()
     result = []
+    seen = {}
     for r in rows:
+        key = (r.batch or "", r.category or "", r.end_date or "")
+        items = json.loads(r.items_json) if r.items_json else []
+        if key in seen:
+            # 保留 items 更全的一条
+            if len(items) > len(seen[key]["items"]):
+                seen[key] = {"items": items, "row": r}
+            continue
+        seen[key] = {"items": items, "row": r}
+    for entry in seen.values():
+        r = entry["row"]
         result.append({
             "id": r.id,
             "semester": r.semester,
@@ -152,7 +167,7 @@ def get_evaluations(semester: str, student_id: str = "") -> list:
             "start_date": r.start_date,
             "end_date": r.end_date,
             "is_done": bool(r.is_done),
-            "items": json.loads(r.items_json) if r.items_json else [],
+            "items": entry["items"],
         })
     return result
 
