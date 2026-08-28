@@ -21,9 +21,14 @@ Page({
     this.loadCachedData()
   },
 
+  /** 考试缓存键按学期隔离 */
+  _examsCacheKey() {
+    return 'cached_exams_' + (storage.getSemester() || 'default')
+  },
+
   /** 从缓存加载 */
   loadCachedData() {
-    const exams = storage.getCached('cached_exams')
+    const exams = storage.getCached(this._examsCacheKey())
     if (exams && exams.length > 0) {
       this.setData({ exams })
       this._processExams(exams)
@@ -38,7 +43,9 @@ Page({
       const res = await api.getExams()
       if (res.success && res.exams) {
         this.setData({ exams: res.exams, loading: false })
-        storage.setCached('cached_exams', res.exams)
+        // 缓存键带学期: 按实际返回学期写缓存
+        const cacheSem = res.semester || storage.getSemester() || 'default'
+        storage.setCached('cached_exams_' + cacheSem, res.exams)
         this._processExams(res.exams)
       } else {
         this.setData({ loading: false })

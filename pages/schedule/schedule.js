@@ -93,9 +93,14 @@ Page({
     }
   },
 
+  /** 课表缓存键按学期隔离(切换学期后不显示上一学期缓存) */
+  _coursesCacheKey() {
+    return 'cached_courses_' + (storage.getSemester() || 'default')
+  },
+
   /** 从缓存加载 */
   loadCachedData() {
-    const courses = storage.getCached('cached_courses')
+    const courses = storage.getCached(this._coursesCacheKey())
     const semester = storage.getSemester()
     const semesters = storage.getCached('semester_list') || []
 
@@ -122,7 +127,9 @@ Page({
           semester: res.semester || this.data.semester,
           loading: false
         })
-        storage.setCached('cached_courses', res.courses)
+        // 缓存键带学期: 按实际返回的学期写缓存
+        const cacheSem = res.semester || storage.getSemester() || 'default'
+        storage.setCached('cached_courses_' + cacheSem, res.courses)
         if (res.semester) storage.setSemester(res.semester)
         this.filterByWeek(this.data.currentWeek)
       } else {
@@ -233,9 +240,13 @@ Page({
     const semester = this.data.semesters[idx]
     if (semester && semester !== this.data.semester) {
       try {
-        await api.setSemester(semester)
-        this.setData({ semester })
-        this.loadFromServer()
+        const res = await api.setSemester(semester)
+        if (res && res.success) {
+          this.setData({ semester })
+          this.loadFromServer()
+        } else {
+          wx.showToast({ title: (res && res.message) || '切换学期失败', icon: 'none' })
+        }
       } catch (e) {
         wx.showToast({ title: '切换学期失败', icon: 'none' })
       }

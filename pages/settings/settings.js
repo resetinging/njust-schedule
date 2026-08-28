@@ -342,8 +342,17 @@ Page({
   async _doClearData() {
     try {
       await api.clearData()
-      storage.remove('cached_courses')
-      storage.remove('cached_exams')
+      // 清理全部学期键的课程/考试本地缓存
+      try {
+        const info = wx.getStorageInfoSync()
+        info.keys.forEach(k => {
+          if (k.indexOf('cached_courses_') === 0 || k.indexOf('cached_exams_') === 0) {
+            storage.remove(k)
+          }
+        })
+      } catch (e) {
+        // 忽略
+      }
       wx.showToast({ title: '已清除', icon: 'success' })
     } catch (e) {
       wx.showToast({ title: '清除失败', icon: 'none' })
