@@ -679,3 +679,14 @@
   border-radius: 24rpx;
   box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.08);
 }
+
+/* 批次学期标签 */
+.sem-tag {
+  display: inline-block;
+  font-size: 20rpx;
+  color: #6C5CE0;
+  background: #F2F0FA;
+  border-radius: 10rpx;
+  padding: 2rpx 12rpx;
+  margin-right: 8rpx;
+}

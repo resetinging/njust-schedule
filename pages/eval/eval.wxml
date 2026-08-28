@@ -48,6 +48,7 @@
           </view>
         </view>
         <view class="batch-info">
+          <text wx:if="{{item.semester}}" class="sem-tag">{{item.semester}}</text>
           <text wx:if="{{item.batch}}">{{item.batch}}</text>
           <text wx:if="{{item.start_date}}">📅 {{item.start_date}} ~ {{item.end_date}}</text>
           <text wx:if="{{item.items && item.items.length}}" class="batch-link-hint">点击查看课程 →</text>

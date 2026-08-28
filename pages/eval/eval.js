@@ -49,14 +49,10 @@ Page({
     batchId: ''
   },
 
-  /** 缓存键带学期: 切换学期后不显示上一学期的批次 */
-  _evalCacheKey() {
-    return 'cached_evaluations_' + (storage.getSemester() || 'default')
-  },
-
   onLoad() {
     // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
-    const batches = storage.getCached(this._evalCacheKey())
+    // （评教返回全部批次, 与学期切换无关, 固定缓存键）
+    const batches = storage.getCached('cached_evaluations')
     if (batches && batches.evaluations) {
       this.setData({ batches: batches.evaluations })
       this._processBatches(batches.evaluations)
@@ -74,7 +70,7 @@ Page({
         const batches = res.evaluations || []
         this.setData({ batches })
         this._processBatches(batches)
-        storage.setCached(this._evalCacheKey(), res)
+        storage.setCached('cached_evaluations', res)
       } else {
         wx.showToast({ title: res.message || '加载失败', icon: 'none' })
       }
@@ -118,7 +114,7 @@ Page({
       if (allDone.length > 0) {
         countdowns = [{
           bigNum: '✓', bigLabel: '全部已完成',
-          course_name: '本学期评价已全部完成', cardClass: ''
+          course_name: '全部评教已完成', cardClass: ''
         }]
       }
     } else {
