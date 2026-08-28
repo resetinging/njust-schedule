@@ -711,6 +711,11 @@
   flex: 1;
   font-size: 26rpx;
   height: 60rpx;
+  /* 去掉 input 自身边框/背景/圆角(历史样式残留), 只保留外层 search-box 一个框 */
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0;
 }
 
 .search-clear {
