@@ -25,6 +25,19 @@ function request(method, path, data = {}) {
   const token = storage.get(TOKEN_KEY, '')
   if (token) header['X-Auth-Token'] = token
 
+  // 非登录接口收到 401 = 后端会话已失效(容器重启/过期):
+  // 清理本地登录态并提示, 避免界面仍显示已登录、下次操作才报错
+  const isLoginPath = /\/api\/(login|get-webvpn-captcha|get-captcha)/.test(path)
+  const handle401 = () => {
+    if (isLoginPath) return false
+    if (storage.get(TOKEN_KEY, '')) {
+      storage.clearAll()
+      wx.showToast({ title: '登录已过期，请重新登录', icon: 'none', duration: 2500 })
+      return true
+    }
+    return false
+  }
+
   // 本地联调: 直连本机 Flask(需开发者工具勾选「不校验合法域名」)
   if (config.USE_LOCAL) {
     return new Promise((resolve) => {
@@ -38,6 +51,7 @@ function request(method, path, data = {}) {
           if (res.statusCode === 200) {
             resolve(res.data)
           } else {
+            if (res.statusCode === 401) handle401()
             resolve({
               success: false,
               message: (res.data && res.data.message) || ('服务器错误 ' + res.statusCode)
@@ -69,6 +83,7 @@ function request(method, path, data = {}) {
         if (res.statusCode === 200) {
           resolve(res.data)
         } else {
+          if (res.statusCode === 401) handle401()
           resolve({
             success: false,
             message: (res.data && res.data.message) || `服务器错误 ${res.statusCode}`
