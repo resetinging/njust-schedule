@@ -339,3 +339,17 @@ page {
 }
 
 .ph-refresh:active { background: rgba(255, 255, 255, 0.35); }
+
+/* ============================================================
+   全站卡片统一浅色背景(课表风格 #F7F6FB) — 紫渐变卡不受影响
+   ============================================================ */
+.batch-card, .course-card, .indicator-card, .sem-card,
+.sc-cet, .sem-gpa-card, .exam-card, .countdown-card,
+.setting-card, .login-card, .tool-card, .modal-card {
+  background: #F7F6FB !important;
+}
+
+/* 设置页操作列表项同样统一 */
+.action-item {
+  background: #F7F6FB !important;
+}
