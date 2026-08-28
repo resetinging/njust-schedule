@@ -219,7 +219,7 @@ function getDateLabel(firstWeekDate, weekNum, dayOfWeek) {
   if (!firstMonday) return ''
   const date = new Date(firstMonday)
   date.setDate(date.getDate() + (weekNum - 1) * 7 + (dayOfWeek - 1))
-  return `${date.getMonth() + 1}/${date.getDate()}`
+  return `${date.getMonth() + 1}.${date.getDate()}`
 }
 
 module.exports = {
