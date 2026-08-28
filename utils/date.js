@@ -168,12 +168,19 @@ function timeUntilDeadline(endDateStr) {
   return { text: '还有 ' + totalDays + ' 天', cls: '' }
 }
 
-/** 解析日期字符串 "YYYY-MM-DD" → Date */
+/** 解析 "YYYY-MM-DD" / "YYYY/MM/DD" → Date
+ *  （用年/月/日构造本地时间, 避免 "YYYY/MM/DDTHH:mm" 等非标准
+ *    字符串被内核判为 Invalid Date 导致 NaN 显示）
+ */
 function parseDateStr(str) {
   if (!str) return null
-  const parts = str.split('-')
-  if (parts.length !== 3) return null
-  return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+  const parts = String(str).split(/[-/]/).map(Number)
+  if (parts.length >= 3 && parts[0] > 1900 &&
+      parts[1] >= 1 && parts[1] <= 12 &&
+      parts[2] >= 1 && parts[2] <= 31) {
+    return new Date(parts[0], parts[1] - 1, parts[2])
+  }
+  return null
 }
 
 /**
@@ -182,17 +189,13 @@ function parseDateStr(str) {
  * @returns {number} 当前周次 (1-based，限制在 1-20)
  */
 function calcCurrentWeek(firstWeekDate) {
-  if (!firstWeekDate) return 1
-  try {
-    const firstMonday = new Date(firstWeekDate.replace(/-/g, '/') + 'T00:00:00')
-    const now = new Date()
-    const diffMs = now.getTime() - firstMonday.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    const week = Math.floor(diffDays / 7) + 1
-    return Math.max(1, Math.min(week, 20))
-  } catch (e) {
-    return 1
-  }
+  const firstMonday = parseDateStr(firstWeekDate)
+  if (!firstMonday) return 1
+  const now = new Date()
+  const diffMs = now.getTime() - firstMonday.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const week = Math.floor(diffDays / 7) + 1
+  return Math.max(1, Math.min(week, 20))
 }
 
 /**
@@ -212,15 +215,11 @@ function calcTodayDay() {
  * @returns {string} "M/D" 格式日期
  */
 function getDateLabel(firstWeekDate, weekNum, dayOfWeek) {
-  if (!firstWeekDate) return ''
-  try {
-    const firstMonday = new Date(firstWeekDate.replace(/-/g, '/') + 'T00:00:00')
-    const date = new Date(firstMonday)
-    date.setDate(date.getDate() + (weekNum - 1) * 7 + (dayOfWeek - 1))
-    return `${date.getMonth() + 1}/${date.getDate()}`
-  } catch (e) {
-    return ''
-  }
+  const firstMonday = parseDateStr(firstWeekDate)
+  if (!firstMonday) return ''
+  const date = new Date(firstMonday)
+  date.setDate(date.getDate() + (weekNum - 1) * 7 + (dayOfWeek - 1))
+  return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
 module.exports = {
