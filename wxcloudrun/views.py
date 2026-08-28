@@ -911,12 +911,10 @@ def api_get_evaluations():
     if err:
         return err
     sid = client.student_id or ""
-    semester = (request.args.get("semester") or "").strip() or \
-        dao.get_user_setting(sid, "semester") or _current_semester()
-    evals = dao.get_evaluations(semester, sid)
+    # 评教是待办事项: 返回该账号全部批次(不过滤学期), 批次自带 semester 字段
+    evals = dao.get_evaluations("", sid)
     return jsonify({
         "success": True,
-        "semester": semester,
         "count": len(evals),
         "evaluations": evals,
     })
@@ -928,13 +926,12 @@ def api_refresh_evaluations():
     if err:
         return err
     sid = client.student_id or ""
-    semester = dao.get_user_setting(sid, "semester") or _current_semester()
     with _jwc_request(client):
         evals, retry_err = _retry_with_relogin(
-            client, lambda: client.get_evaluations(semester), "获取评价数据失败")
+            client, lambda: client.get_evaluations(""), "获取评价数据失败")
     if retry_err:
         return retry_err
-    dao.save_evaluations(evals, semester, sid)
+    dao.save_evaluations(evals, "", sid)
     undone = sum(1 for e in evals if not e.get("is_done"))
     return jsonify({
         "success": True,

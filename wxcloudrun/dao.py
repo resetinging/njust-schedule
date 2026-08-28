@@ -120,10 +120,9 @@ def count_exams(semester: str, student_id: str = "") -> int:
 # NJUST — 评教（按用户隔离）
 # ============================================================
 def save_evaluations(evaluations: list, semester: str, student_id: str = ""):
-    Evaluation.query.filter(
-        Evaluation.semester == semester,
-        Evaluation.student_id == student_id,
-    ).delete()
+    """全量保存评教批次（评教是待办事项, 与学期切换无关:
+    刷新时按用户全删全插, 批次自身的 semester 字段才是真实归属学期）"""
+    Evaluation.query.filter(Evaluation.student_id == student_id).delete()
     for e in evaluations:
         db.session.add(Evaluation(
             student_id=student_id,
@@ -139,8 +138,8 @@ def save_evaluations(evaluations: list, semester: str, student_id: str = ""):
 
 
 def get_evaluations(semester: str, student_id: str = "") -> list:
+    """获取当前用户全部评教批次（semester 参数仅作兼容, 不过滤）"""
     rows = Evaluation.query.filter(
-        Evaluation.semester == semester,
         Evaluation.student_id == student_id,
     ).order_by(Evaluation.end_date).all()
     result = []
