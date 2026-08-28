@@ -80,8 +80,18 @@ Page({
     }
   },
 
-  /** 处理批次数据：倒计时 + 每批次紧迫度 + 日期清洗 */
+  /** 处理批次数据：去重 + 倒计时 + 每批次紧迫度 + 日期清洗 */
   _processBatches(batches) {
+    // 防御去重: 同一批次(batch+category)只保留一条
+    const seen = {}
+    const unique = []
+    for (const b of batches || []) {
+      const key = (b.batch || '') + '|' + (b.category || '')
+      if (seen[key]) continue
+      seen[key] = true
+      unique.push(b)
+    }
+
     // 日期清洗: "2025-12-01 00:00:00" → "2025-12-01"
     const cleanDate = (s) => {
       if (!s) return ''
@@ -93,7 +103,7 @@ Page({
     }
 
     // 给每个批次附加紧迫度信息
-    const enriched = batches.map(b => {
+    const enriched = unique.map(b => {
       const info = timeUntilDeadline(b.end_date)
       return {
         ...b,
