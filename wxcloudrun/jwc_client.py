@@ -844,40 +844,41 @@ class JWCClient:
             return []
 
     def _post_schedule_semester(self, soup, url: str, semester: str):
-        """通过课表页面的学期下拉表单提交目标学期, 返回响应或 None。
+        """通过课表页 Form1 的学期下拉提交目标学期, 返回响应或 None。
 
-        强智课表列表页通常带学期 select; 直接 GET 只显示教务默认学期,
-        指定学期时必须走表单提交, 否则不同学期会拿到同一份默认课表。
+        课表页实际是 form id="Form1"(含 select name="xnxq01id" 学期下拉);
+        首个 form 是打印表单, 不能抓。POST xnxq01id 后教务返回对应学期课表。
         """
         try:
-            form = soup.find("form")
-            if not form:
+            target_form = None
+            for f in soup.find_all("form"):
+                if f.get("id") == "Form1":
+                    target_form = f
+                    break
+            if target_form is None:
                 return None
             form_data = {}
-            for inp in form.find_all("input"):
+            for inp in target_form.find_all("input"):
                 n, v = inp.get("name", ""), inp.get("value", "")
-                if n:
+                if n and n != "pageIndex":   # 排除分页参数
                     form_data[n] = v
-            found_select = False
-            for sel in form.find_all("select"):
+            has_sem = False
+            for sel in target_form.find_all("select"):
                 n = sel.get("name", "")
-                if not n:
-                    continue
-                matched = None
-                for opt in sel.find_all("option"):
-                    ov = opt.get("value", "")
-                    if semester and semester in ov:
-                        matched = ov
-                        break
-                if matched:
-                    form_data[n] = matched
-                    found_select = True
-                else:
-                    s = sel.find("option", selected=True)
-                    form_data[n] = s.get("value", "") if s else ""
-            if not found_select:
+                if n == "xnxq01id":
+                    matched = None
+                    for opt in sel.find_all("option"):
+                        ov = opt.get("value", "")
+                        if semester and semester in ov:
+                            matched = ov
+                            break
+                    form_data[n] = matched or semester
+                    has_sem = True
+                elif n == "zc":
+                    form_data[n] = ""   # 全部周
+            if not has_sem:
                 return None
-            action = form.get("action", "")
+            action = target_form.get("action", "")
             if action:
                 if action.startswith("/"):
                     target = f"{BASE_9080}{action}"
@@ -889,7 +890,7 @@ class JWCClient:
                 target = url
             logger.debug("[课表] 提交学期 %s → %s", semester, target[:80])
             resp = self.session.post(target, data=form_data, timeout=TIMEOUT,
-                                     allow_redirects=True)
+                                     allow_redirects=True, headers={"Referer": url})
             if resp.status_code == 200 and len(resp.text) > 2000:
                 return resp
             return None
