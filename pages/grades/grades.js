@@ -14,11 +14,11 @@ const gpaUtil = require('../../utils/gpa')
 const NON_GPA_NATURES = ['通识教育选修课']
 
 // 等级制成绩 → 百分制中值（NJUST 五级制惯例口径, 用于均分统计）
-// 优秀≥90 / 良好≥80 / 中等≥70 / 及格≥60 → 取区间中值
+// 优秀≥90 / 良好≥80 / 中等≥70 / 及格≥60 → 取区间中值; 含带加减号的变体
 const LEVEL_SCORE = {
-  '优': 95, '优秀': 95, '优+': 97,
-  '良': 85, '良好': 85, '良+': 88,
-  '中': 75, '中等': 75, '中+': 78,
+  '优': 95, '优秀': 95, '优+': 97, '优秀+': 97, '优-': 93, '优秀-': 93,
+  '良': 85, '良好': 85, '良+': 88, '良好+': 88, '良-': 82, '良好-': 82,
+  '中': 75, '中等': 75, '中+': 78, '中等+': 78, '中-': 72, '中等-': 72,
   '及格': 65, '通过': 65,
   '不及格': 55, '不通过': 55
 }
@@ -34,6 +34,12 @@ function _gpOf(g) {
 function _scoreNum(g) {
   const s = String(g.score == null ? '' : g.score).trim()
   if (s in LEVEL_SCORE) return LEVEL_SCORE[s]
+  // 关键字兜底: 兼容"优秀(五级制)"等变体写法(注意"不及格"必须先于"及格"匹配)
+  if (/不及格|不通过|未通过/.test(s)) return 55
+  if (/优/.test(s)) return 95
+  if (/良/.test(s)) return 85
+  if (/中/.test(s)) return 75
+  if (/及格|通过/.test(s)) return 65
   const v = parseFloat(s)
   return isNaN(v) ? NaN : v
 }
