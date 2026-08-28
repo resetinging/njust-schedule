@@ -1,0 +1,138 @@
+<!-- 设置/登录视图组件 — 原 pages/settings 页面改造（方案A 合页 swiper） -->
+<view class="container view-root" wx:if="{{active}}">
+
+  <!-- 滚动内容区(scroll-view 内滚, 无下拉刷新) -->
+  <scroll-view class="view-scroll" scroll-y>
+
+  <!-- ============================================================ -->
+  <!-- 已登录状态 -->
+  <!-- ============================================================ -->
+  <view wx:if="{{isLoggedIn}}">
+
+    <!-- 用户信息卡片 -->
+    <view class="user-card card">
+      <view class="avatar">👤</view>
+      <view class="user-info">
+        <text class="user-name">{{studentName || '未设置'}}</text>
+        <text class="user-id">{{studentId}}</text>
+        <text class="user-semester">当前学期: {{semester || '未知'}}</text>
+      </view>
+    </view>
+
+    <!-- 快捷操作 -->
+    <view class="action-list">
+      <view class="action-item" bindtap="onGoGrades">
+        <text>📊 成绩查询</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="action-item" bindtap="onGoGallery">
+        <text>🖼️ 校历 & 照片墙</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="action-item" bindtap="onRefreshAll">
+        <text>🔄 一键刷新课表+考试</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="action-item" bindtap="onClearData">
+        <text>🗑 清除缓存数据</text>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 校历设置 -->
+    <view class="setting-card card">
+      <view class="setting-title">📆 学期第一周周一</view>
+      <picker mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
+        <view class="setting-value">{{firstWeekDate || '点击设置（课表自动跳转本周）'}}</view>
+      </picker>
+      <view class="setting-hint">设置后课表将自动定位当前教学周并高亮今天</view>
+    </view>
+
+    <!-- 退出登录 -->
+    <view class="logout-area">
+      <button class="btn-danger" bindtap="onLogout">退出登录</button>
+    </view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!-- 未登录状态 -->
+  <!-- ============================================================ -->
+  <view wx:if="{{!isLoggedIn}}">
+    <!-- 登录表单 -->
+    <view class="login-card card">
+      <view class="login-title">登录教务系统</view>
+
+      <!-- 登录模式切换 -->
+      <view class="mode-tabs">
+        <view class="mode-tab {{loginMode === 'direct' ? 'active' : ''}}"
+              data-mode="direct" bindtap="switchLoginMode">🏫 教务直连</view>
+        <view class="mode-tab {{loginMode === 'webvpn' ? 'active' : ''}}"
+              data-mode="webvpn" bindtap="switchLoginMode">🌐 智慧理工</view>
+      </view>
+      <view class="mode-desc" wx:if="{{loginMode === 'webvpn'}}">
+        两步登录：Step 1 智慧理工 SSO 验证 → Step 2 教务系统登录（适合校外网络）
+      </view>
+      <view class="mode-desc" wx:else>直接登录教务系统（需教务可达）</view>
+
+      <!-- 学号 -->
+      <view class="form-group">
+        <text class="form-label">学号</text>
+        <input class="form-input" placeholder="请输入学号"
+               value="{{studentId}}" bindinput="onStudentIdInput" />
+      </view>
+
+      <!-- 密码 -->
+      <view class="form-group">
+        <text class="form-label">{{loginMode === 'webvpn' ? '智慧理工密码（Step 1）' : '教务密码'}}</text>
+        <view class="pwd-row">
+          <input class="form-input pwd-input" placeholder="{{loginMode === 'webvpn' ? '请输入智慧理工密码' : '请输入教务密码'}}"
+                 password="{{!showPassword}}" value="{{password}}"
+                 bindinput="onPasswordInput" />
+          <text class="pwd-toggle" bindtap="onTogglePassword">{{showPassword ? '🙈' : '👁'}}</text>
+        </view>
+        <view class="pwd-hint" wx:if="{{loginMode === 'direct'}}">💡 教务处默认密码为: 学号 + @Njust（如未修改过）</view>
+      </view>
+
+      <!-- 记住学号密码 -->
+      <view class="remember-row">
+        <switch checked="{{rememberPwd}}" bindchange="onToggleRemember" color="#7C6BE8" style="transform:scale(0.8);" />
+        <text class="remember-label" bindtap="onTapRemember">记住学号和密码（保存在本机）</text>
+      </view>
+
+      <!-- 教务密码（智慧理工模式，与智慧理工密码相同可留空） -->
+      <view class="form-group" wx:if="{{loginMode === 'webvpn'}}">
+        <text class="form-label">教务密码（Step 2，不同时填写）</text>
+        <view class="pwd-row">
+          <input class="form-input pwd-input" placeholder="教务密码与智慧理工密码相同可留空"
+                 password="{{!showJwcPassword}}" value="{{jwcPassword}}"
+                 bindinput="onJwcPasswordInput" />
+          <text class="pwd-toggle" bindtap="onToggleJwcPassword">{{showJwcPassword ? '🙈' : '👁'}}</text>
+        </view>
+      </view>
+
+      <!-- 验证码 -->
+      <view class="form-group">
+        <text class="form-label">{{loginMode === 'webvpn' ? (ssoStepDone ? '教务验证码（Step 2）' : '验证码（点击右侧刷新完成 Step 1）') : '验证码'}}</text>
+        <captcha-input src="{{captchaSrc}}" value="{{captcha}}"
+                       bind:input="onCaptchaInput" bind:refresh="onRefreshCaptcha" />
+      </view>
+
+      <!-- 登录按钮 -->
+      <button class="btn-primary login-btn" bindtap="onLogin"
+              disabled="{{!canLogin || loggingIn}}">
+        {{loggingIn ? '登录中…' : (loginMode === 'webvpn' ? '智慧理工登录' : '登录（自动识别验证码）')}}
+      </button>
+    </view>
+
+    <!-- 提示 -->
+    <view class="login-tip">
+      <text>{{loginMode === 'webvpn' ? '智慧理工密码与教务密码可能不同，请分别填写' : '登录后即可查看课表、考试与成绩'}}</text>
+    </view>
+  </view>
+
+  <!-- 版本标识 -->
+  <view class="version-tip">v1.1.0 · build {{build}}</view>
+
+  </scroll-view>
+
+</view>

@@ -1,0 +1,434 @@
+/* 考试页面样式 — 参考桌面端 exams 设计 */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-page);
+}
+
+/* 顶部操作栏 */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 28rpx;
+  font-size: 24rpx;
+  color: var(--text-hint);
+  background: #fff;
+}
+
+.refresh-btn {
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* ==============================
+   倒计时卡片（横向滚动）
+   ============================== */
+
+.countdown-scroll {
+  white-space: nowrap;
+  padding: 0 16rpx 12rpx;
+}
+
+.countdown-row {
+  display: inline-flex;
+  gap: 16rpx;
+  padding: 4rpx 0;
+}
+
+.countdown-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 180rpx;
+  padding: 20rpx 16rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  white-space: normal;
+}
+
+.countdown-card.urgent {
+  background: linear-gradient(135deg, #FFF5F5, #FFEBEE);
+  border: 2rpx solid #EF5350;
+}
+
+.countdown-card.warning {
+  background: linear-gradient(135deg, #FFFDE7, #FFF9C4);
+  border: 2rpx solid #FFA726;
+}
+
+.countdown-card.done {
+  opacity: 0.5;
+}
+
+.cd-bignum {
+  font-size: 56rpx;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.countdown-card.urgent .cd-bignum { color: #D32F2F; }
+.countdown-card.warning .cd-bignum { color: #E65100; }
+.countdown-card.done .cd-bignum { color: #999; }
+
+.cd-label {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+.countdown-card.urgent .cd-label { color: #D32F2F; }
+.countdown-card.warning .cd-label { color: #E65100; }
+
+.cd-course {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #333;
+  margin-top: 12rpx;
+  text-align: center;
+  max-width: 200rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cd-date {
+  font-size: 20rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+/* ==============================
+   考试列表（按日期分组）
+   ============================== */
+
+.exam-scroll {
+  flex: 1;
+  padding: 0 20rpx 24rpx;
+}
+
+.date-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 8rpx 12rpx;
+}
+
+.date-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.date-urgency {
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+  font-weight: bold;
+}
+
+.date-urgency.urgent {
+  background: #FFEBEE;
+  color: #D32F2F;
+}
+
+.date-urgency.warning {
+  background: #FFF8E1;
+  color: #E65100;
+}
+
+.date-urgency.done {
+  background: #F5F5F5;
+  color: #999;
+}
+
+/* 考试卡片 */
+.exam-card {
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+  box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.05);
+}
+
+.exam-card.exam-urgent {
+  border-left: 6rpx solid #EF5350;
+}
+
+.exam-card.exam-warning {
+  border-left: 6rpx solid #FFA726;
+}
+
+.exam-course {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 12rpx;
+}
+
+.exam-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx 24rpx;
+}
+
+.meta-item {
+  font-size: 24rpx;
+  color: #666;
+}
+
+/* ==============================
+   公共
+   ============================== */
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-hint);
+}
+
+.empty-state .icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-state .text {
+  font-size: 28rpx;
+}
+
+.btn-primary {
+  display: block;
+  width: 70%;
+  margin: 0 auto;
+  padding: 20rpx;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  text-align: center;
+  border: none;
+}
+
+/* ==== 优化: 已结束分组折叠 ==== */
+.date-right {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.collapse-arrow {
+  font-size: 20rpx;
+  color: var(--text-hint);
+  padding: 4rpx 8rpx;
+  border: 1rpx solid var(--border);
+  border-radius: 8rpx;
+}
+.exam-done {
+  opacity: 0.55;
+}
+
+/* ============================================================
+   V2 视觉升级 — 考试页
+   ============================================================ */
+.top-bar {
+  background: #fff;
+  border-radius: 0 0 24rpx 24rpx;
+  box-shadow: 0 6rpx 20rpx rgba(26, 82, 118, 0.10);
+  margin-bottom: 8rpx;
+}
+.refresh-btn {
+  background: #EFEBFC;
+  border-radius: 24rpx;
+  padding: 8rpx 24rpx;
+}
+
+/* 倒计时卡质感: 常态淡紫, 紧急/临近渐变 */
+.countdown-card {
+  border-radius: 20rpx;
+  box-shadow: 0 6rpx 18rpx rgba(0, 0, 0, 0.07);
+  background: linear-gradient(160deg, #fbfdff 0%, #eef5fb 100%);
+  border: 1rpx solid rgba(26, 82, 118, 0.10);
+}
+.countdown-card.urgent {
+  background: linear-gradient(135deg, #FF5A5A 0%, #FF8A65 100%);
+  border: none;
+  color: #fff;
+}
+.countdown-card.urgent .cd-bignum { color: #fff; }
+.countdown-card.urgent .cd-label { color: rgba(255, 255, 255, 0.9); }
+.countdown-card.urgent .cd-course { color: #fff; }
+.countdown-card.warning {
+  background: linear-gradient(135deg, #FFB300 0%, #FFD54F 100%);
+  border: none;
+  color: #fff;
+}
+.countdown-card.warning .cd-bignum { color: #fff; }
+.countdown-card.warning .cd-label { color: rgba(255, 255, 255, 0.9); }
+.countdown-card.warning .cd-course { color: #fff; }
+
+/* 日期头卡片化 */
+.date-header {
+  background: #fff;
+  border-radius: 16rpx;
+  margin: 16rpx 20rpx 4rpx;
+  padding: 16rpx 24rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.04);
+}
+.exam-scroll { padding-bottom: 20rpx; }
+.exam-card {
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.05);
+  margin: 8rpx 20rpx 0;
+}
+
+
+/* ============================================================
+   V3 视觉升级 — 考试页头部 Hero
+   ============================================================ */
+.top-bar {
+  background: linear-gradient(135deg, #7C6BE8 0%, #8B79EC 60%, #3498db 100%);
+  color: #fff;
+  padding: 24rpx 28rpx;
+}
+.refresh-btn {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
+}
+
+
+/* ============================================================
+   V4 简约风格 — 考试页
+   ============================================================ */
+.top-bar {
+  background: #fff;
+  box-shadow: none;
+  border-bottom: 1rpx solid #E9EDF2;
+  color: #333;
+}
+.refresh-btn {
+  background: #EFEBFC;
+  color: var(--primary);
+  box-shadow: none;
+}
+
+/* 倒计时卡: 白底 + 色条, 去渐变 */
+.countdown-card {
+  background: #fff;
+  border: 1rpx solid #E9EDF2;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+.countdown-card.urgent {
+  background: #FFF7F5;
+  border: 1rpx solid #FFD8CC;
+}
+.countdown-card.urgent .cd-bignum { color: #E53935; }
+.countdown-card.urgent .cd-label { color: #E53935; }
+.countdown-card.urgent .cd-course { color: #333; }
+.countdown-card.warning {
+  background: #FFFDF3;
+  border: 1rpx solid #FFE9B8;
+}
+.countdown-card.warning .cd-bignum { color: #F57C00; }
+.countdown-card.warning .cd-label { color: #F57C00; }
+.countdown-card.warning .cd-course { color: #333; }
+
+.date-header {
+  background: #fff;
+  box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.03);
+}
+.exam-card {
+  box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.03);
+}
+
+
+/* ============================================================
+   V6 桌面端同款 — 考试页
+   ============================================================ */
+/* 倒计时卡: 桌面 白卡 + 顶边状态色 + 状态淡底 */
+.countdown-card {
+  background: #fff;
+  border: none;
+  border-top: 8rpx solid transparent;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  padding: 32rpx;
+}
+.countdown-card.urgent {
+  background: #fdedec;
+  border-top-color: #e74c3c;
+}
+.countdown-card.urgent .cd-bignum { color: #e74c3c; }
+.countdown-card.urgent .cd-label { color: #e74c3c; }
+.countdown-card.urgent .cd-course { color: #33304F; }
+.countdown-card.warning {
+  background: #fef9e7;
+  border-top-color: #f39c12;
+}
+.countdown-card.warning .cd-bignum { color: #f39c12; }
+.countdown-card.warning .cd-label { color: #f39c12; }
+.countdown-card.warning .cd-course { color: #33304F; }
+.countdown-card.done { opacity: 0.6; }
+.cd-bignum { font-size: 80rpx; }
+.cd-label { font-size: 26rpx; }
+.cd-course { font-size: 28rpx; }
+
+/* 日期头: 桌面 .exam-date-header 非卡片, 页面上直接排 */
+.date-header {
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 20rpx 20rpx 10rpx;
+  padding: 0;
+  gap: 12rpx;
+}
+.date-title { font-weight: 700; color: #33304F; }
+
+/* 考试卡: 桌面 .exam-card radius 8px / padding 14px 18px / mb 8px */
+.exam-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx 36rpx;
+  margin: 0 20rpx 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+}
+.exam-course { font-weight: 700; font-size: 32rpx; color: #33304F; margin-bottom: 12rpx; }
+.meta-item { color: #8A87A8; }
+
+/* 刷新按钮 → 桌面 btn-primary 亮蓝 */
+.refresh-btn {
+  background: #8B79EC;
+  color: #fff;
+  border-radius: 16rpx;
+  padding: 10rpx 24rpx;
+}
+
+
+/* ============================================================
+   风格统一 — 对齐课表(白底圆角小方框 + 细边框 + 紫轻阴影 + 统一字体色)
+   ============================================================ */
+.exam-card, .countdown-card {
+  border-radius: 20rpx;
+  border: 2rpx solid #EFEBFC;
+  box-shadow: 0 4rpx 16rpx rgba(87, 74, 160, 0.06);
+}
+.exam-course { color: #33304F; }
+.meta-item { color: #8A87A8; }
+.date-title { color: #33304F; }
+.cd-label, .cd-date { color: #8A87A8; }
+.cd-course { color: #33304F; }
+.date-urgency.done { background: #F2F0FA; color: #8A87A8; }
+
+
+/* 组件根/滚动区 */
+.view-root {
+  height: 100%;
+  box-sizing: border-box;
+}
+.view-scroll {
+  height: 100%;
+}

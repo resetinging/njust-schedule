@@ -1,11 +1,12 @@
 {
   "pages": [
+    "pages/main/main",
+    "pages/gallery/gallery",
     "pages/schedule/schedule",
     "pages/exams/exams",
     "pages/eval/eval",
     "pages/grades/grades",
-    "pages/settings/settings",
-    "pages/gallery/gallery"
+    "pages/settings/settings"
   ],
   "window": {
     "navigationBarTitleText": "课表助手",
@@ -15,6 +16,7 @@
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
+    "custom": true,
     "color": "#9A96B8",
     "selectedColor": "#7C6BE8",
     "backgroundColor": "#FFFFFF",

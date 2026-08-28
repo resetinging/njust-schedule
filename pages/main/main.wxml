@@ -1,0 +1,27 @@
+<!-- 主页面: swiper 承载 5 个 Tab 视图 -->
+<view class="main-page">
+  <swiper class="main-swiper"
+          style="height: {{swiperHeight}}px"
+          current="{{current}}"
+          bindchange="onSwiperChange"
+          duration="260">
+    <swiper-item>
+      <schedule-view id="tabview0" />
+    </swiper-item>
+    <swiper-item>
+      <exams-view id="tabview1" />
+    </swiper-item>
+    <swiper-item>
+      <eval-view id="tabview2" />
+    </swiper-item>
+    <swiper-item>
+      <grades-view id="tabview3" />
+    </swiper-item>
+    <swiper-item>
+      <settings-view id="tabview4" />
+    </swiper-item>
+  </swiper>
+
+  <!-- 自定义 tabBar(手动引用: main 不在 tabBar list 中, 需自渲染) -->
+  <custom-tab-bar id="tabbar" />
+</view>

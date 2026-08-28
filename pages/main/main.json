@@ -1,0 +1,10 @@
+{
+  "usingComponents": {
+    "schedule-view": "/components/schedule-view/index",
+    "exams-view": "/components/exams-view/index",
+    "eval-view": "/components/eval-view/index",
+    "grades-view": "/components/grades-view/index",
+    "settings-view": "/components/settings-view/index",
+    "custom-tab-bar": "/custom-tab-bar/index"
+  }
+}

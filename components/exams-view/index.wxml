@@ -1,0 +1,79 @@
+<!-- 考试安排视图组件 -->
+<view class="container view-root" wx:if="{{active}}">
+
+  <!-- 滚动内容区(scroll-view 内滚 + 自定义下拉刷新阈值) -->
+  <scroll-view class="view-scroll" scroll-y
+               refresher-enabled refresher-threshold="80"
+               refresher-triggered="{{refresherTriggered}}"
+               bindrefresherrefresh="onRefresherRefresh">
+
+    <!-- 加载中 -->
+    <view class="empty-state" wx:if="{{loading && exams.length === 0}}">
+      <view class="icon">⏳</view>
+      <view class="text">加载中…</view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!loading && exams.length === 0}}">
+      <view class="icon">📝</view>
+      <view class="text">暂无考试安排</view>
+      <button class="btn-primary" style="margin-top:32rpx" bindtap="onRefresh">获取考试安排</button>
+    </view>
+
+    <!-- 有数据 -->
+    <block wx:if="{{exams.length > 0}}">
+      <!-- 顶部紫渐变卡片头(课表同款) -->
+      <view class="page-hero">
+        <view class="ph-main">
+          <text class="ph-title">📅 考试安排</text>
+          <text class="ph-sub">共 {{exams.length}} 场考试</text>
+        </view>
+        <text class="ph-refresh" bindtap="onRefresh">🔄 刷新</text>
+      </view>
+
+      <!-- 倒计时卡片 -->
+      <scroll-view scroll-x class="countdown-scroll" wx:if="{{countdowns.length > 0}}">
+        <view class="countdown-row">
+          <view class="countdown-card {{item.cardClass}}" wx:for="{{countdowns}}" wx:key="date">
+            <view class="cd-bignum">{{item.bigNum}}</view>
+            <view class="cd-label">{{item.bigLabel}}</view>
+            <view class="cd-course">{{item.course_name}}</view>
+            <view class="cd-date">{{item.date}} {{item.time || ''}}</view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <!-- 按日期分组的考试列表 -->
+      <scroll-view scroll-y class="exam-scroll">
+        <block wx:for="{{dayGroups}}" wx:key="date" wx:for-item="group">
+          <!-- 日期头部（已结束可折叠） -->
+          <view class="date-header" data-date="{{group.date}}" data-done="{{group.urgency === 'done'}}" bindtap="onToggleGroup">
+            <text class="date-title">📅 {{group.date}} {{group.weekday}}</text>
+            <view class="date-right">
+              <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>
+              <text wx:if="{{group.urgency === 'done'}}" class="collapse-arrow">
+                {{collapsedDates[group.date] ? '展开 ▾' : '折叠 ▴'}}
+              </text>
+            </view>
+          </view>
+
+          <!-- 考试卡片（已结束且折叠时隐藏） -->
+          <block wx:if="{{!(group.urgency === 'done' && collapsedDates[group.date])}}">
+            <view class="exam-card {{group.urgency === 'urgent' ? 'exam-urgent' : ''}} {{group.urgency === 'warning' ? 'exam-warning' : ''}} {{group.urgency === 'done' ? 'exam-done' : ''}}"
+                  wx:for="{{group.exams}}" wx:key="course_name" wx:for-item="exam">
+              <view class="exam-course">{{exam.course_name}}</view>
+              <view class="exam-meta">
+                <text class="meta-item">⏰ {{exam.time || '待定'}}</text>
+                <text class="meta-item">📍 {{exam.location || '待定'}}</text>
+                <text class="meta-item" wx:if="{{exam.seat}}">💺 {{exam.seat}}</text>
+                <text class="meta-item">📋 {{exam.type || '期末考试'}}</text>
+              </view>
+            </view>
+          </block>
+        </block>
+      </scroll-view>
+    </block>
+
+  </scroll-view>
+
+</view>

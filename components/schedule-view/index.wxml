@@ -1,0 +1,158 @@
+<!-- 课表视图组件 -->
+<view class="container view-root" wx:if="{{active}}">
+
+  <!-- 滚动内容区(scroll-view 内滚 + 自定义下拉刷新阈值) -->
+  <scroll-view class="view-scroll" scroll-y
+               refresher-enabled refresher-threshold="80"
+               refresher-triggered="{{refresherTriggered}}"
+               bindrefresherrefresh="onRefresherRefresh">
+
+    <!-- 顶部紫渐变信息卡 -->
+    <view class="top-card">
+      <view class="tc-main">
+        <picker mode="selector" range="{{semesters}}" bindchange="onSemesterChange">
+          <view class="tc-sem">{{semester || '选择学期'}}</view>
+        </picker>
+        <view class="tc-user">
+          <text class="tc-avatar">👤</text>
+          <text>{{studentName || '未登录'}}</text>
+          <text wx:if="{{studentId}}" class="tc-id">({{studentId}})</text>
+        </view>
+      </view>
+      <view class="tc-right">
+        <view class="view-toggle">
+          <text class="toggle-btn {{viewMode === 'grid' ? 'active' : ''}}"
+                data-mode="grid" bindtap="switchView">▦</text>
+          <text class="toggle-btn {{viewMode === 'list' ? 'active' : ''}}"
+                data-mode="list" bindtap="switchView">☰</text>
+        </view>
+        <picker mode="selector" range="{{weekPickerRange}}" bindchange="onJumpWeek">
+          <view class="tc-week">第 {{currentWeek || 1}} 周 ▼</view>
+        </picker>
+      </view>
+    </view>
+
+    <!-- 工具栏: 上下周 + 搜索 -->
+    <view class="toolbar">
+      <view class="week-nav">
+        <text class="week-btn" bindtap="prevWeek">◀</text>
+        <view class="week-label">
+          <text class="week-main">
+            {{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周（本周）' : '第 ' + (currentWeek || 1) + ' 周'}}
+          </text>
+          <text class="week-range" wx:if="{{weekRange}}">{{weekRange}}</text>
+        </view>
+        <text class="week-btn" bindtap="nextWeek">▶</text>
+      </view>
+      <view class="search-box">
+        <text class="search-icon">🔍</text>
+        <input class="search-input" placeholder="搜索课程 / 教师"
+               value="{{searchText}}" bindinput="onSearchInput"
+               confirm-type="search" />
+        <text wx:if="{{searchText}}" class="search-clear" bindtap="onClearSearch">✕</text>
+      </view>
+    </view>
+
+    <!-- 网格视图 -->
+    <view class="grid-wrapper" wx:if="{{viewMode === 'grid' && !loading && filteredCourses.length > 0}}">
+      <week-grid
+        courses="{{filteredCourses}}"
+        currentWeek="{{currentWeek}}"
+        firstWeekDate="{{firstWeekDate}}"
+        todayDay="{{todayDay}}"
+        bind:coursetap="onCourseTap"
+      />
+    </view>
+
+    <!-- 列表视图 -->
+    <view class="list-wrapper" wx:if="{{viewMode === 'list' && !loading}}">
+      <block wx:if="{{listDayGroups.length > 0}}">
+        <view class="day-group" wx:for="{{listDayGroups}}" wx:key="day" wx:for-item="group">
+          <view class="day-title">{{group.dayName}}</view>
+          <view
+            wx:for="{{group.courses}}"
+            wx:key="index"
+            wx:for-item="c"
+            class="course-card {{c.week_type === 1 ? 'type-odd' : ''}} {{c.week_type === 2 ? 'type-even' : ''}}"
+            bindtap="onCourseTap"
+            data-course="{{c}}"
+          >
+              <view class="card-header">
+                <text class="card-name">{{c.name}}</text>
+                <text class="card-periods">{{c.start || c.start_period}}-{{c.end || c.end_period}}节</text>
+              </view>
+              <view class="card-body">
+                <text wx:if="{{c.teacher}}">👨‍🏫 {{c.teacher}}</text>
+                <text wx:if="{{c.classroom}}">📍 {{c.classroom}}</text>
+              </view>
+              <view class="card-footer">
+                <text class="card-weeks">📅 {{c.weeks || '1-18周'}}</text>
+                <text class="card-badge" wx:if="{{c.week_type === 1}}">单周</text>
+                <text class="card-badge even" wx:if="{{c.week_type === 2}}">双周</text>
+              </view>
+          </view>
+        </view>
+      </block>
+      <view class="empty-state" wx:else>
+        <text>{{searchText ? '没有匹配的课程' : '本周暂无课程'}}</text>
+      </view>
+    </view>
+
+    <!-- 网格视图空结果（搜索无匹配） -->
+    <view class="empty-state" wx:if="{{viewMode === 'grid' && !loading && filteredCourses.length === 0 && courses.length > 0}}">
+      <view class="icon">🔍</view>
+      <view class="text">没有匹配的课程</view>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="empty-state" wx:if="{{loading}}">
+      <view class="icon">⏳</view>
+      <view class="text">加载中…</view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!loading && courses.length === 0}}">
+      <view class="icon">📅</view>
+      <view class="text">暂无课表数据</view>
+      <button class="btn-primary" style="margin-top:32rpx" bindtap="onRefresh">获取课表</button>
+    </view>
+
+  </scroll-view>
+
+  <!-- 课程详情弹窗(fixed, 放 scroll-view 外避免随滚动) -->
+  <view class="modal-mask" wx:if="{{showDetail}}" bindtap="closeDetail">
+    <view class="modal-card" catchtap="">
+      <view class="modal-title">
+        {{detailCourse.name}}
+        <text class="modal-badge" wx:if="{{detailCourse.week_type === 1}}">单周</text>
+        <text class="modal-badge even" wx:if="{{detailCourse.week_type === 2}}">双周</text>
+      </view>
+      <view class="modal-row">
+        <text class="label">教师</text>
+        <text class="m-value">{{detailCourse.teacher || '未指定'}}</text>
+      </view>
+      <view class="modal-row">
+        <text class="label">教室</text>
+        <text class="m-value">{{detailCourse.classroom || '未指定'}}</text>
+      </view>
+      <view class="modal-row">
+        <text class="label">时间</text>
+        <text class="m-value">{{detailCourse._dayName}} {{detailCourse._timeText}}</text>
+      </view>
+      <view class="modal-row">
+        <text class="label">周次</text>
+        <text class="m-value weeks-text">{{detailCourse._weeksText}}</text>
+      </view>
+      <view class="modal-row">
+        <text class="label">学分</text>
+        <text class="m-value">{{detailCourse.credits}}</text>
+      </view>
+      <view class="modal-row" wx:if="{{detailCourse.course_type || detailCourse.type}}">
+        <text class="label">类型</text>
+        <text class="m-value">{{detailCourse.course_type || detailCourse.type}}</text>
+      </view>
+      <button class="btn-primary" style="margin-top:24rpx" bindtap="closeDetail">关闭</button>
+    </view>
+  </view>
+
+</view>

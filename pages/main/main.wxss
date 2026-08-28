@@ -1,0 +1,8 @@
+/* 主页面 */
+.main-page {
+  height: 100vh;
+  background: #F7F6FB;
+}
+.main-swiper {
+  width: 100%;
+}

@@ -1,0 +1,33 @@
+/* 自定义 tabBar */
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  background: #FFFFFF;
+  border-top: 1rpx solid #EFECF5;
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 999;
+}
+.tab-bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12rpx 0 10rpx;
+}
+.tab-icon {
+  width: 46rpx;
+  height: 46rpx;
+}
+.tab-text {
+  margin-top: 4rpx;
+  font-size: 20rpx;
+  color: #9A96B8;
+}
+.tab-text.active {
+  color: #7C6BE8;
+  font-weight: 600;
+}
