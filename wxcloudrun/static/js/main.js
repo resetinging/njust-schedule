@@ -200,6 +200,14 @@ async function loadStatus() {
         const badge = document.getElementById('semester-badge');
         if (badge) badge.textContent = data.semester || '';
         updateNavStatus(data);
+        // 会话静默失效检测: 本地有 token 但后端未登录 → 清理并提示
+        if (getToken() && !data.logged_in) {
+            if (!sessionStorage.getItem('_njust_session_expired_toast')) {
+                sessionStorage.setItem('_njust_session_expired_toast', '1');
+                clearToken();
+                showToast('⚠️ 登录已过期，请重新登录', 'warning');
+            }
+        }
     } catch (e) {
         console.error('获取状态失败:', e);
     }
