@@ -697,3 +697,36 @@
 .batch-card, .course-card, .indicator-card, .countdown-card {
   border: 2rpx solid #EFEBFC;
 }
+
+/* 批次信息: 学期标签+批次名一行, 日期+链接一行 */
+.bi-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-bottom: 8rpx;
+}
+
+.bi-batch {
+  font-size: 26rpx;
+  color: #33304F;
+  font-weight: 500;
+}
+
+.bi-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-top: 4rpx;
+}
+
+.bi-dates {
+  font-size: 23rpx;
+  color: #8A87A8;
+}
+
+.batch-link-hint {
+  font-size: 23rpx;
+  color: #7C6BE8;
+  font-weight: 500;
+}

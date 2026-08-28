@@ -51,10 +51,14 @@
           </view>
         </view>
         <view class="batch-info">
-          <text wx:if="{{item.semester}}" class="sem-tag">{{item.semester}}</text>
-          <text wx:if="{{item._batchText}}">{{item._batchText}}</text>
-          <text wx:if="{{item.start_date}}">📅 {{item.start_date}} ~ {{item.end_date}}</text>
-          <text wx:if="{{item.items && item.items.length}}" class="batch-link-hint">点击查看课程 →</text>
+          <view class="bi-title-row">
+            <text wx:if="{{item.semester}}" class="sem-tag">{{item.semester}}</text>
+            <text class="bi-batch" wx:if="{{item._batchText}}">{{item._batchText}}</text>
+          </view>
+          <view class="bi-meta-row">
+            <text wx:if="{{item.start_date}}" class="bi-dates">📅 {{item.start_date}} ~ {{item.end_date}}</text>
+            <text wx:if="{{item.items && item.items.length}}" class="batch-link-hint">点击查看课程 →</text>
+          </view>
         </view>
       </view>
     </block>
