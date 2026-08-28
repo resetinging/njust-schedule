@@ -32,25 +32,33 @@ App({
     }
   },
 
-  /** 静默校验后端会话有效性（有本地登录态时） */
+  /** 静默校验后端会话: 失效时先尝试自动重登(记住密码), 失败才提示 */
   _checkSession() {
     api.getStatus().then((res) => {
       if (res && res.logged_in) return
-      // 后端无会话(或网络异常时保守不清除, 仅当明确未登录才提示)
       if (res && !res.logged_in) {
-        storage.clearAll()
-        this.globalData.isLoggedIn = false
-        this.globalData.studentName = ''
-        this.globalData.semester = ''
-        wx.showModal({
-          title: '登录已过期',
-          content: '后端会话已失效，请重新登录',
-          showCancel: false,
-          confirmText: '去登录'
+        api.autoRelogin().then((newToken) => {
+          if (newToken) {
+            // 自动恢复登录成功
+            this.globalData.isLoggedIn = true
+            this.globalData.studentName = storage.getStudentName()
+            this.globalData.semester = storage.getSemester()
+          } else {
+            storage.clearAll()
+            this.globalData.isLoggedIn = false
+            this.globalData.studentName = ''
+            this.globalData.semester = ''
+            wx.showModal({
+              title: '登录已过期',
+              content: '后端会话已失效且自动重登失败，请手动登录',
+              showCancel: false,
+              confirmText: '去登录'
+            })
+          }
         })
       }
     }).catch(() => {
-      // 网络失败不打扰用户, 由后续请求的 401 处理兜底
+      // 网络失败不打扰用户, 由后续请求的 401 自动重登兜底
     })
   },
 

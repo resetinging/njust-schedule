@@ -15,89 +15,123 @@ const TOKEN_KEY = 'token'
 
 /**
  * 发起 HTTP 请求（通过云托管内网，免域名白名单）
+ * 401 自动重登: 非登录接口收到 401 时, 若本地记住了学号密码,
+ * 自动重登一次并重试原请求; 重登失败才清理登录态并提示。
  * @param {string} method - GET | POST
  * @param {string} path - API 路径 (如 '/api/get-captcha')
  * @param {object} data - 请求参数
  * @returns {Promise<object>} { success, data, message }
  */
 function request(method, path, data = {}) {
-  const header = { 'Content-Type': 'application/json' }
-  const token = storage.get(TOKEN_KEY, '')
-  if (token) header['X-Auth-Token'] = token
-
-  // 非登录接口收到 401 = 后端会话已失效(容器重启/过期):
-  // 清理本地登录态并提示, 避免界面仍显示已登录、下次操作才报错
   const isLoginPath = /\/api\/(login|get-webvpn-captcha|get-captcha)/.test(path)
-  const handle401 = () => {
-    if (isLoginPath) return false
-    if (storage.get(TOKEN_KEY, '')) {
-      storage.clearAll()
-      wx.showToast({ title: '登录已过期，请重新登录', icon: 'none', duration: 2500 })
-      return true
+  let attempt = 0   // 401 自动重登只尝试一次, 避免循环
+
+  const handleFail = (statusCode, payload) => {
+    // 会话失效且非登录接口: 尝试自动重登(记住密码), 成功则重试
+    if (statusCode === 401 && !isLoginPath && attempt === 0) {
+      attempt = 1
+      return autoRelogin().then((newToken) => {
+        if (newToken) return send(newToken)
+        clearSessionAndToast()
+        return {
+          success: false,
+          message: (payload && payload.message) || '登录已过期，请重新登录'
+        }
+      })
     }
-    return false
+    if (statusCode === 401 && !isLoginPath) clearSessionAndToast()
+    return {
+      success: false,
+      message: (payload && payload.message) || ('服务器错误 ' + statusCode)
+    }
   }
 
-  // 本地联调: 直连本机 Flask(需开发者工具勾选「不校验合法域名」)
-  if (config.USE_LOCAL) {
+  const send = (token) => {
+    const header = { 'Content-Type': 'application/json' }
+    if (token) header['X-Auth-Token'] = token
+
+    // 本地联调: 直连本机 Flask(需开发者工具勾选「不校验合法域名」)
+    if (config.USE_LOCAL) {
+      return new Promise((resolve) => {
+        wx.request({
+          url: config.LOCAL_BASE + path,
+          method,
+          header,
+          data,
+          timeout: config.REQUEST_TIMEOUT,
+          success(res) {
+            if (res.statusCode === 200) resolve(res.data)
+            else resolve(handleFail(res.statusCode, res.data))
+          },
+          fail(err) {
+            resolve({
+              success: false,
+              message: '网络请求失败: ' + (err.errMsg || '未知错误')
+            })
+          }
+        })
+      })
+    }
+
     return new Promise((resolve) => {
-      wx.request({
-        url: config.LOCAL_BASE + path,
+      // 服务名通过 X-WX-SERVICE header 传递（官方兼容写法）；
+      // config 仅放 env，避免部分基础库版本不支持 config.service 导致
+      // 请求丢失服务名 → 网关 INVALID_PATH。
+      wx.cloud.callContainer({
+        config: { env: config.CLOUD_ENV },
+        path,
         method,
-        header,
+        header: Object.assign({ 'X-WX-SERVICE': config.CLOUD_SERVICE }, header),
         data,
         timeout: config.REQUEST_TIMEOUT,
         success(res) {
-          if (res.statusCode === 200) {
-            resolve(res.data)
-          } else {
-            if (res.statusCode === 401) handle401()
-            resolve({
-              success: false,
-              message: (res.data && res.data.message) || ('服务器错误 ' + res.statusCode)
-            })
-          }
+          if (res.statusCode === 200) resolve(res.data)
+          else resolve(handleFail(res.statusCode, res.data))
         },
         fail(err) {
           resolve({
             success: false,
-            message: '网络请求失败: ' + (err.errMsg || '未知错误')
+            message: `网络请求失败: ${err.errMsg || '未知错误'}`
           })
         }
       })
     })
   }
 
-  return new Promise((resolve) => {
-    // 服务名通过 X-WX-SERVICE header 传递（官方兼容写法）；
-    // config 仅放 env，避免部分基础库版本不支持 config.service 导致
-    // 请求丢失服务名 → 网关 INVALID_PATH。
-    wx.cloud.callContainer({
-      config: { env: config.CLOUD_ENV },
-      path,
-      method,
-      header: Object.assign({ 'X-WX-SERVICE': config.CLOUD_SERVICE }, header),
-      data,
-      timeout: config.REQUEST_TIMEOUT,
-      success(res) {
-        if (res.statusCode === 200) {
-          resolve(res.data)
-        } else {
-          if (res.statusCode === 401) handle401()
-          resolve({
-            success: false,
-            message: (res.data && res.data.message) || `服务器错误 ${res.statusCode}`
-          })
-        }
-      },
-      fail(err) {
-        resolve({
-          success: false,
-          message: `网络请求失败: ${err.errMsg || '未知错误'}`
-        })
-      }
-    })
+  return send(storage.get(TOKEN_KEY, ''))
+}
+
+// 会话失效时自动重登（记住密码的防并发重入）
+let _autoReloginPromise = null
+
+/**
+ * 用记住的学号和密码自动重新登录（服务端 OCR 识别验证码, 无需用户操作）
+ * @returns {Promise<string|null>} 新 token 或 null(失败/未记住密码)
+ */
+function autoRelogin() {
+  const sid = storage.getStudentId()
+  const pwd = storage.get('saved_password', '')
+  if (!sid || !pwd) return Promise.resolve(null)
+  if (_autoReloginPromise) return _autoReloginPromise
+  _autoReloginPromise = request('POST', '/api/login', {
+    student_id: sid,
+    password: pwd
+  }).then((res) => {
+    _autoReloginPromise = null
+    return (res && res.success && res.token) ? res.token : null
+  }).catch(() => {
+    _autoReloginPromise = null
+    return null
   })
+  return _autoReloginPromise
+}
+
+/** 清理本地登录态并提示（自动重登失败后的兜底） */
+function clearSessionAndToast() {
+  if (storage.get(TOKEN_KEY, '')) {
+    storage.clearAll()
+    wx.showToast({ title: '登录已过期，请重新登录', icon: 'none', duration: 2500 })
+  }
 }
 
 // ============================================================
@@ -111,6 +145,7 @@ function getCaptcha() {
 
 /** 手动输入验证码登录（多用户：携带 captcha_id 绑定验证码会话） */
 function login(studentId, password, captcha, captchaId) {
+  const hadSavedPwd = storage.get('saved_password', '')
   return request('POST', '/api/login-manual', {
     student_id: studentId,
     password: password,
@@ -123,6 +158,7 @@ function login(studentId, password, captcha, captchaId) {
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
       storage.set(TOKEN_KEY, res.token || '')
+      if (hadSavedPwd) storage.set('saved_password', password)  // 延续记住密码
     }
     return res
   })
@@ -130,6 +166,7 @@ function login(studentId, password, captcha, captchaId) {
 
 /** 教务直连自动登录（服务端 ddddocr 自动识别验证码，无需输入） */
 function loginAuto(studentId, password) {
+  const hadSavedPwd = storage.get('saved_password', '')
   return request('POST', '/api/login', {
     student_id: studentId,
     password: password
@@ -140,6 +177,7 @@ function loginAuto(studentId, password) {
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
       storage.set(TOKEN_KEY, res.token || '')
+      if (hadSavedPwd) storage.set('saved_password', password)  // 延续记住密码
     }
     return res
   })
@@ -310,6 +348,7 @@ function refreshCet() {
 
 /** Step 1: 智慧理工 SSO 登录并获取教务验证码（含 captcha_id / 直接登录 token） */
 function getWebvpnCaptcha(studentId, password) {
+  const hadSavedPwd = storage.get('saved_password', '')
   return request('POST', '/api/get-webvpn-captcha', {
     student_id: studentId,
     password: password
@@ -319,6 +358,7 @@ function getWebvpnCaptcha(studentId, password) {
       storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
       storage.setStudentId(studentId)
       storage.set(TOKEN_KEY, res.token)
+      if (hadSavedPwd) storage.set('saved_password', password)  // 延续记住密码
     }
     return res
   })
@@ -326,6 +366,7 @@ function getWebvpnCaptcha(studentId, password) {
 
 /** Step 2: 使用验证码完成教务登录（智慧理工模式，携带 captcha_id） */
 function loginWebvpnManual(studentId, password, jwcPassword, captcha, captchaId) {
+  const hadSavedPwd = storage.get('saved_password', '')
   return request('POST', '/api/login-webvpn-manual', {
     student_id: studentId,
     password: password,
@@ -339,6 +380,7 @@ function loginWebvpnManual(studentId, password, jwcPassword, captcha, captchaId)
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
       storage.set(TOKEN_KEY, res.token || '')
+      if (hadSavedPwd) storage.set('saved_password', password)  // 延续记住密码
     }
     return res
   })
@@ -346,6 +388,7 @@ function loginWebvpnManual(studentId, password, jwcPassword, captcha, captchaId)
 
 /** 智慧理工模式自动登录（自动 OCR 教务验证码） */
 function loginWebvpn(studentId, password, jwcPassword) {
+  const hadSavedPwd = storage.get('saved_password', '')
   return request('POST', '/api/login-webvpn', {
     student_id: studentId,
     password: password,
@@ -357,6 +400,7 @@ function loginWebvpn(studentId, password, jwcPassword) {
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
       storage.set(TOKEN_KEY, res.token || '')
+      if (hadSavedPwd) storage.set('saved_password', password)  // 延续记住密码
     }
     return res
   })
@@ -385,6 +429,7 @@ module.exports = {
   getCaptcha,
   login,
   loginAuto,
+  autoRelogin,
   logout,
   getCourses,
   refreshSchedule,
