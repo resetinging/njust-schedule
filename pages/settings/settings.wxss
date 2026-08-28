@@ -334,3 +334,13 @@
   box-shadow: none;
 }
 
+
+/* ============================================================
+   风格统一 — 对齐课表(白底圆角小方框 + 细边框 + 紫轻阴影)
+   ============================================================ */
+.user-card, .login-card, .setting-card {
+  border-radius: 20rpx;
+  border: 2rpx solid #EFEBFC;
+  box-shadow: 0 4rpx 16rpx rgba(87, 74, 160, 0.06);
+}
+.login-card { box-shadow: 0 8rpx 28rpx rgba(87, 74, 160, 0.12); }

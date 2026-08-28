@@ -690,3 +690,10 @@
   padding: 2rpx 12rpx;
   margin-right: 8rpx;
 }
+
+/* ============================================================
+   风格统一 — 对齐课表(卡片加细边框)
+   ============================================================ */
+.batch-card, .course-card, .indicator-card, .countdown-card {
+  border: 2rpx solid #EFEBFC;
+}

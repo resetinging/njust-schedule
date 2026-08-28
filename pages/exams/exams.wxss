@@ -407,3 +407,18 @@
   padding: 10rpx 24rpx;
 }
 
+
+/* ============================================================
+   风格统一 — 对齐课表(白底圆角小方框 + 细边框 + 紫轻阴影 + 统一字体色)
+   ============================================================ */
+.exam-card, .countdown-card {
+  border-radius: 20rpx;
+  border: 2rpx solid #EFEBFC;
+  box-shadow: 0 4rpx 16rpx rgba(87, 74, 160, 0.06);
+}
+.exam-course { color: #33304F; }
+.meta-item { color: #8A87A8; }
+.date-title { color: #33304F; }
+.cd-label, .cd-date { color: #8A87A8; }
+.cd-course { color: #33304F; }
+.date-urgency.done { background: #F2F0FA; color: #8A87A8; }
