@@ -30,10 +30,12 @@
   <view class="toolbar">
     <view class="week-nav">
       <text class="week-btn" bindtap="prevWeek">◀</text>
-      <text class="week-label">
-        {{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周（本周）' : '第 ' + (currentWeek || 1) + ' 周'}}
-        <text wx:if="{{weekRange}}" class="week-range"> · {{weekRange}}</text>
-      </text>
+      <view class="week-label">
+        <text class="week-main">
+          {{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周（本周）' : '第 ' + (currentWeek || 1) + ' 周'}}
+        </text>
+        <text class="week-range" wx:if="{{weekRange}}">{{weekRange}}</text>
+      </view>
       <text class="week-btn" bindtap="nextWeek">▶</text>
     </view>
     <view class="search-box">
