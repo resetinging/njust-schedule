@@ -123,7 +123,7 @@
 
     <!-- 提示 -->
     <view class="login-tip">
-      <text>{{loginMode === 'webvpn' ? '智慧理工密码与教务密码可能不同，请分别填写' : '需要连接校园网或学校 VPN'}}</text>
+      <text>{{loginMode === 'webvpn' ? '智慧理工密码与教务密码可能不同，请分别填写' : '登录后即可查看课表、考试与成绩'}}</text>
     </view>
   </view>
 
