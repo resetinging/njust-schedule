@@ -42,6 +42,7 @@ Page({
    * 分片下载图片 → 本地文件。
    * callContainer 返回包限制约 1000KB, 高清图(base64 >700KB)必须分片:
    * 先取 meta 得到片数, 再逐片请求 base64 拼接后写文件。
+   * 每片失败自动重试(冷启动/网络抖动导致超时常见), 重试 2 次仍失败才放弃。
    * @param {string} name 图片文件名
    * @param {Function} onProgress (done, total) 进度回调
    */
@@ -53,9 +54,19 @@ Page({
     const parts = meta.parts
     let b64 = ''
     for (let p = 0; p < parts; p++) {
-      const res = await api.getGalleryImagePart(name, p)
+      let res = null
+      for (let tryN = 0; tryN < 3; tryN++) {
+        try {
+          res = await api.getGalleryImagePart(name, p)
+          if (res && res.success && res.data_b64) break
+        } catch (e) {
+          res = null
+        }
+        // 重试前等待: 冷启动通常在首个请求后完成, 后续重试间隔递增
+        if (tryN < 2) await new Promise(r => setTimeout(r, 600 * (tryN + 1)))
+      }
       if (!res || !res.success || !res.data_b64) {
-        throw new Error(`分片 ${p + 1}/${parts} 下载失败`)
+        throw new Error(`分片 ${p + 1}/${parts} 下载失败${res && res.message ? ': ' + res.message : ''}`)
       }
       b64 += res.data_b64
       if (onProgress) onProgress(p + 1, parts)

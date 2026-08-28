@@ -20,9 +20,11 @@ const TOKEN_KEY = 'token'
  * @param {string} method - GET | POST
  * @param {string} path - API 路径 (如 '/api/get-captcha')
  * @param {object} data - 请求参数
+ * @param {object} opts - 可选 { timeout: 毫秒 }
  * @returns {Promise<object>} { success, data, message }
  */
-function request(method, path, data = {}) {
+function request(method, path, data = {}, opts) {
+  const timeout = (opts && opts.timeout) || config.REQUEST_TIMEOUT
   const isLoginPath = /\/api\/(login|get-webvpn-captcha|get-captcha)/.test(path)
   let attempt = 0   // 401 自动重登只尝试一次, 避免循环
 
@@ -58,7 +60,7 @@ function request(method, path, data = {}) {
           method,
           header,
           data,
-          timeout: config.REQUEST_TIMEOUT,
+          timeout,
           success(res) {
             if (res.statusCode === 200) resolve(res.data)
             else resolve(handleFail(res.statusCode, res.data))
@@ -83,7 +85,7 @@ function request(method, path, data = {}) {
         method,
         header: Object.assign({ 'X-WX-SERVICE': config.CLOUD_SERVICE }, header),
         data,
-        timeout: config.REQUEST_TIMEOUT,
+        timeout,
         success(res) {
           if (res.statusCode === 200) resolve(res.data)
           else resolve(handleFail(res.statusCode, res.data))
@@ -425,9 +427,10 @@ function getGalleryImageMeta(name) {
   return request('GET', '/api/gallery-image-meta', { name })
 }
 
-/** 获取单张校历图片的第 part 片（base64, part 从 0 开始） */
+/** 获取单张校历图片的第 part 片（base64, part 从 0 开始）
+ *  60s 超时: 云托管冷启动 + 大响应体, 30s 不够 */
 function getGalleryImagePart(name, part) {
-  return request('GET', '/api/gallery-image-part', { name, part })
+  return request('GET', '/api/gallery-image-part', { name, part }, { timeout: 60000 })
 }
 
 /** 获取单张校历图片（base64, 仅限小图: callContainer 返回包限制 ~1000KB） */
