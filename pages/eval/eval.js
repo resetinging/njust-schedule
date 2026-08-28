@@ -7,7 +7,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
-const { timeUntilDeadline } = require('../../utils/date')
+const { timeUntilDeadline, parseDateStr } = require('../../utils/date')
 
 Page({
   data: {
@@ -49,9 +49,14 @@ Page({
     batchId: ''
   },
 
+  /** 缓存键带学期: 切换学期后不显示上一学期的批次 */
+  _evalCacheKey() {
+    return 'cached_evaluations_' + (storage.getSemester() || 'default')
+  },
+
   onLoad() {
     // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
-    const batches = storage.getCached('cached_evaluations')
+    const batches = storage.getCached(this._evalCacheKey())
     if (batches && batches.evaluations) {
       this.setData({ batches: batches.evaluations })
       this._processBatches(batches.evaluations)
@@ -69,7 +74,7 @@ Page({
         const batches = res.evaluations || []
         this.setData({ batches })
         this._processBatches(batches)
-        storage.setCached('cached_evaluations', res)
+        storage.setCached(this._evalCacheKey(), res)
       } else {
         wx.showToast({ title: res.message || '加载失败', icon: 'none' })
       }
@@ -79,13 +84,25 @@ Page({
     }
   },
 
-  /** 处理批次数据：倒计时 + 每批次紧迫度 */
+  /** 处理批次数据：倒计时 + 每批次紧迫度 + 日期清洗 */
   _processBatches(batches) {
+    // 日期清洗: "2025-12-01 00:00:00" → "2025-12-01"
+    const cleanDate = (s) => {
+      if (!s) return ''
+      const d = parseDateStr(s)
+      if (!d) return String(s)
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      return `${d.getFullYear()}-${m}-${dd}`
+    }
+
     // 给每个批次附加紧迫度信息
     const enriched = batches.map(b => {
       const info = timeUntilDeadline(b.end_date)
       return {
         ...b,
+        start_date: cleanDate(b.start_date),
+        end_date: cleanDate(b.end_date),
         _urgency: b.is_done ? '' : info.cls,
         _deadlineText: b.is_done ? '已完成' : info.text
       }
@@ -107,7 +124,7 @@ Page({
     } else {
       countdowns = undone.slice(0, 3).map(b => {
         const totalHours = (() => {
-          const end = this._parseDate(b.end_date)
+          const end = parseDateStr(b.end_date)
           if (!end) return 0
           end.setHours(23, 59, 59, 0)
           return (end - new Date()) / (1000 * 60 * 60)
@@ -115,7 +132,7 @@ Page({
         let bigNum, bigLabel
         if (totalHours < 0) { bigNum = '!'; bigLabel = '已截止' }
         else if (totalHours < 24) { bigNum = Math.floor(totalHours) + 'h'; bigLabel = '小时后截止' }
-        else { bigNum = Math.floor(totalHours / 24); bigLabel = b._deadlineText }
+        else { bigNum = Math.floor(totalHours / 24); bigLabel = '天后截止' }
 
         return {
           bigNum, bigLabel,
@@ -126,13 +143,6 @@ Page({
     }
 
     this.setData({ batches: enriched, countdowns })
-  },
-
-  _parseDate(str) {
-    if (!str) return null
-    const parts = str.split('-')
-    if (parts.length !== 3) return null
-    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
   },
 
   /** 刷新 */

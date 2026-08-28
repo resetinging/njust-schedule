@@ -174,7 +174,9 @@ function timeUntilDeadline(endDateStr) {
  */
 function parseDateStr(str) {
   if (!str) return null
-  const parts = String(str).split(/[-/]/).map(Number)
+  // 兼容 "2025-12-01" / "2025/12/01" / "2025-12-01 00:00:00" / "2025-12-01T00:00:00"
+  const datePart = String(str).split(/[ T]/)[0]
+  const parts = datePart.split(/[-/]/).map(Number)
   if (parts.length >= 3 && parts[0] > 1900 &&
       parts[1] >= 1 && parts[1] <= 12 &&
       parts[2] >= 1 && parts[2] <= 31) {
