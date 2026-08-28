@@ -43,7 +43,8 @@ Page({
 
   onShow() {
     const app = getApp()
-    if (app.globalData.semester) {
+    // 仅当页面尚未选择学期时用全局值, 避免覆盖用户手动切换的学期
+    if (app.globalData.semester && !this.data.semester) {
       this.setData({ semester: app.globalData.semester })
     }
     this._syncUser()
@@ -130,7 +131,10 @@ Page({
         // 缓存键带学期: 按实际返回的学期写缓存
         const cacheSem = res.semester || storage.getSemester() || 'default'
         storage.setCached('cached_courses_' + cacheSem, res.courses)
-        if (res.semester) storage.setSemester(res.semester)
+        if (res.semester) {
+          storage.setSemester(res.semester)
+          getApp().globalData.semester = res.semester   // 同步全局
+        }
         this.filterByWeek(this.data.currentWeek)
       } else {
         this.setData({ loading: false })
@@ -243,6 +247,7 @@ Page({
         const res = await api.setSemester(semester)
         if (res && res.success) {
           this.setData({ semester })
+          getApp().globalData.semester = semester   // 同步全局, 防止 onShow 覆盖回旧学期
           this.loadFromServer(semester)   // 显式传参
         } else {
           wx.showToast({ title: (res && res.message) || '切换学期失败', icon: 'none' })
