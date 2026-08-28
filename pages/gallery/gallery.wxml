@@ -6,6 +6,9 @@
                  showProgress="{{downloadPercent > 0}}"
                  percent="{{downloadPercent}}" />
 
+  <!-- 诊断信息(仅出错时显示) -->
+  <view class="diag-tip" wx:if="{{diag}}">{{diag}}</view>
+
   <!-- 空状态 / 错误 -->
   <view wx:if="{{!loading && errorMsg}}" class="empty-state">
     <view class="icon">🖼️</view>

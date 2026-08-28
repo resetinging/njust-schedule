@@ -1,8 +1,8 @@
 /**
  * 校历 & 照片墙页面
  * 缓存策略: 图片下载后保存到本地文件(USER_DATA_PATH);
- * 渲染时优先检索本地文件, 命中则零网络请求直接显示;
- * 本地缺失(或图片列表缓存过期 24h)才向服务器请求列表, 且只下载缺失的图片。
+ * 渲染时优先检索本地文件 → 秒开零等待;
+ * 同时后台静默检查服务器列表, 补齐缺失图片(新图/失败重试自动生效)。
  */
 
 const api = require('../../utils/api')
@@ -10,7 +10,6 @@ const storage = require('../../utils/storage')
 const fs = wx.getFileSystemManager()
 
 const GALLERY_META_KEY = 'cached_gallery_meta'   // {t: 时间戳, names: [文件名]}
-const META_TTL = 24 * 60 * 60 * 1000            // 图片列表缓存 24h(已下载文件不再重传)
 const GALLERY_DIR = wx.env.USER_DATA_PATH
 
 Page({
@@ -19,7 +18,8 @@ Page({
     errorMsg: '',
     images: [],        // [{name, title, src: 本地文件路径}]
     downloadMsg: '',   // 下载进度文案
-    downloadPercent: 0 // 下载进度 0-100
+    downloadPercent: 0,// 下载进度 0-100
+    diag: ''           // 诊断信息(排查问题用, 正常时为空)
   },
 
   onLoad() {
@@ -40,29 +40,22 @@ Page({
 
   /**
    * 直链二进制下载（优先）: wx.downloadFile 直接拉取后端静态文件。
+   * filePath 参数直接落盘到本地缓存路径(基础库 2.10+), 避免临时文件兼容问题。
    * 不走 callContainer — 该通道在部分环境会 ERR_CONNECTION_CLOSED /
    * 受返回包 ~1000KB 限制, 且 base64 有 4/3 体积膨胀。
    * @param {string} name 图片文件名
    * @returns {Promise<string>} 本地文件路径
    */
   _downloadDirect(name) {
+    const fp = this._localPath(name)
     return new Promise((resolve, reject) => {
       wx.downloadFile({
         url: api.getGalleryImageUrl(name),
+        filePath: fp,             // 直接下载到缓存路径, 同名自动覆盖
         timeout: 60000,
         success: (res) => {
-          if (res.statusCode === 200 && res.tempFilePath) {
-            try {
-              const fp = this._localPath(name)
-              const buf = fs.readFileSync(res.tempFilePath)   // ArrayBuffer
-              fs.writeFileSync(fp, buf)                        // 二进制写入本地缓存
-              resolve(fp)
-            } catch (err) {
-              reject(err)
-            }
-          } else {
-            reject(new Error('HTTP ' + (res.statusCode || '未知')))
-          }
+          if (res.statusCode === 200) resolve(fp)
+          else reject(new Error('HTTP ' + (res.statusCode || '未知')))
         },
         fail: (err) => {
           reject(new Error((err && err.errMsg) || '直链下载失败'))
@@ -130,9 +123,9 @@ Page({
   },
 
   async loadImages() {
-    this.setData({ loading: true, errorMsg: '' })
+    this.setData({ loading: true, errorMsg: '', diag: '' })
 
-    // ── 1) 优先本地: 上次下载的图片文件仍在 → 直接渲染, 零网络请求 ──
+    // ── 1) 本地缓存立即渲染（秒开; 即使列表过期也先显示已有图片）──
     const meta = storage.getCached(GALLERY_META_KEY)
     let local = []
     if (meta && meta.names && meta.names.length) {
@@ -144,74 +137,58 @@ Page({
           src: this._localPath(name)
         }))
     }
-    const metaFresh = !!meta && (Date.now() - (meta.t || 0) < META_TTL)
-    if (local.length > 0 && metaFresh) {
-      // 全部命中且列表未过期: 不再访问服务器
+    if (local.length > 0) {
       this.setData({ images: local, loading: false })
-      return
     }
 
-    // ── 2) 本地缺失或列表过期: 请求服务器列表, 只下载缺失的图片 ──
+    // ── 2) 后台静默检查服务器列表, 补齐缺失图片 ──
+    // (修复: 旧逻辑 24h 内命中缓存直接返回, 服务器新增图片永远不出现)
     try {
-      const res = await api.getGalleryImages()
-      if (!res.success || !res.images || res.images.length === 0) {
-        if (local.length > 0) {
-          this.setData({ images: local, loading: false })
-        } else {
+      const res = await api.getGalleryImagesFlex()
+      if (!res || !res.success || !res.images || res.images.length === 0) {
+        if (local.length === 0) {
           this.setData({ loading: false, errorMsg: '暂无校历图片' })
         }
         return
       }
 
-      const images = local.slice()                      // 保留本地命中的
-      const have = new Set(images.map(i => i.name))
+      const have = new Set(local.map(i => i.name))
       const serverNames = res.images.slice().sort()
       const need = serverNames.filter(n => !have.has(n))
-      if (need.length > 0) {
-        // 大图(高清地图等)优先传输: 显示下载进度
-        this.setData({ downloadMsg: `正在下载高清图片 (0/${need.length})…`, downloadPercent: 0 })
-      }
+      const images = local.slice()
 
-      for (let i = 0; i < serverNames.length; i++) {
-        const name = serverNames[i]
-        if (have.has(name)) continue
-        try {
-          const src = await this._downloadImage(name, (done, total) => {
-            this.setData({
-              downloadMsg: `正在下载高清图片 ${i + 1}/${need.length} (分片 ${done}/${total})…`,
-              downloadPercent: Math.round((i + (done / total)) / need.length * 100)
+      if (need.length > 0) {
+        this.setData({ downloadMsg: `正在下载图片 (0/${need.length})…`, downloadPercent: 0 })
+        for (let i = 0; i < need.length; i++) {
+          const name = need[i]
+          try {
+            const src = await this._downloadImage(name, (done, total) => {
+              this.setData({
+                downloadMsg: `正在下载图片 ${i + 1}/${need.length}${total > 1 ? ` (分片 ${done}/${total})` : ''}…`,
+                downloadPercent: Math.round(((i + done / total) / need.length) * 100)
+              })
             })
-          })
-          images.push({
-            name,
-            title: name.replace(/\.[^.]+$/, ''),
-            src
-          })
-          have.add(name)
-          this.setData({
-            images: images.slice(),
-            loading: false
-          })
-        } catch (e) {
-          // 单张失败不阻断其余图片, 但错误要可见
-          this.setData({
-            errorMsg: `「${name}」下载失败: ${(e && e.message) || '网络错误'}，请下拉重试`
-          })
+            images.push({ name, title: name.replace(/\.[^.]+$/, ''), src })
+            this.setData({ images: images.slice(), downloadMsg: '', downloadPercent: 0, errorMsg: '' })
+          } catch (e) {
+            // 单张失败不阻断其余图片; 错误显示在页面底部诊断区
+            this.setData({
+              diag: `「${name}」下载失败: ${(e && e.message) || '网络错误'}`
+            })
+          }
         }
       }
 
-      // 更新本地元数据(已下载文件名列表)
+      // 元数据以服务器列表为准; 失败项不写入 → 下次进入自动重试
       storage.setCached(GALLERY_META_KEY, { t: Date.now(), names: images.map(i => i.name) })
-      this.setData({
-        loading: false,
-        images,
-        downloadMsg: '',
-        downloadPercent: 0,
-        errorMsg: images.length === 0 ? '图片加载失败' : ''
-      })
     } catch (e) {
-      this.setData({ loading: false, errorMsg: '加载失败，请稍后重试' })
+      // 列表检查失败(网络/通道问题): 已有缓存继续显示, 无缓存显示错误
+      if (local.length === 0) {
+        this.setData({ loading: false, errorMsg: '加载失败，请稍后重试' })
+      }
     }
+
+    if (local.length === 0) this.setData({ loading: false })
   },
 
   /** 点击图片 → 全屏预览（本地路径直接可用） */

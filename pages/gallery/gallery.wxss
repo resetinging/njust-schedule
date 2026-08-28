@@ -43,3 +43,14 @@
   color: #8A87A8;
   margin: 20rpx 0 32rpx;
 }
+
+/* 诊断信息 */
+.diag-tip {
+  margin: 16rpx 24rpx;
+  padding: 16rpx 20rpx;
+  font-size: 22rpx;
+  color: #B06A3C;
+  background: #FDF3E9;
+  border-radius: 16rpx;
+  word-break: break-all;
+}
