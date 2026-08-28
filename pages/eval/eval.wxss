@@ -667,3 +667,15 @@
   box-shadow: none;
 }
 .option-checked .option-score { color: #fff; }
+
+/* ============================================================
+   V7 风格统一 — 评教页对齐全局紫色系(卡片圆角/紫阴影)
+   ============================================================ */
+.batch-card, .course-card, .indicator-card {
+  border-radius: 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.08);
+}
+.countdown-card {
+  border-radius: 24rpx;
+  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.08);
+}

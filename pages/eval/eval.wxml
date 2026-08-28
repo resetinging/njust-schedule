@@ -159,7 +159,7 @@
       <view class="slider-wrapper">
         <text class="slider-value">{{targetScore}}%</text>
         <slider min="50" max="100" value="{{targetScore}}"
-                activeColor="#5B3CC4" block-size="24"
+                activeColor="#7C6BE8" block-size="24"
                 bindchange="onScoreChange" />
         <view class="slider-labels">
           <text>50%</text>

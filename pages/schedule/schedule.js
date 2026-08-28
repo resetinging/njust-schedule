@@ -5,7 +5,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
-const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel } = require('../../utils/date')
+const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
 Page({
   data: {
@@ -59,32 +59,29 @@ Page({
     })
   },
 
-  /** 获取校历设置并定位当前周 */
+  /** 获取校历设置并定位当前周（未设置时使用默认: 本周周一为第一周） */
   async loadFirstWeekDate() {
     try {
       const res = await api.getStatus()
-      if (res && res.first_week_date) {
-        const firstWeekDate = res.first_week_date
-        const actualWeek = calcCurrentWeek(firstWeekDate)
-        const todayDay = calcTodayDay()
-        this.setData({
-          firstWeekDate,
-          actualWeek,
-          todayDay,
-          currentWeek: actualWeek
-        })
-        // 如果已加载课程，重新过滤
-        if (this.data.courses.length > 0) {
-          this.filterByWeek(actualWeek)
-        }
-      } else {
-        const todayDay = calcTodayDay()
-        this.setData({ todayDay })
-        // 未设置校历日期时与桌面端一致默认第 1 周,提示用户去设置
+      const firstWeekDate = (res && res.first_week_date) || getDefaultFirstWeekDate()
+      const actualWeek = calcCurrentWeek(firstWeekDate)
+      const todayDay = calcTodayDay()
+      this.setData({
+        firstWeekDate,
+        actualWeek,
+        todayDay,
+        currentWeek: actualWeek
+      })
+      // 如果已加载课程，重新过滤
+      if (this.data.courses.length > 0) {
+        this.filterByWeek(actualWeek)
+      }
+      // 首次未设置时提示一次
+      if (!res || !res.first_week_date) {
         if (!this._weekHintShown) {
           this._weekHintShown = true
           wx.showToast({
-            title: '未设置第一周日期,默认第1周;可在「我的」页设置以自动定位本周',
+            title: '未设置第一周日期,已默认本周为第 1 周;可在「我的」页设置',
             icon: 'none',
             duration: 3500
           })

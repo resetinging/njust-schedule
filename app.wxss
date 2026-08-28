@@ -12,8 +12,8 @@ page {
   --warning: #f39c12;
   --text-primary: #33304F;
   --text-secondary: #8A87A8;
-  --text-hint: #95a5a6;
-  --bg-page: #F7F6FB;
+  --text-hint: #8A87A8;
+  --bg-page: #F2F0FA;
   --bg-card: #FFFFFF;
   --border: #E3DFF5;
   --overlay: rgba(0, 0, 0, 0.5);

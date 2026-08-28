@@ -184,6 +184,21 @@ function parseDateStr(str) {
 }
 
 /**
+ * 默认第一周周一日期: 未设置校历时, 取当前日期所在周的周一。
+ * 学期初使用即等于真实第一周, 学期中设置后会自动校正。
+ * @returns {string} "YYYY-MM-DD"
+ */
+function getDefaultFirstWeekDate() {
+  const now = new Date()
+  const day = now.getDay() || 7            // 1=周一 ... 7=周日
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (day - 1))
+  const y = monday.getFullYear()
+  const m = String(monday.getMonth() + 1).padStart(2, '0')
+  const d = String(monday.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/**
  * 根据学期第一周周一日期计算当前教学周
  * @param {string} firstWeekDate - "YYYY-MM-DD"
  * @returns {number} 当前周次 (1-based，限制在 1-20)
@@ -227,6 +242,7 @@ module.exports = {
   calcCurrentWeek,
   calcTodayDay,
   getDateLabel,
+  getDefaultFirstWeekDate,
   formatDate,
   formatTime,
   weekToChinese,

@@ -5,6 +5,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const { getDefaultFirstWeekDate } = require('../../utils/date')
 
 Page({
   data: {
@@ -64,12 +65,12 @@ Page({
     })
   },
 
-  /** 加载设置（第一周日期来自 /api/status） */
+  /** 加载设置（第一周日期来自 /api/status；未设置时显示默认值） */
   async loadSettings() {
     try {
       const res = await api.getStatus()
       if (res && res.first_week_date !== undefined) {
-        this.setData({ firstWeekDate: res.first_week_date || '' })
+        this.setData({ firstWeekDate: res.first_week_date || getDefaultFirstWeekDate() })
       }
     } catch (e) {
       // 忽略
