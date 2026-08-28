@@ -1408,11 +1408,15 @@ class JWCClient:
     # ================================================================
 
     def _current_semester(self) -> str:
-        """计算当前学期（强制使用北京时间，不依赖容器系统时区）"""
+        """计算当前学期（强制使用北京时间，不依赖容器系统时区）
+
+        NJUST 秋季学期 8 月下旬开学: 8 月 20 日起视为秋季学期,
+        否则按传统 9 月/2 月边界。
+        """
         import datetime as _dt
         now = _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=8)))
-        y, m = now.year, now.month
-        if m >= 9:
+        y, m, d = now.year, now.month, now.day
+        if m >= 9 or (m == 8 and d >= 20):
             return f"{y}-{y+1}-1"
         elif m >= 2:
             return f"{y-1}-{y}-2"

@@ -83,6 +83,10 @@ B = make_user("10002", "乙")
 tB = views._register_session(B)
 hB = {"X-Auth-Token": tB}
 
+# 固定测试学期, 避免默认学期(随日期变化)影响断言
+dao.set_user_setting("10001", "semester", "2025-2026-1")
+dao.set_user_setting("10002", "semester", "2025-2026-1")
+
 r = client.post("/api/refresh-all", headers=hA)
 check("用户甲 刷新课表+考试", r.status_code == 200 and r.get_json()["success"], r.status_code)
 r = client.post("/api/refresh-all", headers=hB)
