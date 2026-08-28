@@ -280,6 +280,31 @@ Page({
     this.filterByWeek(w)
   },
 
+  // ============================================================
+  // 左右滑动切换周次（网格视图; 列表视图为纵向滚动不启用）
+  // ============================================================
+  onTouchStart(e) {
+    if (this.data.showDetail || this.data.viewMode !== 'grid') return
+    const t = e.touches && e.touches[0]
+    if (!t) return
+    this._swipe = { x: t.clientX, y: t.clientY, t: Date.now() }
+  },
+
+  onTouchEnd(e) {
+    if (!this._swipe) return
+    const s = this._swipe
+    this._swipe = null
+    const t = e.changedTouches && e.changedTouches[0]
+    if (!t || this.data.showDetail || this.data.viewMode !== 'grid') return
+    const dx = t.clientX - s.x
+    const dy = t.clientY - s.y
+    const dt = Date.now() - s.t
+    // 横向位移足够大、横向主导(排除纵向滚动)、快速滑动(排除长按误触)
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5 || dt > 600) return
+    if (dx < 0) this.nextWeek()
+    else this.prevWeek()
+  },
+
   /** 下拉刷新 */
   async onRefresh() {
     if (!storage.isLoggedIn()) {

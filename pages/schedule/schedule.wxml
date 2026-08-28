@@ -1,5 +1,5 @@
 <!-- 课表页面 -->
-<view class="container">
+<view class="container" bindtouchstart="onTouchStart" bindtouchend="onTouchEnd">
 
   <!-- 顶部紫渐变信息卡 -->
   <view class="top-card">
