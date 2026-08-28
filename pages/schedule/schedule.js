@@ -293,9 +293,20 @@ Page({
     // 列表视图通过 data-course 传 e.currentTarget.dataset.course
     const course = e.detail || e.currentTarget.dataset.course
     if (course) {
+      const DAY = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+      const d = course.day || course.day_of_week || 0
+      const s = course.start || course.start_period
+      const en = course.end || course.end_period
+      const weeksRaw = String(course.weeks || '1-18')
+      const enriched = {
+        ...course,
+        _dayName: DAY[d] || '',
+        _timeText: (s && en) ? `第${s}~${en}节` : '',
+        _weeksText: weeksRaw.includes('周') ? weeksRaw : `第${weeksRaw}周`
+      }
       this.setData({
         showDetail: true,
-        detailCourse: course
+        detailCourse: enriched
       })
     }
   },

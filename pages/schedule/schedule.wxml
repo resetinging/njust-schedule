@@ -120,27 +120,27 @@
       </view>
       <view class="modal-row">
         <text class="label">教师</text>
-        <text>{{detailCourse.teacher || '未指定'}}</text>
+        <text class="m-value">{{detailCourse.teacher || '未指定'}}</text>
       </view>
       <view class="modal-row">
         <text class="label">教室</text>
-        <text>{{detailCourse.classroom || '未指定'}}</text>
+        <text class="m-value">{{detailCourse.classroom || '未指定'}}</text>
       </view>
       <view class="modal-row">
         <text class="label">时间</text>
-        <text>周{{detailCourse.day_of_week || detailCourse.day}} 第{{detailCourse.start_period || detailCourse.start}}-{{detailCourse.end_period || detailCourse.end}}节</text>
+        <text class="m-value">{{detailCourse._dayName}} {{detailCourse._timeText}}</text>
       </view>
       <view class="modal-row">
         <text class="label">周次</text>
-        <text class="weeks-text">{{detailCourse.weeks || '1-18周'}}</text>
+        <text class="m-value weeks-text">{{detailCourse._weeksText}}</text>
       </view>
-      <view class="modal-row" wx:if="{{detailCourse.credits}}">
+      <view class="modal-row">
         <text class="label">学分</text>
-        <text>{{detailCourse.credits}}</text>
+        <text class="m-value">{{detailCourse.credits}}</text>
       </view>
       <view class="modal-row" wx:if="{{detailCourse.course_type || detailCourse.type}}">
         <text class="label">类型</text>
-        <text>{{detailCourse.course_type || detailCourse.type}}</text>
+        <text class="m-value">{{detailCourse.course_type || detailCourse.type}}</text>
       </view>
       <button class="btn-primary" style="margin-top:24rpx" bindtap="closeDetail">关闭</button>
     </view>

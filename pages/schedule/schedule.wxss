@@ -743,3 +743,11 @@
   text-align: center;
   align-self: center;
 }
+
+/* 详情弹窗值: 右对齐, 可换行 */
+.modal-row .m-value {
+  flex: 1;
+  text-align: right;
+  margin-left: 16rpx;
+  word-break: break-all;
+}
