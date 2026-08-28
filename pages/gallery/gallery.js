@@ -39,14 +39,54 @@ Page({
   },
 
   /**
-   * 分片下载图片 → 本地文件。
-   * callContainer 返回包限制约 1000KB, 高清图(base64 >700KB)必须分片:
-   * 先取 meta 得到片数, 再逐片请求 base64 拼接后写文件。
+   * 直链二进制下载（优先）: wx.downloadFile 直接拉取后端静态文件。
+   * 不走 callContainer — 该通道在部分环境会 ERR_CONNECTION_CLOSED /
+   * 受返回包 ~1000KB 限制, 且 base64 有 4/3 体积膨胀。
+   * @param {string} name 图片文件名
+   * @returns {Promise<string>} 本地文件路径
+   */
+  _downloadDirect(name) {
+    return new Promise((resolve, reject) => {
+      wx.downloadFile({
+        url: api.getGalleryImageUrl(name),
+        timeout: 60000,
+        success: (res) => {
+          if (res.statusCode === 200 && res.tempFilePath) {
+            try {
+              const fp = this._localPath(name)
+              const buf = fs.readFileSync(res.tempFilePath)   // ArrayBuffer
+              fs.writeFileSync(fp, buf)                        // 二进制写入本地缓存
+              resolve(fp)
+            } catch (err) {
+              reject(err)
+            }
+          } else {
+            reject(new Error('HTTP ' + (res.statusCode || '未知')))
+          }
+        },
+        fail: (err) => {
+          reject(new Error((err && err.errMsg) || '直链下载失败'))
+        }
+      })
+    })
+  },
+
+  /**
+   * 下载图片 → 本地文件。优先直链二进制下载, 失败自动回退分片下载:
+   * callContainer 返回包限制约 1000KB, 高清图(base64 >700KB)必须分片;
    * 每片失败自动重试(冷启动/网络抖动导致超时常见), 重试 2 次仍失败才放弃。
    * @param {string} name 图片文件名
    * @param {Function} onProgress (done, total) 进度回调
    */
   async _downloadImage(name, onProgress) {
+    // 1) 直链优先（开发者工具 urlCheck=false 可直接用; 真机需配置合法域名）
+    try {
+      return await this._downloadDirect(name)
+    } catch (directErr) {
+      console.warn('[gallery] 直链下载失败, 回退分片:', name, directErr && directErr.message)
+      // 2) 直链失败 → 分片下载兜底
+    }
+
     const meta = await api.getGalleryImageMeta(name)
     if (!meta || !meta.success || !meta.parts) {
       // meta 失败(旧版后端/网关异常): 兜底尝试整图接口一次

@@ -417,6 +417,14 @@ function saveSettings(data) {
   return request('POST', '/api/settings', data)
 }
 
+/** 校历图片直链 URL（后端静态文件, 二进制直传）
+ *  不走 callContainer: 该通道在部分环境(开发者工具/弱网)会 ERR_CONNECTION_CLOSED
+ *  或受返回包 ~1000KB 限制; 直链无这些限制。真机需将 API_BASE 域名加入
+ *  downloadFile 合法域名白名单; 开发者工具 urlCheck=false 无需配置。 */
+function getGalleryImageUrl(name) {
+  return config.API_BASE + '/static/gallery/' + encodeURIComponent(name)
+}
+
 /** 获取校历图片列表 */
 function getGalleryImages() {
   return request('GET', '/api/gallery-images')
@@ -467,6 +475,7 @@ module.exports = {
   loginWebvpn,
   saveSettings,
   getGalleryImages,
+  getGalleryImageUrl,
   getGalleryImageMeta,
   getGalleryImagePart,
   getGalleryImage
