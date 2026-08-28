@@ -1,7 +1,8 @@
 <!-- 考试安排页面 — 参考桌面端 exams.html + exams.js -->
-<view class="container {{animClass}}"
-      style="transform: translateX({{swipeX}}px); {{swipeTrans ? 'transition: transform .2s ease-out;' : ''}}"
-      bindtouchstart="onSwipeTouchStart" bindtouchmove="onSwipeTouchMove" bindtouchend="onSwipeTouchEnd">
+<view class="container {{animClass}} {{swipeTrans ? 'swipe-rebound' : ''}}"
+      style="transform: translateX({{swipeX}}px);"
+      bindtouchstart="onSwipeTouchStart" bindtouchmove="onSwipeTouchMove"
+      bindtouchend="onSwipeTouchEnd" bindtouchcancel="onSwipeTouchCancel">
 
   <!-- 加载中 -->
   <view class="empty-state" wx:if="{{loading && exams.length === 0}}">
