@@ -5,6 +5,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const config = require('../../utils/config')
 const swipeNav = require('../../utils/swipe-nav')
 const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
@@ -67,37 +68,55 @@ Page({
     })
   },
 
-  /** 获取校历设置并定位当前周（未设置时使用默认: 本周周一为第一周） */
+  /** 获取校历设置并定位当前周（本地缓存 10 分钟, 避免每次切回课表页都请求后端） */
   async loadFirstWeekDate() {
+    const sid = storage.getStudentId() || 'guest'
+    // 后端按学期存储 first_week_date, 缓存键必须带学期
+    const sem = this.data.semester || storage.getSemester() || 'default'
+    const statusKey = 'cached_status_' + sid + '_' + sem
+    const cache = storage.getCached(statusKey)
+    const fresh = !!(cache && cache.first_week_date &&
+      (Date.now() - (cache.t || 0) < config.CACHE_TTL.status))
+    if (fresh) {
+      // 缓存命中: 直接定位本周, 零网络请求
+      this._applyFirstWeek(cache.first_week_date, false)
+      return
+    }
     try {
       const res = await api.getStatus()
       const firstWeekDate = (res && res.first_week_date) || getDefaultFirstWeekDate()
-      const actualWeek = calcCurrentWeek(firstWeekDate)
-      const todayDay = calcTodayDay()
-      this.setData({
-        firstWeekDate,
-        actualWeek,
-        todayDay,
-        currentWeek: actualWeek
-      })
-      // 如果已加载课程，重新过滤
-      if (this.data.courses.length > 0) {
-        this.filterByWeek(actualWeek)
+      if (res && res.first_week_date) {
+        storage.setCached(statusKey, { t: Date.now(), first_week_date: res.first_week_date })
       }
-      // 首次未设置时提示一次
-      if (!res || !res.first_week_date) {
-        if (!this._weekHintShown) {
-          this._weekHintShown = true
-          wx.showToast({
-            title: '未设置第一周日期,已默认本周为第 1 周;可在「我的」页设置',
-            icon: 'none',
-            duration: 3500
-          })
-        }
-      }
+      this._applyFirstWeek(firstWeekDate, !(res && res.first_week_date))
     } catch (e) {
-      const todayDay = calcTodayDay()
-      this.setData({ todayDay })
+      // 网络失败: 用默认值兜底定位
+      this._applyFirstWeek(getDefaultFirstWeekDate(), false)
+    }
+  },
+
+  /** 应用第一周日期: 计算当前周并刷新显示 */
+  _applyFirstWeek(firstWeekDate, showHint) {
+    const actualWeek = calcCurrentWeek(firstWeekDate)
+    const todayDay = calcTodayDay()
+    this.setData({
+      firstWeekDate,
+      actualWeek,
+      todayDay,
+      currentWeek: actualWeek
+    })
+    // 如果已加载课程，重新过滤
+    if (this.data.courses.length > 0) {
+      this.filterByWeek(actualWeek)
+    }
+    // 首次未设置时提示一次
+    if (showHint && !this._weekHintShown) {
+      this._weekHintShown = true
+      wx.showToast({
+        title: '未设置第一周日期,已默认本周为第 1 周;可在「我的」页设置',
+        icon: 'none',
+        duration: 3500
+      })
     }
   },
 
