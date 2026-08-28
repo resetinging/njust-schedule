@@ -256,6 +256,7 @@ Page({
           } else {
             wx.showToast({ title: (r && r.message) || '获取课表失败', icon: 'none' })
           }
+          this.loadFirstWeekDate()        // 刷新该学期第一周日期(周次下方日期随学期切换)
           this.loadFromServer(semester)   // 显式传参加载最新数据
         } else {
           wx.showToast({ title: (res && res.message) || '切换学期失败', icon: 'none' })
