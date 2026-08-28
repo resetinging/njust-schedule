@@ -46,6 +46,10 @@ Page({
     })
     this._syncUser()
     swipeNav.attach(this, 'pages/schedule/schedule')
+    // 本地无数据且已登录: 后台静默拉取, 不阻塞显示
+    if (storage.isLoggedIn() && !(storage.getCached(this._coursesCacheKey()) || []).length) {
+      this.loadFromServer('', true)
+    }
   },
 
   onShow() {
@@ -68,20 +72,36 @@ Page({
     })
   },
 
-  /** 获取校历设置并定位当前周（本地缓存 10 分钟, 避免每次切回课表页都请求后端） */
+  /** 获取校历设置并定位当前周（本地优先: 有缓存值立即渲染, 过期则后台静默刷新） */
   async loadFirstWeekDate() {
     const sid = storage.getStudentId() || 'guest'
     // 后端按学期存储 first_week_date, 缓存键必须带学期
     const sem = this.data.semester || storage.getSemester() || 'default'
     const statusKey = 'cached_status_' + sid + '_' + sem
     const cache = storage.getCached(statusKey)
-    const fresh = !!(cache && cache.first_week_date &&
-      (Date.now() - (cache.t || 0) < config.CACHE_TTL.status))
-    if (fresh) {
-      // 缓存命中: 直接定位本周, 零网络请求
-      this._applyFirstWeek(cache.first_week_date, false)
+    const cachedVal = (cache && cache.first_week_date) || ''
+    const age = cache && cache.t ? Date.now() - cache.t : Infinity
+
+    if (cachedVal) {
+      // 本地优先: 有缓存值(无论是否过期)立即渲染, 保证切换零等待
+      this._applyFirstWeek(cachedVal, false)
+      if (age < config.CACHE_TTL.status) return   // 新鲜: 零网络
+      // 过期: 后台静默刷新, 不阻塞显示
+      try {
+        const res = await api.getStatus()
+        if (res && res.first_week_date) {
+          storage.setCached(statusKey, { t: Date.now(), first_week_date: res.first_week_date })
+          if (res.first_week_date !== cachedVal) {
+            this._applyFirstWeek(res.first_week_date, false)
+          }
+        }
+      } catch (e) {
+        // 静默: 继续显示本地值
+      }
       return
     }
+
+    // 无缓存值: 请求后端(失败用默认值兜底)
     try {
       const res = await api.getStatus()
       const firstWeekDate = (res && res.first_week_date) || getDefaultFirstWeekDate()
@@ -140,9 +160,9 @@ Page({
     }
   },
 
-  /** 从服务器加载（semester 参数可显式指定, 不依赖 storage 时序） */
-  async loadFromServer(semester) {
-    this.setData({ loading: true })
+  /** 从服务器加载（semester 参数可显式指定, 不依赖 storage 时序; silent 为后台静默模式） */
+  async loadFromServer(semester, silent) {
+    if (!silent) this.setData({ loading: true })
     try {
       const [res, semRes] = await Promise.all([
         api.getCourses(semester),   // 切换学期时显式传参, 确保请求目标学期
@@ -164,7 +184,7 @@ Page({
         this.filterByWeek(this.data.currentWeek)
       } else {
         this.setData({ loading: false })
-        if (!res.success && res.message) {
+        if (!silent && !res.success && res.message) {
           wx.showToast({ title: res.message, icon: 'none' })
         }
       }
@@ -175,7 +195,7 @@ Page({
       }
     } catch (e) {
       this.setData({ loading: false })
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      if (!silent) wx.showToast({ title: '加载失败', icon: 'none' })
     }
   },
 

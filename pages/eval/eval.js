@@ -63,6 +63,10 @@ Page({
       this._processBatches(batches.evaluations)
     }
     swipeNav.attach(this, 'pages/eval/eval')
+    // 本地无数据且已登录: 后台静默拉取, 不阻塞显示
+    if (storage.isLoggedIn() && !(batches && batches.evaluations && batches.evaluations.length)) {
+      this.loadFromServer(true)
+    }
   },
 
   onShow() {
@@ -74,24 +78,26 @@ Page({
     return this.data.showForm || this.data.showBatchDialog || this.data.batchRunning
   },
 
-  /** 加载评教批次 */
-  async loadFromServer() {
+  /** 加载评教批次（silent 为后台静默模式: 不显示 loading, 失败不弹提示） */
+  async loadFromServer(silent) {
     if (!storage.isLoggedIn()) return
-    this.setData({ loading: true })
+    if (!silent) this.setData({ loading: true })
     try {
       const res = await api.getEvalBatches()
-      this.setData({ loading: false })
+      if (!silent) this.setData({ loading: false })
       if (res.success) {
         const batches = res.evaluations || []
         this.setData({ batches })
         this._processBatches(batches)
         storage.setCached('cached_evaluations', res)
       } else {
-        wx.showToast({ title: res.message || '加载失败', icon: 'none' })
+        if (!silent) wx.showToast({ title: res.message || '加载失败', icon: 'none' })
       }
     } catch (e) {
-      this.setData({ loading: false })
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      if (!silent) {
+        this.setData({ loading: false })
+        wx.showToast({ title: '加载失败', icon: 'none' })
+      }
     }
   },
 

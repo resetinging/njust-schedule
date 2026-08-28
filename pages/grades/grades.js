@@ -73,6 +73,11 @@ Page({
     // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
     this.loadCached()
     swipeNav.attach(this, 'pages/grades/grades')
+    // 本地无数据且已登录: 后台静默拉取, 不阻塞显示
+    const cached = storage.getCached('cached_grades')
+    if (storage.isLoggedIn() && !(cached && cached.grades && cached.grades.length)) {
+      this.loadGrades(true)
+    }
   },
 
   onShow() {
@@ -107,8 +112,9 @@ Page({
   // ============================================================
   // 数据加载
   // ============================================================
-  async loadGrades() {
-    this.setData({ loading: true, errorMsg: '' })
+  /** 加载成绩（silent 为后台静默模式: 不显示 loading, 失败不弹提示） */
+  async loadGrades(silent) {
+    if (!silent) this.setData({ loading: true, errorMsg: '' })
     try {
       const [gradesRes, cetRes] = await Promise.all([
         api.getGrades('__all__'),
@@ -116,7 +122,8 @@ Page({
       ])
       const res = gradesRes
       if (!res.success) {
-        this.setData({ loading: false, empty: true, errorMsg: res.message || '获取成绩失败' })
+        this.setData({ loading: false, empty: true })
+        if (!silent) this.setData({ errorMsg: res.message || '获取成绩失败' })
         return
       }
       this._allGrades = res.grades || []
@@ -131,7 +138,8 @@ Page({
       storage.setCached('cached_grades', res)
       storage.setCached('cached_cet_scores', cetRes || {})
     } catch (e) {
-      this.setData({ loading: false, empty: true, errorMsg: '网络请求失败' })
+      this.setData({ loading: false, empty: true })
+      if (!silent) this.setData({ errorMsg: '网络请求失败' })
     }
   },
 

@@ -25,6 +25,10 @@ Page({
     // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
     this.loadCachedData()
     swipeNav.attach(this, 'pages/exams/exams')
+    // 本地无数据且已登录: 后台静默拉取, 不阻塞显示
+    if (storage.isLoggedIn() && !(storage.getCached(this._examsCacheKey()) || []).length) {
+      this.loadFromServer(true)
+    }
   },
 
   onShow() {
@@ -45,10 +49,10 @@ Page({
     }
   },
 
-  /** 从服务器加载 */
-  async loadFromServer() {
+  /** 从服务器加载（silent 为后台静默模式: 不显示 loading, 失败不弹提示） */
+  async loadFromServer(silent) {
     if (!storage.isLoggedIn()) return
-    this.setData({ loading: true })
+    if (!silent) this.setData({ loading: true })
     try {
       const res = await api.getExams()
       if (res.success && res.exams) {
@@ -59,11 +63,11 @@ Page({
         this._processExams(res.exams)
       } else {
         this.setData({ loading: false })
-        wx.showToast({ title: res.message || '加载失败', icon: 'none' })
+        if (!silent) wx.showToast({ title: res.message || '加载失败', icon: 'none' })
       }
     } catch (e) {
       this.setData({ loading: false })
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      if (!silent) wx.showToast({ title: '加载失败', icon: 'none' })
     }
   },
 
