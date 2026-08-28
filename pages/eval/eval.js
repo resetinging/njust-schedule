@@ -102,11 +102,21 @@ Page({
       return `${d.getFullYear()}-${m}-${dd}`
     }
 
+    // 批次名去除与学期标签重复的前缀(学期已单独用 sem-tag 显示)
+    const stripSemesterPrefix = (b) => {
+      let name = b.batch || ''
+      if (b.semester && name.startsWith(b.semester)) {
+        name = name.slice(b.semester.length).replace(/^[-_：:\s]+/, '')
+      }
+      return name || b.batch || ''
+    }
+
     // 给每个批次附加紧迫度信息
     const enriched = unique.map(b => {
       const info = timeUntilDeadline(b.end_date)
       return {
         ...b,
+        _batchText: stripSemesterPrefix(b),
         start_date: cleanDate(b.start_date),
         end_date: cleanDate(b.end_date),
         _urgency: b.is_done ? '' : info.cls,
