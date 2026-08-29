@@ -15,35 +15,12 @@ const gpaUtil = require('../../utils/gpa')
 // ============================================================
 const NON_GPA_NATURES = ['通识教育选修课']
 
-// 等级制成绩 → 百分制中值（NJUST 五级制惯例口径, 用于均分统计）
-// 优秀≥90 / 良好≥80 / 中等≥70 / 及格≥60 → 取区间中值; 含带加减号的变体
-const LEVEL_SCORE = {
-  '优': 95, '优秀': 95, '优+': 97, '优秀+': 97, '优-': 93, '优秀-': 93,
-  '良': 85, '良好': 85, '良+': 88, '良好+': 88, '良-': 82, '良好-': 82,
-  '中': 75, '中等': 75, '中+': 78, '中等+': 78, '中-': 72, '中等-': 72,
-  '及格': 65, '通过': 65,
-  '不及格': 55, '不通过': 55
-}
-
 function _num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n }
 function _fixed(v, d) { const n = parseFloat(v); return isNaN(n) ? '-' : n.toFixed(d === undefined ? 2 : d) }
 function _gpOf(g) {
   let gp = _num(g.grade_point)
   if (gp === 0) gp = gpaUtil.scoreToGp(g.score)
   return gp
-}
-// 成绩 → 数值: 数字直接用; 等级制折算百分制中值; 其他(缓考/缺考等)返回 NaN 不参与均分
-function _scoreNum(g) {
-  const s = String(g.score == null ? '' : g.score).trim()
-  if (s in LEVEL_SCORE) return LEVEL_SCORE[s]
-  // 关键字兜底: 兼容"优秀(五级制)"等变体写法(注意"不及格"必须先于"及格"匹配)
-  if (/不及格|不通过|未通过/.test(s)) return 55
-  if (/优/.test(s)) return 95
-  if (/良/.test(s)) return 85
-  if (/中/.test(s)) return 75
-  if (/及格|通过/.test(s)) return 65
-  const v = parseFloat(s)
-  return isNaN(v) ? NaN : v
 }
 
 function _isNonGpa(g) { return NON_GPA_NATURES.includes((g.course_nature || '').trim()) }
@@ -173,11 +150,6 @@ Component({
 
       // --- 统计 ---
       const totalCredits = checked.reduce((s, g) => s + _num(g.credit), 0)
-      const scored = checked.filter(g => !isNaN(_scoreNum(g)))
-      // 均分仅统计百分制成绩; 无百分制课程(全等级制)时显示 '-', 而非 0
-      const avg = scored.length
-        ? _fixed(scored.reduce((s, g) => s + _scoreNum(g), 0) / scored.length)
-        : '-'
       const gpaV = isBaoyan
         ? gpaUtil.calcGpaBaoyan(checked, this._cetRaw, true)
         : gpaUtil.calcGpa(checked, true)
@@ -213,10 +185,6 @@ Component({
       const semGroups = semKeys.map(sem => {
         const gs = groups[sem].slice().sort((a, b) => (a.course_name || '').localeCompare(b.course_name || ''))
         const semChecked = gs.filter(g => this._checked[g.id] !== false)
-        const semScored = semChecked.filter(g => !isNaN(_scoreNum(g)))
-        const semAvg = semScored.length
-          ? _fixed(semScored.reduce((s, g) => s + _scoreNum(g), 0) / semScored.length)
-          : '-'   // 全等级制学期: 均分显示 '-', 而非 0
         // 每学期绩点（与总 GPA 同口径, 支持保研模式）
         const semGpa = isBaoyan
           ? gpaUtil.calcGpaBaoyan(semChecked, this._cetRaw, true)
@@ -228,7 +196,6 @@ Component({
         return {
           sem,
           count: gs.length,
-          avg: _fixed(semAvg),
           gpa: _fixed(semGpa),
           gpaClass: semGpaClass,
           folded: this._folded && this._folded[sem] === true,
@@ -255,7 +222,6 @@ Component({
         stats: {
           credits: _fixed(totalCredits, 1),
           count: checked.length,
-          avg: _fixed(avg),
           gpa: _fixed(gpaV),
           gpaClass,
           mode: this._mode,
