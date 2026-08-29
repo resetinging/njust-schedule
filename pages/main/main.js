@@ -64,6 +64,20 @@ Page({
     this._syncTabBar()
   },
 
+  /**
+   * swiper 滑动进行中: 提前激活目标页(懒渲染组件此时渲染, 数据已在缓存),
+   * 滑到位时内容已就绪, 消除"首次滑动进入空白页"问题
+   */
+  onSwiperTransition(e) {
+    const dx = e.detail.dx
+    if (!dx) return
+    const target = dx < 0 ? this.data.current + 1 : this.data.current - 1
+    if (target < 0 || target >= 5) return
+    if (this._preActivating === target) return
+    this._preActivating = target
+    this._activate(target)
+  },
+
   /** tabBar 点击(自定义 tabBar 组件回调): 切 swiper 带动画 */
   onTabTap(i) {
     if (i === this.data.current) return

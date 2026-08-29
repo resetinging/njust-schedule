@@ -4,6 +4,7 @@
           style="height: {{swiperHeight}}px"
           current="{{current}}"
           bindchange="onSwiperChange"
+          bindtransition="onSwiperTransition"
           duration="260">
     <swiper-item>
       <schedule-view id="tabview0" />
