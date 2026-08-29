@@ -365,6 +365,8 @@ function getWebvpnCaptcha(studentId, password) {
     if (res.success && res.already_logged_in && res.token) {
       storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
       storage.setStudentId(studentId)
+      storage.setStudentName(res.student_name || '')
+      storage.setSemester(res.semester || '')
       storage.set(TOKEN_KEY, res.token)
       if (hadSavedPwd) storage.set('saved_password', password)  // 延续记住密码
     }

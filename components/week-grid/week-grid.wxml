@@ -24,7 +24,7 @@
       <!-- 课程块 -->
       <view
         wx:for="{{item.blocks}}"
-        wx:key="name"
+        wx:key="index"
         wx:for-item="b"
         class="course-block"
         style="top: {{b._top}}rpx; height: {{b._height}}rpx; background: {{b._bg}}; border-left-color: {{b._bar}}"

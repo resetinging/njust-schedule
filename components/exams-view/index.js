@@ -1,7 +1,7 @@
 /**
  * 考试安排视图组件 — 由原 pages/exams 页面改造（方案A 合页 swiper）
  * 生命周期: attached 首次挂载(读缓存); activate 由 main 页面每次激活时调用(onShow 语义)
- * 下拉刷新: scroll-view refresher(refresher-threshold 可自定义)
+ * 刷新: 顶部 hero 「🔄 刷新」按钮
  */
 
 const api = require('../../utils/api')

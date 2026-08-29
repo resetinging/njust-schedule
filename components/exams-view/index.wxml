@@ -31,7 +31,7 @@
       <!-- 倒计时卡片 -->
       <scroll-view scroll-x class="countdown-scroll" wx:if="{{countdowns.length > 0}}">
         <view class="countdown-row">
-          <view class="countdown-card {{item.cardClass}}" wx:for="{{countdowns}}" wx:key="date">
+          <view class="countdown-card {{item.cardClass}}" wx:for="{{countdowns}}" wx:key="index">
             <view class="cd-bignum">{{item.bigNum}}</view>
             <view class="cd-label">{{item.bigLabel}}</view>
             <view class="cd-course">{{item.course_name}}</view>
@@ -57,7 +57,7 @@
           <!-- 考试卡片（已结束且折叠时隐藏） -->
           <block wx:if="{{!(group.urgency === 'done' && collapsedDates[group.date])}}">
             <view class="exam-card {{group.urgency === 'urgent' ? 'exam-urgent' : ''}} {{group.urgency === 'warning' ? 'exam-warning' : ''}} {{group.urgency === 'done' ? 'exam-done' : ''}}"
-                  wx:for="{{group.exams}}" wx:key="course_name" wx:for-item="exam">
+                  wx:for="{{group.exams}}" wx:key="index" wx:for-item="exam">
               <view class="exam-course">{{exam.course_name}}</view>
               <view class="exam-meta">
                 <text class="meta-item">⏰ {{exam.time || '待定'}}</text>

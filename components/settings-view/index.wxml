@@ -120,7 +120,7 @@
       <!-- 登录按钮 -->
       <button class="btn-primary login-btn" bindtap="onLogin"
               disabled="{{!canLogin || loggingIn}}">
-        {{loggingIn ? '登录中…' : (loginMode === 'webvpn' ? '智慧理工登录' : '登录（自动识别验证码）')}}
+        {{loggingIn ? '登录中…' : (loginMode === 'webvpn' ? '智慧理工登录' : (captcha ? '登录' : '登录（自动识别验证码）'))}}
       </button>
     </view>
 
