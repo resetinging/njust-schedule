@@ -24,6 +24,18 @@ function statusClass(code) {
   if (code < 500) return 's4xx';
   return 's5xx';
 }
+/** 成绩 → 百分制数值(等级制折算中值, 与后端/小程序一致); 无法识别返回 null */
+function scoreNum(s) {
+  const t = String(s == null ? '' : s).trim();
+  if (!t) return null;
+  if (/^-?\d+(\.\d+)?$/.test(t)) return parseFloat(t);
+  if (/不及格|不通过|未通过/.test(t)) return 55;
+  if (/优/.test(t)) return 95;
+  if (/良/.test(t)) return 85;
+  if (/中/.test(t)) return 75;
+  if (/及格|通过/.test(t)) return 65;
+  return null;
+}
 
 async function api(path, opts = {}) {
   const headers = Object.assign({}, opts.headers || {});
@@ -181,10 +193,10 @@ async function openUser(sid) {
     g.forEach(x => { const k = (x.academic_year || '') + '-' + (x.semester || ''); if (!semMap[k]) semMap[k] = []; semMap[k].push(x); });
     const semHtml = Object.keys(semMap).sort().reverse().map(k => {
       const arr = semMap[k];
-      const n = arr.length;
-      const sum = arr.reduce((s, x) => s + (parseFloat(x.score) || 0), 0);
-      const avg = (sum / n).toFixed(1);
-      return `<div class="drawer-sem"><b>${esc(k)}</b> · ${n}门 · 均分 ${avg}</div>`;
+      const scored = arr.map(x => scoreNum(x.score)).filter(v => v != null);
+      const n = scored.length;
+      const avg = n ? (scored.reduce((a, b) => a + b, 0) / n).toFixed(1) : '-';
+      return `<div class="drawer-sem"><b>${esc(k)}</b> · ${arr.length}门 · 均分 ${avg}</div>`;
     }).join('');
     const courseHtml = r.courses.map(c => `<div class="chip">${esc(c.name)}<i>${esc(c.semester)}</i></div>`).join('');
     $('drawerBody').innerHTML = `

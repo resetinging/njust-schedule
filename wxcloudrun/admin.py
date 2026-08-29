@@ -239,14 +239,34 @@ def admin_user_detail(sid: str):
                     "exams": exams, "grades": grades, "evaluations": evals})
 
 
+def _score_to_num(s: str):
+    """成绩 → 百分制数值(等级制折算中值, 与小程序前端一致);
+    无法识别(缺考/缓考/免修等)返回 None, 不参与均分统计"""
+    t = (s or "").strip()
+    if not t:
+        return None
+    if t.replace(".", "", 1).isdigit():
+        return float(t)
+    if "不及格" in t or "不通过" in t or "未通过" in t:
+        return 55.0
+    if "优" in t:
+        return 95.0
+    if "良" in t:
+        return 85.0
+    if "中" in t:
+        return 75.0
+    if "及格" in t or "通过" in t:
+        return 65.0
+    return None
+
+
 @app.route("/api/admin/stats/grades")
 @admin_required
 def admin_grade_stats():
-    """成绩统计: 等级分布 + GPA 分布 + 各学期均分"""
+    """成绩统计: 等级分布 + GPA 分布 + 各学期均分(等级制按中值折算)"""
     rows = db.session.query(Grade.score, Grade.grade_point, Grade.academic_year, Grade.semester).all()
     level_dist = {"优秀": 0, "良好": 0, "中等": 0, "及格": 0, "不及格": 0, "其他": 0}
     sem_avg = {}     # (学年, 学期) -> [均分累计, 条数]
-    gpa_buckets = {} # 学生学号 -> 最高 GPA
     for score, gp, ay, sem in rows:
         s = str(score or "").strip()
         if s in ("", "缺考", "缓考", "免修"):
@@ -258,16 +278,19 @@ def admin_grade_stats():
             elif v >= 70: level_dist["中等"] += 1
             elif v >= 60: level_dist["及格"] += 1
             else: level_dist["不及格"] += 1
+        elif "不及格" in s or "不通过" in s:   # 必须先于"及格"匹配
+            level_dist["不及格"] += 1
         elif "优" in s: level_dist["优秀"] += 1
         elif "良" in s: level_dist["良好"] += 1
         elif "中" in s: level_dist["中等"] += 1
         elif "及格" in s or "通过" in s: level_dist["及格"] += 1
-        elif "不及格" in s or "不通过" in s: level_dist["不及格"] += 1
         else: level_dist["其他"] += 1
-        if s.replace(".", "", 1).isdigit() and s != "":
+        # 均分: 等级制折算中值参与统计(与小程序前端口径一致)
+        num = _score_to_num(s)
+        if num is not None:
             key = f"{ay}-{sem}"
             if key not in sem_avg: sem_avg[key] = [0.0, 0]
-            sem_avg[key][0] += float(s)
+            sem_avg[key][0] += num
             sem_avg[key][1] += 1
     # GPA 分布按学生最高绩点
     gp_rows = db.session.query(Grade.student_id, func.max(Grade.grade_point)).filter(
