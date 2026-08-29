@@ -27,10 +27,28 @@ App({
       this.globalData.isLoggedIn = true
       this.globalData.studentName = storage.getStudentName()
       this.globalData.semester = storage.getSemester()
-      // 静默校验后端会话: 容器重启/会话过期后立即提示, 而不是等用户刷新数据才报错
-      this._checkSession()
-      // 后台预取各 Tab 页数据: 延迟启动不阻塞首屏, 滑动切换时零等待
-      setTimeout(() => this._prefetchAll(), 800)
+      if (storage.get('saved_password', '')) {
+        // 每次进入小程序自动登录一次(记住密码):
+        // 后端 token 会话在内存中, 容器过夜/重启后旧 token 失效,
+        // 自动重登保证无需手动重新登录, 数据照常刷新
+        api.autoRelogin().then((token) => {
+          if (token) {
+            // 自动登录成功: 更新全局 + 后台预取各 Tab 数据
+            this.globalData.isLoggedIn = true
+            this.globalData.studentName = storage.getStudentName()
+            this.globalData.semester = storage.getSemester()
+            setTimeout(() => this._prefetchAll(), 300)
+          } else {
+            // 自动登录失败(未记住密码/网络/OCR): 走会话校验兜底
+            this._checkSession()
+          }
+        })
+      } else {
+        // 静默校验后端会话: 容器重启/会话过期后立即提示, 而不是等用户刷新数据才报错
+        this._checkSession()
+        // 后台预取各 Tab 页数据: 延迟启动不阻塞首屏, 滑动切换时零等待
+        setTimeout(() => this._prefetchAll(), 800)
+      }
     }
   },
 

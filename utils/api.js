@@ -120,7 +120,13 @@ function autoRelogin() {
     password: pwd
   }).then((res) => {
     _autoReloginPromise = null
-    return (res && res.success && res.token) ? res.token : null
+    if (res && res.success && res.token) {
+      // 关键: 新 token 必须持久化, 否则后续请求仍携带旧 token → 401 循环
+      storage.set(TOKEN_KEY, res.token)
+      if (res.semester) storage.setSemester(res.semester)
+      return res.token
+    }
+    return null
   }).catch(() => {
     _autoReloginPromise = null
     return null
