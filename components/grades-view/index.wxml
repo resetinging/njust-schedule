@@ -1,11 +1,8 @@
 <!-- 成绩查询视图组件 — 网页版布局(绩点大卡 + 学期绩点明细 + 成绩明细), 保留小程序风格 -->
 <view class="container view-root" wx:if="{{active}}">
 
-  <!-- 滚动内容区(scroll-view 内滚 + 自定义下拉刷新阈值) -->
-  <scroll-view class="view-scroll" scroll-y
-               refresher-enabled refresher-threshold="80"
-               refresher-triggered="{{refresherTriggered}}"
-               bindrefresherrefresh="onRefresherRefresh">
+  <!-- 滚动内容区(scroll-view 内滚; 刷新走按钮) -->
+  <scroll-view class="view-scroll" scroll-y>
 
     <!-- 空状态 -->
     <view wx:if="{{!loading && empty}}" class="empty-state">

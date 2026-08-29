@@ -1,11 +1,8 @@
 <!-- 课表视图组件 -->
 <view class="container view-root" wx:if="{{active}}">
 
-  <!-- 滚动内容区(scroll-view 内滚 + 自定义下拉刷新阈值) -->
-  <scroll-view class="view-scroll" scroll-y
-               refresher-enabled refresher-threshold="80"
-               refresher-triggered="{{refresherTriggered}}"
-               bindrefresherrefresh="onRefresherRefresh">
+  <!-- 滚动内容区(scroll-view 内滚; 刷新走右上角手动按钮) -->
+  <scroll-view class="view-scroll" scroll-y>
 
     <!-- 顶部紫渐变信息卡 -->
     <view class="top-card">
@@ -32,7 +29,7 @@
       </view>
     </view>
 
-    <!-- 工具栏: 上下周 + 搜索 -->
+    <!-- 工具栏: 上下周 + 搜索 + 手动刷新 -->
     <view class="toolbar">
       <view class="week-nav">
         <text class="week-btn" bindtap="prevWeek">◀</text>
@@ -51,6 +48,7 @@
                confirm-type="search" />
         <text wx:if="{{searchText}}" class="search-clear" bindtap="onClearSearch">✕</text>
       </view>
+      <text class="refresh-btn" bindtap="onRefresh">🔄</text>
     </view>
 
     <!-- 网格视图 -->

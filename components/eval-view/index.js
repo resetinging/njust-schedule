@@ -51,8 +51,7 @@ Component({
     batchResults: [],
     batchId: '',
 
-    active: false,           // 懒渲染: main 激活时才渲染内容
-    refresherTriggered: false // scroll-view 下拉刷新状态
+    active: false            // 懒渲染: main 激活时才渲染内容
   },
 
   lifetimes: {
@@ -653,12 +652,6 @@ Component({
 
     closeBatchProgress() {
       this.setData({ batchDone: false, batchRunning: false, batchResults: [] })
-    },
-
-    /** scroll-view 下拉刷新触发 */
-    onRefresherRefresh() {
-      this.onRefresh()
-      this.setData({ refresherTriggered: false })
     }
   }
 })

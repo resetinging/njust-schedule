@@ -20,8 +20,7 @@ Component({
     loading: false,
     collapsedDates: {}, // 已结束日期组折叠状态
 
-    active: false,           // 懒渲染: main 激活时才渲染内容
-    refresherTriggered: false // scroll-view 下拉刷新状态
+    active: false            // 懒渲染: main 激活时才渲染内容
   },
 
   lifetimes: {
@@ -183,12 +182,6 @@ Component({
         this.setData({ loading: false })
         wx.showToast({ title: '刷新失败', icon: 'none' })
       }
-    },
-
-    /** scroll-view 下拉刷新触发 */
-    onRefresherRefresh() {
-      this.onRefresh()
-      this.setData({ refresherTriggered: false })
     }
   }
 })

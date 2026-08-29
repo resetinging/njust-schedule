@@ -35,8 +35,7 @@ Component({
     studentName: '',         // 学生姓名(顶部信息卡)
     studentId: '',           // 学号(顶部信息卡)
 
-    active: false,           // 懒渲染: main 激活时才渲染内容
-    refresherTriggered: false // scroll-view 下拉刷新状态
+    active: false            // 懒渲染: main 激活时才渲染内容
   },
 
   lifetimes: {
@@ -332,11 +331,10 @@ Component({
       this.filterByWeek(w)
     },
 
-    /** 下拉刷新(主动操作, 显示反馈) */
+    /** 手动刷新(主动操作, 显示反馈) */
     async onRefresh() {
       if (!storage.isLoggedIn()) {
         wx.showToast({ title: '请先在"我的"页面登录', icon: 'none' })
-        this.setData({ refresherTriggered: false })
         return
       }
       this.setData({ loading: true })
@@ -353,12 +351,6 @@ Component({
         this.setData({ loading: false })
         wx.showToast({ title: '刷新失败', icon: 'none' })
       }
-    },
-
-    /** scroll-view 下拉刷新触发 */
-    async onRefresherRefresh() {
-      await this.onRefresh()
-      this.setData({ refresherTriggered: false })
     },
 
     /** 点击课程卡片 — 打开详情弹窗 */

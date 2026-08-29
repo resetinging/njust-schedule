@@ -1,11 +1,8 @@
 <!-- 教学评价视图组件 — 原 pages/eval 页面改造（方案A 合页 swiper） -->
 <view class="container view-root" wx:if="{{active}}">
 
-  <!-- 滚动内容区(scroll-view 内滚 + 下拉刷新) -->
-  <scroll-view class="view-scroll" scroll-y
-               refresher-enabled refresher-threshold="80"
-               refresher-triggered="{{refresherTriggered}}"
-               bindrefresherrefresh="onRefresherRefresh">
+  <!-- 滚动内容区(scroll-view 内滚; 刷新走顶部按钮) -->
+  <scroll-view class="view-scroll" scroll-y>
 
   <!-- 加载中 -->
   <view class="empty-state" wx:if="{{loading && batches.length === 0}}">

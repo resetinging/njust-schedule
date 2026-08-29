@@ -771,3 +771,15 @@
 .view-scroll {
   height: 100%;
 }
+/* 手动刷新按钮(工具栏右侧) */
+.refresh-btn {
+  flex-shrink: 0;
+  width: 60rpx;
+  height: 60rpx;
+  line-height: 60rpx;
+  text-align: center;
+  font-size: 30rpx;
+  background: #EFEBFC;
+  border-radius: 16rpx;
+  color: #7C6BE8;
+}

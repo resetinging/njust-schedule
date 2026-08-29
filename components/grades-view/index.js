@@ -69,8 +69,7 @@ Component({
     // 学期卡片组
     semGroups: [],          // [{sem, count, avg, folded, courses:[{id,name,checked,meta,score}]}]
 
-    active: false,           // 懒渲染: main 激活时才渲染内容
-    refresherTriggered: false // scroll-view 下拉刷新状态
+    active: false            // 懒渲染: main 激活时才渲染内容
   },
 
   lifetimes: {
@@ -94,11 +93,6 @@ Component({
       if (saved !== this._mode) {
         this.loadGrades()
       }
-    },
-
-    /** scroll-view 下拉刷新触发 */
-    onRefresherRefresh() {
-      this.loadGrades().finally(() => this.setData({ refresherTriggered: false }))
     },
 
     /** 从缓存渲染（不请求后端） */
