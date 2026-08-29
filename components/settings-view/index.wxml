@@ -117,9 +117,9 @@
                        bind:input="onCaptchaInput" bind:refresh="onRefreshCaptcha" />
       </view>
 
-      <!-- 登录按钮 -->
+      <!-- 登录按钮(不禁用: 空表单点击时 onLogin 校验并提示, 避免"点了没反应") -->
       <button class="btn-primary login-btn" bindtap="onLogin"
-              disabled="{{!canLogin || loggingIn}}">
+              disabled="{{loggingIn}}">
         {{loggingIn ? '登录中…' : (loginMode === 'webvpn' ? '智慧理工登录' : (captcha ? '登录' : '登录（自动识别验证码）'))}}
       </button>
     </view>

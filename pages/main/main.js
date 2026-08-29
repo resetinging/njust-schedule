@@ -17,10 +17,15 @@ Page({
     this._activate(0)
   },
 
+  onReady() {
+    // 页面渲染完成后确保当前 Tab 已激活(此时 selectComponent 必可拿到组件,
+    // 解决慢设备上首屏激活重试超时导致页面空白)
+    this._activate(this.data.current)
+  },
+
   onShow() {
-    // 从非 tab 页(如图鉴页)返回时同步全局状态到激活页
-    const page = this._view(this.data.current)
-    if (page && page.activate) page.activate()
+    // 从非 tab 页(如图鉴页)返回时同步全局状态到激活页(带重试)
+    this._activate(this.data.current)
     // 同步 tabBar 高亮
     this._syncTabBar()
   },
@@ -51,9 +56,9 @@ Page({
       v.activate()
       return
     }
-    // 页面首帧渲染未完成时 selectComponent 拿不到实例, 延迟重试
+    // 页面首帧渲染未完成时 selectComponent 拿不到实例, 延迟重试(最多 2 秒)
     const r = retry || 0
-    if (r < 10) setTimeout(() => this._activate(i, r + 1), 100)
+    if (r < 20) setTimeout(() => this._activate(i, r + 1), 100)
   },
 
   /** swiper 滑动结束: 更新激活视图 + tabBar 高亮 */
@@ -80,8 +85,8 @@ Page({
 
   /** tabBar 点击(自定义 tabBar 组件回调): 切 swiper 带动画 */
   onTabTap(i) {
-    if (i === this.data.current) return
-    this.setData({ current: i })
+    // 即使 i === current 也重新激活(修复: 首次激活失败后再次点击无反应的死循环)
+    if (i !== this.data.current) this.setData({ current: i })
     this._activate(i)
     this._syncTabBar()
   },
