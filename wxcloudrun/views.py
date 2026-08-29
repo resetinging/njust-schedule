@@ -89,6 +89,12 @@ def _log_request_end(resp):
         xff = request.headers.get("X-Forwarded-For") or ""
         ip = xff.split(",")[0].strip() if xff else (request.remote_addr or "-")
         rid = _rid()
+        # 记录到管理面板的实时请求缓冲(线程安全)
+        try:
+            from wxcloudrun import admin as _admin
+            _admin.record_request(request.method, request.path, resp.status_code, dur_ms, sid, ip)
+        except Exception:
+            pass
         line = (f"[req] rid={rid} {request.method} {request.path} "
                 f"status={resp.status_code} sid={sid} tok={tok} ip={ip} d={dur_ms:.0f}ms")
         if dur_ms >= SLOW_MS:
@@ -255,33 +261,34 @@ def _warm_eval_session(client: JWCClient):
 # ============================================================
 @app.route('/')
 def index():
-    first_week_date = dao.get_setting("first_week_date", "")
-    return render_template('index.html', first_week_date=first_week_date)
+    # 公开网页端已下线: 根路径进入管理控制面板(管理员登录后使用)
+    return render_template('admin.html')
 
 
 @app.route('/exams')
 def exams_page():
-    return render_template('exams.html')
+    # 公开页面已下线: 统一进入管理控制面板
+    return render_template('admin.html')
 
 
 @app.route('/evaluations')
 def evaluations_page():
-    return render_template('evaluations.html')
+    return render_template('admin.html')
 
 
 @app.route('/grades')
 def grades_page():
-    return render_template('grades.html')
+    return render_template('admin.html')
 
 
 @app.route('/settings')
 def settings_page():
-    return render_template('settings.html')
+    return render_template('admin.html')
 
 
 @app.route('/gallery')
 def gallery_page():
-    return render_template('gallery.html')
+    return render_template('admin.html')
 
 
 @app.route('/proxy/jw/<path:target_path>', methods=['GET', 'POST'])

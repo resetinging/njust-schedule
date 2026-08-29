@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课表助手 · 控制面板</title>
+  <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+
+  <!-- 登录视图 -->
+  <div id="loginView" class="login-wrap hidden">
+    <div class="login-card">
+      <div class="login-logo">📊</div>
+      <h1>课表助手 · 控制面板</h1>
+      <p class="sub">管理员登录</p>
+      <input id="adminPwd" type="password" placeholder="请输入管理密码"
+             autocomplete="current-password" />
+      <button id="loginBtn" class="primary">登 录</button>
+      <div id="loginErr" class="err hidden"></div>
+    </div>
+  </div>
+
+  <!-- 主视图 -->
+  <div id="mainView" class="main-wrap hidden">
+    <header class="topbar">
+      <div class="brand">📊 课表助手 · 控制面板</div>
+      <div class="top-right">
+        <span id="sseStatus" class="sse-status">● 连接中</span>
+        <button id="logoutBtn" class="ghost">退出</button>
+      </div>
+    </header>
+
+    <!-- 统计卡片 -->
+    <section class="stat-row" id="statRow"></section>
+
+    <!-- Tab 导航 -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="requests">实时请求</button>
+      <button class="tab" data-tab="users">用户</button>
+      <button class="tab" data-tab="sessions">在线会话</button>
+      <button class="tab" data-tab="grades">成绩统计</button>
+    </nav>
+
+    <section id="panel-requests" class="panel active">
+      <div class="panel-tool">
+        <label><input type="checkbox" id="autoScroll" checked> 自动滚动</label>
+        <button id="reqClear" class="ghost small">清空列表</button>
+      </div>
+      <div id="reqList" class="req-list"></div>
+    </section>
+
+    <section id="panel-users" class="panel">
+      <div id="userList" class="user-list"></div>
+    </section>
+
+    <section id="panel-sessions" class="panel">
+      <div id="sessionList" class="user-list"></div>
+    </section>
+
+    <section id="panel-grades" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3>成绩等级分布</h3>
+          <div id="levelChart" class="chart"></div>
+        </div>
+        <div class="card">
+          <h3>学生最高 GPA 分布</h3>
+          <div id="gpaChart" class="chart"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>各学期平均分</h3>
+        <div id="semAvgChart" class="chart sem-chart"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 用户详情抽屉 -->
+  <div id="drawer" class="drawer hidden">
+    <div class="drawer-head">
+      <span id="drawerTitle"></span>
+      <button id="drawerClose" class="ghost">✕</button>
+    </div>
+    <div id="drawerBody" class="drawer-body"></div>
+  </div>
+
+  <script src="/static/js/admin.js"></script>
+</body>
+</html>
