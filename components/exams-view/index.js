@@ -38,6 +38,11 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      // 退出登录后清空上一用户数据(隐私)
+      if (!storage.isLoggedIn()) {
+        this.setData({ exams: [], countdowns: [], dayGroups: [] })
+        return
+      }
       this.loadCachedData()            // 重新读缓存(登录后/刷新后数据自动生效)
     },
 

@@ -51,8 +51,8 @@
       <text class="refresh-btn" bindtap="onRefresh">🔄</text>
     </view>
 
-    <!-- 网格视图 -->
-    <view class="grid-wrapper" wx:if="{{viewMode === 'grid' && !loading && filteredCourses.length > 0}}">
+    <!-- 网格视图(刷新时保留旧内容, 仅首次无数据才显示占位) -->
+    <view class="grid-wrapper" wx:if="{{viewMode === 'grid' && filteredCourses.length > 0 && !(loading && courses.length === 0)}}">
       <week-grid
         courses="{{filteredCourses}}"
         currentWeek="{{currentWeek}}"
@@ -62,8 +62,8 @@
       />
     </view>
 
-    <!-- 列表视图 -->
-    <view class="list-wrapper" wx:if="{{viewMode === 'list' && !loading}}">
+    <!-- 列表视图(刷新时保留旧内容) -->
+    <view class="list-wrapper" wx:if="{{viewMode === 'list' && !(loading && courses.length === 0)}}">
       <block wx:if="{{listDayGroups.length > 0}}">
         <view class="day-group" wx:for="{{listDayGroups}}" wx:key="day" wx:for-item="group">
           <view class="day-title">{{group.dayName}}</view>
@@ -96,14 +96,14 @@
       </view>
     </view>
 
-    <!-- 网格视图空结果（搜索无匹配） -->
-    <view class="empty-state" wx:if="{{viewMode === 'grid' && !loading && filteredCourses.length === 0 && courses.length > 0}}">
+    <!-- 网格视图空结果（区分搜索/本周无课） -->
+    <view class="empty-state" wx:if="{{viewMode === 'grid' && filteredCourses.length === 0 && courses.length > 0 && !loading}}">
       <view class="icon">🔍</view>
-      <view class="text">没有匹配的课程</view>
+      <view class="text">{{searchText ? '没有匹配的课程' : '本周暂无课程'}}</view>
     </view>
 
-    <!-- 加载中 -->
-    <view class="empty-state" wx:if="{{loading}}">
+    <!-- 加载中(仅无数据时显示) -->
+    <view class="empty-state" wx:if="{{loading && courses.length === 0}}">
       <view class="icon">⏳</view>
       <view class="text">加载中…</view>
     </view>

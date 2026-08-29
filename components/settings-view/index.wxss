@@ -374,3 +374,10 @@
 /* 组件根/滚动区 */
 .view-root { height: 100%; box-sizing: border-box; }
 .view-scroll { height: 100%; }
+System.Management.Automation.Internal.Host.InternalHost
+
+/* 宿主节点高度(swiper-item 内撑满, 保证内部 100% 高度链有效) */
+:host {
+  display: block;
+  height: 100%;
+}

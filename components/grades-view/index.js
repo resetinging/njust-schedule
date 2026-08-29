@@ -88,6 +88,13 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      // 退出登录后清空上一用户数据(隐私)
+      if (!storage.isLoggedIn()) {
+        this._allGrades = []
+        this._checked = {}
+        this.setData({ semGroups: [], empty: true, loading: false })
+        return
+      }
       this.loadCached()                // 重新读缓存(登录后/刷新后数据自动生效)
       const saved = storage.get('gpa_mode', '')
       if (saved !== this._mode) {
@@ -98,18 +105,24 @@ Component({
     /** 从缓存渲染（不请求后端） */
     loadCached() {
       const gradesRes = storage.getCached('cached_grades')
-      if (!gradesRes || !gradesRes.grades || !gradesRes.grades.length) return
+      if (!gradesRes || !gradesRes.grades || !gradesRes.grades.length) {
+        // 无缓存(未登录/首次): 收起加载态, 显示空状态
+        this.setData({ loading: false, empty: true })
+        return
+      }
       this._allGrades = gradesRes.grades
       const cetRes = storage.getCached('cached_cet_scores')
       this._cetRaw = (cetRes && cetRes.success ? cetRes.scores : []) || []
       this._mode = storage.get('gpa_mode', '')
-      // 默认勾选: 通识选修课不勾选
-      this._checked = {}
+      // 勾选状态保留: 仅对新增课程初始化默认值(切换 Tab 不重置用户勾选)
+      if (!this._checked) this._checked = {}
       for (const g of this._allGrades) {
-        this._checked[g.id] = !_isNonGpa(g)
+        if (this._checked[g.id] === undefined) {
+          this._checked[g.id] = !_isNonGpa(g)
+        }
       }
       this._render()
-      this.setData({ loading: false })
+      this.setData({ loading: false, empty: false })
     },
 
     // ============================================================

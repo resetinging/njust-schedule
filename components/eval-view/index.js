@@ -74,6 +74,11 @@ Component({
     /** 由 main 页面调用: 每次被激活时触发 */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      // 退出登录后清空上一用户数据(隐私)
+      if (!storage.isLoggedIn()) {
+        this.setData({ batches: [], batchCourses: [], countdowns: [] })
+        return
+      }
       // 重新读缓存(登录后/刷新后数据自动生效)
       const batches = storage.getCached('cached_evaluations')
       if (batches && batches.evaluations) {
@@ -322,7 +327,7 @@ Component({
       const { seq, value } = e.currentTarget.dataset
       const selections = { ...this.data.selections, [seq]: value }
 
-      // 实时计算总分
+      // 实时计算总分(所有指标一次性计分: 变更项按新选项, 其他项按已选)
       let total = 0
       const indicators = this.data.indicators.map(ind => {
         if (ind.seq === seq) {
@@ -341,16 +346,6 @@ Component({
           const checkedOpt = ind.options.find(o => o.checked)
           if (checkedOpt) total += this._optionScore(checkedOpt)
           return ind
-        }
-      })
-
-      // 更新 indicators 以反映选中状态
-      indicators.forEach(ind => {
-        if (ind.seq !== seq) {
-          const val = selections[ind.seq]
-          if (val) {
-            total += this._optionScore(ind.options.find(o => o.value === val) || {})
-          }
         }
       })
 

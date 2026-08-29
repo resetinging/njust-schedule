@@ -40,8 +40,8 @@
         </view>
       </scroll-view>
 
-      <!-- 按日期分组的考试列表 -->
-      <scroll-view scroll-y class="exam-scroll">
+      <!-- 按日期分组的考试列表(普通容器, 避免嵌套纵向滚动冲突) -->
+      <view class="exam-scroll">
         <block wx:for="{{dayGroups}}" wx:key="date" wx:for-item="group">
           <!-- 日期头部（已结束可折叠） -->
           <view class="date-header" data-date="{{group.date}}" data-done="{{group.urgency === 'done'}}" bindtap="onToggleGroup">
@@ -68,7 +68,7 @@
             </view>
           </block>
         </block>
-      </scroll-view>
+      </view>
     </block>
 
   </scroll-view>

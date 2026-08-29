@@ -49,6 +49,9 @@ Component({
   lifetimes: {
     attached() {
       this.refreshState()
+      // 回读记住密码开关状态
+      const rp = storage.get('remember_pwd', '1') !== '0'
+      if (rp !== this.data.rememberPwd) this.setData({ rememberPwd: rp })
       this.loadSettings()
     }
   },
@@ -151,10 +154,12 @@ Component({
       this.setData({ canLogin: !!(studentId && password) })
     },
 
-    /** 记住密码开关 */
+    /** 记住密码开关(状态持久化) */
     onToggleRemember(e) {
-      this.setData({ rememberPwd: !!e.detail.value })
-      if (!e.detail.value) {
+      const val = !!e.detail.value
+      this.setData({ rememberPwd: val })
+      storage.set('remember_pwd', val ? '1' : '0')
+      if (!val) {
         storage.remove('saved_password')
       }
     },
@@ -163,6 +168,7 @@ Component({
     onTapRemember() {
       const next = !this.data.rememberPwd
       this.setData({ rememberPwd: next })
+      storage.set('remember_pwd', next ? '1' : '0')
       if (!next) {
         storage.remove('saved_password')
       }
@@ -306,6 +312,12 @@ Component({
       const date = e.detail.value
       this.setData({ firstWeekDate: date })
       api.saveSettings({ first_week_date: date }).then(res => {
+        if (res.success) {
+          // 使课表页本地校历缓存立即失效, 切回即可看到新周次
+          const sid = storage.getStudentId() || 'guest'
+          const sem = storage.getSemester() || 'default'
+          storage.remove('cached_status_' + sid + '_' + sem)
+        }
         wx.showToast({
           title: res.success ? '✅ 已保存，课表将自动跳转本周' : (res.message || '保存失败'),
           icon: 'none'
@@ -319,9 +331,16 @@ Component({
     // 已登录操作
     // ============================================================
 
-    /** 跳转成绩页（TabBar 页面需要用 switchTab） */
+    /** 跳成绩页（合页方案: 通知 main 切 swiper 到成绩 Tab） */
     onGoGrades() {
-      wx.switchTab({ url: '/pages/grades/grades' })
+      const pages = getCurrentPages()
+      const page = pages[pages.length - 1]
+      // 当前页面可能是 main(合页) 或本组件所在页; main 提供 onTabTap 切换 swiper
+      if (page && typeof page.onTabTap === 'function') {
+        page.onTabTap(3)
+      } else {
+        wx.switchTab({ url: '/pages/grades/grades' })
+      }
     },
 
     /** 打开校历照片墙 */
@@ -329,22 +348,16 @@ Component({
       wx.navigateTo({ url: '/pages/gallery/gallery' })
     },
 
-    /** 一键刷新 */
+    /** 一键刷新课表+考试(走 dataLoader: 刷新教务后查询写新缓存, 各 Tab 自动生效) */
     async onRefreshAll() {
       wx.showLoading({ title: '刷新中…' })
       try {
-        const res = await api.refreshAll()
+        const ok = await dataLoader.fetchAllData()
         wx.hideLoading()
-        if (res.success) {
-          const parts = []
-          if (res.schedule && res.schedule.ok) parts.push(`课表 ${res.schedule.count} 门`)
-          if (res.exams && res.exams.ok) parts.push(`考试 ${res.exams.count} 场`)
-          wx.showToast({ title: parts.join('，') || '已刷新', icon: 'success' })
-        } else {
-          wx.showToast({ title: res.message || '刷新失败', icon: 'none' })
-        }
+        wx.showToast({ title: ok > 0 ? '数据已更新' : '刷新失败', icon: ok > 0 ? 'success' : 'none' })
       } catch (e) {
         wx.hideLoading()
+        wx.showToast({ title: '刷新失败', icon: 'none' })
       }
     },
 
@@ -352,7 +365,7 @@ Component({
     onClearData() {
       wx.showModal({
         title: '确认清除',
-        content: '将清除本地缓存的课表和考试数据',
+        content: '将清除本地全部缓存数据（课表/考试/评教/成绩等），重新登录后自动恢复',
         success: (modalRes) => {
           if (modalRes.confirm) {
             this._doClearData()
@@ -365,11 +378,16 @@ Component({
     async _doClearData() {
       try {
         await api.clearData()
-        // 清理全部学期键的课程/考试本地缓存
+        // 清理全部本地缓存键(含学期后缀键)
         try {
           const info = wx.getStorageInfoSync()
           info.keys.forEach(k => {
-            if (k.indexOf('cached_courses_') === 0 || k.indexOf('cached_exams_') === 0) {
+            if (k === 'cached_evaluations' || k === 'cached_grades' ||
+                k === 'cached_cet_scores' || k === 'semester_list' ||
+                k === 'cached_gallery_meta' ||
+                String(k).indexOf('cached_courses_') === 0 ||
+                String(k).indexOf('cached_exams_') === 0 ||
+                String(k).indexOf('cached_status_') === 0) {
               storage.remove(k)
             }
           })

@@ -58,6 +58,11 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      // 退出登录后清空上一用户数据(隐私)
+      if (!storage.isLoggedIn()) {
+        this.setData({ courses: [], filteredCourses: [], listDayGroups: [], studentName: '', studentId: '' })
+        return
+      }
       this.loadCachedData()            // 重新读缓存(登录后/刷新后数据自动生效)
       const app = getApp()
       // 仅当尚未选择学期时用全局值, 避免覆盖手动切换的学期
@@ -120,15 +125,17 @@ Component({
       }
     },
 
-    /** 应用第一周日期: 计算当前周并刷新显示 */
+    /** 应用第一周日期: 计算当前周并刷新显示(保留用户手动跳转的周次) */
     _applyFirstWeek(firstWeekDate, showHint) {
       const actualWeek = calcCurrentWeek(firstWeekDate)
       const todayDay = calcTodayDay()
+      // 仅首次设置或日期变化时定位本周; 否则保留用户当前查看的周次
+      const firstTime = !this.data.firstWeekDate || this.data.firstWeekDate !== firstWeekDate
       this.setData({
         firstWeekDate,
         actualWeek,
         todayDay,
-        currentWeek: actualWeek
+        currentWeek: firstTime ? actualWeek : this.data.currentWeek
       })
       // 如果已加载课程，重新过滤
       if (this.data.courses.length > 0) {
@@ -270,10 +277,13 @@ Component({
       this.setData({ viewMode: mode })
     },
 
-    /** 搜索课程/教师 */
+    /** 搜索课程/教师(200ms 防抖) */
     onSearchInput(e) {
       this.setData({ searchText: e.detail.value })
-      this.filterByWeek(this.data.currentWeek)
+      if (this._searchTimer) clearTimeout(this._searchTimer)
+      this._searchTimer = setTimeout(() => {
+        this.filterByWeek(this.data.currentWeek)
+      }, 200)
     },
 
     /** 清空搜索 */

@@ -31,11 +31,9 @@
   border-left: 1rpx solid #F1EFF8;
 }
 
-/* 网格体 */
+/* 网格体(外层 scroll-view 统一滚动, 这里不再独立滚动) */
 .grid-body {
   display: flex;
-  overflow-y: auto;
-  max-height: calc(100vh - 340rpx);
 }
 
 /* 节次时间列 */

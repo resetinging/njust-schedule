@@ -182,6 +182,7 @@
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 1200;
   background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
@@ -695,6 +696,7 @@
   flex: 1;
   display: flex;
   align-items: center;
+  position: relative;
   background: #fff;
   border: 2rpx solid #E3DFF5;
   border-radius: 30rpx;
@@ -782,4 +784,11 @@
   background: #EFEBFC;
   border-radius: 16rpx;
   color: #7C6BE8;
+}
+System.Management.Automation.Internal.Host.InternalHost
+
+/* 宿主节点高度(swiper-item 内撑满, 保证内部 100% 高度链有效) */
+:host {
+  display: block;
+  height: 100%;
 }

@@ -3,7 +3,6 @@
 .container {
   padding-bottom: 40rpx;
   background: #F2F0FA;
-  min-height: 100vh;
 }
 
 /* ============ 绩点大卡（紫渐变, 与课表页顶卡同风格） ============ */
@@ -389,5 +388,12 @@
   box-sizing: border-box;
 }
 .view-scroll {
+  height: 100%;
+}
+System.Management.Automation.Internal.Host.InternalHost
+
+/* 宿主节点高度(swiper-item 内撑满, 保证内部 100% 高度链有效) */
+:host {
+  display: block;
   height: 100%;
 }

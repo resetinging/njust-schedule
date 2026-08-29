@@ -25,11 +25,14 @@ Page({
     this._syncTabBar()
   },
 
-  /** 计算 swiper 高度: 视口高 - 自定义 tabBar 高(约 110rpx) - 状态栏/导航栏 */
+  /** 计算 swiper 高度: 视口高 - tabBar 高(约 110rpx) - iOS 底部安全区 */
   _calcHeight() {
     try {
       const sys = wx.getSystemInfoSync()
-      const h = sys.windowHeight - Math.ceil(110 * (sys.windowWidth / 750)) - 2
+      const tabH = Math.ceil(110 * (sys.windowWidth / 750))
+      // iOS 全面屏底部安全区(tabBar 有 env(safe-area-inset-bottom) padding)
+      const safeH = (sys.safeArea && sys.safeArea.bottom) ? Math.max(0, sys.windowHeight - sys.safeArea.bottom) : 0
+      const h = sys.windowHeight - tabH - safeH - 2
       this.setData({ swiperHeight: h > 200 ? h : 600 })
     } catch (e) {
       this.setData({ swiperHeight: 600 })
@@ -50,7 +53,7 @@ Page({
     }
     // 页面首帧渲染未完成时 selectComponent 拿不到实例, 延迟重试
     const r = retry || 0
-    if (r < 5) setTimeout(() => this._activate(i, r + 1), 100)
+    if (r < 10) setTimeout(() => this._activate(i, r + 1), 100)
   },
 
   /** swiper 滑动结束: 更新激活视图 + tabBar 高亮 */
