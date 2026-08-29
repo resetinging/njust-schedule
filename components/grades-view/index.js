@@ -185,10 +185,9 @@ Component({
       const semGroups = semKeys.map(sem => {
         const gs = groups[sem].slice().sort((a, b) => (a.course_name || '').localeCompare(b.course_name || ''))
         const semChecked = gs.filter(g => this._checked[g.id] !== false)
-        // 每学期绩点（与总 GPA 同口径, 支持保研模式）
-        const semGpa = isBaoyan
-          ? gpaUtil.calcGpaBaoyan(semChecked, this._cetRaw, true)
-          : gpaUtil.calcGpa(semChecked, true)
+        // 每学期绩点: 始终用普通 GPA(与桌面端 calcSemesterGpas 一致;
+        // CET 折算替换仅作用于总 GPA, 不作用于各学期)
+        const semGpa = gpaUtil.calcGpa(semChecked, true)
         let semGpaClass = ''
         if (semGpa >= 3.0) semGpaClass = 'gpa-high'
         else if (semGpa >= 2.0) semGpaClass = 'gpa-mid'
