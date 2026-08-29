@@ -9,10 +9,11 @@ import re
 import secrets
 import threading
 import time
+import uuid
 from collections import defaultdict
 from contextlib import contextmanager
 from typing import Optional, Tuple
-from flask import render_template, request, jsonify, Response
+from flask import render_template, request, jsonify, Response, g
 from bs4 import BeautifulSoup
 
 from wxcloudrun import app
@@ -48,9 +49,33 @@ jwc_client = JWCClient()
 
 # ============================================================
 # 调试日志: 请求级记录（/api/* 与 /proxy/* 每次请求一行）
+# - rid: 请求ID(before_request 生成), 关联错误/业务日志, 云托管按关键词过滤
+# - sid: 由 token 反查当前用户, 调试时按学号过滤
+# - 慢请求(>=SLOW_MS)自动升为 WARNING, 便于告警
 # ============================================================
+SLOW_MS = int(os.environ.get("SLOW_MS", "2000"))
+
+
+def _rid() -> str:
+    """当前请求 ID(无请求上下文时返回 '-', 如测试/后台调用)"""
+    try:
+        return g.get("rid", "-")
+    except Exception:
+        return "-"
+
+
+def _sid_by_token(token: str) -> str:
+    """token → 用户学号(会话池反查; 未登录/失效返回 '-')"""
+    if not token:
+        return "-"
+    with _sessions_lock:
+        sess = _sessions.get(token)
+    return sess[0].student_id if sess else "-"
+
+
 @app.before_request
 def _log_request_start():
+    g.rid = "r-" + uuid.uuid4().hex[:8]
     request._log_t0 = time.time()
 
 
@@ -60,9 +85,16 @@ def _log_request_end(resp):
         dur_ms = (time.time() - getattr(request, "_log_t0", time.time())) * 1000
         token = request.headers.get(TOKEN_HEADER, "") or ""
         tok = f"{token[:6]}…" if token else "-"
-        app.logger.info("[req] %s %s token=%s -> %s %.0fms",
-                        request.method, request.path, tok,
-                        resp.status_code, dur_ms)
+        sid = _sid_by_token(token)
+        xff = request.headers.get("X-Forwarded-For") or ""
+        ip = xff.split(",")[0].strip() if xff else (request.remote_addr or "-")
+        rid = _rid()
+        line = (f"[req] rid={rid} {request.method} {request.path} "
+                f"status={resp.status_code} sid={sid} tok={tok} ip={ip} d={dur_ms:.0f}ms")
+        if dur_ms >= SLOW_MS:
+            app.logger.warning("[slow] %s", line)
+        else:
+            app.logger.info(line)
     return resp
 
 
@@ -128,8 +160,8 @@ def _register_session(client: JWCClient) -> str:
     with _sessions_lock:
         _sessions[token] = [client, time.time()]
         _prune_sessions_locked()
-    app.logger.info("[session] 登录成功 sid=%s name=%s token=%s… 在线=%d",
-                    client.student_id, client.student_name, token[:6], len(_sessions))
+    app.logger.info("[session] rid=%s 登录成功 sid=%s name=%s token=%s… 在线=%d",
+                    _rid(), client.student_id, client.student_name, token[:6], len(_sessions))
     return token
 
 
@@ -469,7 +501,7 @@ def api_login():
     if success:
         token = _register_session(client)
         return _on_login_success(client, token)
-    app.logger.info("[login] 自动登录失败 sid=%s reason=%s",
+    app.logger.info("[login] rid=%s 自动登录失败 sid=%s reason=%s", _rid(),
                     student_id, client.last_error or "未知")
     return jsonify({
         "success": False,
@@ -615,7 +647,7 @@ def api_login_webvpn():
 def api_logout():
     """退出登录：销毁当前 token 对应的教务会话"""
     token = request.headers.get(TOKEN_HEADER) or ""
-    app.logger.info("[session] 退出登录 token=%s…", token[:6] if token else "-")
+    app.logger.info("[session] rid=%s 退出登录 token=%s…", _rid(), token[:6] if token else "-")
     client = None
     with _sessions_lock:
         client = _sessions.pop(token, None)
@@ -637,14 +669,14 @@ def _require_login() -> Tuple[Optional[JWCClient], Optional[Tuple]]:
     """
     client = _get_session_client()
     if client is None or not client.logged_in:
-        app.logger.info("[auth] 401 未登录: %s %s", request.method, request.path)
+        app.logger.info("[auth] rid=%s 401 未登录: %s %s", _rid(), request.method, request.path)
         return None, (jsonify({
             "success": False,
             "message": "尚未登录，请先登录",
         }), 401)
     if not client.is_session_valid():
         client.logged_in = False
-        app.logger.info("[auth] 401 会话过期: sid=%s path=%s",
+        app.logger.info("[auth] rid=%s 401 会话过期: sid=%s path=%s", _rid(),
                         client.student_id, request.path)
         return None, (jsonify({
             "success": False,
@@ -697,7 +729,7 @@ def api_refresh_schedule():
 
     _invalidate_stats(sid, semester)
 
-    app.logger.info("[refresh] 课表 sid=%s semester=%s count=%d", sid, semester, len(courses))
+    app.logger.info("[refresh] rid=%s 课表 sid=%s semester=%s count=%d", _rid(), sid, semester, len(courses))
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(courses)} 门课程",
@@ -722,7 +754,7 @@ def api_refresh_exams():
 
     _invalidate_stats(sid, semester)
 
-    app.logger.info("[refresh] 考试 sid=%s semester=%s count=%d", sid, semester, len(exams))
+    app.logger.info("[refresh] rid=%s 考试 sid=%s semester=%s count=%d", _rid(), sid, semester, len(exams))
     if exams:
         msg = f"成功获取 {len(exams)} 场考试"
     else:
@@ -1418,7 +1450,7 @@ def api_refresh_grades():
         total_count += len(group)
 
 
-    app.logger.info("[refresh] 成绩 sid=%s 学期数=%d 总数=%d", sid, len(grouped), total_count)
+    app.logger.info("[refresh] rid=%s 成绩 sid=%s 学期数=%d 总数=%d", _rid(), sid, len(grouped), total_count)
 
     return jsonify({
         "success": True,
@@ -1450,7 +1482,7 @@ def api_refresh_cet():
     dao.save_cet_scores(scores, sid)
 
 
-    app.logger.info("[refresh] 四六级 sid=%s count=%d", sid, len(scores))
+    app.logger.info("[refresh] rid=%s 四六级 sid=%s count=%d", _rid(), sid, len(scores))
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(scores)} 条四六级成绩",
@@ -1480,5 +1512,5 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     # 记录完整堆栈, 便于线上排障(云托管采集 stdout 日志)
-    app.logger.error("服务器内部错误: %s", e, exc_info=True)
+    app.logger.error("[500] rid=%s %s %s: %s", _rid(), request.method, request.path, e, exc_info=True)
     return jsonify({"error": "服务器内部错误"}), 500
