@@ -260,14 +260,81 @@ def _score_to_num(s: str):
     return None
 
 
+# ---- 官方绩点机制(与桌面端/小程序 utils/gpa.js 一致) ----
+LEVEL_MAP = {
+    '优': 4.0, '优秀': 4.0, '优-': 3.7, '优秀-': 3.7,
+    '良+': 3.3, '良好+': 3.3, '良': 3.0, '良好': 3.0, '良-': 2.7, '良好-': 2.7,
+    '中+': 2.3, '中等+': 2.3, '中': 2.0, '中等': 2.0, '中-': 1.5, '中等-': 1.5,
+    '及格': 1.0, '通过': 1.0, '不及格': 0, '不通过': 0,
+}
+NON_GRADE_STATUS = ('缓考', '缺考', '免修', '作弊', '违纪', '取消', '旷考', '休学')
+
+
+def score_to_gp(score):
+    """等级制/百分制成绩 → 绩点(NJUST 4.0 量表); 非正式成绩返回 -1(不参与)"""
+    s = (score or "").strip()
+    if s in LEVEL_MAP:
+        return LEVEL_MAP[s]
+    if s in NON_GRADE_STATUS:
+        return -1.0
+    try:
+        v = float(s)
+    except ValueError:
+        return -1.0
+    if v >= 90: return 4.0
+    if v >= 85: return 3.7
+    if v >= 82: return 3.3
+    if v >= 78: return 3.0
+    if v >= 75: return 2.7
+    if v >= 72: return 2.3
+    if v >= 68: return 2.0
+    if v >= 64: return 1.5
+    if v >= 60: return 1.0
+    return 0.0
+
+
+def calc_gpa_by_semester(rows):
+    """按学期计算加权平均绩点 Σ(学分×绩点)/Σ学分(与桌面端 calcGpa 一致)
+    rows: [(score, grade_point, credit, academic_year, semester)]"""
+    sem = {}   # (学年,学期) -> [加权绩点和, 学分和]
+    for score, gp, credit, ay, sem_key in rows:
+        try:
+            c = float(credit or 0)
+        except (TypeError, ValueError):
+            c = 0
+        if c <= 0:
+            continue
+        # 绩点: 数据库 grade_point 为 0/空时按成绩折算(不及格折算也为 0, 殊途同归)
+        try:
+            gpv = float(gp or 0)
+        except (TypeError, ValueError):
+            gpv = 0
+        if gpv == 0:
+            gpv = score_to_gp(score)
+        if gpv < 0:
+            continue  # 缓考/缺考等不参与
+        key = f"{ay}-{sem_key}"
+        if key not in sem:
+            sem[key] = [0.0, 0.0]
+        sem[key][0] += c * gpv
+        sem[key][1] += c
+    out = []
+    for k, (weighted, credits) in sem.items():
+        if credits > 0:
+            out.append({"sem": k, "gpa": round(weighted / credits, 2), "credits": round(credits, 1)})
+    out.sort(key=lambda x: x["sem"], reverse=True)
+    return out
+
+
 @app.route("/api/admin/stats/grades")
 @admin_required
 def admin_grade_stats():
-    """成绩统计: 等级分布 + GPA 分布 + 各学期均分(等级制按中值折算)"""
-    rows = db.session.query(Grade.score, Grade.grade_point, Grade.academic_year, Grade.semester).all()
+    """成绩统计: 等级分布 + GPA 分布 + 各学期平均绩点(官方绩点制)"""
+    rows = db.session.query(
+        Grade.student_id, Grade.score, Grade.grade_point, Grade.credit,
+        Grade.academic_year, Grade.semester).all()
     level_dist = {"优秀": 0, "良好": 0, "中等": 0, "及格": 0, "不及格": 0, "其他": 0}
-    sem_avg = {}     # (学年, 学期) -> [均分累计, 条数]
-    for score, gp, ay, sem in rows:
+    for sid, score, gp, credit, ay, sem in rows:
         s = str(score or "").strip()
         if s in ("", "缺考", "缓考", "免修"):
             level_dist["其他"] += 1
@@ -285,27 +352,29 @@ def admin_grade_stats():
         elif "中" in s: level_dist["中等"] += 1
         elif "及格" in s or "通过" in s: level_dist["及格"] += 1
         else: level_dist["其他"] += 1
-        # 均分: 等级制折算中值参与统计(与小程序前端口径一致)
-        num = _score_to_num(s)
-        if num is not None:
-            key = f"{ay}-{sem}"
-            if key not in sem_avg: sem_avg[key] = [0.0, 0]
-            sem_avg[key][0] += num
-            sem_avg[key][1] += 1
-    # GPA 分布按学生最高绩点
-    gp_rows = db.session.query(Grade.student_id, func.max(Grade.grade_point)).filter(
-        Grade.grade_point > 0).group_by(Grade.student_id).all()
+    # 各学期平均绩点(官方口径, 等级制直接走绩点表)
+    sem_gpa = calc_gpa_by_semester([(r[1], r[2], r[3], r[4], r[5]) for r in rows])
+    # GPA 分布按学生最高绩点(grade_point 为空/0 时按成绩折算)
+    best = {}
+    for sid, score, gp, credit, ay, sem in rows:
+        try:
+            gpv = float(gp or 0)
+        except (TypeError, ValueError):
+            gpv = 0
+        if gpv == 0:
+            gpv = score_to_gp(score)
+        if gpv <= 0:
+            continue
+        if sid not in best or gpv > best[sid]:
+            best[sid] = gpv
     gpa_hist = {"<2.0": 0, "2.0-2.5": 0, "2.5-3.0": 0, "3.0-3.5": 0, "3.5-4.0": 0}
-    for _sid, gpv in gp_rows:
-        v = float(gpv)
+    for v in best.values():
         if v < 2.0: gpa_hist["<2.0"] += 1
         elif v < 2.5: gpa_hist["2.0-2.5"] += 1
         elif v < 3.0: gpa_hist["2.5-3.0"] += 1
         elif v < 3.5: gpa_hist["3.0-3.5"] += 1
         else: gpa_hist["3.5-4.0"] += 1
-    sem_list = [{"sem": k, "avg": round(v[0] / v[1], 2), "count": v[1]}
-                for k, v in sorted(sem_avg.items(), reverse=True)]
-    return jsonify({"success": True, "level_dist": level_dist, "gpa_hist": gpa_hist, "sem_avg": sem_list})
+    return jsonify({"success": True, "level_dist": level_dist, "gpa_hist": gpa_hist, "sem_gpa": sem_gpa})
 
 
 @app.route("/api/admin/requests")

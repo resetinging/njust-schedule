@@ -24,17 +24,48 @@ function statusClass(code) {
   if (code < 500) return 's4xx';
   return 's5xx';
 }
-/** 成绩 → 百分制数值(等级制折算中值, 与后端/小程序一致); 无法识别返回 null */
-function scoreNum(s) {
-  const t = String(s == null ? '' : s).trim();
-  if (!t) return null;
-  if (/^-?\d+(\.\d+)?$/.test(t)) return parseFloat(t);
-  if (/不及格|不通过|未通过/.test(t)) return 55;
-  if (/优/.test(t)) return 95;
-  if (/良/.test(t)) return 85;
-  if (/中/.test(t)) return 75;
-  if (/及格|通过/.test(t)) return 65;
-  return null;
+/** 成绩 → 绩点（官方 4.0 量表, 与后端/桌面端一致）; 非正式成绩返回 -1 */
+const LEVEL_MAP = {
+  '优': 4.0, '优秀': 4.0, '优-': 3.7, '优秀-': 3.7,
+  '良+': 3.3, '良好+': 3.3, '良': 3.0, '良好': 3.0, '良-': 2.7, '良好-': 2.7,
+  '中+': 2.3, '中等+': 2.3, '中': 2.0, '中等': 2.0, '中-': 1.5, '中等-': 1.5,
+  '及格': 1.0, '通过': 1.0, '不及格': 0, '不通过': 0
+};
+function scoreToGp(score) {
+  const s = String(score == null ? '' : score).trim();
+  if (s in LEVEL_MAP) return LEVEL_MAP[s];
+  if (/缓考|缺考|免修|作弊|违纪|取消|旷考|休学/.test(s)) return -1;
+  const v = parseFloat(s);
+  if (isNaN(v)) return -1;
+  if (v >= 90) return 4.0;
+  if (v >= 85) return 3.7;
+  if (v >= 82) return 3.3;
+  if (v >= 78) return 3.0;
+  if (v >= 75) return 2.7;
+  if (v >= 72) return 2.3;
+  if (v >= 68) return 2.0;
+  if (v >= 64) return 1.5;
+  if (v >= 60) return 1.0;
+  return 0;
+}
+/** 按学期加权平均绩点 Σ(学分×绩点)/Σ学分 */
+function semesterGpa(grades) {
+  const groups = {};
+  (grades || []).forEach(x => {
+    const k = (x.academic_year || '') + '-' + (x.semester || '');
+    if (!groups[k]) groups[k] = { w: 0, c: 0 };
+    const credit = parseFloat(x.credit) || 0;
+    if (credit <= 0) return;
+    let gp = parseFloat(x.grade_point) || 0;
+    if (gp === 0) gp = scoreToGp(x.score);
+    if (gp < 0) return;
+    groups[k].w += credit * gp;
+    groups[k].c += credit;
+  });
+  return Object.keys(groups).sort().reverse().map(k => {
+    const g = groups[k];
+    return { sem: k, gpa: g.c > 0 ? (g.w / g.c).toFixed(2) : '-', credits: g.c.toFixed(1) };
+  });
 }
 
 async function api(path, opts = {}) {
@@ -189,15 +220,9 @@ async function openUser(sid) {
     const totalCredit = g.reduce((s, x) => s + (parseFloat(x.credit) || 0), 0);
     let best = null;
     g.forEach(x => { const gp = parseFloat(x.grade_point) || 0; if (gp > 0 && (!best || gp > best)) best = gp; });
-    const semMap = {};
-    g.forEach(x => { const k = (x.academic_year || '') + '-' + (x.semester || ''); if (!semMap[k]) semMap[k] = []; semMap[k].push(x); });
-    const semHtml = Object.keys(semMap).sort().reverse().map(k => {
-      const arr = semMap[k];
-      const scored = arr.map(x => scoreNum(x.score)).filter(v => v != null);
-      const n = scored.length;
-      const avg = n ? (scored.reduce((a, b) => a + b, 0) / n).toFixed(1) : '-';
-      return `<div class="drawer-sem"><b>${esc(k)}</b> · ${arr.length}门 · 均分 ${avg}</div>`;
-    }).join('');
+    const semHtml = semesterGpa(g).map(x =>
+      `<div class="drawer-sem"><b>${esc(x.sem)}</b> · 绩点 ${x.gpa} · ${x.credits}学分</div>`
+    ).join('');
     const courseHtml = r.courses.map(c => `<div class="chip">${esc(c.name)}<i>${esc(c.semester)}</i></div>`).join('');
     $('drawerBody').innerHTML = `
       <div class="drawer-grid">
@@ -259,14 +284,13 @@ async function loadGradeStats() {
     if (!r.success) return;
     barChart($('levelChart'), r.level_dist, 'linear-gradient(180deg,#8b7cf7,#6a5ae0)');
     barChart($('gpaChart'), r.gpa_hist, 'linear-gradient(180deg,#5ad0a8,#2fa882)');
-    // 各学期均分(横向条形)
+    // 各学期平均绩点(横向条形, 0-4.0)
     const sem = $('semAvgChart');
-    const max = Math.max(1, ...r.sem_avg.map(s => s.avg));
-    sem.innerHTML = r.sem_avg.length ? r.sem_avg.slice(0, 12).map(s => `
+    sem.innerHTML = r.sem_gpa.length ? r.sem_gpa.slice(0, 12).map(s => `
       <div class="sem-row">
         <span class="sem-lbl">${esc(s.sem)}</span>
-        <div class="sem-track"><div class="sem-bar" style="width:${Math.round(s.avg / max * 100)}%"></div></div>
-        <span class="sem-val">${s.avg} <i>(${s.count}门)</i></span>
+        <div class="sem-track"><div class="sem-bar" style="width:${Math.min(100, Math.round(s.gpa / 4 * 100))}%"></div></div>
+        <span class="sem-val">${s.gpa} <i>(${s.credits}学分)</i></span>
       </div>`).join('') : '<p class="dim center">暂无成绩数据</p>';
   } catch (e) {}
 }
