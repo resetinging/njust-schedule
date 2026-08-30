@@ -3,20 +3,8 @@
  */
 
 /**
- * 根据学期起始日期计算当前是第几周
- * @param {string} semesterStart - 学期起始日期 "YYYY-MM-DD"
- * @returns {number} 当前周次 (1-based)
+ * 格式化日期 YYYY-MM-DD
  */
-function getCurrentWeek(semesterStart) {
-  if (!semesterStart) return 1
-  const start = new Date(semesterStart)
-  const now = new Date()
-  const diff = now - start
-  const week = Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1
-  return Math.max(1, Math.min(week, 20))
-}
-
-/** 格式化日期 YYYY-MM-DD */
 function formatDate(d) {
   const date = d || new Date()
   const y = date.getFullYear()
@@ -240,7 +228,6 @@ function getDateLabel(firstWeekDate, weekNum, dayOfWeek) {
 }
 
 module.exports = {
-  getCurrentWeek,
   calcCurrentWeek,
   calcTodayDay,
   getDateLabel,

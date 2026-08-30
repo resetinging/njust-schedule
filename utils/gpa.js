@@ -75,30 +75,6 @@ function calcGpa(grades, gpaOnly) {
   return totalCredits > 0 ? _round(totalWeighted / totalCredits) : 0
 }
 
-/** 计算每个学期的绩点汇总（按学期倒序） */
-function calcSemesterGpas(grades) {
-  const groups = {}
-  for (const r of grades || []) {
-    const key = (r.academic_year || '') + '-' + (r.semester || '')
-    if (!groups[key]) groups[key] = []
-    groups[key].push(r)
-  }
-  const result = []
-  for (const sem of Object.keys(groups)) {
-    const items = groups[sem]
-    const counted = items.filter(g => isGpaCourse(g.course_nature))
-    result.push({
-      semester: sem,
-      gpa: calcGpa(items, true),
-      gpa_all: calcGpa(items, false),
-      credits: _round(counted.reduce((sum, g) => sum + (parseFloat(g.credit) || 0), 0), 1),
-      count: counted.length
-    })
-  }
-  result.sort((a, b) => String(b.semester).localeCompare(String(a.semester)))
-  return result
-}
-
 /** 四六级分数 → 百分制折算（NJUST 官方公式），< 425 返回 0 表示不可用 */
 function cetToPercentage(cetScore, cetType) {
   const score = parseFloat(cetScore) || 0
@@ -153,7 +129,6 @@ module.exports = {
   isGpaCourse,
   scoreToGp,
   calcGpa,
-  calcSemesterGpas,
   cetToPercentage,
   isEnglishCourse,
   calcGpaBaoyan

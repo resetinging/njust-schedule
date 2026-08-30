@@ -83,14 +83,6 @@ function getCacheAge(key) {
   return Date.now() - ts
 }
 
-/** 带过期时间的缓存读取 */
-function getCachedIfFresh(key, ttl) {
-  if (getCacheAge(key) < ttl) {
-    return getCached(key)
-  }
-  return null
-}
-
 // ============================================================
 // 清除所有数据
 // ============================================================
@@ -121,6 +113,6 @@ module.exports = {
   isLoggedIn,
   getStudentId, setStudentId, getStudentName, setStudentName,
   getSemester, setSemester,
-  getCached, setCached, getCachedIfFresh, getCacheAge,
+  getCached, setCached, getCacheAge,
   clearAll
 }
