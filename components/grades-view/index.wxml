@@ -95,7 +95,7 @@
         <view class="sem-stats" data-sem="{{grp.sem}}" bindtap="onFold">
           <text class="ss-tag">📊</text>
           <text class="ss-title">成绩统计</text>
-          <text class="ss-avg">{{grp.avg !== '-' ? '均分 ' + grp.avg : 'GPA ' + grp.gpa}}</text>
+          <text class="ss-avg">均分 {{grp.avg}}</text>
           <text class="sem-fold">{{grp.folded ? '˅' : '˄'}}</text>
         </view>
 
