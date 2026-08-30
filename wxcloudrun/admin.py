@@ -135,7 +135,8 @@ def admin_stream():
         for r in _recent_since(last_id):
             yield f"data: {json.dumps(r, ensure_ascii=False)}\n\n"
             last_id = r["id"]
-        # 持续轮询(1s), 无新数据发心跳保持连接
+        # 持续轮询(15s), 无新数据发心跳保持连接
+        # (心跳间隔不宜过短: 减少无谓 IO; 网关空闲断开一般 >60s)
         while True:
             rows = _recent_since(last_id)
             if rows:
@@ -144,7 +145,7 @@ def admin_stream():
                     last_id = r["id"]
             else:
                 yield ": ping\n\n"
-            time.sleep(1)
+            time.sleep(15)
     return Response(stream_with_context(gen()),
                     mimetype="text/event-stream",
                     headers={

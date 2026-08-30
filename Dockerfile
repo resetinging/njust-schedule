@@ -28,7 +28,8 @@ COPY . /app
 EXPOSE 80
 
 # 生产启动: gunicorn 单 worker + 多线程（会话在进程内存, 必须单进程;
-# 8 线程足够承载教务 IO 等待期间的并发）
+# 16 线程: 控制面板 SSE 长连接每连接占一线程, 加上教务慢请求,
+# 8 线程在控制面板+小程序同时使用时可能耗尽导致请求排队超时）
 CMD ["python3", "-m", "gunicorn", "run:app", \
-     "--workers", "1", "--threads", "8", \
+     "--workers", "1", "--threads", "16", \
      "--timeout", "60", "--bind", "0.0.0.0:80"]
