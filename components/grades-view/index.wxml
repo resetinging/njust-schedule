@@ -37,8 +37,8 @@
           </view>
           <view class="hs-divider"></view>
           <view class="hs-item">
-            <text class="hs-num">{{stats.gpa}}</text>
-            <text class="hs-label">绩点</text>
+            <text class="hs-num">{{stats.avg}}</text>
+            <text class="hs-label">平均分</text>
           </view>
         </view>
 
@@ -70,7 +70,7 @@
                   data-sem="{{item.sem}}" bindtap="onFold">
               <text class="sg-sem">{{item.sem}}</text>
               <text class="sg-gpa {{item.gpaClass}}">{{item.gpa}}</text>
-              <text class="sg-sub">{{item.count}} 门</text>
+              <text class="sg-sub">{{item.count}} 门{{item.avg !== '-' ? ' · 均分 ' + item.avg : ''}}</text>
             </view>
           </view>
         </scroll-view>
@@ -96,7 +96,7 @@
         <view class="sem-stats" data-sem="{{grp.sem}}" bindtap="onFold">
           <text class="ss-tag">📊</text>
           <text class="ss-title">成绩统计</text>
-          <text class="ss-avg">GPA {{grp.gpa}}</text>
+          <text class="ss-avg">{{grp.avg !== '-' ? '均分 ' + grp.avg : 'GPA ' + grp.gpa}}</text>
           <text class="sem-fold">{{grp.folded ? '˅' : '˄'}}</text>
         </view>
 
