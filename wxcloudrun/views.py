@@ -48,6 +48,46 @@ jwc_client = JWCClient()
 
 
 # ============================================================
+# 查询接口进程内缓存(30s): 多人并发/频繁切页时 DB 查询归零
+# - 键格式 "{sid}:{kind}:{param}", 按用户隔离
+# - 数据刷新接口成功后调用 invalidate_user_cache 主动失效
+# ============================================================
+QUERY_CACHE_TTL = 30
+_query_cache = {}
+_query_cache_lock = threading.Lock()
+
+
+def _cache_get(key: str):
+    with _query_cache_lock:
+        item = _query_cache.get(key)
+        if item and item[0] > time.time():
+            return item[1]
+    return None
+
+
+def _cache_set(key: str, value):
+    with _query_cache_lock:
+        _query_cache[key] = (time.time() + QUERY_CACHE_TTL, value)
+        # 惰性清理过期条目, 防内存缓慢增长
+        if len(_query_cache) > 500:
+            now = time.time()
+            for k in [k for k, (ts, _v) in _query_cache.items() if ts <= now]:
+                _query_cache.pop(k, None)
+
+
+def invalidate_user_cache(sid: str, *kinds):
+    """数据刷新后使该用户相关查询缓存失效(kinds 为空则全部)"""
+    prefix = f"{sid}:"
+    with _query_cache_lock:
+        for key in list(_query_cache.keys()):
+            if not key.startswith(prefix):
+                continue
+            if kinds and not any(f":{k}:" in key or key.endswith(f":{k}") for k in kinds):
+                continue
+            _query_cache.pop(key, None)
+
+
+# ============================================================
 # 调试日志: 请求级记录（/api/* 与 /proxy/* 每次请求一行）
 # - rid: 请求ID(before_request 生成), 关联错误/业务日志, 云托管按关键词过滤
 # - sid: 由 token 反查当前用户, 调试时按学号过滤
@@ -764,6 +804,7 @@ def api_refresh_schedule():
     if retry_err:
         return retry_err
     dao.save_courses(courses, semester, sid)
+    invalidate_user_cache(sid, "courses")
 
     dao.set_user_setting(sid, "semester", semester)
 
@@ -791,6 +832,7 @@ def api_refresh_exams():
     if retry_err:
         return retry_err
     dao.save_exams(exams, semester, sid)
+    invalidate_user_cache(sid, "exams")
 
     _invalidate_stats(sid, semester)
 
@@ -830,6 +872,11 @@ def api_refresh_all():
             results["exams"] = {"count": len(exams), "ok": True}
         else:
             results["exams"] = {"count": 0, "ok": False, "error": client.last_error}
+    # 刷新成功部分即时失效查询缓存(失败部分保持旧缓存)
+    if results["schedule"] and results["schedule"]["ok"]:
+        invalidate_user_cache(sid, "courses")
+    if results["exams"] and results["exams"]["ok"]:
+        invalidate_user_cache(sid, "exams")
 
     dao.set_user_setting(sid, "semester", semester)
     _invalidate_stats(sid, semester)
@@ -872,13 +919,19 @@ def api_get_courses():
     sid = client.student_id or ""
     semester = (request.args.get("semester") or "").strip() or \
         dao.get_user_setting(sid, "semester") or _current_semester()
+    cache_key = f"{sid}:courses:{semester}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
     courses = _dedupe_courses(dao.get_courses(semester, sid))
-    return jsonify({
+    resp = {
         "success": True,
         "semester": semester,
         "count": len(courses),
         "courses": courses,
-    })
+    }
+    _cache_set(cache_key, resp)
+    return jsonify(resp)
 
 
 @app.route('/api/exams')
@@ -889,13 +942,19 @@ def api_get_exams():
     sid = client.student_id or ""
     semester = (request.args.get("semester") or "").strip() or \
         dao.get_user_setting(sid, "semester") or _current_semester()
+    cache_key = f"{sid}:exams:{semester}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
     exams = dao.get_exams(semester, sid)
-    return jsonify({
+    resp = {
         "success": True,
         "semester": semester,
         "count": len(exams),
         "exams": exams,
-    })
+    }
+    _cache_set(cache_key, resp)
+    return jsonify(resp)
 
 
 @app.route('/api/settings', methods=['GET', 'POST'])
@@ -1066,13 +1125,19 @@ def api_get_evaluations():
     if err:
         return err
     sid = client.student_id or ""
+    cache_key = f"{sid}:evaluations"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
     # 评教是待办事项: 返回该账号全部批次(不过滤学期), 批次自带 semester 字段
     evals = dao.get_evaluations("", sid)
-    return jsonify({
+    resp = {
         "success": True,
         "count": len(evals),
         "evaluations": evals,
-    })
+    }
+    _cache_set(cache_key, resp)
+    return jsonify(resp)
 
 
 @app.route('/api/refresh-evaluations', methods=['POST'])
@@ -1087,6 +1152,7 @@ def api_refresh_evaluations():
     if retry_err:
         return retry_err
     dao.save_evaluations(evals, "", sid)
+    invalidate_user_cache(sid, "evaluations")
     undone = sum(1 for e in evals if not e.get("is_done"))
     return jsonify({
         "success": True,
@@ -1434,6 +1500,11 @@ def api_get_grades():
     semester = request.args.get("semester", "")
     view_all = (semester == "__all__" or not semester)
 
+    cache_key = f"{sid}:grades:{semester or '__all__'}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+
     all_grades = dao.get_grades(student_id=sid)
     available_semesters = dao.get_grade_semesters(sid)
 
@@ -1447,13 +1518,15 @@ def api_get_grades():
         grades = dao.get_grades(academic_year, sem, sid) if academic_year and sem else []
         display_semester = semester
 
-    return jsonify({
+    resp = {
         "success": True,
         "semester": display_semester,
         "count": len(grades),
         "grades": grades,
         "available_semesters": available_semesters,
-    })
+    }
+    _cache_set(cache_key, resp)
+    return jsonify(resp)
 
 
 @app.route('/api/refresh-grades', methods=['POST'])
@@ -1480,16 +1553,11 @@ def api_refresh_grades():
 
     total_count = 0
 
-
     for (ay, s), group in grouped.items():
-
-
         dao.save_grades(group, ay, s, sid)
-
-
         total_count += len(group)
 
-
+    invalidate_user_cache(sid, "grades")
     app.logger.info("[refresh] rid=%s 成绩 sid=%s 学期数=%d 总数=%d", _rid(), sid, len(grouped), total_count)
 
     return jsonify({
@@ -1520,6 +1588,7 @@ def api_refresh_cet():
         }), 404
 
     dao.save_cet_scores(scores, sid)
+    invalidate_user_cache(sid, "cet")
 
 
     app.logger.info("[refresh] rid=%s 四六级 sid=%s count=%d", _rid(), sid, len(scores))
@@ -1537,8 +1606,14 @@ def api_cet_scores():
     if err:
         return err
     sid = client.student_id or ""
+    cache_key = f"{sid}:cet"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
     scores = dao.get_cet_scores(sid)
-    return jsonify({"success": True, "scores": scores})
+    resp = {"success": True, "scores": scores}
+    _cache_set(cache_key, resp)
+    return jsonify(resp)
 
 
 # ============================================================
