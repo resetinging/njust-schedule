@@ -34,6 +34,7 @@ Component({
     weekPickerRange: [],     // 周次跳转选择器 (1-20)
     studentName: '',         // 学生姓名(顶部信息卡)
     studentId: '',           // 学号(顶部信息卡)
+    announcement: '',        // 系统公告(公开, 未登录也显示)
 
     active: false            // 懒渲染: main 激活时才渲染内容
   },
@@ -43,6 +44,7 @@ Component({
       // 缓存优先：打开只渲染本地缓存，网络仅在下拉刷新/学期切换时发生
       this.loadCachedData()
       this.loadFirstWeekDate()
+      this._loadAnnouncement()
       this.setData({
         weekPickerRange: Array.from({ length: 20 }, (_, i) => String(i + 1))
       })
@@ -55,9 +57,24 @@ Component({
   },
 
   methods: {
+    /** 加载系统公告(公开接口; 本地缓存兜底立即显示, 后台刷新) */
+    _loadAnnouncement() {
+      const cached = storage.getCached('cached_announcement')
+      if (cached && cached.enabled && cached.text && !this.data.announcement) {
+        this.setData({ announcement: cached.text })
+      }
+      api.getAnnouncement().then(res => {
+        if (res && res.success) {
+          storage.setCached('cached_announcement', { t: Date.now(), enabled: res.enabled, text: res.text })
+          this.setData({ announcement: (res.enabled && res.text) ? res.text : '' })
+        }
+      }).catch(() => {})
+    },
+
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      this._loadAnnouncement()         // 公告公开, 未登录也刷新
       // 退出登录后清空上一用户数据(隐私)
       if (!storage.isLoggedIn()) {
         this.setData({ courses: [], filteredCourses: [], listDayGroups: [], studentName: '', studentId: '' })

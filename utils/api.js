@@ -298,6 +298,11 @@ function submitEval(formData, submitType, action) {
 // 系统状态
 // ============================================================
 
+/** 获取系统公告(公开接口, 未登录可读) */
+function getAnnouncement() {
+  return request('GET', '/api/announcement')
+}
+
 /** 获取系统状态（登录状态、学期等） */
 function getStatus() {
   return request('GET', '/api/status')
@@ -499,6 +504,7 @@ module.exports = {
   getEvalForm,
   submitEval,
   getStatus,
+  getAnnouncement,
   setSemester,
   clearData,
   getSemesters,

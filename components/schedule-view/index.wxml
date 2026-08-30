@@ -4,6 +4,12 @@
   <!-- 滚动内容区(scroll-view 内滚; 刷新走右上角手动按钮) -->
   <scroll-view class="view-scroll" scroll-y>
 
+    <!-- 系统公告横幅(公开, 未登录也显示) -->
+    <view class="announce-bar" wx:if="{{announcement}}">
+      <text class="ann-ico">📢</text>
+      <text class="ann-text">{{announcement}}</text>
+    </view>
+
     <!-- 顶部紫渐变信息卡 -->
     <view class="top-card">
       <view class="tc-main">
