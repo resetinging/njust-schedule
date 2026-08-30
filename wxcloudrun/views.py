@@ -168,6 +168,12 @@ def _register_session(client: JWCClient) -> str:
         _prune_sessions_locked()
     app.logger.info("[session] rid=%s 登录成功 sid=%s name=%s token=%s… 在线=%d",
                     _rid(), client.student_id, client.student_name, token[:6], len(_sessions))
+    # 持久化姓名: 控制面板用户列表离线也能显示真实姓名(而非 "-")
+    if client.student_id and client.student_name:
+        try:
+            dao.set_user_setting(client.student_id, "name", client.student_name)
+        except Exception:
+            pass
     return token
 
 

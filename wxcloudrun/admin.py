@@ -212,6 +212,13 @@ def admin_users():
             Grade.student_id == sid, Grade.grade_point > 0).scalar()
         sem = db.session.query(Setting.k, Setting.v).filter(Setting.k == f"{sid}:semester").first()
         sess_info = sess.get(sid)
+        # 姓名: 在线取会话, 离线回退到登录时持久化的 {sid}:name 设置
+        name = sess_info[0].student_name if sess_info else ""
+        if not name:
+            try:
+                name = dao.get_user_setting(sid, "name", "")
+            except Exception:
+                name = ""
         users.append({
             "student_id": sid,
             "courses": c_count,
@@ -220,7 +227,7 @@ def admin_users():
             "best_gpa": round(float(best_gp), 2) if best_gp else None,
             "semester": sem[1] if sem else "",
             "online": bool(sess_info),
-            "name": sess_info[0].student_name if sess_info else "",
+            "name": name,
         })
     users.sort(key=lambda u: (not u["online"], u["student_id"]))
     return jsonify({"success": True, "users": users})
