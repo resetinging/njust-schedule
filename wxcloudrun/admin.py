@@ -204,36 +204,39 @@ def admin_users():
     sids = sorted({r[0] for r in rows} |
                   {r[0] for r in db.session.query(Course.student_id).filter(Course.student_id != "").distinct().all()} |
                   {r[0] for r in db.session.query(Exam.student_id).filter(Exam.student_id != "").distinct().all()})
+    # 性能优化: 聚合查询一次取全量(此前每用户 4-5 次查询, 用户多时 N+1 爆炸)
+    g_counts = dict(db.session.query(Grade.student_id, func.count(Grade.id))
+                    .filter(Grade.student_id != "").group_by(Grade.student_id).all())
+    c_counts = dict(db.session.query(Course.student_id, func.count(Course.id))
+                    .filter(Course.student_id != "").group_by(Course.student_id).all())
+    e_counts = dict(db.session.query(Exam.student_id, func.count(Exam.id))
+                    .filter(Exam.student_id != "").group_by(Exam.student_id).all())
+    best_gps = dict(db.session.query(Grade.student_id, func.max(Grade.grade_point))
+                    .filter(Grade.student_id != "", Grade.grade_point > 0)
+                    .group_by(Grade.student_id).all())
+    sem_rows = db.session.query(Setting.k, Setting.v).filter(Setting.k.like("%:semester")).all()
+    sem_map = {k.rsplit(":", 1)[0]: v for k, v in sem_rows}
+    name_rows = db.session.query(Setting.k, Setting.v).filter(Setting.k.like("%:name")).all()
+    name_map = {k.rsplit(":", 1)[0]: v for k, v in name_rows if v}
     users = []
     for sid in sids:
-        g_count = db.session.query(func.count(Grade.id)).filter(Grade.student_id == sid).scalar() or 0
-        c_count = db.session.query(func.count(Course.id)).filter(Course.student_id == sid).scalar() or 0
-        e_count = db.session.query(func.count(Exam.id)).filter(Exam.student_id == sid).scalar() or 0
-        best_gp = db.session.query(func.max(Grade.grade_point)).filter(
-            Grade.student_id == sid, Grade.grade_point > 0).scalar()
-        sem = db.session.query(Setting.k, Setting.v).filter(Setting.k == f"{sid}:semester").first()
         sess_info = sess.get(sid)
-        # 姓名: 在线取会话, 离线回退到登录时持久化的 {sid}:name 设置
-        name = sess_info[0].student_name if sess_info else ""
-        if not name:
-            try:
-                name = dao.get_user_setting(sid, "name", "")
-            except Exception:
-                name = ""
-        # 在线但历史未持久化姓名的用户: 立即补写 Setting(旧数据用户在
-        # 登录时已写入; 这里兜底确保在线用户姓名永远落库)
-        if sess_info and sess_info[0].student_name and not name:
+        # 姓名: 在线取会话, 离线回退到持久化的 {sid}:name 设置
+        name = sess_info[0].student_name if sess_info else name_map.get(sid, "")
+        # 在线但历史未持久化姓名的用户: 立即补写 Setting(兜底)
+        if sess_info and sess_info[0].student_name and not name_map.get(sid):
             try:
                 dao.set_user_setting(sid, "name", sess_info[0].student_name)
             except Exception:
                 pass
+        best_gp = best_gps.get(sid)
         users.append({
             "student_id": sid,
-            "courses": c_count,
-            "exams": e_count,
-            "grades": g_count,
+            "courses": c_counts.get(sid, 0),
+            "exams": e_counts.get(sid, 0),
+            "grades": g_counts.get(sid, 0),
             "best_gpa": round(float(best_gp), 2) if best_gp else None,
-            "semester": sem[1] if sem else "",
+            "semester": sem_map.get(sid, ""),
             "online": bool(sess_info),
             "name": name,
         })

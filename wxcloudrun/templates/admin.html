@@ -33,6 +33,10 @@
 
     <!-- 统计卡片 -->
     <section class="stat-row" id="statRow"></section>
+    <div class="panel-tool stat-tool">
+      <span class="dim">数据为打开时/手动刷新时获取</span>
+      <button id="refreshSummaryBtn" class="ghost small">🔄 刷新仪表盘</button>
+    </div>
 
     <!-- Tab 导航 -->
     <nav class="tabs">
@@ -71,17 +75,28 @@
         <div class="filters">
           <input id="userSearch" placeholder="🔍 搜索学号 / 姓名" class="search-wide" />
         </div>
-        <button id="fetchNamesBtn" class="ghost small">🔄 获取缺失姓名</button>
+        <div class="btn-group">
+          <button id="refreshUsersBtn" class="ghost small">🔄 刷新</button>
+          <button id="fetchNamesBtn" class="ghost small">获取缺失姓名</button>
+        </div>
       </div>
       <div id="fetchNamesMsg" class="req-stats"></div>
       <div id="userList" class="user-list"></div>
     </section>
 
     <section id="panel-sessions" class="panel">
+      <div class="panel-tool">
+        <span class="dim">在线会话每 10 秒自动刷新</span>
+        <button id="refreshSessionsBtn" class="ghost small">🔄 立即刷新</button>
+      </div>
       <div id="sessionList" class="user-list"></div>
     </section>
 
     <section id="panel-grades" class="panel">
+      <div class="panel-tool">
+        <span class="dim">手动刷新获取最新统计</span>
+        <button id="refreshStatsBtn" class="ghost small">🔄 刷新统计</button>
+      </div>
       <div class="card">
         <h3>请求趋势（最近 60 分钟）</h3>
         <div id="reqTrendChart" class="chart trend-chart"></div>

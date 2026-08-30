@@ -450,5 +450,10 @@ $('annSave').addEventListener('click', async () => {
 // 启动
 // ============================================================
 checkLogin();
-setInterval(() => { loadSummary(); loadSessions(); }, 10000);
-setInterval(loadGradeStats, 60000);   // 成绩统计+请求趋势 60s 刷新
+// 手动刷新: 仪表盘/用户/成绩统计按需加载(性能优化);
+// 仅在线会话保留 10 秒自动轮询(轻量), SSE 实时请求流保持推送
+$('refreshSummaryBtn').addEventListener('click', loadSummary);
+$('refreshUsersBtn').addEventListener('click', loadUsers);
+$('refreshSessionsBtn').addEventListener('click', loadSessions);
+$('refreshStatsBtn').addEventListener('click', loadGradeStats);
+setInterval(loadSessions, 10000);   // 在线会话自动刷新
