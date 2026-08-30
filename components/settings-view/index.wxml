@@ -130,6 +130,12 @@
     </view>
   </view>
 
+  <!-- 系统公告横幅(公开, 未登录也显示; "我的"页面下方) -->
+  <view class="announce-bar" wx:if="{{announcement}}">
+    <text class="ann-ico">📢</text>
+    <text class="ann-text">{{announcement}}</text>
+  </view>
+
   <!-- 版本标识 -->
   <view class="version-tip">v1.1.0 · build {{build}}</view>
 
