@@ -260,7 +260,7 @@ function renderUsers() {
     row.className = 'user-row clickable';
     row.innerHTML =
       `<span class="mono">${esc(u.student_id)}</span>` +
-      `<span>${esc(u.name || '-')}</span>` +
+      `<span>${esc(u.name || u.student_id)}</span>` +
       `<span>${u.courses}</span><span>${u.exams}</span><span>${u.grades}</span>` +
       `<span>${u.best_gpa != null ? u.best_gpa : '-'}</span>` +
       `<span>${esc(u.semester || '-')}</span>` +

@@ -161,13 +161,25 @@ def _pop_captcha_client(captcha_id: str) -> Optional[JWCClient]:
 
 
 def _register_session(client: JWCClient) -> str:
-    """登录成功后注册用户会话，返回 token（先注册再淘汰，保持上限内）"""
+    """登录成功后注册用户会话，返回 token。
+
+    同一学号只保留一个会话: 新登录顶掉旧会话(旧 token 立即失效)。
+    小程序每次进入自动重登会新建会话, 不清理会导致在线会话列表
+    出现多个相同用户。
+    """
     token = secrets.token_urlsafe(32)
     with _sessions_lock:
+        # 顶掉同学生已有会话(单设备场景; 多设备交替使用会互相顶掉,
+        # 旧端 401 后自动重登即可恢复)
+        same_sid = [t for t, (c, _ts) in _sessions.items()
+                    if c.student_id and c.student_id == client.student_id]
+        for t in same_sid:
+            _sessions.pop(t, None)
         _sessions[token] = [client, time.time()]
         _prune_sessions_locked()
-    app.logger.info("[session] rid=%s 登录成功 sid=%s name=%s token=%s… 在线=%d",
-                    _rid(), client.student_id, client.student_name, token[:6], len(_sessions))
+    app.logger.info("[session] rid=%s 登录成功 sid=%s name=%s token=%s… 顶掉旧会话=%d 在线=%d",
+                    _rid(), client.student_id, client.student_name, token[:6],
+                    len(same_sid), len(_sessions))
     # 持久化姓名: 控制面板用户列表离线也能显示真实姓名(而非 "-")
     if client.student_id and client.student_name:
         try:
