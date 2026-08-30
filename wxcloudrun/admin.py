@@ -219,6 +219,13 @@ def admin_users():
                 name = dao.get_user_setting(sid, "name", "")
             except Exception:
                 name = ""
+        # 在线但历史未持久化姓名的用户: 立即补写 Setting(旧数据用户在
+        # 登录时已写入; 这里兜底确保在线用户姓名永远落库)
+        if sess_info and sess_info[0].student_name and not name:
+            try:
+                dao.set_user_setting(sid, "name", sess_info[0].student_name)
+            except Exception:
+                pass
         users.append({
             "student_id": sid,
             "courses": c_count,

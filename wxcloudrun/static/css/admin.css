@@ -145,11 +145,13 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; }
 .user-list, .session-list { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .table-head { color: var(--dim); font-size: 12px; background: #23233a; }
 .user-row {
-  display: grid; grid-template-columns: 1.2fr 1fr .6fr .6fr .6fr .7fr 1.2fr .6fr;
+  display: grid; grid-template-columns: 1.2fr 1fr .6fr .6fr .6fr .7fr 1.2fr .6fr .8fr;
   gap: 8px; padding: 8px 14px; border-bottom: 1px solid #26263c; align-items: center;
 }
 .user-row.clickable { cursor: pointer; }
 .user-row.clickable:hover { background: #23233a; }
+.grade-btn { white-space: nowrap; }
+.grade-btn:hover { color: var(--accent); border-color: var(--accent); }
 .badge {
   font-size: 12px; padding: 2px 10px; border-radius: 10px; text-align: center;
   background: #33334f; color: var(--dim); width: fit-content;

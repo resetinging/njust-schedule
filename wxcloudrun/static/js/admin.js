@@ -254,7 +254,7 @@ function renderUsers() {
     String(u.name || '').toLowerCase().includes(kw));
   const box = $('userList');
   box.innerHTML = '<div class="table-head user-row">' +
-    '<span>学号</span><span>姓名</span><span>课表</span><span>考试</span><span>成绩</span><span>最高GPA</span><span>学期</span><span>状态</span></div>';
+    '<span>学号</span><span>姓名</span><span>课表</span><span>考试</span><span>成绩</span><span>最高GPA</span><span>学期</span><span>状态</span><span>操作</span></div>';
   users.forEach(u => {
     const row = document.createElement('div');
     row.className = 'user-row clickable';
@@ -264,9 +264,17 @@ function renderUsers() {
       `<span>${u.courses}</span><span>${u.exams}</span><span>${u.grades}</span>` +
       `<span>${u.best_gpa != null ? u.best_gpa : '-'}</span>` +
       `<span>${esc(u.semester || '-')}</span>` +
-      `<span class="badge ${u.online ? 'on' : ''}">${u.online ? '在线' : '离线'}</span>`;
+      `<span class="badge ${u.online ? 'on' : ''}">${u.online ? '在线' : '离线'}</span>` +
+      `<button class="ghost small grade-btn" data-sid="${esc(u.student_id)}">📊 成绩</button>`;
     row.addEventListener('click', () => openUser(u.student_id));
     box.appendChild(row);
+  });
+  // 成绩按钮单独绑定(阻止冒泡, 与整行点击行为一致但更明确)
+  box.querySelectorAll('.grade-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openUser(btn.dataset.sid);
+    });
   });
   if (!users.length) box.innerHTML += '<p class="dim center">无匹配用户</p>';
 }
