@@ -14,11 +14,12 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # ★ 先拷贝并安装依赖（Docker 层缓存: 代码改动不会触发依赖重装, 构建大幅加速）
+# 直接安装到系统 site-packages(云托管标准做法, 避免 --user 的 user-site 不确定性)
 COPY requirements.txt /app/requirements.txt
 RUN pip config set global.index-url http://mirrors.cloud.tencent.com/pypi/simple \
     && pip config set global.trusted-host mirrors.cloud.tencent.com \
     && pip install --upgrade pip \
-    && pip install --user -r requirements.txt
+    && pip install -r requirements.txt
 
 # 再拷贝项目代码（.dockerignore 中文件除外）
 COPY . /app
