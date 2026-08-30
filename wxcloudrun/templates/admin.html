@@ -40,6 +40,7 @@
       <button class="tab" data-tab="users">用户</button>
       <button class="tab" data-tab="sessions">在线会话</button>
       <button class="tab" data-tab="grades">成绩统计</button>
+      <button class="tab" data-tab="announce">📢 公告</button>
     </nav>
 
     <section id="panel-requests" class="panel active">
@@ -94,6 +95,24 @@
       <div class="card">
         <h3>各学期平均绩点（官方绩点制）</h3>
         <div id="semAvgChart" class="chart sem-chart"></div>
+      </div>
+    </section>
+
+    <section id="panel-announce" class="panel">
+      <div class="card">
+        <h3>📢 小程序公告栏管理</h3>
+        <p class="dim" style="margin-bottom:12px">公告显示在小程序课表页顶部横幅；保存后小程序端自动生效（每次进入页面拉取）。</p>
+        <div class="announce-row">
+          <label class="chk-label"><input type="checkbox" id="annEnabled" checked> 显示公告</label>
+          <span id="annUpdated" class="dim"></span>
+        </div>
+        <textarea id="annText" class="ann-input"
+                  placeholder="输入公告内容（如：期末考试成绩已发布，请同学们查收…）"
+                  maxlength="500"></textarea>
+        <div class="ann-actions">
+          <span id="annCount" class="dim">0 / 500</span>
+          <button id="annSave" class="primary ann-save">保存公告</button>
+        </div>
       </div>
     </section>
   </div>

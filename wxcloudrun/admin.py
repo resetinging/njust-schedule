@@ -15,12 +15,21 @@ import threading
 import time
 from collections import deque
 from functools import wraps
-from flask import request, jsonify, Response, render_template, stream_with_context
+from flask import request, jsonify, Response, render_template, stream_with_context, g
 from sqlalchemy import func
 
 from wxcloudrun import app, db
 from wxcloudrun.model import Course, Exam, Evaluation, Grade, CetScore, Setting
+from wxcloudrun import dao
 import config
+
+
+def _rid():
+    """当前请求 ID(无上下文时返回 '-')"""
+    try:
+        return g.get("rid", "-")
+    except Exception:
+        return "-"
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", config.ADMIN_PASSWORD)
 ADMIN_TOKEN_TTL = 12 * 3600  # token 有效期 12h
@@ -429,6 +438,35 @@ def admin_request_stats():
         "statuses": dict(statuses),
         "top_paths": dict(paths.most_common(10)),
     })
+
+
+# ============================================================
+# 公告管理(小程序公告栏)
+# ============================================================
+@app.route("/api/admin/announcement", methods=["GET"])
+@admin_required
+def admin_get_announcement():
+    """读取当前公告设置"""
+    text = dao.get_setting("announcement_text", "")
+    enabled = dao.get_setting("announcement_enabled", "1") == "1"
+    updated = dao.get_setting("announcement_updated", "")
+    return jsonify({"success": True, "text": text, "enabled": enabled, "updated": updated})
+
+
+@app.route("/api/admin/announcement", methods=["POST"])
+@admin_required
+def admin_set_announcement():
+    """设置公告(内容 + 显示开关), 小程序端即时生效"""
+    data = request.get_json(silent=True) or {}
+    text = str(data.get("text", "")).strip()
+    enabled = bool(data.get("enabled", True))
+    dao.set_setting("announcement_text", text)
+    dao.set_setting("announcement_enabled", "1" if enabled else "0")
+    dao.set_setting("announcement_updated", time.strftime("%Y-%m-%d %H:%M:%S"))
+    app.logger.info("[admin] rid=%s 更新公告 len=%d enabled=%s ip=%s",
+                    _rid(), len(text), enabled,
+                    (request.headers.get("X-Forwarded-For") or request.remote_addr or "-"))
+    return jsonify({"success": True})
 
 
 @app.route("/api/admin/check")

@@ -424,6 +424,21 @@ def api_connect_test():
 
 
 # ============================================================
+# API — 公告（公开, 无需登录; 控制面板设置）
+# ============================================================
+@app.route('/api/announcement')
+def api_announcement():
+    """小程序公告栏: 返回公告文本与显示开关(公开接口, 未登录可读)"""
+    text = dao.get_setting("announcement_text", "")
+    enabled = dao.get_setting("announcement_enabled", "1") == "1"
+    return jsonify({
+        "success": True,
+        "enabled": enabled and bool(text.strip()),
+        "text": text.strip(),
+    })
+
+
+# ============================================================
 # API — 登录（多用户：登录成功后签发 token）
 # ============================================================
 # 本服务仅支持手动登录：登录密码只用于本次登录流程，

@@ -90,7 +90,7 @@ async function checkLogin() {
   if (!token) { show('login'); return; }
   try {
     const r = await api('/api/admin/check');
-    if (r.logged_in) { show('main'); startStream(); loadSummary(); loadUsers(); loadSessions(); loadGradeStats(); }
+    if (r.logged_in) { show('main'); startStream(); loadSummary(); loadUsers(); loadSessions(); loadGradeStats(); loadAnnouncement(); }
     else { logout(); }
   } catch (e) { logout(); }
 }
@@ -383,6 +383,38 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     $('panel-' + tab.dataset.tab).classList.add('active');
   });
+});
+
+// ============================================================
+// 公告管理
+// ============================================================
+async function loadAnnouncement() {
+  try {
+    const r = await api('/api/admin/announcement');
+    if (!r.success) return;
+    $('annText').value = r.text || '';
+    $('annEnabled').checked = r.enabled;
+    $('annUpdated').textContent = r.updated ? '上次修改: ' + r.updated : '';
+    updateAnnCount();
+  } catch (e) {}
+}
+function updateAnnCount() {
+  $('annCount').textContent = ($('annText').value.length || 0) + ' / 500';
+}
+$('annText').addEventListener('input', updateAnnCount);
+$('annSave').addEventListener('click', async () => {
+  const text = $('annText').value.trim();
+  const enabled = $('annEnabled').checked;
+  const r = await api('/api/admin/announcement', {
+    method: 'POST',
+    body: JSON.stringify({ text, enabled })
+  });
+  if (r.success) {
+    loadAnnouncement();
+    alert('公告已保存，小程序端即时生效');
+  } else {
+    alert('保存失败: ' + (r.message || '未知错误'));
+  }
 });
 
 // ============================================================
