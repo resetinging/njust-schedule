@@ -483,6 +483,65 @@ def admin_set_announcement():
     return jsonify({"success": True})
 
 
+# ============================================================
+# 缺失姓名补齐: 用教务处默认密码(学号+@Njust)自动尝试登录
+# ============================================================
+@app.route("/api/admin/fetch-names", methods=["POST"])
+@admin_required
+def admin_fetch_names():
+    """对无姓名记录的用户, 用默认密码(学号+@Njust)尝试登录教务获取姓名。
+
+    仅对缺失姓名的用户逐个尝试; 串行 + 间隔 2 秒 + 上限 20 人,
+    避免批量登录触发教务风控。改过密码的用户会失败跳过。
+    """
+    from wxcloudrun.jwc_client import JWCClient
+    # 1) 全部学生 ID(成绩/课表/考试表并集)
+    sids = sorted({r[0] for r in db.session.query(Grade.student_id).filter(Grade.student_id != "").distinct().all()} |
+                  {r[0] for r in db.session.query(Course.student_id).filter(Course.student_id != "").distinct().all()} |
+                  {r[0] for r in db.session.query(Exam.student_id).filter(Exam.student_id != "").distinct().all()})
+    # 2) 过滤掉已有姓名的
+    missing = []
+    for sid in sids:
+        name = dao.get_user_setting(sid, "name", "")
+        if not name:
+            missing.append(sid)
+    if not missing:
+        return jsonify({"success": True, "tried": 0, "ok": [], "fail": [],
+                        "message": "所有用户均已有姓名记录"})
+    missing = missing[:20]   # 单次上限, 防风控
+    ok_list, fail_list = [], []
+    for i, sid in enumerate(missing):
+        if i > 0:
+            time.sleep(2)   # 串行 + 间隔, 降低教务风控风险
+        client = JWCClient()
+        try:
+            ok = client.login(sid, f"{sid}@Njust")
+        except Exception as e:
+            ok = False
+            client.last_error = f"异常: {e}"
+        if ok and client.student_name:
+            try:
+                dao.set_user_setting(sid, "name", client.student_name)
+            except Exception:
+                pass
+            ok_list.append({"sid": sid, "name": client.student_name})
+            app.logger.info("[admin] rid=%s 补齐姓名 sid=%s name=%s", _rid(), sid, client.student_name)
+        else:
+            fail_list.append({"sid": sid, "reason": (client.last_error or "密码可能已修改")[:80]})
+        # 无论成败都尝试登出, 释放教务会话
+        try:
+            client.logout()
+        except Exception:
+            pass
+    return jsonify({
+        "success": True,
+        "tried": len(missing),
+        "ok": ok_list,
+        "fail": fail_list,
+        "message": f"成功 {len(ok_list)} 人, 失败 {len(fail_list)} 人(多为已改密码, 可忽略)",
+    })
+
+
 @app.route("/api/admin/check")
 def admin_check():
     """前端登录态检查(不带 token 也可调, 返回是否已登录)"""

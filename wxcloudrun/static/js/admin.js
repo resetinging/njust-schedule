@@ -281,6 +281,27 @@ function renderUsers() {
 
 $('userSearch').addEventListener('input', renderUsers);
 
+/** 获取缺失姓名: 后端用默认密码(学号+@Njust)尝试登录教务补齐 */
+$('fetchNamesBtn').addEventListener('click', async () => {
+  const btn = $('fetchNamesBtn');
+  const msg = $('fetchNamesMsg');
+  btn.disabled = true;
+  msg.textContent = '正在尝试登录教务获取姓名(逐个进行, 可能需 1-2 分钟)…';
+  try {
+    const r = await api('/api/admin/fetch-names', { method: 'POST' });
+    if (r.success) {
+      msg.textContent = r.message + (r.ok && r.ok.length
+        ? ' | 成功: ' + r.ok.map(x => x.sid + '(' + x.name + ')').join('、') : '');
+      if (r.ok && r.ok.length) loadUsers();
+    } else {
+      msg.textContent = '获取失败: ' + (r.message || '未知错误');
+    }
+  } catch (e) {
+    msg.textContent = '请求失败';
+  }
+  btn.disabled = false;
+});
+
 async function openUser(sid) {
   try {
     const r = await api('/api/admin/users/' + encodeURIComponent(sid));

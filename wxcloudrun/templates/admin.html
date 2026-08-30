@@ -68,8 +68,12 @@
 
     <section id="panel-users" class="panel">
       <div class="panel-tool">
-        <input id="userSearch" placeholder="🔍 搜索学号 / 姓名" class="search-wide" />
+        <div class="filters">
+          <input id="userSearch" placeholder="🔍 搜索学号 / 姓名" class="search-wide" />
+        </div>
+        <button id="fetchNamesBtn" class="ghost small">🔄 获取缺失姓名</button>
       </div>
+      <div id="fetchNamesMsg" class="req-stats"></div>
       <div id="userList" class="user-list"></div>
     </section>
 
