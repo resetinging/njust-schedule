@@ -49,10 +49,9 @@
         </view>
       </view>
 
-      <!-- ============ 四六级成绩条 ============ -->
+      <!-- ============ 四六级成绩条(点击刷新) ============ -->
       <view class="sc-cet" wx:if="{{stats.cet}}" bindtap="onRefreshCet">
         <view class="sc-cet-top">
-          <view class="chk on sm">✓</view>
           <text class="sc-cet-title">四六级成绩</text>
           <text class="sc-cet-date">{{stats.cet.date}}</text>
           <text class="sc-cet-refresh">🔄</text>
