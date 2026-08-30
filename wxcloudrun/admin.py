@@ -409,6 +409,28 @@ def admin_sessions():
     return jsonify({"success": True, "sessions": out})
 
 
+@app.route("/api/admin/stats/requests")
+@admin_required
+def admin_request_stats():
+    """请求趋势统计: 最近分钟分布 + 状态分布 + 高频路径 Top10"""
+    from collections import Counter
+    with _admin_lock:
+        recent = list(_recent)
+    minutes = Counter()
+    statuses = Counter()
+    paths = Counter()
+    for r in recent:
+        minutes[r["ts"][:5]] += 1          # HH:MM
+        statuses[str(r["status"])] += 1
+        paths[r["path"].split("?")[0]] += 1
+    return jsonify({
+        "success": True,
+        "minutes": dict(sorted(minutes.items())[-60:]),
+        "statuses": dict(statuses),
+        "top_paths": dict(paths.most_common(10)),
+    })
+
+
 @app.route("/api/admin/check")
 def admin_check():
     """前端登录态检查(不带 token 也可调, 返回是否已登录)"""

@@ -44,13 +44,31 @@
 
     <section id="panel-requests" class="panel active">
       <div class="panel-tool">
-        <label><input type="checkbox" id="autoScroll" checked> 自动滚动</label>
-        <button id="reqClear" class="ghost small">清空列表</button>
+        <div class="filters">
+          <select id="fStatus">
+            <option value="">全部状态</option>
+            <option value="2">2xx 成功</option>
+            <option value="4">4xx 客户端错误</option>
+            <option value="5">5xx 服务器错误</option>
+            <option value="401">401 未授权</option>
+          </select>
+          <input id="fSid" placeholder="学号筛选" />
+          <input id="fPath" placeholder="路径关键词" />
+          <label class="chk-label"><input type="checkbox" id="autoScroll" checked> 自动滚动</label>
+        </div>
+        <div class="btn-group">
+          <button id="reqPause" class="ghost small">⏸ 暂停</button>
+          <button id="reqClear" class="ghost small">清空</button>
+        </div>
       </div>
+      <div id="reqStats" class="req-stats"></div>
       <div id="reqList" class="req-list"></div>
     </section>
 
     <section id="panel-users" class="panel">
+      <div class="panel-tool">
+        <input id="userSearch" placeholder="🔍 搜索学号 / 姓名" class="search-wide" />
+      </div>
       <div id="userList" class="user-list"></div>
     </section>
 
@@ -59,6 +77,10 @@
     </section>
 
     <section id="panel-grades" class="panel">
+      <div class="card">
+        <h3>请求趋势（最近 60 分钟）</h3>
+        <div id="reqTrendChart" class="chart trend-chart"></div>
+      </div>
       <div class="grid-2">
         <div class="card">
           <h3>成绩等级分布</h3>

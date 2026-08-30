@@ -130,25 +130,48 @@ $('logoutBtn').addEventListener('click', () => { api('/api/admin/logout', { meth
 // ============================================================
 // SSE 实时请求流
 // ============================================================
-function startStream() {
-  if (es) es.close();
-  const status = $('sseStatus');
-  es = new EventSource('/api/admin/stream?token=' + encodeURIComponent(token));
-  es.onopen = () => { status.textContent = '● 实时连接中'; status.className = 'sse-status ok'; };
-  es.onerror = () => { status.textContent = '● 连接断开，重连中…'; status.className = 'sse-status warn'; };
-  es.onmessage = (ev) => {
-    try { appendReq(JSON.parse(ev.data)); } catch (e) {}
+let reqBuf = [];        // 请求缓冲(全部)
+let reqPaused = false;
+
+function reqFilters() {
+  return {
+    status: $('fStatus').value,
+    sid: $('fSid').value.trim().toLowerCase(),
+    path: $('fPath').value.trim().toLowerCase()
   };
 }
 
-function appendReq(r) {
+/** 单条请求是否通过当前筛选 */
+function reqMatch(r, f) {
+  if (f.status === '401' && r.status !== 401) return false;
+  if (f.status === '2' && !(r.status >= 200 && r.status < 300)) return false;
+  if (f.status === '4' && !(r.status >= 400 && r.status < 500)) return false;
+  if (f.status === '5' && !(r.status >= 500)) return false;
+  if (f.sid && !String(r.sid || '').toLowerCase().includes(f.sid)) return false;
+  if (f.path && !String(r.path || '').toLowerCase().includes(f.path)) return false;
+  return true;
+}
+
+/** 重渲染请求列表(按筛选) */
+function renderReqs() {
+  if (reqPaused) return;
+  const f = reqFilters();
   const list = $('reqList');
-  // 列表上限
-  while (list.children.length >= 500) list.removeChild(list.firstChild);
-  const row = document.createElement('div');
-  row.className = 'req-row';
+  const matched = reqBuf.filter(r => reqMatch(r, f));
+  // 统计摘要
+  const total = matched.length;
+  const slow = matched.filter(r => r.ms >= 2000).length;
+  const err5 = matched.filter(r => r.status >= 500).length;
+  $('reqStats').textContent = `匹配 ${total} 条 · 5xx ${err5} 条 · 慢请求 ${slow} 条`;
+  // 渲染(上限 300 行)
+  const rows = matched.slice(-300).map(reqRowHtml).join('');
+  list.innerHTML = rows;
+  if ($('autoScroll').checked) list.scrollTop = list.scrollHeight;
+}
+
+function reqRowHtml(r) {
   const msCls = r.ms >= 2000 ? 'ms-slow' : '';
-  row.innerHTML =
+  return `<div class="req-row">` +
     `<span class="req-id">#${r.id}</span>` +
     `<span class="req-time">${esc(fmtTs(r.ts))}</span>` +
     `<span class="req-method">${esc(r.method)}</span>` +
@@ -156,13 +179,37 @@ function appendReq(r) {
     `<span class="req-status ${statusClass(r.status)}">${r.status}</span>` +
     `<span class="req-ms ${msCls}">${r.ms}ms</span>` +
     `<span class="req-sid">${esc(r.sid || '-')}</span>` +
-    `<span class="req-ip">${esc(r.ip || '-')}</span>`;
-  list.appendChild(row);
-  reqCount++;
-  if ($('autoScroll').checked) list.scrollTop = list.scrollHeight;
+    `<span class="req-ip">${esc(r.ip || '-')}</span>` +
+    `</div>`;
 }
 
-$('reqClear').addEventListener('click', () => { $('reqList').innerHTML = ''; });
+function startStream() {
+  if (es) es.close();
+  const status = $('sseStatus');
+  es = new EventSource('/api/admin/stream?token=' + encodeURIComponent(token));
+  es.onopen = () => { status.textContent = '● 实时连接中'; status.className = 'sse-status ok'; };
+  es.onerror = () => { status.textContent = '● 连接断开，重连中…'; status.className = 'sse-status warn'; };
+  es.onmessage = (ev) => {
+    try {
+      const r = JSON.parse(ev.data);
+      // 缓冲上限
+      reqBuf.push(r);
+      if (reqBuf.length > 800) reqBuf = reqBuf.slice(-800);
+      renderReqs();
+    } catch (e) {}
+  };
+}
+
+$('reqClear').addEventListener('click', () => { reqBuf = []; renderReqs(); });
+$('reqPause').addEventListener('click', () => {
+  reqPaused = !reqPaused;
+  $('reqPause').textContent = reqPaused ? '▶ 继续' : '⏸ 暂停';
+  if (!reqPaused) renderReqs();
+});
+['fStatus', 'fSid', 'fPath'].forEach(id => {
+  $(id).addEventListener('input', renderReqs);
+  $(id).addEventListener('change', renderReqs);
+});
 
 // ============================================================
 // 仪表盘统计
@@ -189,28 +236,42 @@ async function loadSummary() {
 // ============================================================
 // 用户列表
 // ============================================================
+let allUsersCache = [];
+
 async function loadUsers() {
   try {
     const r = await api('/api/admin/users');
     if (!r.success) return;
-    const box = $('userList');
-    box.innerHTML = '<div class="table-head user-row">' +
-      '<span>学号</span><span>姓名</span><span>课表</span><span>考试</span><span>成绩</span><span>最高GPA</span><span>学期</span><span>状态</span></div>';
-    r.users.forEach(u => {
-      const row = document.createElement('div');
-      row.className = 'user-row clickable';
-      row.innerHTML =
-        `<span class="mono">${esc(u.student_id)}</span>` +
-        `<span>${esc(u.name || '-')}</span>` +
-        `<span>${u.courses}</span><span>${u.exams}</span><span>${u.grades}</span>` +
-        `<span>${u.best_gpa != null ? u.best_gpa : '-'}</span>` +
-        `<span>${esc(u.semester || '-')}</span>` +
-        `<span class="badge ${u.online ? 'on' : ''}">${u.online ? '在线' : '离线'}</span>`;
-      row.addEventListener('click', () => openUser(u.student_id));
-      box.appendChild(row);
-    });
+    allUsersCache = r.users;
+    renderUsers();
   } catch (e) {}
 }
+
+function renderUsers() {
+  const kw = $('userSearch').value.trim().toLowerCase();
+  const users = allUsersCache.filter(u =>
+    !kw || String(u.student_id).toLowerCase().includes(kw) ||
+    String(u.name || '').toLowerCase().includes(kw));
+  const box = $('userList');
+  box.innerHTML = '<div class="table-head user-row">' +
+    '<span>学号</span><span>姓名</span><span>课表</span><span>考试</span><span>成绩</span><span>最高GPA</span><span>学期</span><span>状态</span></div>';
+  users.forEach(u => {
+    const row = document.createElement('div');
+    row.className = 'user-row clickable';
+    row.innerHTML =
+      `<span class="mono">${esc(u.student_id)}</span>` +
+      `<span>${esc(u.name || '-')}</span>` +
+      `<span>${u.courses}</span><span>${u.exams}</span><span>${u.grades}</span>` +
+      `<span>${u.best_gpa != null ? u.best_gpa : '-'}</span>` +
+      `<span>${esc(u.semester || '-')}</span>` +
+      `<span class="badge ${u.online ? 'on' : ''}">${u.online ? '在线' : '离线'}</span>`;
+    row.addEventListener('click', () => openUser(u.student_id));
+    box.appendChild(row);
+  });
+  if (!users.length) box.innerHTML += '<p class="dim center">无匹配用户</p>';
+}
+
+$('userSearch').addEventListener('input', renderUsers);
 
 async function openUser(sid) {
   try {
@@ -281,10 +342,26 @@ function barChart(el, data, color) {
 
 async function loadGradeStats() {
   try {
-    const r = await api('/api/admin/stats/grades');
+    const [r, tr] = await Promise.all([
+      api('/api/admin/stats/grades'),
+      api('/api/admin/stats/requests').catch(() => null)
+    ]);
     if (!r.success) return;
     barChart($('levelChart'), r.level_dist, 'linear-gradient(180deg,#8b7cf7,#6a5ae0)');
     barChart($('gpaChart'), r.gpa_hist, 'linear-gradient(180deg,#5ad0a8,#2fa882)');
+    // 请求趋势(最近 60 分钟)
+    if (tr && tr.success && tr.minutes) {
+      const entries = Object.entries(tr.minutes);
+      const max = Math.max(1, ...entries.map(([, v]) => v));
+      $('reqTrendChart').innerHTML = entries.length
+        ? entries.slice(-60).map(([k, v]) => `
+          <div class="bar-col">
+            <div class="bar-val">${v}</div>
+            <div class="bar" style="height:${Math.round(v / max * 110)}px;background:linear-gradient(180deg,#7c6be8,#5ad0a8)"></div>
+            <div class="bar-lbl">${esc(k)}</div>
+          </div>`).join('')
+        : '<p class="dim center">暂无请求数据</p>';
+    }
     // 各学期平均绩点(横向条形, 0-4.0)
     const sem = $('semAvgChart');
     sem.innerHTML = r.sem_gpa.length ? r.sem_gpa.slice(0, 12).map(s => `
@@ -313,3 +390,4 @@ document.querySelectorAll('.tab').forEach(tab => {
 // ============================================================
 checkLogin();
 setInterval(() => { loadSummary(); loadSessions(); }, 10000);
+setInterval(loadGradeStats, 60000);   // 成绩统计+请求趋势 60s 刷新
