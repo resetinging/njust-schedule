@@ -25,7 +25,8 @@ const TOKEN_KEY = 'token'
  */
 function request(method, path, data = {}, opts) {
   const timeout = (opts && opts.timeout) || config.REQUEST_TIMEOUT
-  const isLoginPath = /\/api\/(login|get-webvpn-captcha|get-captcha)/.test(path)
+  // 登录/验证码/登出接口不触发 401 自动重登(登出 401 时重登会白跑一轮 OCR)
+  const isLoginPath = /\/api\/(login|logout|get-webvpn-captcha|get-captcha)/.test(path)
   let attempt = 0   // 401 自动重登只尝试一次, 避免循环
 
   const handleFail = (statusCode, payload) => {
@@ -240,12 +241,21 @@ function refreshExams() {
   })
 }
 
-/** 一键刷新课表+考试 */
+/** 一键刷新课表+考试(刷新成功后移除学期后缀缓存, 由后续查询重新载入) */
 function refreshAll() {
   return request('POST', '/api/refresh-all').then(res => {
     if (res.success) {
-      if (res.schedule && res.schedule.ok) storage.setCached('cached_courses', [])
-      if (res.exams && res.exams.ok) storage.setCached('cached_exams', [])
+      // 移除带学期后缀的缓存键(旧的裸键无读取方, 已废弃)
+      try {
+        const info = wx.getStorageInfoSync()
+        info.keys.forEach(k => {
+          const key = String(k)
+          if (res.schedule && res.schedule.ok && key.indexOf('cached_courses_') === 0) storage.remove(key)
+          if (res.exams && res.exams.ok && key.indexOf('cached_exams_') === 0) storage.remove(key)
+        })
+      } catch (e) {
+        // 忽略
+      }
     }
     return res
   })

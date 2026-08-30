@@ -127,28 +127,29 @@ App({
   /** 静默校验后端会话: 失效时先尝试自动重登(记住密码), 失败才提示 */
   _checkSession() {
     api.getStatus().then((res) => {
-      if (res && res.logged_in) return
-      if (res && !res.logged_in) {
-        api.autoRelogin().then((newToken) => {
-          if (newToken) {
-            // 自动恢复登录成功
-            this.globalData.isLoggedIn = true
-            this.globalData.studentName = storage.getStudentName()
-            this.globalData.semester = storage.getSemester()
-          } else {
-            storage.clearAll()
-            this.globalData.isLoggedIn = false
-            this.globalData.studentName = ''
-            this.globalData.semester = ''
-            wx.showModal({
-              title: '登录已过期',
-              content: '后端会话已失效且自动重登失败，请手动登录',
-              showCancel: false,
-              confirmText: '去登录'
-            })
-          }
-        })
-      }
+      // 请求失败(网络超时/5xx)返回 {success:false}, logged_in 为 undefined:
+      // 绝不能当作"未登录"清空本地登录态, 静默跳过即可
+      if (!res || res.success === false || typeof res.logged_in !== 'boolean') return
+      if (res.logged_in) return
+      api.autoRelogin().then((newToken) => {
+        if (newToken) {
+          // 自动恢复登录成功
+          this.globalData.isLoggedIn = true
+          this.globalData.studentName = storage.getStudentName()
+          this.globalData.semester = storage.getSemester()
+        } else {
+          storage.clearAll()
+          this.globalData.isLoggedIn = false
+          this.globalData.studentName = ''
+          this.globalData.semester = ''
+          wx.showModal({
+            title: '登录已过期',
+            content: '后端会话已失效且自动重登失败，请手动登录',
+            showCancel: false,
+            confirmText: '去登录'
+          })
+        }
+      })
     }).catch(() => {
       // 网络失败不打扰用户, 由后续请求的 401 自动重登兜底
     })

@@ -171,9 +171,10 @@ Page({
             images.push({ name, title: name.replace(/\.[^.]+$/, ''), src })
             this.setData({ images: images.slice(), downloadMsg: '', downloadPercent: 0, errorMsg: '' })
           } catch (e) {
-            // 单张失败不阻断其余图片; 错误显示在页面底部诊断区
+            // 单张失败不阻断其余图片; 错误累积显示在页面底部诊断区
+            const errLine = `「${name}」下载失败: ${(e && e.message) || '网络错误'}`
             this.setData({
-              diag: `「${name}」下载失败: ${(e && e.message) || '网络错误'}`
+              diag: this.data.diag ? this.data.diag + '；' + errLine : errLine
             })
           }
         }

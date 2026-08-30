@@ -97,6 +97,23 @@ function getCachedIfFresh(key, ttl) {
 
 function clearAll() {
   Object.values(STORAGE_KEYS).forEach(k => remove(k))
+  // 学期后缀缓存键(换号登录/退出时必须清除, 防止上一用户数据串号):
+  // cached_courses_<学期>/cached_exams_<学期>/cached_status_<sid>_<学期>
+  // 及 semester_list/cached_gallery_meta
+  try {
+    const info = wx.getStorageInfoSync()
+    info.keys.forEach(k => {
+      const key = String(k)
+      if (key.indexOf('cached_courses_') === 0 ||
+          key.indexOf('cached_exams_') === 0 ||
+          key.indexOf('cached_status_') === 0 ||
+          key === 'semester_list' || key === 'cached_gallery_meta') {
+        remove(key)
+      }
+    })
+  } catch (e) {
+    // 忽略
+  }
 }
 
 module.exports = {

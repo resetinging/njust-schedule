@@ -152,9 +152,9 @@ function timeUntil(dateStr, timeStr) {
  * 参考桌面端 static/js/evaluations.js timeUntilDeadline()
  */
 function timeUntilDeadline(endDateStr) {
-  if (!endDateStr) return { text: '', cls: '' }
+  if (!endDateStr) return { text: '未知', cls: '' }
   const end = parseDateStr(endDateStr)
-  if (!end) return { text: '', cls: '' }
+  if (!end) return { text: '未知', cls: '' }
   end.setHours(23, 59, 59, 0)
   const now = new Date()
   const diffMs = end - now
