@@ -32,7 +32,7 @@
     <!-- 倒计时卡片 -->
     <scroll-view scroll-x class="countdown-scroll" wx:if="{{countdowns.length > 0}}">
       <view class="countdown-row">
-        <view class="countdown-card {{item.cardClass}}" wx:for="{{countdowns}}" wx:key="course_name">
+        <view class="countdown-card {{item.cardClass}}" wx:for="{{countdowns}}" wx:key="index">
           <view class="cd-bignum">{{item.bigNum}}</view>
           <view class="cd-label">{{item.bigLabel}}</view>
           <view class="cd-course">{{item.course_name}}</view>
@@ -41,7 +41,7 @@
     </scroll-view>
 
     <!-- 批次卡片列表 -->
-    <block wx:for="{{batches}}" wx:key="batch">
+    <block wx:for="{{batches}}" wx:key="index">
       <view class="batch-card card {{item.is_done ? 'batch-done' : ''}} {{!item.is_done && item._urgency === 'urgent' ? 'batch-urgent' : ''}} {{!item.is_done && item._urgency === 'warning' ? 'batch-warning' : ''}}"
             bindtap="openBatch" data-index="{{index}}">
         <view class="batch-header">
@@ -79,7 +79,7 @@
 
     <scroll-view scroll-y class="course-scroll">
       <view class="course-card card {{item.submitted ? 'course-done' : (item.evaluated ? 'course-saved' : '')}}"
-            wx:for="{{batchCourses}}" wx:key="seq" wx:for-item="item">
+            wx:for="{{batchCourses}}" wx:key="index" wx:for-item="item">
         <view class="course-header">
           <view class="course-main">
             <view class="course-name-row">
@@ -136,7 +136,7 @@
       </view>
 
       <!-- 评价指标 -->
-      <view class="indicator-card card" wx:for="{{indicators}}" wx:key="seq">
+      <view class="indicator-card card" wx:for="{{indicators}}" wx:key="index">
         <view class="indicator-label">{{index + 1}}. {{item.label}}</view>
         <view class="indicator-options">
           <view class="option-item {{opt.checked ? 'option-checked' : ''}} {{formReadonly ? 'option-readonly' : ''}}"
@@ -201,7 +201,7 @@
     bind:close="closeBatchProgress"
   >
     <scroll-view scroll-y class="batch-results" wx:if="{{batchResults.length > 0}}">
-      <view class="result-item" wx:for="{{batchResults}}" wx:key="course">
+      <view class="result-item" wx:for="{{batchResults}}" wx:key="index">
         <text class="result-icon">{{item.status === 'success' ? '✅' : '❌'}}</text>
         <text class="result-name">{{item.course}}</text>
         <text class="result-error" wx:if="{{item.error}}">{{item.error}}</text>

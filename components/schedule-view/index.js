@@ -131,15 +131,16 @@ Component({
       const todayDay = calcTodayDay()
       // 仅首次设置或日期变化时定位本周; 否则保留用户当前查看的周次
       const firstTime = !this.data.firstWeekDate || this.data.firstWeekDate !== firstWeekDate
+      const keepWeek = firstTime ? actualWeek : this.data.currentWeek
       this.setData({
         firstWeekDate,
         actualWeek,
         todayDay,
-        currentWeek: firstTime ? actualWeek : this.data.currentWeek
+        currentWeek: keepWeek
       })
-      // 如果已加载课程，重新过滤
+      // 如果已加载课程，重新过滤(用保留后的周次, 不覆盖用户跳转)
       if (this.data.courses.length > 0) {
-        this.filterByWeek(actualWeek)
+        this.filterByWeek(keepWeek)
       }
       // 首次未设置时提示一次
       if (showHint && !this._weekHintShown) {
@@ -341,8 +342,9 @@ Component({
       this.filterByWeek(w)
     },
 
-    /** 手动刷新(主动操作, 显示反馈) */
+    /** 手动刷新(主动操作, 显示反馈; 防重复点击) */
     async onRefresh() {
+      if (this.data.loading) return
       if (!storage.isLoggedIn()) {
         wx.showToast({ title: '请先在"我的"页面登录', icon: 'none' })
         return

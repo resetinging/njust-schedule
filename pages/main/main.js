@@ -65,6 +65,7 @@ Page({
   onSwiperChange(e) {
     const i = e.detail.current
     this.setData({ current: i })
+    this._preActivating = null   // 复位预激活标记
     this._activate(i)
     this._syncTabBar()
   },

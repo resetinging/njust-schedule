@@ -74,9 +74,15 @@ Component({
     /** 由 main 页面调用: 每次被激活时触发 */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
-      // 退出登录后清空上一用户数据(隐私)
+      // 退出登录后清空上一用户数据(隐私, 含评教表单/批量状态)
       if (!storage.isLoggedIn()) {
-        this.setData({ batches: [], batchCourses: [], countdowns: [] })
+        this.setData({
+          batches: [], batchCourses: [], countdowns: [],
+          showForm: false, formCourseName: '', formCourseUrl: '', formAction: '',
+          formHiddenFields: {}, indicators: [], selections: {}, liveTotal: 0, maxTotal: 0,
+          showBatchDialog: false, batchRunning: false, batchDone: false,
+          batchCurrent: 0, batchTotal: 0, batchMessage: '', batchResults: [], batchId: ''
+        })
         return
       }
       // 重新读缓存(登录后/刷新后数据自动生效)
@@ -191,8 +197,9 @@ Component({
       this.setData({ batches: enriched, countdowns })
     },
 
-    /** 刷新 */
+    /** 刷新(防重复点击) */
     async onRefresh() {
+      if (this.data.loading) return
       if (!storage.isLoggedIn()) {
         wx.showToast({ title: '请先在"我的"页面登录', icon: 'none' })
         return

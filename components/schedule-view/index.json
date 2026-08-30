@@ -1,7 +1,6 @@
 {
   "component": true,
   "usingComponents": {
-    "week-grid": "/components/week-grid/week-grid",
-    "loading-modal": "/components/loading-modal/loading-modal"
+    "week-grid": "/components/week-grid/week-grid"
   }
 }

@@ -73,18 +73,16 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
-      // 退出登录后清空上一用户数据(隐私)
+      // 退出登录后清空上一用户数据(隐私, 含折叠/模式状态)
       if (!storage.isLoggedIn()) {
         this._allGrades = []
         this._checked = {}
+        this._folded = {}
+        this._mode = ''
         this.setData({ semGroups: [], empty: true, loading: false })
         return
       }
       this.loadCached()                // 重新读缓存(登录后/刷新后数据自动生效)
-      const saved = storage.get('gpa_mode', '')
-      if (saved !== this._mode) {
-        this.loadGrades()
-      }
     },
 
     /** 从缓存渲染（不请求后端） */
@@ -292,8 +290,9 @@ Component({
       }
     },
 
-    /** 刷新成绩 */
+    /** 刷新成绩(防重复点击) */
     async onRefreshGrades() {
+      if (this.data.refreshing) return
       this.setData({ refreshing: true })
       try {
         const res = await api.refreshGrades()

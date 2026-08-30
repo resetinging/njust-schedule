@@ -18,8 +18,7 @@ Component({
   methods: {
     onTap(e) {
       const i = Number(e.currentTarget.dataset.index)
-      if (i === this.data.selected) return
-      // 通知 main 页面切 swiper(带动画); main 会回同步 selected
+      // 不短路同 Tab 点击: main.onTabTap 对"已当前页但激活失败"会重新激活
       const pages = getCurrentPages()
       const page = pages[pages.length - 1]
       if (page && typeof page.onTabTap === 'function') {

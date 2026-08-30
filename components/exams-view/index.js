@@ -167,8 +167,9 @@ Component({
       this.setData({ collapsedDates: collapsed })
     },
 
-    /** 刷新 */
+    /** 刷新(防重复点击) */
     async onRefresh() {
+      if (this.data.loading) return
       if (!storage.isLoggedIn()) {
         wx.showToast({ title: '请先在"我的"页面登录', icon: 'none' })
         return
