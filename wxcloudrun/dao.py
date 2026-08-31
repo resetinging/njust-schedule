@@ -7,7 +7,7 @@ NJUST 课表/考试/评教/设置/成绩/四六级
 """
 import json
 from wxcloudrun import db
-from wxcloudrun.model import Course, Exam, Evaluation, Setting, Grade, CetScore, BoardMessage
+from wxcloudrun.model import Course, Exam, Evaluation, Setting, Grade, CetScore, BoardMessage, BoardComment, BoardLike
 
 
 # ============================================================
@@ -286,30 +286,90 @@ def get_cet_scores(student_id: str = "") -> list:
 
 
 # ============================================================
-# 留言板
+# 留言板(贴吧式: 留言+评论+点赞+匿名)
 # ============================================================
-def save_board_message(student_id: str, student_name: str, content: str) -> dict:
+def save_board_message(student_id: str, student_name: str, content: str, is_anonymous: int = 0) -> dict:
     """发布留言, 返回消息 dict"""
-    msg = BoardMessage(student_id=student_id, student_name=student_name, content=content)
+    msg = BoardMessage(student_id=student_id, student_name=student_name,
+                       content=content, is_anonymous=is_anonymous)
     db.session.add(msg)
     db.session.commit()
     return msg.to_dict()
 
 
-def get_board_messages(limit: int = 200, before_id: int = None) -> list:
-    """取留言(时间倒序, 支持分页: 只取 id < before_id 的旧消息)"""
+def get_board_messages(limit: int = 50, before_id: int = None, sort: str = "time",
+                       viewer_id: str = "") -> list:
+    """取留言列表: sort=time(最新在前, id 分页) | likes(点赞数在前)"""
     q = BoardMessage.query
-    if before_id:
-        q = q.filter(BoardMessage.id < before_id)
-    rows = q.order_by(BoardMessage.id.desc()).limit(limit).all()
+    if sort == "likes":
+        if before_id:
+            q = q.filter(BoardMessage.id != before_id)
+        rows = q.order_by(BoardMessage.likes.desc(), BoardMessage.id.desc()).limit(limit).all()
+    else:
+        if before_id:
+            q = q.filter(BoardMessage.id < before_id)
+        rows = q.order_by(BoardMessage.id.desc()).limit(limit).all()
+    # 批量取当前用户点赞状态与评论数
+    msg_ids = [r.id for r in rows]
+    liked_ids = set()
+    comment_counts = {}
+    if msg_ids:
+        liked_ids = {r[0] for r in db.session.query(BoardLike.message_id)
+                     .filter(BoardLike.message_id.in_(msg_ids), BoardLike.student_id == viewer_id).all()}
+        for mid, cnt in db.session.query(BoardComment.message_id, db.func.count(BoardComment.id)) \
+                .filter(BoardComment.message_id.in_(msg_ids)).group_by(BoardComment.message_id).all():
+            comment_counts[mid] = cnt
+    result = []
+    for r in rows:
+        d = r.to_dict(liked_by_me=r.id in liked_ids)
+        d["comments"] = comment_counts.get(r.id, 0)
+        result.append(d)
+    return result
+
+
+def toggle_board_like(message_id: int, student_id: str) -> dict:
+    """点赞/取消点赞(同用户对同留言只能一次), 返回 {likes, liked}"""
+    existing = BoardLike.query.filter(BoardLike.message_id == message_id,
+                                      BoardLike.student_id == student_id).first()
+    msg = BoardMessage.query.filter(BoardMessage.id == message_id).first()
+    if not msg:
+        return {"likes": 0, "liked": False, "exists": False}
+    if existing:
+        db.session.delete(existing)
+        msg.likes = max(0, (msg.likes or 0) - 1)
+        liked = False
+    else:
+        db.session.add(BoardLike(message_id=message_id, student_id=student_id))
+        msg.likes = (msg.likes or 0) + 1
+        liked = True
+    db.session.commit()
+    return {"likes": msg.likes or 0, "liked": liked, "exists": True}
+
+
+def get_board_comments(message_id: int, limit: int = 100) -> list:
+    """某留言的评论(时间正序, 贴吧楼层式)"""
+    rows = BoardComment.query.filter(BoardComment.message_id == message_id) \
+        .order_by(BoardComment.id.asc()).limit(limit).all()
     return [r.to_dict() for r in rows]
 
 
+def save_board_comment(message_id: int, student_id: str, student_name: str,
+                       content: str, is_anonymous: int = 0) -> dict:
+    """发表评论"""
+    cm = BoardComment(message_id=message_id, student_id=student_id,
+                      student_name=student_name, content=content, is_anonymous=is_anonymous)
+    db.session.add(cm)
+    db.session.commit()
+    return cm.to_dict()
+
+
 def delete_board_message(msg_id: int) -> bool:
-    """管理员删除留言"""
+    """管理员删除留言(级联删除评论与点赞)"""
     row = BoardMessage.query.filter(BoardMessage.id == msg_id).first()
     if not row:
         return False
+    BoardComment.query.filter(BoardComment.message_id == msg_id).delete()
+    BoardLike.query.filter(BoardLike.message_id == msg_id).delete()
     db.session.delete(row)
     db.session.commit()
     return True

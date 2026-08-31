@@ -462,8 +462,8 @@ async function loadBoard() {
       <div class="board-row">
         <div class="board-meta">
           <span class="mono">${esc(m.student_id)}</span>
-          <span>${esc(m.student_name || m.student_id)}</span>
-          <span class="dim">${esc(m.created_at || '')}</span>
+          <span>${esc(m.is_anonymous ? '匿名' : (m.student_name || m.student_id))}</span>
+          <span class="dim">${esc(m.created_at || '')} · 👍 ${m.likes || 0} · 💬 ${m.comments || 0}</span>
         </div>
         <div class="board-content">${esc(m.content)}</div>
         <button class="ghost small board-del" data-id="${m.id}">删除</button>

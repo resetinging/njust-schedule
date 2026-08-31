@@ -19,7 +19,7 @@ from flask import request, jsonify, Response, render_template, stream_with_conte
 from sqlalchemy import func
 
 from wxcloudrun import app, db
-from wxcloudrun.model import Course, Exam, Evaluation, Grade, CetScore, Setting
+from wxcloudrun.model import Course, Exam, Evaluation, Grade, CetScore, Setting, BoardComment
 from wxcloudrun import dao
 import config
 
@@ -552,9 +552,18 @@ def admin_fetch_names():
 @app.route("/api/admin/board")
 @admin_required
 def admin_board_list():
-    """留言列表(全量, 倒序)"""
-    messages = dao.get_board_messages(limit=500)
-    return jsonify({"success": True, "messages": messages})
+    """留言列表(全量, 倒序, 含点赞/评论统计)"""
+    from sqlalchemy import func as _f
+    msgs = dao.get_board_messages(limit=500, sort="time", viewer_id="")
+    ccounts = {}
+    if msgs:
+        ids = [m["id"] for m in msgs]
+        for mid, cnt in db.session.query(BoardComment.message_id, _f.count(BoardComment.id)) \
+                .filter(BoardComment.message_id.in_(ids)).group_by(BoardComment.message_id).all():
+            ccounts[mid] = cnt
+    for m in msgs:
+        m["comments"] = ccounts.get(m["id"], 0)
+    return jsonify({"success": True, "messages": msgs})
 
 
 @app.route("/api/admin/board/<int:msg_id>", methods=["DELETE"])

@@ -68,11 +68,32 @@ def _migrate_student_id():
             app.logger.info("[migrate] %s 已创建 student_id 索引", tbl_name)
 
 
+def _migrate_board_columns():
+    """留言板贴吧化升级: 存量 board_messages 表补充 likes/is_anonymous 列(幂等)"""
+    from sqlalchemy import inspect as sa_inspect, text as sa_text
+    insp = sa_inspect(db.engine)
+    if not insp.has_table("board_messages"):
+        return
+    cols = [c["name"] for c in insp.get_columns("board_messages")]
+    add_cols = [
+        ("likes", "INT DEFAULT 0"),
+        ("is_anonymous", "INT DEFAULT 0"),
+    ]
+    for col_name, col_def in add_cols:
+        if col_name not in cols:
+            with db.engine.begin() as conn:
+                conn.execute(sa_text(
+                    f"ALTER TABLE `board_messages` ADD COLUMN {col_name} {col_def}"
+                ))
+            app.logger.info("[migrate] board_messages 已补充 %s 列", col_name)
+
+
 # 确保数据表存在（container.config.json 的 executeSQLs 可能未执行）
 from wxcloudrun import model  # noqa: E402
 with app.app_context():
     db.create_all()
     _migrate_student_id()
+    _migrate_board_columns()
 
 
 # gzip 压缩文本响应（JSON/HTML/JS/CSS, >500 字节）: 移动网络下显著提速
