@@ -518,14 +518,15 @@ def api_get_board():
 
 @app.route('/api/board', methods=['POST'])
 def api_post_board():
-    """发布留言(需登录; 10 秒限流; 敏感词过滤; 支持匿名)"""
+    """发布留言(需登录; 10 秒限流; 敏感词过滤; 强制匿名)"""
     client, err = _require_login()
     if err:
         return err
     sid = client.student_id or ""
     data = request.get_json(silent=True) or {}
     content = str(data.get("content", "")).strip()
-    is_anonymous = 1 if data.get("anonymous") else 0
+    # 强制匿名: 所有留言对外不显示身份(后端保留真实学号仅管理端可见)
+    is_anonymous = 1
     if not content:
         return jsonify({"success": False, "message": "内容不能为空"}), 400
     if len(content) > BOARD_MAX_LEN:
@@ -542,7 +543,7 @@ def api_post_board():
     name = client.student_name or dao.get_user_setting(sid, "name", "")
     msg = dao.save_board_message(sid, name, content, is_anonymous)
     _board_cache_invalidate()
-    app.logger.info("[board] rid=%s 留言 sid=%s len=%d anon=%d", _rid(), sid, len(content), is_anonymous)
+    app.logger.info("[board] rid=%s 留言(匿名) sid=%s len=%d", _rid(), sid, len(content))
     return jsonify({"success": True, "message": "发布成功", "msg": msg})
 
 
@@ -572,14 +573,15 @@ def api_board_comments(msg_id: int):
 
 @app.route('/api/board/<int:msg_id>/comments', methods=['POST'])
 def api_board_post_comment(msg_id: int):
-    """发表评论(需登录; 10 秒限流; 敏感词过滤; 支持匿名)"""
+    """发表评论(需登录; 10 秒限流; 敏感词过滤; 强制匿名)"""
     client, err = _require_login()
     if err:
         return err
     sid = client.student_id or ""
     data = request.get_json(silent=True) or {}
     content = str(data.get("content", "")).strip()
-    is_anonymous = 1 if data.get("anonymous") else 0
+    # 强制匿名
+    is_anonymous = 1
     if not content:
         return jsonify({"success": False, "message": "内容不能为空"}), 400
     if len(content) > BOARD_MAX_LEN:
