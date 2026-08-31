@@ -3,7 +3,8 @@
   <view class="tab-bar-item"
         wx:for="{{list}}" wx:key="pagePath"
         data-index="{{index}}" bindtap="onTap">
-    <image class="tab-icon"
+    <text wx:if="{{item.emoji}}" class="tab-emoji">{{item.emoji}}</text>
+    <image wx:else class="tab-icon"
            src="{{selected === index ? item.selectedIconPath : item.iconPath}}" />
     <text class="tab-text {{selected === index ? 'active' : ''}}">{{item.text}}</text>
   </view>

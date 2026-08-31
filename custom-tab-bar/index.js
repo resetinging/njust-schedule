@@ -11,6 +11,7 @@ Component({
       { pagePath: 'pages/exams/exams', text: '考试', iconPath: '/static/icons/exam.png', selectedIconPath: '/static/icons/exam-active.png' },
       { pagePath: 'pages/eval/eval', text: '评教', iconPath: '/static/icons/eval.png', selectedIconPath: '/static/icons/eval-active.png' },
       { pagePath: 'pages/grades/grades', text: '成绩', iconPath: '/static/icons/grades.png', selectedIconPath: '/static/icons/grades-active.png' },
+      { pagePath: 'pages/board/board', text: '留言板', emoji: '💬' },
       { pagePath: 'pages/settings/settings', text: '我的', iconPath: '/static/icons/settings.png', selectedIconPath: '/static/icons/settings-active.png' }
     ]
   },

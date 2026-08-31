@@ -1,0 +1,101 @@
+/* 留言板视图组件(第6个Tab) */
+.view-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  background: #F7F6FB;
+}
+.view-scroll {
+  flex: 1;
+  overflow: hidden;
+}
+/* 置顶公告横幅 */
+.announce-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin: 16rpx 24rpx 0;
+  padding: 16rpx 20rpx;
+  background: linear-gradient(135deg, #FFF7E0, #FFEFC2);
+  border: 2rpx solid #F5D87A;
+  border-radius: 20rpx;
+}
+.ann-ico { font-size: 30rpx; flex-shrink: 0; line-height: 1.5; }
+.ann-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #7A5B12;
+  line-height: 1.6;
+  word-break: break-all;
+}
+/* 留言卡片 */
+.msg-card {
+  background: #fff;
+  border: 2rpx solid #EFEBFC;
+  border-radius: 20rpx;
+  margin: 16rpx 24rpx 0;
+  padding: 20rpx 24rpx;
+}
+.msg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10rpx;
+}
+.msg-name {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #7C6BE8;
+}
+.msg-time {
+  font-size: 22rpx;
+  color: #9B96B8;
+}
+.msg-content {
+  font-size: 28rpx;
+  color: #3A3560;
+  line-height: 1.6;
+  word-break: break-all;
+}
+.load-more {
+  text-align: center;
+  font-size: 24rpx;
+  color: #7C6BE8;
+  padding: 24rpx 0 40rpx;
+}
+.load-more.dim { color: #B8B4CC; }
+/* 发布区 */
+.post-bar {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 24rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 2rpx solid #EFEBFC;
+  flex-shrink: 0;
+}
+.post-input {
+  flex: 1;
+  height: 72rpx;
+  background: #F3F1FA;
+  border-radius: 36rpx;
+  padding: 0 28rpx;
+  font-size: 28rpx;
+}
+.post-btn {
+  flex-shrink: 0;
+  background: #7C6BE8;
+  color: #fff;
+  font-size: 28rpx;
+  border-radius: 36rpx;
+  padding: 0 40rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  margin: 0;
+}
+.post-btn[disabled] {
+  background: #B9B1E4;
+  color: #fff;
+}

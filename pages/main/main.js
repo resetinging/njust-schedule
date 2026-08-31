@@ -78,7 +78,7 @@ Page({
     const dx = e.detail.dx
     if (!dx) return
     const target = dx < 0 ? this.data.current + 1 : this.data.current - 1
-    if (target < 0 || target >= 5) return
+    if (target < 0 || target >= 6) return
     if (this._preActivating === target) return
     this._preActivating = target
     this._activate(target)

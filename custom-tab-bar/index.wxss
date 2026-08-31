@@ -22,6 +22,10 @@
   width: 46rpx;
   height: 46rpx;
 }
+.tab-emoji {
+  font-size: 40rpx;
+  line-height: 46rpx;
+}
 .tab-text {
   margin-top: 4rpx;
   font-size: 20rpx;

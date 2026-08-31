@@ -1,0 +1,47 @@
+<!-- 留言板视图组件(第6个Tab): 公告置顶 + 留言区 -->
+<view class="container view-root" wx:if="{{active}}">
+
+  <scroll-view class="view-scroll" scroll-y bindscrolltolower="loadMore">
+
+    <!-- 置顶公告 -->
+    <view class="announce-bar" wx:if="{{announcement}}">
+      <text class="ann-ico">📢</text>
+      <text class="ann-text">{{announcement}}</text>
+    </view>
+
+    <!-- 错误/空态 -->
+    <view class="empty-state" wx:if="{{!loading && errorMsg}}">
+      <view class="icon">💬</view>
+      <view class="text">{{errorMsg}}</view>
+      <button wx:if="{{errorMsg === '请先登录后查看留言板'}}" class="btn-primary" bindtap="goLogin">去登录</button>
+    </view>
+
+    <!-- 留言列表 -->
+    <block wx:if="{{messages.length > 0}}">
+      <view class="msg-card" wx:for="{{messages}}" wx:key="id">
+        <view class="msg-head">
+          <text class="msg-name">{{item.student_name || item.student_id}}</text>
+          <text class="msg-time">{{item.created_at}}</text>
+        </view>
+        <view class="msg-content">{{item.content}}</view>
+      </view>
+      <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMore">
+        {{loading ? '加载中…' : '加载更多'}}
+      </view>
+      <view class="load-more dim" wx:else>— 到底了 —</view>
+    </block>
+
+  </scroll-view>
+
+  <!-- 发布区(固定在底部) -->
+  <view class="post-bar">
+    <input class="post-input" placeholder="说点什么…（200 字内）"
+           value="{{content}}" bindinput="onInput"
+           maxlength="200" confirm-type="send"
+           bindconfirm="onSend" />
+    <button class="post-btn" bindtap="onSend" disabled="{{sending}}">
+      {{sending ? '发送中' : '发送'}}
+    </button>
+  </view>
+
+</view>

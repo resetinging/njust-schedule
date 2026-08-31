@@ -43,9 +43,6 @@ Component({
     // 版本标识（排查线上版本用）
     build: config.BUILD || '',
 
-    // 系统公告(公开, 未登录也显示)
-    announcement: '',
-
     active: false        // 懒渲染: main 激活时才渲染内容
   },
 
@@ -56,29 +53,13 @@ Component({
       const rp = storage.get('remember_pwd', '1') !== '0'
       if (rp !== this.data.rememberPwd) this.setData({ rememberPwd: rp })
       this.loadSettings()
-      this._loadAnnouncement()
     }
   },
 
   methods: {
-    /** 加载系统公告(公开接口; 本地缓存兜底立即显示, 后台刷新) */
-    _loadAnnouncement() {
-      const cached = storage.getCached('cached_announcement')
-      if (cached && cached.enabled && cached.text && !this.data.announcement) {
-        this.setData({ announcement: cached.text })
-      }
-      api.getAnnouncement().then(res => {
-        if (res && res.success) {
-          storage.setCached('cached_announcement', { t: Date.now(), enabled: res.enabled, text: res.text })
-          this.setData({ announcement: (res.enabled && res.text) ? res.text : '' })
-        }
-      }).catch(() => {})
-    },
-
     /** 由 main 页面调用: 每次被激活时触发 */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
-      this._loadAnnouncement()         // 公告公开, 未登录也刷新
       this.refreshState()
       // 回填记住的学号与密码（登录走自动 OCR，无需预取验证码）
       if (!this.data.isLoggedIn) {
@@ -367,9 +348,15 @@ Component({
       wx.navigateTo({ url: '/pages/gallery/gallery' })
     },
 
-    /** 打开留言板 */
+    /** 打开留言板(合页方案: 通知 main 切 swiper 到留言板 Tab) */
     onGoBoard() {
-      wx.navigateTo({ url: '/pages/board/board' })
+      const pages = getCurrentPages()
+      const page = pages[pages.length - 1]
+      if (page && typeof page.onTabTap === 'function') {
+        page.onTabTap(4)
+      } else {
+        wx.navigateTo({ url: '/pages/board/board' })
+      }
     },
 
     /** 一键刷新课表+考试(走 dataLoader: 刷新教务后查询写新缓存, 各 Tab 自动生效) */

@@ -1,4 +1,4 @@
-<!-- 主页面: swiper 承载 5 个 Tab 视图 -->
+<!-- 主页面: swiper 承载 6 个 Tab 视图(课表/考试/评教/成绩/留言板/我的) -->
 <view class="main-page">
   <swiper class="main-swiper"
           style="height: {{swiperHeight}}px"
@@ -19,7 +19,10 @@
       <grades-view id="tabview3" />
     </swiper-item>
     <swiper-item>
-      <settings-view id="tabview4" />
+      <board-view id="tabview4" />
+    </swiper-item>
+    <swiper-item>
+      <settings-view id="tabview5" />
     </swiper-item>
   </swiper>
 
