@@ -29,6 +29,10 @@
         <text>🖼️ 校历 & 照片墙</text>
         <text class="arrow">›</text>
       </view>
+      <view class="action-item" bindtap="onGoBoard">
+        <text>💬 留言板</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="action-item" bindtap="onRefreshAll">
         <text>🔄 一键刷新课表+考试</text>
         <text class="arrow">›</text>

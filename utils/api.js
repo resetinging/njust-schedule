@@ -303,6 +303,16 @@ function getAnnouncement() {
   return request('GET', '/api/announcement')
 }
 
+/** 获取留言列表(before 为 0 取最新一页, 否则取 id<before 的更早消息) */
+function getBoardMessages(before) {
+  return request('GET', '/api/board', { before: before || 0 })
+}
+
+/** 发布留言 */
+function postBoardMessage(content) {
+  return request('POST', '/api/board', { content })
+}
+
 /** 获取系统状态（登录状态、学期等） */
 function getStatus() {
   return request('GET', '/api/status')
@@ -505,6 +515,8 @@ module.exports = {
   submitEval,
   getStatus,
   getAnnouncement,
+  getBoardMessages,
+  postBoardMessage,
   setSemester,
   clearData,
   getSemesters,

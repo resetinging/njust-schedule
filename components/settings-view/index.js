@@ -367,6 +367,11 @@ Component({
       wx.navigateTo({ url: '/pages/gallery/gallery' })
     },
 
+    /** 打开留言板 */
+    onGoBoard() {
+      wx.navigateTo({ url: '/pages/board/board' })
+    },
+
     /** 一键刷新课表+考试(走 dataLoader: 刷新教务后查询写新缓存, 各 Tab 自动生效) */
     async onRefreshAll() {
       wx.showLoading({ title: '刷新中…' })
