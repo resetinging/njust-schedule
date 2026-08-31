@@ -90,7 +90,7 @@ async function checkLogin() {
   if (!token) { show('login'); return; }
   try {
     const r = await api('/api/admin/check');
-    if (r.logged_in) { show('main'); startStream(); loadSummary(); loadUsers(); loadSessions(); loadGradeStats(); loadAnnouncement(); }
+    if (r.logged_in) { show('main'); startStream(); loadSummary(); loadUsers(); loadSessions(); loadGradeStats(); loadAnnouncement(); loadBoard(); }
     else { logout(); }
   } catch (e) { logout(); }
 }
@@ -445,6 +445,40 @@ $('annSave').addEventListener('click', async () => {
     alert('保存失败: ' + (r.message || '未知错误'));
   }
 });
+
+// ============================================================
+// 留言板管理
+// ============================================================
+async function loadBoard() {
+  try {
+    const r = await api('/api/admin/board');
+    if (!r.success) return;
+    const box = $('boardList');
+    if (!r.messages || !r.messages.length) {
+      box.innerHTML = '<p class="dim center">暂无留言</p>';
+      return;
+    }
+    box.innerHTML = r.messages.map(m => `
+      <div class="board-row">
+        <div class="board-meta">
+          <span class="mono">${esc(m.student_id)}</span>
+          <span>${esc(m.student_name || m.student_id)}</span>
+          <span class="dim">${esc(m.created_at || '')}</span>
+        </div>
+        <div class="board-content">${esc(m.content)}</div>
+        <button class="ghost small board-del" data-id="${m.id}">删除</button>
+      </div>`).join('');
+    box.querySelectorAll('.board-del').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm('确认删除这条留言？')) return;
+        const r2 = await api('/api/admin/board/' + btn.dataset.id, { method: 'DELETE' });
+        if (r2.success) loadBoard();
+      });
+    });
+  } catch (e) {}
+}
+$('refreshBoardBtn').addEventListener('click', loadBoard);
 
 // ============================================================
 // 启动

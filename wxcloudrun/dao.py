@@ -7,7 +7,7 @@ NJUST 课表/考试/评教/设置/成绩/四六级
 """
 import json
 from wxcloudrun import db
-from wxcloudrun.model import Course, Exam, Evaluation, Setting, Grade, CetScore
+from wxcloudrun.model import Course, Exam, Evaluation, Setting, Grade, CetScore, BoardMessage
 
 
 # ============================================================
@@ -283,3 +283,33 @@ def get_cet_scores(student_id: str = "") -> list:
             "exam_date": d or "",
         })
     return result
+
+
+# ============================================================
+# 留言板
+# ============================================================
+def save_board_message(student_id: str, student_name: str, content: str) -> dict:
+    """发布留言, 返回消息 dict"""
+    msg = BoardMessage(student_id=student_id, student_name=student_name, content=content)
+    db.session.add(msg)
+    db.session.commit()
+    return msg.to_dict()
+
+
+def get_board_messages(limit: int = 200, before_id: int = None) -> list:
+    """取留言(时间倒序, 支持分页: 只取 id < before_id 的旧消息)"""
+    q = BoardMessage.query
+    if before_id:
+        q = q.filter(BoardMessage.id < before_id)
+    rows = q.order_by(BoardMessage.id.desc()).limit(limit).all()
+    return [r.to_dict() for r in rows]
+
+
+def delete_board_message(msg_id: int) -> bool:
+    """管理员删除留言"""
+    row = BoardMessage.query.filter(BoardMessage.id == msg_id).first()
+    if not row:
+        return False
+    db.session.delete(row)
+    db.session.commit()
+    return True

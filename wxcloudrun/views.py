@@ -482,6 +482,70 @@ def api_connect_test():
 
 
 # ============================================================
+# API — 留言板
+# ============================================================
+BOARD_RATE_SEC = 10            # 每用户发布间隔(秒)
+BOARD_MAX_LEN = 200            # 单条留言最大字数
+_board_last_post = {}          # sid -> 上次发布时间戳(内存限流)
+_board_rate_lock = threading.Lock()
+# 基础敏感词过滤(命中的内容拒绝发布; 可后续扩充)
+_BOARD_BLOCK_WORDS = ["代考", "代做", "代写", "出售答案", "买答案", "刷课", "代刷"]
+
+
+@app.route('/api/board')
+def api_get_board():
+    """留言列表(登录可读, 30s 缓存, before 分页取更早消息)"""
+    client, err = _require_login()
+    if err:
+        return err
+    try:
+        before_id = int(request.args.get("before", "0") or "0") or None
+    except ValueError:
+        before_id = None
+    cache_key = f"board:{before_id or 0}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+    messages = dao.get_board_messages(limit=50, before_id=before_id)
+    resp = {"success": True, "messages": messages, "has_more": len(messages) == 50}
+    _cache_set(cache_key, resp)
+    return jsonify(resp)
+
+
+@app.route('/api/board', methods=['POST'])
+def api_post_board():
+    """发布留言(需登录; 10 秒限流; 敏感词过滤)"""
+    client, err = _require_login()
+    if err:
+        return err
+    sid = client.student_id or ""
+    data = request.get_json(silent=True) or {}
+    content = str(data.get("content", "")).strip()
+    if not content:
+        return jsonify({"success": False, "message": "内容不能为空"}), 400
+    if len(content) > BOARD_MAX_LEN:
+        return jsonify({"success": False, "message": f"内容不能超过 {BOARD_MAX_LEN} 字"}), 400
+    for w in _BOARD_BLOCK_WORDS:
+        if w in content:
+            return jsonify({"success": False, "message": "内容包含敏感词，请修改"}), 400
+    with _board_rate_lock:
+        last = _board_last_post.get(sid, 0)
+        if time.time() - last < BOARD_RATE_SEC:
+            remain = int(BOARD_RATE_SEC - (time.time() - last))
+            return jsonify({"success": False, "message": f"发送太频繁，请 {remain} 秒后再试"}), 429
+        _board_last_post[sid] = time.time()
+    name = client.student_name or dao.get_user_setting(sid, "name", "")
+    msg = dao.save_board_message(sid, name, content)
+    # 发布成功后列表缓存失效
+    with _query_cache_lock:
+        for key in list(_query_cache.keys()):
+            if key.startswith("board:"):
+                _query_cache.pop(key, None)
+    app.logger.info("[board] rid=%s 留言 sid=%s len=%d", _rid(), sid, len(content))
+    return jsonify({"success": True, "message": "发布成功", "msg": msg})
+
+
+# ============================================================
 # API — 公告（公开, 无需登录; 控制面板设置）
 # ============================================================
 @app.route('/api/announcement')

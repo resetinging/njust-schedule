@@ -546,6 +546,28 @@ def admin_fetch_names():
     })
 
 
+# ============================================================
+# 留言板管理
+# ============================================================
+@app.route("/api/admin/board")
+@admin_required
+def admin_board_list():
+    """留言列表(全量, 倒序)"""
+    messages = dao.get_board_messages(limit=500)
+    return jsonify({"success": True, "messages": messages})
+
+
+@app.route("/api/admin/board/<int:msg_id>", methods=["DELETE"])
+@admin_required
+def admin_board_delete(msg_id: int):
+    """删除留言"""
+    ok = dao.delete_board_message(msg_id)
+    if not ok:
+        return jsonify({"success": False, "message": "留言不存在"}), 404
+    app.logger.info("[admin] rid=%s 删除留言 id=%d", _rid(), msg_id)
+    return jsonify({"success": True})
+
+
 @app.route("/api/admin/check")
 def admin_check():
     """前端登录态检查(不带 token 也可调, 返回是否已登录)"""

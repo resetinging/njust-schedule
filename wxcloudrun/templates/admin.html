@@ -45,6 +45,7 @@
       <button class="tab" data-tab="sessions">在线会话</button>
       <button class="tab" data-tab="grades">成绩统计</button>
       <button class="tab" data-tab="announce">📢 公告</button>
+      <button class="tab" data-tab="board">💬 留言</button>
     </nav>
 
     <section id="panel-requests" class="panel active">
@@ -120,7 +121,7 @@
     <section id="panel-announce" class="panel">
       <div class="card">
         <h3>📢 小程序公告栏管理</h3>
-        <p class="dim" style="margin-bottom:12px">公告显示在小程序课表页顶部横幅；保存后小程序端自动生效（每次进入页面拉取）。</p>
+        <p class="dim" style="margin-bottom:12px">公告显示在小程序"我的"页面下方横幅；保存后小程序端自动生效（每次进入页面拉取）。</p>
         <div class="announce-row">
           <label class="chk-label"><input type="checkbox" id="annEnabled" checked> 显示公告</label>
           <span id="annUpdated" class="dim"></span>
@@ -133,6 +134,14 @@
           <button id="annSave" class="primary ann-save">保存公告</button>
         </div>
       </div>
+    </section>
+
+    <section id="panel-board" class="panel">
+      <div class="panel-tool">
+        <span class="dim">留言板管理（不当内容可删除）</span>
+        <button id="refreshBoardBtn" class="ghost small">🔄 刷新</button>
+      </div>
+      <div id="boardList" class="board-list"></div>
     </section>
   </div>
 

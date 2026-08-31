@@ -136,6 +136,8 @@ class Grade(db.Model):
 # ============================================================
 # NJUST — 四六级成绩
 # ============================================================
+# NJUST — 四六级成绩
+# ============================================================
 class CetScore(db.Model):
     __tablename__ = 'cet_scores'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -150,4 +152,25 @@ class CetScore(db.Model):
             "type": self.cet_type,
             "score": self.total_score,
             "exam_date": self.exam_date,
+        }
+
+
+# ============================================================
+# 留言板
+# ============================================================
+class BoardMessage(db.Model):
+    __tablename__ = 'board_messages'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.String(50), default='', index=True)
+    student_name = db.Column(db.String(50), default='')
+    content = db.Column(db.String(200), nullable=False, default='')
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "student_id": self.student_id,
+            "student_name": self.student_name,
+            "content": self.content,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else "",
         }
