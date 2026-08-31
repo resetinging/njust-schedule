@@ -165,7 +165,7 @@ Component({
           wx.showToast({ title: res.message || '操作失败', icon: 'none' })
         }
       } catch (e) {
-        wx.showToast({ title: '操作失败', icon: 'none' })
+        wx.showToast({ title: '网络异常，请重试', icon: 'none' })
       }
     },
 
@@ -232,6 +232,9 @@ Component({
       if (page && typeof page.onTabTap === 'function') {
         page.onTabTap(5)
       }
-    }
+    },
+
+    /** 空操作: 阻止弹窗内点击冒泡关闭(catchtap 需要真实方法) */
+    noop() {}
   }
 })

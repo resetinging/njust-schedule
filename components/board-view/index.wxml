@@ -60,7 +60,7 @@
 
   <!-- 评论弹窗 -->
   <view class="cm-mask" wx:if="{{showComments}}" bindtap="closeComments">
-    <view class="cm-card" catchtap="">
+    <view class="cm-card" catchtap="noop">
       <view class="cm-head">
         <text class="cm-title">💬 评论</text>
         <text class="cm-close" bindtap="closeComments">✕</text>
