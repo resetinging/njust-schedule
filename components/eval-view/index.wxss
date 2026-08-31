@@ -92,7 +92,7 @@
   font-weight: bold;
 }
 
-.tag-done { background: #E8F5E9; color: #2E7D32; }
+.tag-done { background: #F2F0FA; color: #8A87A8; }
 .tag-pending { background: #F5F5F5; color: #666; }
 .tag-urgent { background: #FFEBEE; color: #D32F2F; }
 .tag-warning { background: #FFF8E1; color: #E65100; }
@@ -153,8 +153,8 @@
 }
 
 .course-status.done {
-  background: #E8F5E9;
-  color: #2E7D32;
+  background: #F2F0FA;
+  color: #8A87A8;
 }
 
 .course-status.saved {
