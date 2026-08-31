@@ -41,6 +41,13 @@ Component({
     // 校历设置
     firstWeekDate: '',
 
+    // 问题反馈弹窗(不另开页面)
+    showFeedback: false,
+    fbType: 'suggest',     // suggest 功能建议 | bug 问题/Bug | other 其他
+    fbContent: '',
+    fbContact: '',
+    fbSending: false,
+
     // 版本标识（排查线上版本用）
     build: config.BUILD || '',
 
@@ -364,9 +371,65 @@ Component({
       }
     },
 
-    /** 打开问题反馈页 */
-    onGoFeedback() {
-      wx.navigateTo({ url: '/pages/feedback/feedback' })
+    /** 打开问题反馈弹窗 */
+    onOpenFeedback() {
+      this.setData({ showFeedback: true })
+    },
+
+    /** 关闭反馈弹窗(提交中不允许关闭, 防打断) */
+    onFbClose() {
+      if (this.data.fbSending) return
+      this.setData({ showFeedback: false })
+    },
+
+    /** 弹窗内点击透传拦截(防止冒泡到遮罩关闭) */
+    noop() {},
+
+    onFbType(e) {
+      this.setData({ fbType: e.currentTarget.dataset.type })
+    },
+
+    onFbInput(e) {
+      this.setData({ fbContent: e.detail.value })
+    },
+
+    onFbContactInput(e) {
+      this.setData({ fbContact: e.detail.value })
+    },
+
+    /** 提交反馈(防双击 + 客户端 10 秒冷却 + 服务端限流兜底) */
+    async onFbSubmit() {
+      if (this.data.fbSending) return
+      const text = (this.data.fbContent || '').trim()
+      if (!text) {
+        wx.showToast({ title: '请填写反馈内容', icon: 'none' })
+        return
+      }
+      if (!storage.isLoggedIn()) {
+        wx.showToast({ title: '请先登录后再提交反馈', icon: 'none' })
+        return
+      }
+      const now = Date.now()
+      if (now - (this._fbLastTs || 0) < 10000) {
+        const remain = Math.ceil((10000 - (now - this._fbLastTs)) / 1000)
+        wx.showToast({ title: `提交太频繁，请 ${remain} 秒后再试`, icon: 'none' })
+        return
+      }
+      this.setData({ fbSending: true })
+      try {
+        const res = await api.submitFeedback(this.data.fbType, text, this.data.fbContact)
+        if (res.success) {
+          this._fbLastTs = Date.now()
+          this.setData({ showFeedback: false, fbContent: '', fbContact: '' })
+          wx.showToast({ title: '反馈已提交，感谢您的建议', icon: 'success' })
+        } else {
+          wx.showToast({ title: res.message || '提交失败', icon: 'none' })
+        }
+      } catch (e) {
+        wx.showToast({ title: '提交失败，请稍后再试', icon: 'none' })
+      } finally {
+        this.setData({ fbSending: false })
+      }
     },
 
     /** 一键刷新课表+考试(走 dataLoader: 刷新教务后查询写新缓存, 各 Tab 自动生效) */

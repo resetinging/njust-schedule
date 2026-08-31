@@ -2,7 +2,6 @@
   "pages": [
     "pages/main/main",
     "pages/gallery/gallery",
-    "pages/feedback/feedback",
     "pages/board/board",
     "pages/schedule/schedule",
     "pages/exams/exams",
