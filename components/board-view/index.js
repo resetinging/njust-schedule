@@ -19,7 +19,6 @@ Component({
     sort: 'time',          // 'time' 最新 | 'likes' 最热
     content: '',
     sending: false,
-    anonymous: false,      // 匿名发布
     errorMsg: '',
     announcement: '',
 
@@ -28,7 +27,6 @@ Component({
     commentMsgId: 0,
     comments: [],
     commentText: '',
-    commentAnonymous: false,
     commentSending: false
   },
 
@@ -120,11 +118,7 @@ Component({
       this.setData({ content: e.detail.value })
     },
 
-    onAnonToggle(e) {
-      this.setData({ anonymous: !!e.detail.value })
-    },
-
-    /** 发布留言 */
+    /** 发布留言(强制匿名) */
     async onSend() {
       if (!storage.isLoggedIn()) {
         wx.showToast({ title: '请先在"我的"页面登录', icon: 'none' })
@@ -138,7 +132,7 @@ Component({
       if (this.data.sending) return
       this.setData({ sending: true })
       try {
-        const res = await api.postBoardMessage(content, this.data.anonymous)
+        const res = await api.postBoardMessage(content)
         if (res.success) {
           wx.showToast({ title: '发布成功', icon: 'success' })
           this.setData({ content: '' })
@@ -201,11 +195,7 @@ Component({
       this.setData({ commentText: e.detail.value })
     },
 
-    onCommentAnonToggle(e) {
-      this.setData({ commentAnonymous: !!e.detail.value })
-    },
-
-    /** 发表评论 */
+    /** 发表评论(强制匿名) */
     async onSendComment() {
       const content = (this.data.commentText || '').trim()
       if (!content) {
@@ -215,7 +205,7 @@ Component({
       if (this.data.commentSending) return
       this.setData({ commentSending: true })
       try {
-        const res = await api.postBoardComment(this.data.commentMsgId, content, this.data.commentAnonymous)
+        const res = await api.postBoardComment(this.data.commentMsgId, content)
         if (res.success) {
           this.setData({
             commentText: '',

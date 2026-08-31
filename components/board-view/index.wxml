@@ -26,7 +26,7 @@
     <block wx:if="{{messages.length > 0}}">
       <view class="msg-card" wx:for="{{messages}}" wx:key="id">
         <view class="msg-head">
-          <text class="msg-name">{{item.is_anonymous ? '匿名用户' : (item.student_name || item.student_id)}}</text>
+          <text class="msg-name">匿名用户</text>
           <text class="msg-time">{{item.created_at}}</text>
         </view>
         <view class="msg-content">{{item.content}}</view>
@@ -47,13 +47,9 @@
 
   </scroll-view>
 
-  <!-- 发布区(匿名开关 + 输入) -->
+  <!-- 发布区(强制匿名) -->
   <view class="post-bar">
-    <view class="anon-row">
-      <text class="anon-label">匿名</text>
-      <switch checked="{{anonymous}}" bindchange="onAnonToggle" color="#7C6BE8" style="transform:scale(0.7);" />
-    </view>
-    <input class="post-input" placeholder="说点什么…（200 字内）"
+    <input class="post-input" placeholder="说点什么…（匿名发布，200 字内）"
            value="{{content}}" bindinput="onInput"
            maxlength="200" confirm-type="send"
            bindconfirm="onSend" />
@@ -73,15 +69,14 @@
         <view class="cm-empty" wx:if="{{!comments.length}}">还没有评论，来抢沙发～</view>
         <view class="cm-item" wx:for="{{comments}}" wx:key="id">
           <view class="cm-item-head">
-            <text class="cm-name">{{item.is_anonymous ? '匿名用户' : (item.student_name || item.student_id)}}</text>
+            <text class="cm-name">匿名用户</text>
             <text class="cm-time">{{item.created_at}}</text>
           </view>
           <view class="cm-content">{{item.content}}</view>
         </view>
       </scroll-view>
       <view class="cm-post">
-        <switch checked="{{commentAnonymous}}" bindchange="onCommentAnonToggle" color="#7C6BE8" style="transform:scale(0.6);" />
-        <input class="cm-input" placeholder="回复…（200 字内）" maxlength="200"
+        <input class="cm-input" placeholder="回复…（匿名，200 字内）" maxlength="200"
                value="{{commentText}}" bindinput="onCommentInput"
                confirm-type="send" bindconfirm="onSendComment" />
         <button class="cm-send" bindtap="onSendComment" disabled="{{commentSending}}">回复</button>
