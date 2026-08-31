@@ -1,4 +1,4 @@
-<!-- 留言板视图组件(第6个Tab): 公告置顶 + 留言区 -->
+<!-- 留言板视图组件(第6个Tab): 公告置顶 + 贴吧式留言 -->
 <view class="container view-root" wx:if="{{active}}">
 
   <scroll-view class="view-scroll" scroll-y bindscrolltolower="loadMore">
@@ -9,6 +9,12 @@
       <text class="ann-text">{{announcement}}</text>
     </view>
 
+    <!-- 排序切换 -->
+    <view class="sort-bar">
+      <text class="sort-tab {{sort === 'time' ? 'on' : ''}}" data-sort="time" bindtap="onSortChange">🕐 最新</text>
+      <text class="sort-tab {{sort === 'likes' ? 'on' : ''}}" data-sort="likes" bindtap="onSortChange">🔥 最热</text>
+    </view>
+
     <!-- 错误/空态 -->
     <view class="empty-state" wx:if="{{!loading && errorMsg}}">
       <view class="icon">💬</view>
@@ -16,14 +22,22 @@
       <button wx:if="{{errorMsg === '请先登录后查看留言板'}}" class="btn-primary" bindtap="goLogin">去登录</button>
     </view>
 
-    <!-- 留言列表 -->
+    <!-- 留言列表(贴吧式卡片) -->
     <block wx:if="{{messages.length > 0}}">
       <view class="msg-card" wx:for="{{messages}}" wx:key="id">
         <view class="msg-head">
-          <text class="msg-name">{{item.student_name || item.student_id}}</text>
+          <text class="msg-name">{{item.is_anonymous ? '匿名用户' : (item.student_name || item.student_id)}}</text>
           <text class="msg-time">{{item.created_at}}</text>
         </view>
         <view class="msg-content">{{item.content}}</view>
+        <view class="msg-actions">
+          <view class="msg-action {{item.liked_by_me ? 'liked' : ''}}" data-id="{{item.id}}" bindtap="onLike">
+            <text>👍 {{item.likes || 0}}</text>
+          </view>
+          <view class="msg-action" data-id="{{item.id}}" bindtap="onOpenComments">
+            <text>💬 {{item.comments || 0}}</text>
+          </view>
+        </view>
       </view>
       <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMore">
         {{loading ? '加载中…' : '加载更多'}}
@@ -33,8 +47,12 @@
 
   </scroll-view>
 
-  <!-- 发布区(固定在底部) -->
+  <!-- 发布区(匿名开关 + 输入) -->
   <view class="post-bar">
+    <view class="anon-row">
+      <text class="anon-label">匿名</text>
+      <switch checked="{{anonymous}}" bindchange="onAnonToggle" color="#7C6BE8" style="transform:scale(0.7);" />
+    </view>
     <input class="post-input" placeholder="说点什么…（200 字内）"
            value="{{content}}" bindinput="onInput"
            maxlength="200" confirm-type="send"
@@ -42,6 +60,33 @@
     <button class="post-btn" bindtap="onSend" disabled="{{sending}}">
       {{sending ? '发送中' : '发送'}}
     </button>
+  </view>
+
+  <!-- 评论弹窗 -->
+  <view class="cm-mask" wx:if="{{showComments}}" bindtap="closeComments">
+    <view class="cm-card" catchtap="">
+      <view class="cm-head">
+        <text class="cm-title">💬 评论</text>
+        <text class="cm-close" bindtap="closeComments">✕</text>
+      </view>
+      <scroll-view class="cm-list" scroll-y>
+        <view class="cm-empty" wx:if="{{!comments.length}}">还没有评论，来抢沙发～</view>
+        <view class="cm-item" wx:for="{{comments}}" wx:key="id">
+          <view class="cm-item-head">
+            <text class="cm-name">{{item.is_anonymous ? '匿名用户' : (item.student_name || item.student_id)}}</text>
+            <text class="cm-time">{{item.created_at}}</text>
+          </view>
+          <view class="cm-content">{{item.content}}</view>
+        </view>
+      </scroll-view>
+      <view class="cm-post">
+        <switch checked="{{commentAnonymous}}" bindchange="onCommentAnonToggle" color="#7C6BE8" style="transform:scale(0.6);" />
+        <input class="cm-input" placeholder="回复…（200 字内）" maxlength="200"
+               value="{{commentText}}" bindinput="onCommentInput"
+               confirm-type="send" bindconfirm="onSendComment" />
+        <button class="cm-send" bindtap="onSendComment" disabled="{{commentSending}}">回复</button>
+      </view>
+    </view>
   </view>
 
 </view>

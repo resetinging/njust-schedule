@@ -99,3 +99,126 @@
   background: #B9B1E4;
   color: #fff;
 }
+/* 排序切换 */
+.sort-bar {
+  display: flex;
+  gap: 24rpx;
+  padding: 16rpx 28rpx 0;
+}
+.sort-tab {
+  font-size: 26rpx;
+  color: #9B96B8;
+  padding: 6rpx 0;
+  border-bottom: 4rpx solid transparent;
+}
+.sort-tab.on {
+  color: #7C6BE8;
+  font-weight: 600;
+  border-bottom-color: #7C6BE8;
+}
+/* 留言操作行 */
+.msg-actions {
+  display: flex;
+  gap: 32rpx;
+  margin-top: 16rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid #F3F1FA;
+}
+.msg-action {
+  font-size: 24rpx;
+  color: #8A87A8;
+  padding: 4rpx 8rpx;
+}
+.msg-action.liked {
+  color: #E8864A;
+  font-weight: 600;
+}
+/* 匿名开关 */
+.anon-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+.anon-label {
+  font-size: 18rpx;
+  color: #9B96B8;
+}
+/* 评论弹窗 */
+.cm-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1300;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+}
+.cm-card {
+  width: 100%;
+  max-height: 70vh;
+  background: #fff;
+  border-radius: 28rpx 28rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.cm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 28rpx 12rpx;
+}
+.cm-title { font-size: 30rpx; font-weight: 700; color: #3A3560; }
+.cm-close { font-size: 32rpx; color: #9B96B8; padding: 8rpx; }
+.cm-list {
+  flex: 1;
+  max-height: 50vh;
+  padding: 0 28rpx;
+  box-sizing: border-box;
+}
+.cm-empty {
+  text-align: center;
+  color: #B8B4CC;
+  font-size: 26rpx;
+  padding: 48rpx 0;
+}
+.cm-item {
+  border-bottom: 1rpx solid #F3F1FA;
+  padding: 16rpx 0;
+}
+.cm-item-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6rpx;
+}
+.cm-name { font-size: 24rpx; font-weight: 600; color: #7C6BE8; }
+.cm-time { font-size: 20rpx; color: #B8B4CC; }
+.cm-content { font-size: 26rpx; color: #3A3560; line-height: 1.6; }
+.cm-post {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 28rpx;
+  border-top: 1rpx solid #EFEBFC;
+}
+.cm-input {
+  flex: 1;
+  height: 68rpx;
+  background: #F3F1FA;
+  border-radius: 34rpx;
+  padding: 0 24rpx;
+  font-size: 26rpx;
+}
+.cm-send {
+  flex-shrink: 0;
+  background: #7C6BE8;
+  color: #fff;
+  font-size: 26rpx;
+  border-radius: 34rpx;
+  padding: 0 30rpx;
+  height: 68rpx;
+  line-height: 68rpx;
+  margin: 0;
+}
+.cm-send[disabled] { background: #B9B1E4; }

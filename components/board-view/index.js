@@ -1,7 +1,6 @@
 /**
- * 留言板视图组件 — 方案A 合页 swiper 的第 6 个 Tab
- * 顶部: 系统公告(置顶); 下方: 留言列表 + 发布框
- * 生命周期: attached 首次挂载; activate 每次激活(刷新留言与公告)
+ * 留言板视图组件(第6个Tab) — 贴吧式
+ * 顶部公告置顶; 排序切换(最新/最热); 留言点赞+评论+匿名
  */
 
 const api = require('../../utils/api')
@@ -13,14 +12,24 @@ Component({
   },
 
   data: {
-    active: false,        // 懒渲染
+    active: false,
     loading: true,
     messages: [],
     hasMore: false,
+    sort: 'time',          // 'time' 最新 | 'likes' 最热
     content: '',
     sending: false,
+    anonymous: false,      // 匿名发布
     errorMsg: '',
-    announcement: ''     // 置顶公告(公开, 未登录也显示)
+    announcement: '',
+
+    // 评论弹窗
+    showComments: false,
+    commentMsgId: 0,
+    comments: [],
+    commentText: '',
+    commentAnonymous: false,
+    commentSending: false
   },
 
   lifetimes: {
@@ -35,18 +44,16 @@ Component({
   },
 
   methods: {
-    /** 由 main 页面调用: 每次激活 */
     activate() {
       this.setData({ active: true })
-      this._loadAnnouncement()   // 公告置顶, 公开刷新
+      this._loadAnnouncement()
       if (storage.isLoggedIn()) {
-        this.loadMessages()      // 每次进入刷新留言
+        this.loadMessages()
       } else {
         this.setData({ loading: false, errorMsg: '请先登录后查看留言板', messages: [] })
       }
     },
 
-    /** 加载置顶公告(公开接口; 缓存兜底) */
     _loadAnnouncement() {
       const cached = storage.getCached('cached_announcement')
       if (cached && cached.enabled && cached.text && !this.data.announcement) {
@@ -60,11 +67,11 @@ Component({
       }).catch(() => {})
     },
 
-    /** 加载最新一页留言 */
+    /** 加载留言(当前排序) */
     async loadMessages() {
       this.setData({ loading: true, errorMsg: '' })
       try {
-        const res = await api.getBoardMessages(0)
+        const res = await api.getBoardMessages(0, this.data.sort)
         if (res.success) {
           this.setData({
             loading: false,
@@ -80,14 +87,13 @@ Component({
       }
     },
 
-    /** 滚动到底加载更早留言 */
     async loadMore() {
       if (!this.data.hasMore || this.data.loading) return
       const last = this.data.messages[this.data.messages.length - 1]
       if (!last) return
       this.setData({ loading: true })
       try {
-        const res = await api.getBoardMessages(last.id)
+        const res = await api.getBoardMessages(last.id, this.data.sort)
         if (res.success) {
           this.setData({
             loading: false,
@@ -102,8 +108,20 @@ Component({
       }
     },
 
+    /** 排序切换: 最新 / 最热 */
+    onSortChange(e) {
+      const sort = e.currentTarget.dataset.sort
+      if (sort === this.data.sort) return
+      this.setData({ sort })
+      this.loadMessages()
+    },
+
     onInput(e) {
       this.setData({ content: e.detail.value })
+    },
+
+    onAnonToggle(e) {
+      this.setData({ anonymous: !!e.detail.value })
     },
 
     /** 发布留言 */
@@ -120,7 +138,7 @@ Component({
       if (this.data.sending) return
       this.setData({ sending: true })
       try {
-        const res = await api.postBoardMessage(content)
+        const res = await api.postBoardMessage(content, this.data.anonymous)
         if (res.success) {
           wx.showToast({ title: '发布成功', icon: 'success' })
           this.setData({ content: '' })
@@ -135,8 +153,90 @@ Component({
       }
     },
 
+    /** 点赞/取消 */
+    async onLike(e) {
+      if (!storage.isLoggedIn()) {
+        wx.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
+      const id = e.currentTarget.dataset.id
+      try {
+        const res = await api.toggleBoardLike(id)
+        if (res.success) {
+          // 本地更新该条点赞状态
+          const messages = this.data.messages.map(m =>
+            m.id === id ? { ...m, likes: res.likes, liked_by_me: res.liked } : m)
+          this.setData({ messages })
+        } else {
+          wx.showToast({ title: res.message || '操作失败', icon: 'none' })
+        }
+      } catch (e) {
+        wx.showToast({ title: '操作失败', icon: 'none' })
+      }
+    },
+
+    /** 打开评论弹窗 */
+    async onOpenComments(e) {
+      if (!storage.isLoggedIn()) {
+        wx.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
+      const id = e.currentTarget.dataset.id
+      this.setData({ showComments: true, commentMsgId: id, comments: [], commentText: '' })
+      try {
+        const res = await api.getBoardComments(id)
+        if (res.success) {
+          this.setData({ comments: res.comments || [] })
+        }
+      } catch (e) {
+        // 忽略
+      }
+    },
+
+    closeComments() {
+      this.setData({ showComments: false, commentMsgId: 0, comments: [] })
+    },
+
+    onCommentInput(e) {
+      this.setData({ commentText: e.detail.value })
+    },
+
+    onCommentAnonToggle(e) {
+      this.setData({ commentAnonymous: !!e.detail.value })
+    },
+
+    /** 发表评论 */
+    async onSendComment() {
+      const content = (this.data.commentText || '').trim()
+      if (!content) {
+        wx.showToast({ title: '请输入评论内容', icon: 'none' })
+        return
+      }
+      if (this.data.commentSending) return
+      this.setData({ commentSending: true })
+      try {
+        const res = await api.postBoardComment(this.data.commentMsgId, content, this.data.commentAnonymous)
+        if (res.success) {
+          this.setData({
+            commentText: '',
+            comments: this.data.comments.concat([res.comment])
+          })
+          // 更新列表评论数
+          const messages = this.data.messages.map(m =>
+            m.id === this.data.commentMsgId ? { ...m, comments: (m.comments || 0) + 1 } : m)
+          this.setData({ messages })
+          wx.showToast({ title: '评论成功', icon: 'success' })
+        } else {
+          wx.showToast({ title: res.message || '评论失败', icon: 'none' })
+        }
+      } catch (e) {
+        wx.showToast({ title: '评论失败', icon: 'none' })
+      } finally {
+        this.setData({ commentSending: false })
+      }
+    },
+
     goLogin() {
-      // 通知 main 切到"我的" Tab
       const pages = getCurrentPages()
       const page = pages[pages.length - 1]
       if (page && typeof page.onTabTap === 'function') {
