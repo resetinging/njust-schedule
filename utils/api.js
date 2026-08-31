@@ -328,6 +328,15 @@ function postBoardComment(messageId, content, anonymous) {
   return request('POST', '/api/board/' + messageId + '/comments', { content, anonymous: !!anonymous })
 }
 
+/** 提交问题反馈(类型: suggest 功能建议 | bug 问题 | other 其他; 服务端 10 秒限流) */
+function submitFeedback(fbType, content, contact) {
+  return request('POST', '/api/feedback', {
+    type: fbType || 'other',
+    content: content || '',
+    contact: contact || ''
+  })
+}
+
 /** 获取系统状态（登录状态、学期等） */
 function getStatus() {
   return request('GET', '/api/status')
@@ -535,6 +544,7 @@ module.exports = {
   toggleBoardLike,
   getBoardComments,
   postBoardComment,
+  submitFeedback,
   setSemester,
   clearData,
   getSemesters,

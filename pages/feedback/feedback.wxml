@@ -1,0 +1,28 @@
+<!-- 问题反馈页: 类型 + 内容 + 可选联系方式, 提交带限流防重复 -->
+<view class="container">
+
+  <view class="fb-card">
+    <view class="fb-label">反馈类型</view>
+    <view class="type-tabs">
+      <view class="type-tab {{type === 'suggest' ? 'on' : ''}}" data-type="suggest" bindtap="onType">功能建议</view>
+      <view class="type-tab {{type === 'bug' ? 'on' : ''}}" data-type="bug" bindtap="onType">问题/Bug</view>
+      <view class="type-tab {{type === 'other' ? 'on' : ''}}" data-type="other" bindtap="onType">其他</view>
+    </view>
+
+    <view class="fb-label">反馈内容</view>
+    <textarea class="fb-textarea" placeholder="请描述您遇到的问题或建议（500 字内）"
+              value="{{content}}" bindinput="onContent" maxlength="500"
+              cursor-spacing="20" />
+    <view class="fb-count">{{content.length}} / 500</view>
+
+    <view class="fb-label">联系方式（选填）</view>
+    <input class="fb-input" placeholder="QQ / 微信 / 邮箱" value="{{contact}}"
+           bindinput="onContact" maxlength="50" />
+
+    <button class="btn-primary fb-submit" bindtap="onSubmit" disabled="{{sending}}">
+      {{sending ? '提交中…' : '提交反馈'}}
+    </button>
+    <view class="fb-tip">反馈内容仅管理员可见 · 10 秒内请勿重复提交</view>
+  </view>
+
+</view>

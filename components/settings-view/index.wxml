@@ -48,6 +48,10 @@
         <text>校历 & 照片墙</text>
         <text class="arrow">›</text>
       </view>
+      <view class="action-item" bindtap="onGoFeedback">
+        <text>问题反馈</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="action-item" bindtap="onClearData">
         <text>清除缓存数据</text>
         <text class="arrow">›</text>
