@@ -71,33 +71,18 @@
   margin-bottom: 8rpx;
 }
 
-.batch-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.batch-icon {
-  font-size: 28rpx;
-}
-
 .batch-title {
   font-size: 30rpx;
   font-weight: bold;
+  color: #3A3560;
 }
 
 .batch-info {
-  font-size: 24rpx;
-  color: var(--text-hint);
   display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-}
-
-.batch-link-hint {
-  color: var(--primary);
-  font-size: 22rpx;
-  margin-top: 4rpx;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 24rpx;
+  color: #8A87A8;
 }
 
 .tag {
@@ -144,20 +129,10 @@
   flex: 1;
 }
 
-.course-name-row {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.status-icon {
-  font-size: 28rpx;
-  flex-shrink: 0;
-}
-
 .course-name {
   font-size: 28rpx;
   font-weight: 500;
+  color: #3A3560;
 }
 
 .course-meta {
@@ -616,37 +591,10 @@
   border: 2rpx solid #EFEBFC;
 }
 
-/* 批次信息: 学期标签+批次名一行, 日期+链接一行 */
-.bi-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  margin-bottom: 8rpx;
-}
-
-.bi-batch {
-  font-size: 26rpx;
-  color: #33304F;
-  font-weight: 500;
-}
-
-.bi-meta-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
-  margin-top: 4rpx;
-}
-
+/* 批次信息: 学期标签 + 日期一行 */
 .bi-dates {
   font-size: 23rpx;
   color: #8A87A8;
-}
-
-.batch-link-hint {
-  font-size: 23rpx;
-  color: #7C6BE8;
-  font-weight: 500;
 }
 
 /* 组件根/滚动区 */
