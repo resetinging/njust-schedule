@@ -43,7 +43,7 @@
 }
 
 .time-cell {
-  height: 112rpx;
+  height: 88rpx;
   box-sizing: border-box;
   border-bottom: 1rpx solid #F1EFF8;
   border-right: 1rpx solid #F1EFF8;
@@ -71,13 +71,13 @@
   min-width: 0;
   position: relative;
   border-left: 1rpx solid #F1EFF8;
-  height: 1568rpx; /* 14 * 112 */
+  height: 1232rpx; /* 14 * 88 */
   background-image: repeating-linear-gradient(
     180deg,
     #F1EFF8 0,
     #F1EFF8 1rpx,
     transparent 1rpx,
-    transparent 112rpx
+    transparent 88rpx
   );
 }
 

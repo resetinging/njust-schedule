@@ -6,9 +6,11 @@
 const { WEEKDAY_NAMES, isWeekInRange } = require('../../utils/date')
 
 // 每小节行高(rpx); 第14节显示"网课"
+// 112 → 88: 适当压缩课表整体高度(整表约减 21%), 一屏可见更多节次,
+// 字体不变仍可读(单节课程块约显示一行课程名)
 // 节次开始时间与桌面端 BIG_PERIODS 一致(南理工官方作息:
 // 第四大节 15:50-18:15 → 8节15:50/9节16:40/10节17:30)
-const ROW_H = 112
+const ROW_H = 88
 const PERIOD_COUNT = 14
 const TIME_ROWS = [
   '08:00', '08:50', '09:40', '10:40', '11:30',
