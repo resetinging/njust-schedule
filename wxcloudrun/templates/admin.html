@@ -46,6 +46,7 @@
       <button class="tab" data-tab="grades">成绩统计</button>
       <button class="tab" data-tab="announce">📢 公告</button>
       <button class="tab" data-tab="board">💬 留言</button>
+      <button class="tab" data-tab="feedback">✉️ 反馈</button>
     </nav>
 
     <section id="panel-requests" class="panel active">
@@ -142,6 +143,21 @@
         <button id="refreshBoardBtn" class="ghost small">🔄 刷新</button>
       </div>
       <div id="boardList" class="board-list"></div>
+    </section>
+
+    <section id="panel-feedback" class="panel">
+      <div class="panel-tool">
+        <span class="dim">问题反馈（用户提交，可标记处理/删除）</span>
+        <div class="btn-group">
+          <select id="feedbackStatus" class="ghost small">
+            <option value="">全部</option>
+            <option value="pending">待处理</option>
+            <option value="done">已处理</option>
+          </select>
+          <button id="refreshFeedbackBtn" class="ghost small">🔄 刷新</button>
+        </div>
+      </div>
+      <div id="feedbackList" class="board-list"></div>
     </section>
   </div>
 

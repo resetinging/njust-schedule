@@ -209,3 +209,30 @@ class BoardLike(db.Model):
     message_id = db.Column(db.Integer, index=True, nullable=False)
     student_id = db.Column(db.String(50), default='')
     created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+
+
+# ============================================================
+# 问题反馈(社区化: 用户反馈渠道, 仅管理端可见)
+# ============================================================
+class Feedback(db.Model):
+    __tablename__ = 'feedback'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.String(50), default='', index=True)
+    student_name = db.Column(db.String(50), default='')
+    fb_type = db.Column(db.String(20), default='other')     # suggest 功能建议 | bug 问题 | other 其他
+    content = db.Column(db.String(500), nullable=False, default='')
+    contact = db.Column(db.String(100), default='')         # 可选联系方式
+    status = db.Column(db.String(20), default='pending')    # pending 待处理 | done 已处理
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "student_id": self.student_id,
+            "student_name": self.student_name,
+            "type": self.fb_type,
+            "content": self.content,
+            "contact": self.contact,
+            "status": self.status,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else "",
+        }

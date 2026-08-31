@@ -610,6 +610,49 @@ def _board_cache_invalidate():
 
 
 # ============================================================
+# API — 问题反馈(需登录; 10 秒限流防重复提交; 仅管理端可见)
+# ============================================================
+FEEDBACK_RATE_SEC = 10            # 每用户提交间隔(秒)
+FEEDBACK_MAX_LEN = 500            # 单条反馈最大字数
+_feedback_last_post = {}          # sid -> 上次提交时间戳(内存限流)
+_feedback_rate_lock = threading.Lock()
+_FEEDBACK_TYPES = ("suggest", "bug", "other")
+
+
+@app.route('/api/feedback', methods=['POST'])
+def api_post_feedback():
+    """提交问题反馈(需登录; 10 秒限流; 敏感词过滤)"""
+    client, err = _require_login()
+    if err:
+        return err
+    sid = client.student_id or ""
+    data = request.get_json(silent=True) or {}
+    fb_type = str(data.get("type", "other"))
+    if fb_type not in _FEEDBACK_TYPES:
+        fb_type = "other"
+    content = str(data.get("content", "")).strip()
+    contact = str(data.get("contact", "")).strip()[:100]
+    if not content:
+        return jsonify({"success": False, "message": "反馈内容不能为空"}), 400
+    if len(content) > FEEDBACK_MAX_LEN:
+        return jsonify({"success": False, "message": f"内容不能超过 {FEEDBACK_MAX_LEN} 字"}), 400
+    for w in _BOARD_BLOCK_WORDS:
+        if w in content:
+            return jsonify({"success": False, "message": "内容包含敏感词，请修改"}), 400
+    # 限流: 每用户 10 秒 1 条, 避免重复提交
+    with _feedback_rate_lock:
+        last = _feedback_last_post.get(sid, 0)
+        if time.time() - last < FEEDBACK_RATE_SEC:
+            remain = int(FEEDBACK_RATE_SEC - (time.time() - last))
+            return jsonify({"success": False, "message": f"提交太频繁，请 {remain} 秒后再试"}), 429
+        _feedback_last_post[sid] = time.time()
+    name = client.student_name or dao.get_user_setting(sid, "name", "")
+    fb = dao.save_feedback(sid, name, fb_type, content, contact)
+    app.logger.info("[feedback] rid=%s 反馈 sid=%s type=%s len=%d", _rid(), sid, fb_type, len(content))
+    return jsonify({"success": True, "message": "反馈已提交，感谢您的建议", "fb": fb})
+
+
+# ============================================================
 # API — 公告（公开, 无需登录; 控制面板设置）
 # ============================================================
 @app.route('/api/announcement')

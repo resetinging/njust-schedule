@@ -577,6 +577,46 @@ def admin_board_delete(msg_id: int):
     return jsonify({"success": True})
 
 
+# ============================================================
+# 问题反馈管理
+# ============================================================
+@app.route("/api/admin/feedback")
+@admin_required
+def admin_feedback_list():
+    """反馈列表(倒序; status 可选过滤 pending/done)"""
+    status = request.args.get("status", "")
+    if status not in ("", "pending", "done"):
+        status = ""
+    items = dao.list_feedback(limit=500, status=status or "")
+    return jsonify({"success": True, "feedback": items})
+
+
+@app.route("/api/admin/feedback/<int:fid>", methods=["POST"])
+@admin_required
+def admin_feedback_set_status(fid: int):
+    """标记处理状态: pending 待处理 | done 已处理"""
+    data = request.get_json(silent=True) or {}
+    status = str(data.get("status", "done"))
+    if status not in ("pending", "done"):
+        status = "done"
+    ok = dao.set_feedback_status(fid, status)
+    if not ok:
+        return jsonify({"success": False, "message": "反馈不存在"}), 404
+    app.logger.info("[admin] rid=%s 反馈状态 id=%d -> %s", _rid(), fid, status)
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/feedback/<int:fid>", methods=["DELETE"])
+@admin_required
+def admin_feedback_delete(fid: int):
+    """删除反馈"""
+    ok = dao.delete_feedback(fid)
+    if not ok:
+        return jsonify({"success": False, "message": "反馈不存在"}), 404
+    app.logger.info("[admin] rid=%s 删除反馈 id=%d", _rid(), fid)
+    return jsonify({"success": True})
+
+
 @app.route("/api/admin/check")
 def admin_check():
     """前端登录态检查(不带 token 也可调, 返回是否已登录)"""

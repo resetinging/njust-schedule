@@ -7,7 +7,8 @@ NJUST 课表/考试/评教/设置/成绩/四六级
 """
 import json
 from wxcloudrun import db
-from wxcloudrun.model import Course, Exam, Evaluation, Setting, Grade, CetScore, BoardMessage, BoardComment, BoardLike
+from wxcloudrun.model import (Course, Exam, Evaluation, Setting, Grade, CetScore,
+                              BoardMessage, BoardComment, BoardLike, Feedback)
 
 
 # ============================================================
@@ -370,6 +371,48 @@ def delete_board_message(msg_id: int) -> bool:
         return False
     BoardComment.query.filter(BoardComment.message_id == msg_id).delete()
     BoardLike.query.filter(BoardLike.message_id == msg_id).delete()
+    db.session.delete(row)
+    db.session.commit()
+    return True
+
+
+# ============================================================
+# 问题反馈
+# ============================================================
+def save_feedback(student_id: str, student_name: str, fb_type: str,
+                  content: str, contact: str = "") -> dict:
+    """提交反馈, 返回 dict"""
+    row = Feedback(student_id=student_id, student_name=student_name,
+                   fb_type=fb_type, content=content, contact=contact, status="pending")
+    db.session.add(row)
+    db.session.commit()
+    return row.to_dict()
+
+
+def list_feedback(limit: int = 500, status: str = "") -> list:
+    """反馈列表(倒序; status 可选过滤 pending/done)"""
+    q = Feedback.query
+    if status:
+        q = q.filter(Feedback.status == status)
+    rows = q.order_by(Feedback.id.desc()).limit(limit).all()
+    return [r.to_dict() for r in rows]
+
+
+def set_feedback_status(feedback_id: int, status: str) -> bool:
+    """标记处理状态: pending 待处理 | done 已处理"""
+    row = Feedback.query.filter(Feedback.id == feedback_id).first()
+    if not row:
+        return False
+    row.status = status
+    db.session.commit()
+    return True
+
+
+def delete_feedback(feedback_id: int) -> bool:
+    """管理员删除反馈"""
+    row = Feedback.query.filter(Feedback.id == feedback_id).first()
+    if not row:
+        return False
     db.session.delete(row)
     db.session.commit()
     return True

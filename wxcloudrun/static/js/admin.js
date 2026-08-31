@@ -90,7 +90,7 @@ async function checkLogin() {
   if (!token) { show('login'); return; }
   try {
     const r = await api('/api/admin/check');
-    if (r.logged_in) { show('main'); startStream(); loadSummary(); loadUsers(); loadSessions(); loadGradeStats(); loadAnnouncement(); loadBoard(); }
+    if (r.logged_in) { show('main'); startStream(); loadSummary(); loadUsers(); loadSessions(); loadGradeStats(); loadAnnouncement(); loadBoard(); loadFeedback(); }
     else { logout(); }
   } catch (e) { logout(); }
 }
@@ -479,6 +479,63 @@ async function loadBoard() {
   } catch (e) {}
 }
 $('refreshBoardBtn').addEventListener('click', loadBoard);
+
+// ============================================================
+// 问题反馈管理
+// ============================================================
+const FEEDBACK_TYPES = { suggest: '功能建议', bug: '问题/Bug', other: '其他' };
+async function loadFeedback() {
+  try {
+    const status = $('feedbackStatus').value;
+    const r = await api('/api/admin/feedback' + (status ? '?status=' + status : ''));
+    if (!r.success) return;
+    const box = $('feedbackList');
+    if (!r.feedback || !r.feedback.length) {
+      box.innerHTML = '<p class="dim center">暂无反馈</p>';
+      return;
+    }
+    box.innerHTML = r.feedback.map(f => `
+      <div class="board-row ${f.status === 'done' ? 'fb-done' : ''}">
+        <div class="board-meta">
+          <span class="mono">${esc(f.student_id)}</span>
+          <span>${esc(f.student_name || '')}</span>
+          <span class="dim">${esc(f.created_at || '')} · ${esc(FEEDBACK_TYPES[f.type] || f.type)}</span>
+        </div>
+        <div>
+          <div class="board-content">${esc(f.content)}</div>
+          <div class="board-meta" ${f.contact ? '' : 'style="display:none"'}>
+            <span class="dim">联系方式: ${esc(f.contact || '')}</span>
+          </div>
+        </div>
+        <div class="fb-actions">
+          <span class="fb-status ${f.status}">${f.status === 'done' ? '已处理' : '待处理'}</span>
+          <button class="ghost small fb-toggle" data-id="${f.id}"
+                  data-status="${f.status === 'done' ? 'pending' : 'done'}">${f.status === 'done' ? '标记待处理' : '标记已处理'}</button>
+          <button class="ghost small fb-del" data-id="${f.id}">删除</button>
+        </div>
+      </div>`).join('');
+    box.querySelectorAll('.fb-toggle').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const r2 = await api('/api/admin/feedback/' + btn.dataset.id, {
+          method: 'POST',
+          body: JSON.stringify({ status: btn.dataset.status })
+        });
+        if (r2.success) loadFeedback();
+      });
+    });
+    box.querySelectorAll('.fb-del').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm('确认删除这条反馈？')) return;
+        const r2 = await api('/api/admin/feedback/' + btn.dataset.id, { method: 'DELETE' });
+        if (r2.success) loadFeedback();
+      });
+    });
+  } catch (e) {}
+}
+$('refreshFeedbackBtn').addEventListener('click', loadFeedback);
+$('feedbackStatus').addEventListener('change', loadFeedback);
 
 // ============================================================
 // 启动
