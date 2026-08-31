@@ -4,14 +4,13 @@
   <!-- 滚动内容区(scroll-view 内滚; 刷新走按钮) -->
   <scroll-view class="view-scroll" scroll-y>
 
-    <!-- 空状态 -->
-    <view wx:if="{{!loading && empty}}" class="empty-state">
-      <view class="icon"></view>
-      <view class="text">{{errorMsg || '暂无成绩数据'}}</view>
-      <button class="btn-primary" bindtap="onRefreshGrades" disabled="{{refreshing}}">
-        {{refreshing ? '刷新中…' : '从教务获取成绩'}}
-      </button>
-    </view>
+    <!-- 空状态（卡片式） -->
+    <empty-state wx:if="{{!loading && empty}}"
+                 icon="📋"
+                 title="{{errorMsg || '暂无成绩数据'}}"
+                 desc="{{semester || '当前学期'}} 暂时没有成绩，可从教务系统获取"
+                 action-text="{{refreshing ? '刷新中…' : '从教务获取成绩'}}"
+                 bind:action="onRefreshGrades" />
 
     <block wx:if="{{!loading && !empty}}">
 
@@ -20,32 +19,31 @@
         <view class="hero-top">
           <view class="hero-gpa-wrap">
             <text class="hero-gpa {{stats.gpaClass}}">{{stats.gpa}}</text>
-            <text class="hero-label">{{stats.mode === 'baoyan' ? '加权平均绩点（保研 · CET折算）' : '加权平均绩点（计内）'}}</text>
+            <text class="hero-label">{{stats.mode === 'baoyan' ? '加权平均绩点（保研 · CET折算）' : '加权平均绩点（计内）'}} · {{stats.count}} 门</text>
           </view>
           <text class="hero-refresh" bindtap="onRefreshGrades" disabled="{{refreshing}}">{{refreshing ? '⏳' : '🔄'}}</text>
-        </view>
-
-        <view class="hero-stats">
-          <view class="hs-item">
-            <text class="hs-num">{{stats.credits}}</text>
-            <text class="hs-label">已获学分</text>
-          </view>
-          <view class="hs-divider"></view>
-          <view class="hs-item">
-            <text class="hs-num">{{stats.count}}</text>
-            <text class="hs-label">课程数</text>
-          </view>
-          <view class="hs-divider"></view>
-          <view class="hs-item">
-            <text class="hs-num">{{stats.avg}}</text>
-            <text class="hs-label">平均分</text>
-          </view>
         </view>
 
         <!-- 绩点算法切换 -->
         <view class="mode-seg hero-mode">
           <text class="seg {{stats.mode === '' ? 'on' : ''}}" data-mode="" bindtap="onModeChange">📋 奖学金/综测</text>
           <text class="seg {{stats.mode === 'baoyan' ? 'on' : ''}}" data-mode="baoyan" bindtap="onModeChange">🎓 保研推免</text>
+        </view>
+      </view>
+
+      <!-- ============ 统计胶囊行（灰底紫字, 一行三胶囊） ============ -->
+      <view class="stat-pills">
+        <view class="pill">
+          <text class="pill-label">总学分</text>
+          <text class="pill-value">{{stats.credits}}</text>
+        </view>
+        <view class="pill">
+          <text class="pill-label">平均分</text>
+          <text class="pill-value">{{stats.avg}}</text>
+        </view>
+        <view class="pill">
+          <text class="pill-label">GPA</text>
+          <text class="pill-value">{{stats.gpa}}</text>
         </view>
       </view>
 

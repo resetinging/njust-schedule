@@ -75,7 +75,7 @@ Component({
             loading: false,
             messages: res.messages || [],
             hasMore: !!res.has_more,
-            errorMsg: (res.messages || []).length ? '' : '还没有留言，快来抢沙发～'
+            errorMsg: ''
           })
         } else {
           this.setData({ loading: false, errorMsg: res.message || '加载失败' })

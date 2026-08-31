@@ -18,6 +18,8 @@ Component({
     batches: [],
     countdowns: [],        // 顶部倒计时卡片
     loading: false,
+    errorMsg: '',
+    semester: '',
 
     // 当前批次的课程
     batchCourses: [],
@@ -59,6 +61,7 @@ Component({
       // 缓存优先：打开页面只渲染本地缓存，后端请求仅发生在下拉刷新时
       // （评教返回全部批次, 与学期切换无关, 固定缓存键）
       const batches = storage.getCached('cached_evaluations')
+      this.setData({ semester: storage.getSemester() || '' })
       if (batches && batches.evaluations) {
         this.setData({ batches: batches.evaluations })
         this._processBatches(batches.evaluations)
@@ -87,6 +90,7 @@ Component({
       }
       // 重新读缓存(登录后/刷新后数据自动生效)
       const batches = storage.getCached('cached_evaluations')
+      this.setData({ semester: storage.getSemester() || '' })
       if (batches && batches.evaluations) {
         this.setData({ batches: batches.evaluations })
         this._processBatches(batches.evaluations)

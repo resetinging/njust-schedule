@@ -9,32 +9,43 @@
   <!-- ============================================================ -->
   <view wx:if="{{isLoggedIn}}">
 
-    <!-- 用户信息卡片 -->
+    <!-- 用户信息卡片(紫渐变) -->
     <view class="user-card card">
       <view class="avatar">👤</view>
       <view class="user-info">
         <text class="user-name">{{studentName || '未设置'}}</text>
         <text class="user-id">{{studentId}}</text>
-        <text class="user-semester">当前学期: {{semester || '未知'}}</text>
+      </view>
+    </view>
+
+    <!-- 信息行(灰底圆角) -->
+    <view class="info-card">
+      <view class="info-row">
+        <text class="info-label">账号</text>
+        <text class="info-value">{{studentId}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">姓名</text>
+        <text class="info-value">{{studentName || '未设置'}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">当前学期</text>
+        <text class="info-value">{{semester || '未知'}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">成绩数量</text>
+        <text class="info-value">{{gradeCount}} 门</text>
       </view>
     </view>
 
     <!-- 快捷操作(简洁文字) -->
     <view class="action-list">
-      <view class="action-item" bindtap="onGoGrades">
-        <text>成绩查询</text>
-        <text class="arrow">›</text>
-      </view>
-      <view class="action-item" bindtap="onGoGallery">
-        <text>校历 & 照片墙</text>
-        <text class="arrow">›</text>
-      </view>
       <view class="action-item" bindtap="onGoBoard">
         <text>留言板</text>
         <text class="arrow">›</text>
       </view>
-      <view class="action-item" bindtap="onRefreshAll">
-        <text>一键刷新课表+考试</text>
+      <view class="action-item" bindtap="onGoGallery">
+        <text>校历 & 照片墙</text>
         <text class="arrow">›</text>
       </view>
       <view class="action-item" bindtap="onClearData">
@@ -52,9 +63,15 @@
       <view class="setting-hint">设置后课表将自动定位当前教学周并高亮今天</view>
     </view>
 
-    <!-- 退出登录 -->
+    <!-- 按钮组(主/描边) -->
+    <view class="btn-group">
+      <button class="btn-primary main-btn" bindtap="onRefreshAll">重新同步课表与成绩</button>
+      <button class="btn-outline main-btn" bindtap="onGoGrades">查看成绩</button>
+    </view>
+
+    <!-- 退出登录(白底红描边) -->
     <view class="logout-area">
-      <button class="btn-danger" bindtap="onLogout">退出登录</button>
+      <button class="btn-danger-plain" bindtap="onLogout">退出登录</button>
     </view>
   </view>
 

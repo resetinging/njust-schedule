@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "校园工具",
   "usingComponents": {
-    "loading-modal": "/components/loading-modal/loading-modal"
+    "loading-modal": "/components/loading-modal/loading-modal",
+    "empty-state": "/components/empty-state/index"
   }
 }

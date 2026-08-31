@@ -1,0 +1,11 @@
+<!-- 卡片式空状态: 紫色图标圆底 + 标题 + 副文案 + 操作按钮 -->
+<view class="es-wrap">
+  <view class="es-card">
+    <view class="es-icon-wrap">
+      <text class="es-icon">{{icon}}</text>
+    </view>
+    <view class="es-title">{{title}}</view>
+    <text class="es-desc" wx:if="{{desc}}">{{desc}}</text>
+    <button class="es-btn" wx:if="{{showAction && actionText}}" bindtap="onAction">{{actionText}}</button>
+  </view>
+</view>

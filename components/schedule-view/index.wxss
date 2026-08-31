@@ -810,3 +810,28 @@
   line-height: 1.6;
   word-break: break-all;
 }
+
+/* ============================================================
+   V8 课程块统一橙黄(设计规范 §3.5) — 列表视图与网格同款
+   背景 #FCF0D9 · 边 #F3D9A8 · 字 #8A6116
+   ============================================================ */
+.course-card {
+  background: #FCF0D9;
+  border: 2rpx solid #F3D9A8;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  box-shadow: 0 2rpx 10rpx rgba(138, 97, 22, 0.08);
+}
+.course-card.type-odd,
+.course-card.type-even {
+  border-left: 6rpx solid #F5D9A0;
+}
+.course-card .card-name { color: #8A6116; }
+.course-card .card-periods { color: #9A7332; }
+.course-card .card-body { color: #8A6116; }
+.course-card .card-weeks { color: #9A7332; }
+.course-card .card-badge,
+.course-card .card-badge.even {
+  background: #F5D9A0;
+  color: #8A6116;
+}

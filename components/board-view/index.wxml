@@ -16,11 +16,16 @@
     </view>
 
     <!-- 错误/空态 -->
-    <view class="empty-state" wx:if="{{!loading && errorMsg}}">
-      <view class="icon">💬</view>
-      <view class="text">{{errorMsg}}</view>
-      <button wx:if="{{errorMsg === '请先登录后查看留言板'}}" class="btn-primary" bindtap="goLogin">去登录</button>
-    </view>
+    <empty-state wx:if="{{!loading && errorMsg}}"
+                 icon="💬"
+                 title="{{errorMsg}}"
+                 desc="{{errorMsg === '请先登录后查看留言板' ? '登录后即可查看和发布留言' : '网络异常，请稍后再试'}}"
+                 action-text="{{errorMsg === '请先登录后查看留言板' ? '去登录' : ''}}"
+                 bind:action="goLogin" />
+    <empty-state wx:if="{{!loading && !errorMsg && messages.length === 0}}"
+                 icon="💬"
+                 title="暂无留言"
+                 desc="说点什么吧，匿名发布，200 字内" />
 
     <!-- 留言列表(贴吧式卡片) -->
     <block wx:if="{{messages.length > 0}}">

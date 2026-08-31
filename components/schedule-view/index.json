@@ -1,6 +1,7 @@
 {
   "component": true,
   "usingComponents": {
-    "week-grid": "/components/week-grid/week-grid"
+    "week-grid": "/components/week-grid/week-grid",
+    "empty-state": "/components/empty-state/index"
   }
 }

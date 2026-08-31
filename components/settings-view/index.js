@@ -20,6 +20,7 @@ Component({
     studentId: '',
     studentName: '',
     semester: '',
+    gradeCount: 0,
 
     // 登录模式
     loginMode: 'direct',   // 'direct' | 'webvpn'
@@ -77,11 +78,15 @@ Component({
     /** 刷新页面状态 */
     refreshState() {
       const loggedIn = storage.isLoggedIn()
+      // 成绩数量(本地缓存, 供"信息行"展示)
+      const gradesRes = storage.getCached('cached_grades')
+      const gradeCount = gradesRes && gradesRes.grades ? gradesRes.grades.length : 0
       this.setData({
         isLoggedIn: loggedIn,
         studentId: storage.getStudentId(),
         studentName: storage.getStudentName(),
-        semester: storage.getSemester()
+        semester: storage.getSemester(),
+        gradeCount
       })
     },
 

@@ -1,0 +1,78 @@
+/* 卡片式空状态 (设计规范 §3.8): 白卡 28rpx 圆角 + 淡紫描边 + 紫色图标圆底 */
+
+.es-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 40rpx 24rpx 60rpx;
+  box-sizing: border-box;
+}
+
+.es-card {
+  width: 100%;
+  background: #fff;
+  border: 2rpx solid #EFEBFC;
+  border-radius: 28rpx;
+  padding: 56rpx 36rpx 48rpx;
+  box-shadow: 0 6rpx 24rpx rgba(87, 74, 160, 0.06);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.es-icon-wrap {
+  width: 128rpx;
+  height: 128rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #EFEBFC 0%, #F3E8FF 100%);
+  border-radius: 50%;
+}
+
+.es-icon {
+  font-size: 60rpx;
+}
+
+.es-title {
+  margin-top: 24rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #3A3560;
+}
+
+.es-desc {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #8A87A8;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* 操作按钮: 紫色胶囊 */
+.es-btn {
+  margin-top: 32rpx;
+  width: auto;
+  min-width: 300rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  padding: 0 48rpx;
+  background: #7C6BE8;
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 600;
+  border-radius: 999rpx;
+  border: none;
+  box-sizing: border-box;
+}
+
+.es-btn::after { border: none; }
+
+.es-btn[disabled] {
+  background: #B9B1E4;
+  color: #fff;
+}
+
+:host {
+  display: block;
+}

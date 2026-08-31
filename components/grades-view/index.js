@@ -43,6 +43,7 @@ Component({
     refreshing: false,
     empty: false,
     errorMsg: '',
+    semester: '',
 
     // 统计卡
     stats: {
@@ -235,6 +236,7 @@ Component({
         loading: false,
         empty: all.length === 0,
         errorMsg: '',
+        semester: storage.getSemester() || '',
         stats: {
           credits: _fixed(totalCredits, 1),
           count: checked.length,

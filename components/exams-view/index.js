@@ -18,6 +18,8 @@ Component({
     countdowns: [],    // 顶部倒计时卡片（最近 3 场）
     dayGroups: [],     // 按日期分组 [{date, weekday, urgency, exams}]
     loading: false,
+    errorMsg: '',
+    semester: '',
     collapsedDates: {}, // 已结束日期组折叠状态
 
     active: false            // 懒渲染: main 激活时才渲染内容
@@ -53,6 +55,7 @@ Component({
 
     /** 从缓存加载 */
     loadCachedData() {
+      this.setData({ semester: storage.getSemester() || '' })
       const exams = storage.getCached(this._examsCacheKey())
       if (exams && exams.length > 0) {
         this.setData({ exams })

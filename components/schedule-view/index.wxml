@@ -91,29 +91,29 @@
           </view>
         </view>
       </block>
-      <view class="empty-state" wx:else>
-        <text>{{searchText ? '没有匹配的课程' : '本周暂无课程'}}</text>
-      </view>
+      <empty-state wx:else
+                   icon="🔍"
+                   title="{{searchText ? '没有匹配的课程' : '本周暂无课程'}}"
+                   desc="{{searchText ? '换个关键词试试' : '第 ' + (currentWeek || 1) + ' 周暂时没有课程安排'}}" />
     </view>
 
     <!-- 网格视图空结果（区分搜索/本周无课） -->
-    <view class="empty-state" wx:if="{{viewMode === 'grid' && filteredCourses.length === 0 && courses.length > 0 && !loading}}">
-      <view class="icon">🔍</view>
-      <view class="text">{{searchText ? '没有匹配的课程' : '本周暂无课程'}}</view>
-    </view>
+    <empty-state wx:if="{{viewMode === 'grid' && filteredCourses.length === 0 && courses.length > 0 && !loading}}"
+                 icon="🔍"
+                 title="{{searchText ? '没有匹配的课程' : '本周暂无课程'}}"
+                 desc="{{searchText ? '换个关键词试试' : '第 ' + (currentWeek || 1) + ' 周暂时没有课程安排'}}" />
 
     <!-- 加载中(仅无数据时显示) -->
-    <view class="empty-state" wx:if="{{loading && courses.length === 0}}">
-      <view class="icon">⏳</view>
-      <view class="text">加载中…</view>
-    </view>
+    <empty-state wx:if="{{loading && courses.length === 0}}"
+                 icon="⏳" title="加载中…" />
 
     <!-- 空状态 -->
-    <view class="empty-state" wx:if="{{!loading && courses.length === 0}}">
-      <view class="icon">📅</view>
-      <view class="text">暂无课表数据</view>
-      <button class="btn-primary" style="margin-top:32rpx" bindtap="onRefresh">获取课表</button>
-    </view>
+    <empty-state wx:if="{{!loading && courses.length === 0}}"
+                 icon="📅"
+                 title="暂无课表数据"
+                 desc="{{semester || '当前学期'}} 暂时没有课程，可从教务系统获取"
+                 action-text="获取课表"
+                 bind:action="onRefresh" />
 
   </scroll-view>
 

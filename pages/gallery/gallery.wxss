@@ -2,7 +2,7 @@
 
 .container {
   padding-bottom: 40rpx;
-  background: #F2F0FA;
+  background: #F7F6FB;
   min-height: 100vh;
 }
 

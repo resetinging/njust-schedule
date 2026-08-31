@@ -5,17 +5,16 @@
   <scroll-view class="view-scroll" scroll-y>
 
   <!-- 加载中 -->
-  <view class="empty-state" wx:if="{{loading && batches.length === 0}}">
-    <view class="icon">⏳</view>
-    <view class="text">加载中…</view>
-  </view>
+  <empty-state wx:if="{{loading && batches.length === 0}}"
+               icon="⏳" title="加载中…" />
 
   <!-- 空状态 -->
-  <view class="empty-state" wx:if="{{!loading && batches.length === 0 && !batchCourses.length}}">
-    <view class="icon">📋</view>
-    <view class="text">暂无待评价课程</view>
-    <button class="btn-primary" style="margin-top:32rpx" bindtap="onRefresh">获取评教数据</button>
-  </view>
+  <empty-state wx:if="{{!loading && batches.length === 0 && !batchCourses.length}}"
+               icon="📋"
+               title="{{errorMsg || '暂无待评价课程'}}"
+               desc="{{semester || '当前学期'}} 没有需要评价的课程"
+               action-text="获取评教数据"
+               bind:action="onRefresh" />
 
   <!-- ============================================================ -->
   <!-- 评教批次列表 -->
