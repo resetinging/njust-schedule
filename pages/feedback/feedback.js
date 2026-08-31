@@ -53,7 +53,14 @@ Page({
       if (res.success) {
         this._lastTs = Date.now()
         wx.showToast({ title: '反馈已提交，感谢您的建议', icon: 'success' })
-        setTimeout(() => wx.navigateBack(), 1200)
+        // 延迟返回: 若用户已手动返回/跳走, 不重复 navigateBack(防多弹一页)
+        setTimeout(() => {
+          const pages = getCurrentPages()
+          const cur = pages[pages.length - 1]
+          if (pages.length > 1 && cur && cur.route === 'pages/feedback/feedback') {
+            wx.navigateBack()
+          }
+        }, 1200)
       } else {
         wx.showToast({ title: res.message || '提交失败', icon: 'none' })
       }
