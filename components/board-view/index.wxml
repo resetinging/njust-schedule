@@ -11,8 +11,8 @@
 
     <!-- 排序切换 -->
     <view class="sort-bar">
-      <text class="sort-tab {{sort === 'time' ? 'on' : ''}}" data-sort="time" bindtap="onSortChange">🕐 最新</text>
-      <text class="sort-tab {{sort === 'likes' ? 'on' : ''}}" data-sort="likes" bindtap="onSortChange">🔥 最热</text>
+      <text class="sort-tab {{sort === 'time' ? 'on' : ''}}" data-sort="time" bindtap="onSortChange">最新</text>
+      <text class="sort-tab {{sort === 'likes' ? 'on' : ''}}" data-sort="likes" bindtap="onSortChange">最热</text>
     </view>
 
     <!-- 错误/空态 -->
@@ -62,7 +62,7 @@
   <view class="cm-mask" wx:if="{{showComments}}" bindtap="closeComments">
     <view class="cm-card" catchtap="noop">
       <view class="cm-head">
-        <text class="cm-title">💬 评论</text>
+        <text class="cm-title">评论</text>
         <text class="cm-close" bindtap="closeComments">✕</text>
       </view>
       <scroll-view class="cm-list" scroll-y>

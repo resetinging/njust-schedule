@@ -22,7 +22,7 @@
       <!-- 顶部紫渐变卡片头(课表同款) -->
       <view class="page-hero">
         <view class="ph-main">
-          <text class="ph-title">📅 考试安排</text>
+          <text class="ph-title">考试安排</text>
           <text class="ph-sub">共 {{exams.length}} 场考试</text>
         </view>
         <text class="ph-refresh" bindtap="onRefresh">🔄 刷新</text>
@@ -45,7 +45,7 @@
         <block wx:for="{{dayGroups}}" wx:key="date" wx:for-item="group">
           <!-- 日期头部（已结束可折叠） -->
           <view class="date-header" data-date="{{group.date}}" data-done="{{group.urgency === 'done'}}" bindtap="onToggleGroup">
-            <text class="date-title">📅 {{group.date}} {{group.weekday}}</text>
+            <text class="date-title">{{group.date}} {{group.weekday}}</text>
             <view class="date-right">
               <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>
               <text wx:if="{{group.urgency === 'done'}}" class="collapse-arrow">
@@ -60,10 +60,10 @@
                   wx:for="{{group.exams}}" wx:key="index" wx:for-item="exam">
               <view class="exam-course">{{exam.course_name}}</view>
               <view class="exam-meta">
-                <text class="meta-item">⏰ {{exam.time || '待定'}}</text>
-                <text class="meta-item">📍 {{exam.location || '待定'}}</text>
-                <text class="meta-item" wx:if="{{exam.seat}}">💺 {{exam.seat}}</text>
-                <text class="meta-item">📋 {{exam.type || '期末考试'}}</text>
+                <text class="meta-item">{{exam.time || '待定'}}</text>
+                <text class="meta-item">{{exam.location || '待定'}}</text>
+                <text class="meta-item" wx:if="{{exam.seat}}">{{exam.seat}}</text>
+                <text class="meta-item">{{exam.type || '期末考试'}}</text>
               </view>
             </view>
           </block>

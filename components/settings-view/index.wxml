@@ -19,33 +19,33 @@
       </view>
     </view>
 
-    <!-- 快捷操作 -->
+    <!-- 快捷操作(简洁文字) -->
     <view class="action-list">
       <view class="action-item" bindtap="onGoGrades">
-        <text>📊 成绩查询</text>
+        <text>成绩查询</text>
         <text class="arrow">›</text>
       </view>
       <view class="action-item" bindtap="onGoGallery">
-        <text>🖼️ 校历 & 照片墙</text>
+        <text>校历 & 照片墙</text>
         <text class="arrow">›</text>
       </view>
       <view class="action-item" bindtap="onGoBoard">
-        <text>💬 留言板</text>
+        <text>留言板</text>
         <text class="arrow">›</text>
       </view>
       <view class="action-item" bindtap="onRefreshAll">
-        <text>🔄 一键刷新课表+考试</text>
+        <text>一键刷新课表+考试</text>
         <text class="arrow">›</text>
       </view>
       <view class="action-item" bindtap="onClearData">
-        <text>🗑 清除缓存数据</text>
+        <text>清除缓存数据</text>
         <text class="arrow">›</text>
       </view>
     </view>
 
     <!-- 校历设置 -->
     <view class="setting-card card">
-      <view class="setting-title">📆 学期第一周周一</view>
+      <view class="setting-title">学期第一周周一</view>
       <picker mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
         <view class="setting-value">{{firstWeekDate || '点击设置（课表自动跳转本周）'}}</view>
       </picker>

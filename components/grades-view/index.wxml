@@ -6,10 +6,10 @@
 
     <!-- 空状态 -->
     <view wx:if="{{!loading && empty}}" class="empty-state">
-      <view class="icon">📊</view>
+      <view class="icon"></view>
       <view class="text">{{errorMsg || '暂无成绩数据'}}</view>
       <button class="btn-primary" bindtap="onRefreshGrades" disabled="{{refreshing}}">
-        {{refreshing ? '刷新中…' : '🔄 从教务获取成绩'}}
+        {{refreshing ? '刷新中…' : '从教务获取成绩'}}
       </button>
     </view>
 
@@ -61,7 +61,7 @@
 
       <!-- ============ 各学期绩点明细 ============ -->
       <view class="sem-gpa-section" wx:if="{{semGroups.length > 0}}">
-        <text class="section-title">📊 各学期绩点明细</text>
+        <text class="section-title">各学期绩点明细</text>
         <text class="section-desc">绩点 = Σ(课程学分 × 课程绩点) / Σ课程学分</text>
         <scroll-view scroll-x class="sem-gpa-scroll">
           <view class="sem-gpa-grid">
@@ -77,7 +77,7 @@
 
       <!-- ============ 成绩明细（分学期卡片, 保留折叠 + 勾选） ============ -->
       <view class="detail-head">
-        <text class="section-title">📋 成绩明细</text>
+        <text class="section-title">成绩明细</text>
         <text class="section-desc">勾选课程参与上方绩点统计（通识选修默认不勾选）</text>
       </view>
 
@@ -93,7 +93,7 @@
 
         <!-- 成绩统计行 -->
         <view class="sem-stats" data-sem="{{grp.sem}}" bindtap="onFold">
-          <text class="ss-tag">📊</text>
+          <text class="ss-tag"></text>
           <text class="ss-title">成绩统计</text>
           <text class="ss-avg">{{grp.avg !== '-' ? '均分 ' + grp.avg : 'GPA ' + grp.gpa}}</text>
           <text class="sem-fold">{{grp.folded ? '˅' : '˄'}}</text>

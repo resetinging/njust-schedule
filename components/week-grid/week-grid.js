@@ -16,23 +16,10 @@ const TIME_ROWS = [
   '19:00', '19:50', '20:40', '网课'
 ]
 
-// 课程块浅色盘(参考目标 UI): 蓝 / 绿 / 紫 / 黄
-const BLOCK_COLORS = [
-  { bg: '#D9EBFB', bar: '#6FA8E8', text: '#2C4A6E' },
-  { bg: '#DFF3E1', bar: '#7CC283', text: '#2E5E36' },
-  { bg: '#E4DEFB', bar: '#8B79EC', text: '#3E3488' },
-  { bg: '#FBF3D3', bar: '#D9B84C', text: '#6E5A16' }
-]
-
-/** 按课程名取稳定颜色(浅色盘 4 选 1) */
-function pickColor(name) {
-  let hash = 5381
-  const s = String(name || '')
-  for (let i = 0; i < s.length; i++) {
-    hash = ((hash << 5) + hash) + s.charCodeAt(i)
-  }
-  return BLOCK_COLORS[Math.abs(hash) % BLOCK_COLORS.length]
-}
+// 课程块统一橙黄色(参考目标 UI: 一周课程均为橙黄长条)
+const COURSE_COLOR = { bg: '#FCF0D9', bar: '#F5D9A0', text: '#8A6116' }
+// 表头简洁日期名(参考目标 UI: 一 二 三 四 五 六 日)
+const GRID_WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 
 Component({
   properties: {
@@ -57,9 +44,9 @@ Component({
   },
 
   data: {
-    weekdays: WEEKDAY_NAMES.slice(1), // 周一~周日
-    timeRows: [],                     // [{index, time}] 节次时间列
-    dayCols: []                       // [{day, blocks: [...]}]
+    weekdays: GRID_WEEKDAYS, // 一~日(目标 UI 简洁表头)
+    timeRows: [],
+    dayCols: []
   },
 
   lifetimes: {
@@ -102,7 +89,6 @@ Component({
           if (seen.has(key)) continue
           seen.add(key)
 
-          const color = pickColor(c.name)
           blocks.push({
             name: c.name,
             teacher: c.teacher || c.instructor || '',
@@ -116,9 +102,9 @@ Component({
             course_type: c.course_type || '',
             _top: (cs - 1) * ROW_H + 4,
             _height: (ce - cs + 1) * ROW_H - 8,
-            _bg: color.bg,
-            _bar: color.bar,
-            _text: color.text,
+            _bg: COURSE_COLOR.bg,
+            _bar: COURSE_COLOR.bar,
+            _text: COURSE_COLOR.text,
             _range: cs === ce ? `${cs}节` : `${cs}-${ce}节`
           })
         }

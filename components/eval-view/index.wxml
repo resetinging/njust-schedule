@@ -23,7 +23,7 @@
   <view wx:if="{{!batchCourses.length && !showForm}}">
     <view class="page-hero" wx:if="{{batches.length > 0}}">
       <view class="ph-main">
-        <text class="ph-title">📝 教学评价</text>
+        <text class="ph-title">教学评价</text>
         <text class="ph-sub">{{batches.length}} 个批次</text>
       </view>
       <text class="ph-refresh" bindtap="onRefresh">🔄 刷新</text>
@@ -59,7 +59,7 @@
             <text class="bi-batch" wx:if="{{item._batchText}}">{{item._batchText}}</text>
           </view>
           <view class="bi-meta-row">
-            <text wx:if="{{item.start_date}}" class="bi-dates">📅 {{item.start_date}} ~ {{item.end_date}}</text>
+            <text wx:if="{{item.start_date}}" class="bi-dates">{{item.start_date}} ~ {{item.end_date}}</text>
             <text wx:if="{{item.items && item.items.length}}" class="batch-link-hint">点击查看课程 →</text>
           </view>
         </view>
@@ -74,7 +74,7 @@
     <view class="summary-bar">
       <text bindtap="backToBatches">← 返回</text>
       <text>{{batchCourses.length}} 门课程</text>
-      <text class="batch-btn" bindtap="showBatchDialog">⚡ 一键评教</text>
+      <text class="batch-btn" bindtap="showBatchDialog">一键评教</text>
     </view>
 
     <scroll-view scroll-y class="course-scroll">
@@ -87,9 +87,9 @@
               <text class="course-name">{{item.name}}</text>
             </view>
             <view class="course-meta">
-              <text wx:if="{{item.code}}">📖 {{item.code}}</text>
-              <text wx:if="{{item.teacher}}">👨‍🏫 {{item.teacher}}</text>
-              <text wx:if="{{item.score && item.score !== '0'}}">⭐ {{item.score}}分</text>
+              <text wx:if="{{item.code}}">{{item.code}}</text>
+              <text wx:if="{{item.teacher}}">{{item.teacher}}</text>
+              <text wx:if="{{item.score && item.score !== '0'}}">{{item.score}}分</text>
             </view>
           </view>
           <view class="course-status {{item.submitted ? 'done' : (item.evaluated ? 'saved' : 'pending')}}">
@@ -101,7 +101,7 @@
             {{item.evaluated ? '继续评价' : '开始评价'}}
           </button>
           <button class="btn-outline small-btn view-btn" wx:if="{{item.submitted}}" bindtap="viewScores" data-index="{{index}}">
-            📊 查看评分
+            查看评分
           </button>
         </view>
       </view>
@@ -126,7 +126,7 @@
 
       <!-- 自动填写工具栏（非只读模式） -->
       <view class="autofill-bar" wx:if="{{!formReadonly}}">
-        <text class="autofill-label">🎯 期望分数:</text>
+        <text class="autofill-label">期望分数:</text>
         <input class="autofill-input" type="digit" placeholder="如 85"
                value="{{autoFillScore}}" bindinput="onAutoFillScoreInput"
                confirm-type="done" bindconfirm="onAutoFill"/>
