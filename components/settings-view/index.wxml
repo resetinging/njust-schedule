@@ -179,7 +179,8 @@
 
       <view class="fb-label">反馈内容</view>
       <textarea class="fb-textarea" placeholder="请描述您遇到的问题或建议（500 字内）"
-                value="{{fbContent}}" bindinput="onFbInput" maxlength="500" />
+                value="{{fbContent}}" bindinput="onFbInput" maxlength="500"
+                cursor-spacing="120" />
       <view class="fb-count">{{fbContent.length}} / 500</view>
 
       <view class="fb-label">联系方式（选填）</view>
