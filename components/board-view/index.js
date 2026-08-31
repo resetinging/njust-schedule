@@ -21,6 +21,8 @@ Component({
     sending: false,
     errorMsg: '',
     announcement: '',
+    annExpanded: false,   // 公告默认折叠为一行, 点击展开全部
+    annLong: false,       // 公告是否长到需要折叠(短公告不显示展开提示)
 
     // 评论弹窗
     showComments: false,
@@ -55,14 +57,29 @@ Component({
     _loadAnnouncement() {
       const cached = storage.getCached('cached_announcement')
       if (cached && cached.enabled && cached.text && !this.data.announcement) {
-        this.setData({ announcement: cached.text })
+        this._setAnnouncement(cached.text)
       }
       api.getAnnouncement().then(res => {
         if (res && res.success) {
           storage.setCached('cached_announcement', { t: Date.now(), enabled: res.enabled, text: res.text })
-          this.setData({ announcement: (res.enabled && res.text) ? res.text : '' })
+          this._setAnnouncement((res.enabled && res.text) ? res.text : '')
         }
       }).catch(() => {})
+    },
+
+    /** 设置公告: 超过 20 字默认折叠为一行(点击展开) */
+    _setAnnouncement(text) {
+      this.setData({
+        announcement: text || '',
+        annLong: (text || '').length > 20,
+        annExpanded: false
+      })
+    },
+
+    /** 点击公告切换展开/收起 */
+    onToggleAnnounce() {
+      if (!this.data.annLong) return
+      this.setData({ annExpanded: !this.data.annExpanded })
     },
 
     /** 加载留言(当前排序) */

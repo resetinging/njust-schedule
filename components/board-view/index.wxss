@@ -22,12 +22,33 @@
   border-radius: 20rpx;
 }
 .ann-ico { font-size: 30rpx; flex-shrink: 0; line-height: 1.5; }
+.ann-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+}
 .ann-text {
   flex: 1;
+  min-width: 0;
   font-size: 26rpx;
   color: #7A5B12;
   line-height: 1.6;
   word-break: break-all;
+}
+/* 默认折叠为一行 */
+.ann-text.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+.ann-toggle {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  color: #A8813C;
+  padding: 2rpx 6rpx;
 }
 /* 留言卡片 */
 .msg-card {

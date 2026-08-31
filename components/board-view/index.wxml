@@ -3,10 +3,13 @@
 
   <scroll-view class="view-scroll" scroll-y bindscrolltolower="loadMore">
 
-    <!-- 置顶公告 -->
-    <view class="announce-bar" wx:if="{{announcement}}">
+    <!-- 置顶公告(默认一行, 点击展开/收起) -->
+    <view class="announce-bar" wx:if="{{announcement}}" bindtap="onToggleAnnounce">
       <text class="ann-ico">📢</text>
-      <text class="ann-text">{{announcement}}</text>
+      <view class="ann-main">
+        <text class="ann-text {{!annExpanded && annLong ? 'clamped' : ''}}">{{announcement}}</text>
+        <text class="ann-toggle" wx:if="{{annLong}}">{{annExpanded ? '收起 ▴' : '展开 ▾'}}</text>
+      </view>
     </view>
 
     <!-- 排序切换 -->
