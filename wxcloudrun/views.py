@@ -643,7 +643,7 @@ def api_post_feedback():
     with _feedback_rate_lock:
         last = _feedback_last_post.get(sid, 0)
         if time.time() - last < FEEDBACK_RATE_SEC:
-            remain = int(FEEDBACK_RATE_SEC - (time.time() - last))
+            remain = max(1, int(FEEDBACK_RATE_SEC - (time.time() - last)))
             return jsonify({"success": False, "message": f"提交太频繁，请 {remain} 秒后再试"}), 429
         _feedback_last_post[sid] = time.time()
     name = client.student_name or dao.get_user_setting(sid, "name", "")
