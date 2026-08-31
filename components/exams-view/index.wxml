@@ -24,7 +24,7 @@
           <text class="ph-title">考试安排</text>
           <text class="ph-sub">共 {{exams.length}} 场考试</text>
         </view>
-        <text class="ph-refresh" bindtap="onRefresh">🔄 刷新</text>
+        <text class="ph-refresh {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
       </view>
 
       <!-- 倒计时卡片 -->

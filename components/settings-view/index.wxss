@@ -9,7 +9,7 @@
   display: flex;
   align-items: center;
   gap: 24rpx;
-  margin: 20rpx;
+  margin: 20rpx 24rpx 0;
 }
 
 .avatar {
@@ -41,7 +41,7 @@
 
 /* 操作列表 */
 .action-list {
-  margin: 20rpx;
+  margin: 20rpx 24rpx 0;
   background: #fff;
   border-radius: 24rpx;
   border: 2rpx solid #EFEBFC;
@@ -69,7 +69,7 @@
 
 /* 校历设置卡片 */
 .setting-card {
-  margin: 20rpx;
+  margin: 20rpx 24rpx 0;
   padding: 24rpx;
 }
 
@@ -93,7 +93,7 @@
 
 /* 退出登录 */
 .logout-area {
-  padding: 32rpx 20rpx 48rpx;
+  padding: 32rpx 24rpx 48rpx;
 }
 
 .logout-area button {
@@ -102,7 +102,7 @@
 
 /* 登录表单 */
 .login-card {
-  margin: 40rpx 20rpx 20rpx;
+  margin: 40rpx 24rpx 20rpx;
   padding: 40rpx 32rpx;
 }
 
@@ -369,7 +369,7 @@
    标签左灰字 / 值右深色字
    ============================================================ */
 .info-card {
-  margin: 16rpx 20rpx 0;
+  margin: 16rpx 24rpx 0;
   background: #fff;
   border: 2rpx solid #EFEBFC;
   border-radius: 24rpx;
@@ -406,7 +406,7 @@
 .btn-group {
   display: flex;
   gap: 16rpx;
-  margin: 24rpx 20rpx 0;
+  margin: 24rpx 24rpx 0;
 }
 
 .btn-group .main-btn {

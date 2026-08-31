@@ -47,15 +47,17 @@
    ============================== */
 
 .batch-card {
-  margin: 12rpx 20rpx;
+  margin: 12rpx 24rpx;
 }
 
 .batch-card.batch-urgent {
-  border-left: 6rpx solid #EF5350;
+  border-top-width: 8rpx;
+  border-top-color: #E05A5A;
 }
 
 .batch-card.batch-warning {
-  border-left: 6rpx solid #FFA726;
+  border-top-width: 8rpx;
+  border-top-color: #F5A623;
 }
 
 .batch-card.batch-done {
@@ -120,7 +122,7 @@
 }
 
 .course-card {
-  margin: 12rpx 20rpx;
+  margin: 12rpx 24rpx;
 }
 
 .course-card.course-done {
@@ -128,7 +130,8 @@
 }
 
 .course-card.course-saved {
-  border-left: 4rpx solid #FFA726;
+  border-top-width: 8rpx;
+  border-top-color: #F5A623;
 }
 
 .course-header {
@@ -224,7 +227,7 @@
 
 /* 只读模式提示 */
 .readonly-banner {
-  margin: 12rpx 20rpx;
+  margin: 12rpx 24rpx;
   padding: 14rpx 20rpx;
   background: #E3F2FD;
   border-radius: 10rpx;
@@ -238,7 +241,7 @@
   display: flex;
   align-items: center;
   gap: 8rpx;
-  margin: 8rpx 20rpx 4rpx;
+  margin: 8rpx 24rpx 4rpx;
   padding: 14rpx 16rpx;
   background: #F5F5F5;
   border-radius: 10rpx;
@@ -287,7 +290,7 @@
 
 /* 评价指标 */
 .indicator-card {
-  margin: 12rpx 20rpx;
+  margin: 12rpx 24rpx;
 }
 
 .indicator-label {

@@ -48,7 +48,7 @@
                confirm-type="search" />
         <text wx:if="{{searchText}}" class="search-clear" bindtap="onClearSearch">✕</text>
       </view>
-      <text class="refresh-btn" bindtap="onRefresh">🔄</text>
+      <text class="refresh-btn {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
     </view>
 
     <!-- 网格视图(刷新时保留旧内容, 仅首次无数据才显示占位) -->

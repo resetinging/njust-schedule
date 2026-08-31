@@ -7,7 +7,7 @@
 
 /* ============ 绩点大卡（紫渐变, 与课表页顶卡同风格） ============ */
 .gpa-hero {
-  margin: 20rpx 20rpx 24rpx;
+  margin: 20rpx 24rpx 24rpx;
   border-radius: 32rpx;
   padding: 36rpx 32rpx 28rpx;
   background: linear-gradient(135deg, #8F7DF0 0%, #A99BF5 55%, #BBAFF8 100%);
@@ -44,17 +44,25 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+/* 刷新按钮: 紫色渐变卡上的白色半透明圆形图标 */
 .hero-refresh {
-  font-size: 34rpx;
-  padding: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  font-size: 30rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
   color: #fff;
+  flex-shrink: 0;
 }
 
 /* 统计胶囊行: 灰底紫字, 一行三胶囊(设计规范 §3.2) */
 .stat-pills {
   display: flex;
   gap: 16rpx;
-  margin: 0 20rpx 24rpx;
+  margin: 0 24rpx 24rpx;
 }
 
 .pill {
@@ -113,7 +121,7 @@
 
 /* ============ 四六级行（独立卡） ============ */
 .sc-cet {
-  margin: 0 20rpx 24rpx;
+  margin: 0 24rpx 24rpx;
   background: #fff;
   border-radius: 28rpx;
   padding: 22rpx 26rpx;
@@ -152,14 +160,14 @@
 
 /* ============ 各学期绩点明细 ============ */
 .sem-gpa-section {
-  margin: 0 20rpx 24rpx;
+  margin: 0 24rpx 24rpx;
 }
 
 .section-title {
   display: block;
   font-size: 32rpx;
   font-weight: 700;
-  color: #33304F;
+  color: #3A3560;
 }
 
 .section-desc {
@@ -212,7 +220,7 @@
 
 /* ============ 成绩明细区 ============ */
 .detail-head {
-  margin: 0 20rpx 8rpx;
+  margin: 0 24rpx 8rpx;
 }
 
 /* ============ 勾选框 ============ */
@@ -240,7 +248,7 @@
 
 /* ============ 分学期卡片 ============ */
 .sem-card {
-  margin: 0 20rpx 20rpx;
+  margin: 0 24rpx 20rpx;
   background: #fff;
   border-radius: 28rpx;
   padding: 24rpx 28rpx 8rpx;

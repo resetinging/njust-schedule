@@ -25,7 +25,7 @@
         <text class="ph-title">教学评价</text>
         <text class="ph-sub">{{batches.length}} 个批次</text>
       </view>
-      <text class="ph-refresh" bindtap="onRefresh">🔄 刷新</text>
+      <text class="ph-refresh {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
     </view>
 
     <!-- 批次卡片列表 -->

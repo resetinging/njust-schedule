@@ -274,10 +274,10 @@ page {
   border-radius: 16rpx !important;
 }
 
-/* 分区标题: 桌面 .section-title 1.1rem 主色 */
+/* 分区标题: 深色加粗, 全站统一 */
 .section-title {
-  color: #7C6BE8;
-  font-size: 36rpx;
+  color: #3A3560;
+  font-size: 32rpx;
   font-weight: 700;
 }
 
@@ -300,7 +300,7 @@ page {
    全站统一页面头部 — 紫渐变卡片(课表 top-card 同款)
    ============================================================ */
 .page-hero {
-  margin: 16rpx 20rpx 20rpx;
+  margin: 16rpx 24rpx 20rpx;
   padding: 30rpx 30rpx 26rpx;
   border-radius: 28rpx;
   background: linear-gradient(135deg, #8F7DF0 0%, #A99BF5 55%, #BBAFF8 100%);
@@ -329,16 +329,49 @@ page {
   color: rgba(255, 255, 255, 0.9);
 }
 
+/* 紫色渐变卡上的刷新按钮: 白色半透明圆形图标 */
 .ph-refresh {
-  font-size: 28rpx;
-  font-weight: 600;
-  padding: 8rpx 20rpx;
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  font-size: 30rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
   color: #fff;
+  flex-shrink: 0;
 }
 
-.ph-refresh:active { background: rgba(255, 255, 255, 0.35); }
+.ph-refresh:active { background: rgba(255, 255, 255, 0.38); }
+
+/* ============================================================
+   全站统一刷新图标 — 白底工具栏用(浅紫圆形), 加载时旋转
+   ============================================================ */
+.ico-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
+  font-size: 30rpx;
+  color: #7C6BE8;
+  background: #EFEBFC;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ico-refresh:active { background: #E3DDF6; }
+
+/* 旋转动画(刷新中) */
+.spin {
+  animation: ico-spin 1s linear infinite;
+}
+
+@keyframes ico-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
 /* ============================================================
    全站卡片统一白底紫描边(设计规范 §1: 卡片 #FFFFFF + 边框 #EFEBFC)

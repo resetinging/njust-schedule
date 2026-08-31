@@ -564,7 +564,7 @@
    复刻目标 UI — 顶部紫渐变卡 + 工具栏
    ============================================================ */
 .top-card {
-  margin: 16rpx 20rpx 0;
+  margin: 16rpx 24rpx 0;
   padding: 28rpx 28rpx 24rpx;
   border-radius: 28rpx;
   background: linear-gradient(135deg, #8F7DF0 0%, #A99BF5 55%, #BBAFF8 100%);
@@ -648,7 +648,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  margin: 16rpx 20rpx 8rpx;
+  margin: 16rpx 24rpx 8rpx;
 }
 
 .week-nav {
@@ -772,7 +772,7 @@
 .view-scroll {
   height: 100%;
 }
-/* 手动刷新按钮(工具栏右侧) */
+/* 手动刷新按钮(工具栏右侧): 统一圆形浅紫图标 */
 .refresh-btn {
   flex-shrink: 0;
   width: 60rpx;
@@ -781,7 +781,7 @@
   text-align: center;
   font-size: 30rpx;
   background: #EFEBFC;
-  border-radius: 16rpx;
+  border-radius: 50%;
   color: #7C6BE8;
 }
 

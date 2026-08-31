@@ -29,7 +29,7 @@
 
 .countdown-scroll {
   white-space: nowrap;
-  padding: 0 16rpx 12rpx;
+  padding: 0 24rpx 12rpx;
 }
 
 .countdown-row {
@@ -106,7 +106,7 @@
 
 .exam-scroll {
   flex: 1;
-  padding: 0 20rpx 24rpx;
+  padding: 0 24rpx 24rpx;
 }
 
 .date-header {
@@ -154,11 +154,13 @@
 }
 
 .exam-card.exam-urgent {
-  border-left: 6rpx solid #EF5350;
+  border-top-width: 8rpx;
+  border-top-color: #E05A5A;
 }
 
 .exam-card.exam-warning {
-  border-left: 6rpx solid #FFA726;
+  border-top-width: 8rpx;
+  border-top-color: #F5A623;
 }
 
 .exam-course {
@@ -362,15 +364,15 @@
   background: #fdedec;
   border-top-color: #e74c3c;
 }
-.countdown-card.urgent .cd-bignum { color: #e74c3c; }
-.countdown-card.urgent .cd-label { color: #e74c3c; }
+.countdown-card.urgent .cd-bignum { color: #E05A5A; }
+.countdown-card.urgent .cd-label { color: #E05A5A; }
 .countdown-card.urgent .cd-course { color: #33304F; }
 .countdown-card.warning {
   background: #fef9e7;
   border-top-color: #f39c12;
 }
-.countdown-card.warning .cd-bignum { color: #f39c12; }
-.countdown-card.warning .cd-label { color: #f39c12; }
+.countdown-card.warning .cd-bignum { color: #F5A623; }
+.countdown-card.warning .cd-label { color: #F5A623; }
 .countdown-card.warning .cd-course { color: #33304F; }
 .countdown-card.done { opacity: 0.6; }
 .cd-bignum { font-size: 80rpx; }
@@ -382,7 +384,7 @@
   background: none;
   border-radius: 0;
   box-shadow: none;
-  margin: 20rpx 20rpx 10rpx;
+  margin: 20rpx 24rpx 10rpx;
   padding: 0;
   gap: 12rpx;
 }
@@ -393,7 +395,7 @@
   background: #fff;
   border-radius: 16rpx;
   padding: 28rpx 36rpx;
-  margin: 0 20rpx 16rpx;
+  margin: 0 24rpx 16rpx;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 .exam-course { font-weight: 700; font-size: 32rpx; color: #33304F; margin-bottom: 12rpx; }
@@ -422,6 +424,19 @@
 .cd-label, .cd-date { color: #8A87A8; }
 .cd-course { color: #33304F; }
 .date-urgency.done { background: #F2F0FA; color: #8A87A8; }
+
+/* 倒计时卡统一白底, 状态仅用顶部色条区分 */
+.countdown-card.urgent {
+  background: #fff;
+  border-top-width: 8rpx;
+  border-top-color: #E05A5A;
+}
+.countdown-card.warning {
+  background: #fff;
+  border-top-width: 8rpx;
+  border-top-color: #F5A623;
+}
+.countdown-card.done { opacity: 0.6; }
 
 
 /* 组件根/滚动区 */
