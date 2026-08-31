@@ -54,3 +54,7 @@ debug_*.json
 # ±¾µØÑéÖ¤¹¤¾ß(uv ÓëÍĞ¹Ü Python)
 .uvbin/
 
+
+# å°ç¨‹åºåˆ†æ”¯ worktree(ç‹¬ç«‹ git ä»“åº“, å‹¿çº³å…¥ server æäº¤)
+.miniapp/
+
