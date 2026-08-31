@@ -43,71 +43,6 @@
 }
 
 /* ==============================
-   倒计时卡片
-   ============================== */
-
-.countdown-scroll {
-  white-space: nowrap;
-  padding: 0 16rpx 12rpx;
-  background: #fff;
-}
-
-.countdown-row {
-  display: inline-flex;
-  gap: 16rpx;
-  padding: 4rpx 0;
-}
-
-.countdown-card {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 200rpx;
-  padding: 20rpx 20rpx;
-  border-radius: 16rpx;
-  background: #fff;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
-  white-space: normal;
-}
-
-.countdown-card.urgent {
-  background: linear-gradient(135deg, #FFF5F5, #FFEBEE);
-  border: 2rpx solid #EF5350;
-}
-
-.countdown-card.warning {
-  background: linear-gradient(135deg, #FFFDE7, #FFF9C4);
-  border: 2rpx solid #FFA726;
-}
-
-.cd-bignum {
-  font-size: 52rpx;
-  font-weight: bold;
-  line-height: 1;
-}
-
-.countdown-card.urgent .cd-bignum { color: #D32F2F; }
-.countdown-card.warning .cd-bignum { color: #E65100; }
-
-.cd-label {
-  font-size: 22rpx;
-  color: #999;
-  margin-top: 4rpx;
-}
-
-.countdown-card.urgent .cd-label { color: #D32F2F; }
-.countdown-card.warning .cd-label { color: #E65100; }
-
-.cd-course {
-  font-size: 24rpx;
-  font-weight: 500;
-  color: #333;
-  margin-top: 10rpx;
-  text-align: center;
-  max-width: 240rpx;
-}
-
-/* ==============================
    批次卡片
    ============================== */
 
@@ -550,10 +485,6 @@
 /* ============================================================
    V2 视觉升级 — 评教页
    ============================================================ */
-.countdown-card {
-  border-radius: 20rpx;
-  box-shadow: 0 6rpx 18rpx rgba(0, 0, 0, 0.07);
-}
 .batch-card, .course-card, .indicator-card {
   border-radius: 20rpx;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
@@ -619,11 +550,6 @@
   border-bottom: 1rpx solid #E9EDF2;
 }
 
-.countdown-card {
-  background: #fff;
-  border: 1rpx solid #E9EDF2;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-}
 .batch-card, .course-card, .indicator-card {
   box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.03);
 }
@@ -641,13 +567,6 @@
 /* ============================================================
    V6 桌面端同款 — 评教页
    ============================================================ */
-.countdown-card {
-  background: #fff;
-  border: none;
-  border-top: 8rpx solid transparent;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
-}
 .batch-card, .course-card, .indicator-card {
   background: #fff;
   border-radius: 16rpx;
@@ -675,10 +594,6 @@
   border-radius: 28rpx;
   box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.08);
 }
-.countdown-card {
-  border-radius: 24rpx;
-  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.08);
-}
 
 /* 批次学期标签 */
 .sem-tag {
@@ -694,7 +609,7 @@
 /* ============================================================
    风格统一 — 对齐课表(卡片加细边框)
    ============================================================ */
-.batch-card, .course-card, .indicator-card, .countdown-card {
+.batch-card, .course-card, .indicator-card {
   border: 2rpx solid #EFEBFC;
 }
 

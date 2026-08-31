@@ -28,17 +28,6 @@
       <text class="ph-refresh" bindtap="onRefresh">🔄 刷新</text>
     </view>
 
-    <!-- 倒计时卡片 -->
-    <scroll-view scroll-x class="countdown-scroll" wx:if="{{countdowns.length > 0}}">
-      <view class="countdown-row">
-        <view class="countdown-card {{item.cardClass}}" wx:for="{{countdowns}}" wx:key="index">
-          <view class="cd-bignum">{{item.bigNum}}</view>
-          <view class="cd-label">{{item.bigLabel}}</view>
-          <view class="cd-course">{{item.course_name}}</view>
-        </view>
-      </view>
-    </scroll-view>
-
     <!-- 批次卡片列表 -->
     <block wx:for="{{batches}}" wx:key="index">
       <view class="batch-card card {{item.is_done ? 'batch-done' : ''}} {{!item.is_done && item._urgency === 'urgent' ? 'batch-urgent' : ''}} {{!item.is_done && item._urgency === 'warning' ? 'batch-warning' : ''}}"

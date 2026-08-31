@@ -16,7 +16,6 @@ Component({
   data: {
     // 批次列表
     batches: [],
-    countdowns: [],        // 顶部倒计时卡片
     loading: false,
     errorMsg: '',
     semester: '',
@@ -80,7 +79,7 @@ Component({
       // 退出登录后清空上一用户数据(隐私, 含评教表单/批量状态)
       if (!storage.isLoggedIn()) {
         this.setData({
-          batches: [], batchCourses: [], countdowns: [],
+          batches: [], batchCourses: [],
           showForm: false, formCourseName: '', formCourseUrl: '', formAction: '',
           formHiddenFields: {}, indicators: [], selections: {}, liveTotal: 0, maxTotal: 0,
           showBatchDialog: false, batchRunning: false, batchDone: false,
@@ -120,7 +119,7 @@ Component({
       }
     },
 
-    /** 处理批次数据：去重 + 倒计时 + 每批次紧迫度 + 日期清洗 */
+    /** 处理批次数据：去重 + 每批次紧迫度 + 日期清洗 */
     _processBatches(batches) {
       // 防御去重: 同一批次(batch+category)只保留一条
       const seen = {}
@@ -164,41 +163,7 @@ Component({
         }
       })
 
-      const undone = enriched
-        .filter(b => !b.is_done && b.end_date)
-        .sort((a, b) => (a.end_date || '').localeCompare(b.end_date || ''))
-
-      let countdowns = []
-      if (undone.length === 0) {
-        const allDone = enriched.filter(b => b.is_done)
-        if (allDone.length > 0) {
-          countdowns = [{
-            bigNum: '✓', bigLabel: '全部已完成',
-            course_name: '全部评教已完成', cardClass: ''
-          }]
-        }
-      } else {
-        countdowns = undone.slice(0, 3).map(b => {
-          const totalHours = (() => {
-            const end = parseDateStr(b.end_date)
-            if (!end) return 0
-            end.setHours(23, 59, 59, 0)
-            return (end - new Date()) / (1000 * 60 * 60)
-          })()
-          let bigNum, bigLabel
-          if (totalHours < 0) { bigNum = '!'; bigLabel = '已截止' }
-          else if (totalHours < 24) { bigNum = Math.floor(totalHours) + 'h'; bigLabel = '小时后截止' }
-          else { bigNum = Math.floor(totalHours / 24); bigLabel = '天后截止' }
-
-          return {
-            bigNum, bigLabel,
-            course_name: b.batch || b.category,
-            cardClass: b._urgency === 'urgent' ? 'urgent' : (b._urgency === 'warning' ? 'warning' : '')
-          }
-        })
-      }
-
-      this.setData({ batches: enriched, countdowns })
+      this.setData({ batches: enriched })
     },
 
     /** 刷新(防重复点击) */
