@@ -33,6 +33,14 @@ function _numScore(g) {
 
 function _isNonGpa(g) { return NON_GPA_NATURES.includes((g.course_nature || '').trim()) }
 
+/** 是否有有效四六级折算(存在则英语课默认不勾选, 由 CET 折算替代 — 参考 App 口径) */
+function _hasCet(gpaUtil, cetRaw) {
+  return (cetRaw || []).some(s => {
+    const p = gpaUtil.cetToPercentage(s.score, s.type)
+    return parseFloat(s.score) > 0 && p > 0
+  })
+}
+
 Component({
   options: {
     styleIsolation: 'apply-shared'
@@ -99,10 +107,12 @@ Component({
       this._cetRaw = (cetRes && cetRes.success ? cetRes.scores : []) || []
       this._mode = storage.get('gpa_mode', '')
       // 勾选状态保留: 仅对新增课程初始化默认值(切换 Tab 不重置用户勾选)
+      const hasCet = _hasCet(gpaUtil, this._cetRaw)
       if (!this._checked) this._checked = {}
       for (const g of this._allGrades) {
         if (this._checked[g.id] === undefined) {
-          this._checked[g.id] = !_isNonGpa(g)
+          // 默认不勾: 通识教育选修课; 有 CET 折算时英语课(由 CET 折算替代)
+          this._checked[g.id] = !(_isNonGpa(g) || (hasCet && gpaUtil.isEnglishCourse(g.course_name)))
         }
       }
       this._render()
@@ -129,10 +139,11 @@ Component({
         this._allGrades = res.grades || []
         this._cetRaw = (cetRes && cetRes.success ? cetRes.scores : []) || []
         this._mode = storage.get('gpa_mode', '')
-        // 默认勾选: 通识选修课不勾选
+        // 默认勾选: 通识教育选修课不勾选; 有 CET 折算时英语课不勾
+        const hasCet = _hasCet(gpaUtil, this._cetRaw)
         this._checked = {}
         for (const g of this._allGrades) {
-          this._checked[g.id] = !_isNonGpa(g)
+          this._checked[g.id] = !(_isNonGpa(g) || (hasCet && gpaUtil.isEnglishCourse(g.course_name)))
         }
         this._render()
         storage.setCached('cached_grades', res)
