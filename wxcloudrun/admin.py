@@ -16,10 +16,9 @@ import time
 from collections import deque
 from functools import wraps
 from flask import request, jsonify, Response, render_template, stream_with_context, g
-from sqlalchemy import func
 
 from wxcloudrun import app, db
-from wxcloudrun.model import Course, Exam, Evaluation, Grade, CetScore, Setting, BoardComment
+from wxcloudrun.model import Course, Exam, Evaluation, Grade, CetScore, Setting
 from wxcloudrun import dao
 import config
 
@@ -552,17 +551,8 @@ def admin_fetch_names():
 @app.route("/api/admin/board")
 @admin_required
 def admin_board_list():
-    """留言列表(全量, 倒序, 含点赞/评论统计)"""
-    from sqlalchemy import func as _f
-    msgs = dao.get_board_messages(limit=500, sort="time", viewer_id="")
-    ccounts = {}
-    if msgs:
-        ids = [m["id"] for m in msgs]
-        for mid, cnt in db.session.query(BoardComment.message_id, _f.count(BoardComment.id)) \
-                .filter(BoardComment.message_id.in_(ids)).group_by(BoardComment.message_id).all():
-            ccounts[mid] = cnt
-    for m in msgs:
-        m["comments"] = ccounts.get(m["id"], 0)
+    """留言列表(全量, 倒序, 含点赞/评论统计与真实学号; dao 已带评论计数, 无需再查)"""
+    msgs = dao.get_board_messages(limit=500, sort="time", viewer_id="", include_sid=True)
     return jsonify({"success": True, "messages": msgs})
 
 
@@ -573,7 +563,22 @@ def admin_board_delete(msg_id: int):
     ok = dao.delete_board_message(msg_id)
     if not ok:
         return jsonify({"success": False, "message": "留言不存在"}), 404
+    from wxcloudrun import views as _views  # 延迟导入避免循环依赖
+    _views.invalidate_board_cache()
     app.logger.info("[admin] rid=%s 删除留言 id=%d", _rid(), msg_id)
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/board/comment/<int:comment_id>", methods=["DELETE"])
+@admin_required
+def admin_board_comment_delete(comment_id: int):
+    """删除单条评论"""
+    ok = dao.delete_board_comment(comment_id)
+    if not ok:
+        return jsonify({"success": False, "message": "评论不存在"}), 404
+    from wxcloudrun import views as _views  # 延迟导入避免循环依赖
+    _views.invalidate_board_cache()
+    app.logger.info("[admin] rid=%s 删除评论 id=%d", _rid(), comment_id)
     return jsonify({"success": True})
 
 

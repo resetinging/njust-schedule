@@ -168,10 +168,11 @@ class BoardMessage(db.Model):
     is_anonymous = db.Column(db.Integer, default=0)   # 1=匿名发布
     created_at = db.Column(db.TIMESTAMP, default=datetime.now)
 
-    def to_dict(self, liked_by_me=False):
+    def to_dict(self, liked_by_me=False, include_sid=False):
         return {
             "id": self.id,
-            "student_id": self.student_id,
+            # 隐私: 学号仅管理端可见(include_sid=True), 普通接口返回空串
+            "student_id": self.student_id if include_sid else "",
             "student_name": "" if self.is_anonymous else self.student_name,
             "is_anonymous": self.is_anonymous,
             "content": self.content,
@@ -191,11 +192,12 @@ class BoardComment(db.Model):
     is_anonymous = db.Column(db.Integer, default=0)   # 1=匿名评论
     created_at = db.Column(db.TIMESTAMP, default=datetime.now)
 
-    def to_dict(self):
+    def to_dict(self, include_sid=False):
         return {
             "id": self.id,
             "message_id": self.message_id,
-            "student_id": self.student_id,
+            # 隐私: 学号仅管理端可见(include_sid=True), 普通接口返回空串
+            "student_id": self.student_id if include_sid else "",
             "student_name": "" if self.is_anonymous else self.student_name,
             "is_anonymous": self.is_anonymous,
             "content": self.content,
