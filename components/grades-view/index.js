@@ -162,9 +162,11 @@ Component({
       const avg = scored.length
         ? _fixed(scored.reduce((s, v) => s + v, 0) / scored.length)
         : '-'
+      // 勾选完全生效: gpaOnly=false, 通识教育选修课默认不勾选(评奖口径),
+      // 用户手动勾选后计入(学籍口径)。修复: 之前 gpaOnly=true 硬排除导致勾选无效
       const gpaV = isBaoyan
-        ? gpaUtil.calcGpaBaoyan(checked, this._cetRaw, true)
-        : gpaUtil.calcGpa(checked, true)
+        ? gpaUtil.calcGpaBaoyan(checked, this._cetRaw, false)
+        : gpaUtil.calcGpa(checked, false)
       let gpaClass = ''
       if (gpaV >= 3.0) gpaClass = 'gpa-high'
       else if (gpaV >= 2.0) gpaClass = 'gpa-mid'
