@@ -303,9 +303,13 @@ function getAnnouncement() {
   return request('GET', '/api/announcement')
 }
 
-/** 获取留言列表(before 分页; sort: time=最新 likes=最热) */
-function getBoardMessages(before, sort) {
-  return request('GET', '/api/board', { before: before || 0, sort: sort || 'time' })
+/** 获取留言列表(before/before_likes 键集分页; sort: time=最新 likes=最热) */
+function getBoardMessages(before, sort, beforeLikes) {
+  return request('GET', '/api/board', {
+    before: before || 0,
+    before_likes: beforeLikes || 0,
+    sort: sort || 'time'
+  })
 }
 
 /** 发布留言(anonymous 为 true 匿名) */

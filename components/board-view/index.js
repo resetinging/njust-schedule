@@ -108,7 +108,8 @@ Component({
       if (!last) return
       this.setData({ loading: true })
       try {
-        const res = await api.getBoardMessages(last.id, this.data.sort)
+        // 最热排序需带最后一条的点赞数做 (likes, id) 双键集分页, 防重复/漏项
+        const res = await api.getBoardMessages(last.id, this.data.sort, last.likes)
         if (res.success) {
           this.setData({
             loading: false,
