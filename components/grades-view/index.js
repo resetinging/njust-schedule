@@ -22,22 +22,14 @@ function _gpOf(g) {
   if (gp === 0) gp = gpaUtil.scoreToGp(g.score)
   return gp
 }
-/** 百分制成绩数值(仅纯数字成绩; 等级制/缓考/缺考等返回 null 不参与均分 —
- *  与桌面端一致不折算等级, 均分只反映有百分制分数的课程) */
-function _numScore(g) {
-  const s = String(g.score == null ? '' : g.score).trim()
-  if (!s) return null
-  const v = parseFloat(s)
-  return isNaN(v) ? null : v
-}
 
 function _isNonGpa(g) { return NON_GPA_NATURES.includes((g.course_nature || '').trim()) }
 
-/** 是否有有效四六级折算(存在则英语课默认不勾选, 由 CET 折算替代 — 参考 App 口径) */
+/** 是否有有效四六级折算(≥425 分; 存在则英语课默认不勾选, 由 CET 折算替代 — 参考 App 口径) */
 function _hasCet(gpaUtil, cetRaw) {
   return (cetRaw || []).some(s => {
-    const p = gpaUtil.cetToPercentage(s.score, s.type)
-    return parseFloat(s.score) > 0 && p > 0
+    const score = parseFloat(s.score) || 0
+    return score >= 425 && gpaUtil.cetToPercentage(s.score, s.type) > 0
   })
 }
 
@@ -173,6 +165,8 @@ Component({
       if (isBaoyan) {
         let best = null
         for (const s of this._cetRaw) {
+          const score = parseFloat(s.score) || 0
+          if (score < 425) continue
           const pct = gpaUtil.cetToPercentage(s.score, s.type)
           if (pct > 0 && (!best || pct > best.pct)) best = { pct, s }
         }
@@ -206,7 +200,7 @@ Component({
         }
         if (best) {
           cet = {
-            line: best.s.type + ' ' + best.s.score + ' | 折算 ' + _fixed(best.pct, 1) + ' | 学分 8',
+            line: best.s.type + ' ' + best.s.score + ' | 折算 ' + _fixed(best.pct, 2) + ' | 学分 8',
             date: best.s.exam_date || ''
           }
         }

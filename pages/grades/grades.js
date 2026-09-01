@@ -168,7 +168,7 @@ Page({
       ? _fixed(scored.reduce((s, g) => s + _scoreNum(g), 0) / scored.length)
       : '-'
     const gpaV = isBaoyan
-      ? gpaUtil.calcGpaBaoyan(checked, this._cetRaw, true)
+      ? gpaUtil.calcGpaBaoyan(checked, this._cetRaw, false)
       : gpaUtil.calcGpa(checked, true)
     let gpaClass = ''
     if (gpaV >= 3.0) gpaClass = 'gpa-high'
@@ -208,7 +208,7 @@ Page({
         : '-'   // 全等级制学期: 均分显示 '-', 而非 0
       // 每学期绩点（与总 GPA 同口径, 支持保研模式）
       const semGpa = isBaoyan
-        ? gpaUtil.calcGpaBaoyan(semChecked, this._cetRaw, true)
+        ? gpaUtil.calcGpaBaoyan(semChecked, this._cetRaw, false)
         : gpaUtil.calcGpa(semChecked, true)
       let semGpaClass = ''
       if (semGpa >= 3.0) semGpaClass = 'gpa-high'

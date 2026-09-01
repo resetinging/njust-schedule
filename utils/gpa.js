@@ -107,12 +107,12 @@ function calcGpa(grades, gpaOnly) {
   for (const g of grades || []) {
     if (gpaOnly && !isGpaCourse(g.course_nature)) continue
     const credit = parseFloat(g.credit) || 0
-    if (credit <= 0) continue
+    const wc = credit > 0 ? credit : 1   // 无学分课程按 1 计分子(与参考 App 一致)
     let gp = parseFloat(g.grade_point) || 0
     if (gp === 0) gp = scoreToGp(g.score)
     if (gp >= 0) {
-      totalWeighted += credit * gp
-      totalCredits += credit
+      totalWeighted += wc * gp
+      if (credit > 0) totalCredits += credit
     }
   }
   return totalCredits > 0 ? _round(totalWeighted / totalCredits) : 0
