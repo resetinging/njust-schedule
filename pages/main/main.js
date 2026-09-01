@@ -1,19 +1,22 @@
 /**
  * 主页面 — swiper 合页方案（方案 A）
- * 5 个 Tab(课表/考试/评教/成绩/我的) 用 swiper 承载,
- * 左右滑动原生切换 + 动画; 自定义 tabBar 点击同步切换。
- * 组件懒渲染: 激活才渲染, 切换时由本页通知 activate/deactivate。
+ * 6 个 Tab(课表/考试/评教/成绩/留言板/我的) 用 swiper 承载,
+ * 左右滑动原生切换 + 淡入淡出(透明度跟随滑动距离); 自定义 tabBar 点击同步切换。
+ * 组件懒渲染: 激活才渲染, 切换时由本页通知 activate。
  */
 
 Page({
   data: {
     current: 0,       // swiper 当前索引
     swiperHeight: 600, // swiper 高度(px), 自适应计算
-    tabs: [0, 1, 2, 3, 4, 5]  // 6 个 Tab 索引(供 swiper-item 循环渲染)
+    tabs: [0, 1, 2, 3, 4, 5],  // 6 个 Tab 索引(供 swiper-item 循环渲染)
+    fade: { 0: 1, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },  // 各页透明度(滑动距离驱动)
+    swiping: false    // 滑动进行中(禁用 opacity 过渡, 使透明度即时跟随手指)
   },
 
   onLoad() {
     this._calcHeight()
+    try { this._sw = (wx.getSystemInfoSync() || {}).windowWidth || 375 } catch (e) { this._sw = 375 }
     // 首屏激活第一个 Tab
     this._activate(0)
   },
@@ -62,33 +65,53 @@ Page({
     if (r < 20) setTimeout(() => this._activate(i, r + 1), 100)
   },
 
-  /** swiper 滑动结束: 更新激活视图 + tabBar 高亮 */
+  /** 各页透明度复位: 仅当前页可见 */
+  _resetFade(i) {
+    const fade = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    fade[i] = 1
+    return fade
+  },
+
+  /** swiper 滑动结束: 更新激活视图 + tabBar 高亮 + 透明度复位 */
   onSwiperChange(e) {
     const i = e.detail.current
-    this.setData({ current: i })
+    this.setData({ current: i, fade: this._resetFade(i), swiping: false })
     this._preActivating = null   // 复位预激活标记
     this._activate(i)
     this._syncTabBar()
   },
 
   /**
-   * swiper 滑动进行中: 提前激活目标页(懒渲染组件此时渲染, 数据已在缓存),
-   * 滑到位时内容已就绪, 消除"首次滑动进入空白页"问题
+   * swiper 滑动进行中: 透明度跟随滑动距离(目标页随位移变实, 当前页随位移变淡);
+   * 同时提前激活目标页(懒渲染组件此时渲染, 数据已在缓存), 消除"首次滑动进入空白页"
    */
   onSwiperTransition(e) {
     const dx = e.detail.dx
     if (!dx) return
     const target = dx < 0 ? this.data.current + 1 : this.data.current - 1
     if (target < 0 || target >= 6) return
+    // 滑动中: 禁用过渡, 透明度即时跟随手指
+    if (!this.data.swiping) this.setData({ swiping: true })
+    const progress = Math.min(1, Math.abs(dx) / (this._sw || 375))
+    this.setData({
+      ['fade[' + target + ']']: +progress.toFixed(3),
+      ['fade[' + this.data.current + ']']: +(1 - progress).toFixed(3)
+    })
     if (this._preActivating === target) return
     this._preActivating = target
     this._activate(target)
   },
 
-  /** tabBar 点击(自定义 tabBar 组件回调): 切 swiper 带动画 */
+  /** tabBar 点击(自定义 tabBar 组件回调): 切 swiper 带动画, 目标页淡入 */
   onTabTap(i) {
     // 即使 i === current 也重新激活(修复: 首次激活失败后再次点击无反应的死循环)
-    if (i !== this.data.current) this.setData({ current: i })
+    if (i !== this.data.current) {
+      const fade = this._resetFade(i)
+      fade[i] = 0
+      this.setData({ current: i, fade, swiping: false })
+      // 下一帧淡入(带 0.25s 过渡)
+      wx.nextTick(() => this.setData({ ['fade[' + i + ']']: 1 }))
+    }
     this._activate(i)
     this._syncTabBar()
   },
