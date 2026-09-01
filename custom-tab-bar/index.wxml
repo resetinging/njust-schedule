@@ -1,11 +1,11 @@
-<!-- 自定义 tabBar -->
+<!-- 自定义 tabBar(纯图标, 无文字) -->
 <view class="tab-bar">
-  <view class="tab-bar-item"
+  <view class="tab-bar-item {{selected === index ? 'on' : ''}}"
         wx:for="{{list}}" wx:key="pagePath"
         data-index="{{index}}" bindtap="onTap">
-    <text wx:if="{{item.emoji}}" class="tab-emoji">{{item.emoji}}</text>
-    <image wx:else class="tab-icon"
-           src="{{selected === index ? item.selectedIconPath : item.iconPath}}" />
-    <text class="tab-text {{selected === index ? 'active' : ''}}">{{item.text}}</text>
+    <view class="tab-emoji-wrap">
+      <text class="tab-emoji">{{item.emoji}}</text>
+    </view>
+    <view class="tab-dot {{selected === index ? 'on' : ''}}"></view>
   </view>
 </view>

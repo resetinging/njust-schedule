@@ -8,7 +8,8 @@
 Page({
   data: {
     current: 0,       // swiper 当前索引
-    swiperHeight: 600 // swiper 高度(px), 自适应计算
+    swiperHeight: 600, // swiper 高度(px), 自适应计算
+    tabs: [0, 1, 2, 3, 4, 5]  // 6 个 Tab 索引(供 swiper-item 循环渲染)
   },
 
   onLoad() {
@@ -30,11 +31,11 @@ Page({
     this._syncTabBar()
   },
 
-  /** 计算 swiper 高度: 视口高 - tabBar 高(约 110rpx) - iOS 底部安全区 */
+  /** 计算 swiper 高度: 视口高 - tabBar 高(约 88rpx, 纯图标模式) - iOS 底部安全区 */
   _calcHeight() {
     try {
       const sys = wx.getSystemInfoSync()
-      const tabH = Math.ceil(110 * (sys.windowWidth / 750))
+      const tabH = Math.ceil(88 * (sys.windowWidth / 750))
       // iOS 全面屏底部安全区(tabBar 有 env(safe-area-inset-bottom) padding)
       const safeH = (sys.safeArea && sys.safeArea.bottom) ? Math.max(0, sys.windowHeight - sys.safeArea.bottom) : 0
       const h = sys.windowHeight - tabH - safeH - 2

@@ -6,23 +6,15 @@
           bindchange="onSwiperChange"
           bindtransition="onSwiperTransition"
           duration="260">
-    <swiper-item>
-      <schedule-view id="tabview0" />
-    </swiper-item>
-    <swiper-item>
-      <exams-view id="tabview1" />
-    </swiper-item>
-    <swiper-item>
-      <eval-view id="tabview2" />
-    </swiper-item>
-    <swiper-item>
-      <grades-view id="tabview3" />
-    </swiper-item>
-    <swiper-item>
-      <board-view id="tabview4" />
-    </swiper-item>
-    <swiper-item>
-      <settings-view id="tabview5" />
+    <swiper-item wx:for="{{tabs}}" wx:key="index">
+      <view class="fade-wrap {{current === index ? 'fade-on' : ''}}">
+        <schedule-view wx:if="{{index === 0}}" id="tabview0" />
+        <exams-view wx:elif="{{index === 1}}" id="tabview1" />
+        <eval-view wx:elif="{{index === 2}}" id="tabview2" />
+        <grades-view wx:elif="{{index === 3}}" id="tabview3" />
+        <board-view wx:elif="{{index === 4}}" id="tabview4" />
+        <settings-view wx:elif="{{index === 5}}" id="tabview5" />
+      </view>
     </swiper-item>
   </swiper>
 

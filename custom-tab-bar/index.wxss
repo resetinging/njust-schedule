@@ -1,4 +1,4 @@
-/* 自定义 tabBar */
+/* 自定义 tabBar — 纯图标模式(无文字) */
 .tab-bar {
   position: fixed;
   left: 0;
@@ -16,22 +16,41 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12rpx 0 10rpx;
+  padding: 10rpx 0 8rpx;
 }
-.tab-icon {
-  width: 46rpx;
-  height: 46rpx;
+/* 图标容器: 选中时浅紫圆形背景 */
+.tab-emoji-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
+/* 未选中: 置灰 + 半透明; 选中: 彩色 + 放大 + 浅紫底 */
 .tab-emoji {
-  font-size: 40rpx;
-  line-height: 46rpx;
+  font-size: 44rpx;
+  line-height: 1;
+  filter: grayscale(100%) opacity(0.55);
+  transform: scale(0.92);
+  transition: filter 0.2s ease, transform 0.2s ease;
 }
-.tab-text {
+.tab-bar-item.on .tab-emoji-wrap {
+  background: #EFEBFC;
+}
+.tab-bar-item.on .tab-emoji {
+  filter: none;
+  transform: scale(1.08);
+}
+/* 选中指示小圆点(未选中透明占位, 避免高度跳动) */
+.tab-dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: transparent;
   margin-top: 4rpx;
-  font-size: 20rpx;
-  color: #9A96B8;
 }
-.tab-text.active {
-  color: #7C6BE8;
-  font-weight: 600;
+.tab-dot.on {
+  background: #7C6BE8;
 }

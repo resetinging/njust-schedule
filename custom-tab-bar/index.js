@@ -1,18 +1,19 @@
 /**
  * 自定义 tabBar — 合页方案(swiper 容器)
  * 点击 tab → 通知 main 页面切换 swiper.current(带动画)
- * 高亮状态由 main 页面通过 getTabBar().setData({selected}) 同步
+ * 高亮状态由 main 页面通过 setData({selected}) 同步
+ * 纯图标模式(无文字): emoji 图标, 未选中置灰, 选中彩色放大
  */
 Component({
   data: {
     selected: 0,
     list: [
-      { pagePath: 'pages/schedule/schedule', text: '课表', iconPath: '/static/icons/schedule.png', selectedIconPath: '/static/icons/schedule-active.png' },
-      { pagePath: 'pages/exams/exams', text: '考试', iconPath: '/static/icons/exam.png', selectedIconPath: '/static/icons/exam-active.png' },
-      { pagePath: 'pages/eval/eval', text: '评教', iconPath: '/static/icons/eval.png', selectedIconPath: '/static/icons/eval-active.png' },
-      { pagePath: 'pages/grades/grades', text: '成绩', iconPath: '/static/icons/grades.png', selectedIconPath: '/static/icons/grades-active.png' },
-      { pagePath: 'pages/board/board', text: '留言板', emoji: '💬' },
-      { pagePath: 'pages/settings/settings', text: '我的', iconPath: '/static/icons/settings.png', selectedIconPath: '/static/icons/settings-active.png' }
+      { pagePath: 'pages/schedule/schedule', emoji: '📅' },
+      { pagePath: 'pages/exams/exams', emoji: '📝' },
+      { pagePath: 'pages/eval/eval', emoji: '📋' },
+      { pagePath: 'pages/grades/grades', emoji: '🎓' },
+      { pagePath: 'pages/board/board', emoji: '💬' },
+      { pagePath: 'pages/settings/settings', emoji: '👤' }
     ]
   },
 
