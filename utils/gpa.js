@@ -118,12 +118,13 @@ function calcGpa(grades, gpaOnly) {
   return totalCredits > 0 ? _round(totalWeighted / totalCredits) : 0
 }
 
-/** 四六级总分 → 百分制折算(参考 App 公式: 总分/710×100, 下限 60); 无效分数返回 0 */
+/** 四六级总分 → 百分制折算(参考 App 公式: 总分/710×100, 无 60 下限;
+ *  折算 <60 分时绩点为 0, 与参考 App 一致); 无效分数返回 0 */
 function cetToPercentage(cetScore, cetType) {
   const score = parseFloat(cetScore) || 0
   if (score <= 0) return 0
   const pct = score / 710 * 100
-  return _round(Math.min(100, Math.max(60, pct)), 1)
+  return _round(Math.min(100, Math.max(0, pct)), 2)
 }
 
 /** 判断是否为英语课（保研模式中被 CET 替换） */
@@ -133,8 +134,8 @@ function isEnglishCourse(courseName) {
 }
 
 /**
- * 保研/推免模式绩点: 四六级折算成绩以 8 学分附加计入(参考 App 口径,
- * 不替换英语课; 原英语课成绩保留参与计算)
+ * 保研/推免模式绩点: 四六级折算成绩以 8 学分替换英语课(参考 App 口径:
+ * CET 折算条目勾选时英语课不计入); 折算 <60 分时绩点为 0
  * 优先级: CET6 > CET4
  */
 function calcGpaBaoyan(grades, cetScores, gpaOnly) {
@@ -155,7 +156,9 @@ function calcGpaBaoyan(grades, cetScores, gpaOnly) {
 
   let calcGrades = list
   if (pct > 0) {
-    calcGrades = list.concat([{
+    // 英语课由 CET 折算替换
+    const nonEnglish = list.filter(g => !isEnglishCourse(g.course_name))
+    calcGrades = nonEnglish.concat([{
       course_name: 'CET折算(8学分)',
       score: String(pct),
       credit: 8,

@@ -156,14 +156,30 @@ Component({
       const isBaoyan = this._mode === 'baoyan'
 
       // --- 统计 ---
-      const totalCredits = checked.reduce((s, g) => s + _num(g.credit), 0)
+      // 有效计算列表: 保研模式 = 排除英语课 + CET 折算条目(8学分, 参考 App 口径);
+      // 普通模式 = 勾选课程(英语课计入)
+      let calcList = checked
+      if (isBaoyan) {
+        let best = null
+        for (const s of this._cetRaw) {
+          const pct = gpaUtil.cetToPercentage(s.score, s.type)
+          if (pct > 0 && (!best || pct > best.pct)) best = { pct, s }
+        }
+        if (best) {
+          const nonEng = checked.filter(g => !gpaUtil.isEnglishCourse(g.course_name))
+          calcList = nonEng.concat([{
+            course_name: 'CET折算(8学分)',
+            score: String(best.pct),
+            credit: 8,
+            grade_point: gpaUtil.scoreToGp(best.pct),
+            course_nature: 'CET'
+          }])
+        }
+      }
+      const totalCredits = calcList.reduce((s, g) => s + _num(g.credit), 0)
       // 平均分: 学分加权(等级制折算百分制参与, 与参考 App 口径一致)
-      const avg = gpaUtil.calcAvg(checked)
-      // 勾选完全生效: gpaOnly=false, 通识教育选修课默认不勾选(评奖口径),
-      // 用户手动勾选后计入(学籍口径)。修复: 之前 gpaOnly=true 硬排除导致勾选无效
-      const gpaV = isBaoyan
-        ? gpaUtil.calcGpaBaoyan(checked, this._cetRaw, false)
-        : gpaUtil.calcGpa(checked, false)
+      const avg = gpaUtil.calcAvg(calcList)
+      const gpaV = gpaUtil.calcGpa(calcList, false)
       let gpaClass = ''
       if (gpaV >= 3.0) gpaClass = 'gpa-high'
       else if (gpaV >= 2.0) gpaClass = 'gpa-mid'
