@@ -74,6 +74,7 @@ Page({
 
   /** swiper 滑动结束: 更新激活视图 + tabBar 高亮 + 透明度复位 */
   onSwiperChange(e) {
+    this._touching = false
     const i = e.detail.current
     this.setData({ current: i, fade: this._resetFade(i), swiping: false })
     this._preActivating = null   // 复位预激活标记
@@ -81,11 +82,32 @@ Page({
     this._syncTabBar()
   },
 
+  /** 手指按下: 标记拖动开始(之后 transition 的透明度才跟手) */
+  onSwiperTouchStart() {
+    this._touching = true
+  },
+
+  /** 手指松开/取消: 停止跟手; 惯性过渡期间的 transition 事件被忽略(防竞态)。
+   *  若 300ms 内未发生页面切换(即回弹), 平滑复位当前页透明度 */
+  onSwiperTouchEnd() {
+    if (!this._touching) return
+    this._touching = false
+    this.setData({ swiping: false })   // 恢复 0.25s 过渡, 后续变化平滑
+    const cur = this.data.current
+    setTimeout(() => {
+      if (this.data.current === cur && !this._touching) {
+        this.setData({ fade: this._resetFade(cur) })
+      }
+    }, 300)
+  },
+
   /**
-   * swiper 滑动进行中: 透明度跟随滑动距离(目标页随位移变实, 当前页随位移变淡);
+   * swiper 滑动进行中: 仅手指按住期间透明度跟随滑动距离
+   * (目标页随位移变实, 当前页随位移变淡);
    * 同时提前激活目标页(懒渲染组件此时渲染, 数据已在缓存), 消除"首次滑动进入空白页"
    */
   onSwiperTransition(e) {
+    if (!this._touching) return   // 惯性过渡期间不跟手(防竞态)
     const dx = e.detail.dx
     if (!dx) return
     const target = dx < 0 ? this.data.current + 1 : this.data.current - 1

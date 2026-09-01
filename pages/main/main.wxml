@@ -6,6 +6,9 @@
           current="{{current}}"
           bindchange="onSwiperChange"
           bindtransition="onSwiperTransition"
+          bindtouchstart="onSwiperTouchStart"
+          bindtouchend="onSwiperTouchEnd"
+          bindtouchcancel="onSwiperTouchEnd"
           duration="260">
     <swiper-item wx:for="{{tabs}}" wx:key="index">
       <view class="fade-wrap {{swiping ? 'no-trans' : ''}}"
