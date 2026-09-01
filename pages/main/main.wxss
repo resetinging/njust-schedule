@@ -6,12 +6,3 @@
 .main-swiper {
   width: 100%;
 }
-
-/* 淡入淡出: opacity 由滑动距离驱动(swiping 时无过渡, 点击切换时 0.25s 平滑淡入) */
-.fade-wrap {
-  height: 100%;
-  transition: opacity 0.25s ease;
-}
-.fade-wrap.no-trans {
-  transition: none;
-}

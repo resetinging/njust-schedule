@@ -1,25 +1,18 @@
-<!-- 主页面: swiper 承载 6 个 Tab 视图(课表/考试/评教/成绩/留言板/我的)
-     淡入淡出以滑动距离为标志: 滑动中目标页随位移变实、当前页随位移变淡 -->
+<!-- 主页面: swiper 承载 6 个 Tab 视图(课表/考试/评教/成绩/留言板/我的) -->
 <view class="main-page">
   <swiper class="main-swiper"
           style="height: {{swiperHeight}}px"
           current="{{current}}"
           bindchange="onSwiperChange"
           bindtransition="onSwiperTransition"
-          bindtouchstart="onSwiperTouchStart"
-          bindtouchend="onSwiperTouchEnd"
-          bindtouchcancel="onSwiperTouchEnd"
           duration="260">
     <swiper-item wx:for="{{tabs}}" wx:key="index">
-      <view class="fade-wrap {{swiping ? 'no-trans' : ''}}"
-            style="opacity: {{fade[index]}}">
-        <schedule-view wx:if="{{index === 0}}" id="tabview0" />
-        <exams-view wx:elif="{{index === 1}}" id="tabview1" />
-        <eval-view wx:elif="{{index === 2}}" id="tabview2" />
-        <grades-view wx:elif="{{index === 3}}" id="tabview3" />
-        <board-view wx:elif="{{index === 4}}" id="tabview4" />
-        <settings-view wx:elif="{{index === 5}}" id="tabview5" />
-      </view>
+      <schedule-view wx:if="{{index === 0}}" id="tabview0" />
+      <exams-view wx:elif="{{index === 1}}" id="tabview1" />
+      <eval-view wx:elif="{{index === 2}}" id="tabview2" />
+      <grades-view wx:elif="{{index === 3}}" id="tabview3" />
+      <board-view wx:elif="{{index === 4}}" id="tabview4" />
+      <settings-view wx:elif="{{index === 5}}" id="tabview5" />
     </swiper-item>
   </swiper>
 
