@@ -157,11 +157,8 @@ Component({
 
       // --- 统计 ---
       const totalCredits = checked.reduce((s, g) => s + _num(g.credit), 0)
-      // 均分: 仅统计百分制成绩(等级制不折算不参与); 无百分制时显示 '-'
-      const scored = checked.map(_numScore).filter(v => v != null)
-      const avg = scored.length
-        ? _fixed(scored.reduce((s, v) => s + v, 0) / scored.length)
-        : '-'
+      // 平均分: 学分加权(等级制折算百分制参与, 与参考 App 口径一致)
+      const avg = gpaUtil.calcAvg(checked)
       // 勾选完全生效: gpaOnly=false, 通识教育选修课默认不勾选(评奖口径),
       // 用户手动勾选后计入(学籍口径)。修复: 之前 gpaOnly=true 硬排除导致勾选无效
       const gpaV = isBaoyan
@@ -199,13 +196,10 @@ Component({
       const semGroups = semKeys.map(sem => {
         const gs = groups[sem].slice().sort((a, b) => (a.course_name || '').localeCompare(b.course_name || ''))
         const semChecked = gs.filter(g => this._checked[g.id] !== false)
-        // 每学期百分制均分(仅数字成绩; 等级制不参与)
-        const semScored = semChecked.map(_numScore).filter(v => v != null)
-        const semAvg = semScored.length
-          ? _fixed(semScored.reduce((s, v) => s + v, 0) / semScored.length)
-          : '-'
+        // 每学期均分: 学分加权(等级折算, 与总平均分口径一致)
+        const semAvg = gpaUtil.calcAvg(semChecked)
         // 每学期绩点: 始终用普通 GPA(与桌面端 calcSemesterGpas 一致;
-        // CET 折算替换仅作用于总 GPA, 不作用于各学期)
+        // CET 折算仅作用于总 GPA, 不作用于各学期)
         const semGpa = gpaUtil.calcGpa(semChecked, true)
         let semGpaClass = ''
         if (semGpa >= 3.0) semGpaClass = 'gpa-high'
@@ -214,7 +208,7 @@ Component({
         return {
           sem,
           count: gs.length,
-          avg: _fixed(semAvg),
+          avg: semAvg > 0 ? _fixed(semAvg) : '-',
           gpa: _fixed(semGpa),
           gpaClass: semGpaClass,
           folded: this._folded && this._folded[sem] === true,
@@ -242,7 +236,7 @@ Component({
         stats: {
           credits: _fixed(totalCredits, 1),
           count: checked.length,
-          avg: _fixed(avg),
+          avg: avg > 0 ? _fixed(avg) : '-',
           gpa: _fixed(gpaV),
           gpaClass,
           mode: this._mode,
