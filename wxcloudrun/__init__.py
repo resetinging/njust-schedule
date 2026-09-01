@@ -26,11 +26,21 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
         config.MYSQL_USERNAME, config.MYSQL_PASSWORD, config.MYSQL_ADDRESS))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 防止 MySQL 连接空闲超时断开（云数据库默认 8 小时，但容器冷启后旧连接失效）
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+# 防止 MySQL 连接空闲超时断开（云数据库默认 8 小时，但容器冷启后旧连接失效）；
+# 连接池 10 + 溢出 10: 控制面板重聚合/小程序批量刷新并发时避免池耗尽
+# (池耗尽会让请求线程阻塞等待连接, 叠加长连接占用即表现为整站卡死)。
+# 注意: pool_size/max_overflow 仅 MySQL 队列池支持, SQLite(NullPool) 会拒绝, 故按 URI 区分
+_engine_opts = {
     'pool_pre_ping': True,   # 每次使用前检测连接是否存活
     'pool_recycle': 3600,    # 每小时回收连接，避免 MySQL wait_timeout
 }
+if not os.environ.get("SQLALCHEMY_DATABASE_URI", "").startswith("sqlite"):
+    _engine_opts.update({
+        'pool_size': 10,
+        'max_overflow': 10,
+        'pool_timeout': 10,  # 取连接最长等待 10s, 超时报错而不是无限挂起
+    })
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = _engine_opts
 
 # 初始化 SQLAlchemy
 db = SQLAlchemy(app)

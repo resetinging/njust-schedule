@@ -381,6 +381,15 @@ assert r.status_code == 200 and r.get_json()["success"], r.status_code
 sids = {m["student_id"] for m in r.get_json()["messages"]}
 assert {"10001", "10002", "10003"} <= sids, sids
 print("  [PASS] 管理端留言列表(含真实学号)")
+
+# 仪表盘重聚合端点: 回归防护(历史 bug: 误删 func 导入导致 500; 缓存二次命中)
+for path in ("/api/admin/summary", "/api/admin/users", "/api/admin/stats/grades"):
+    r = client.get(path, headers=ah)
+    assert r.status_code == 200 and r.get_json()["success"], (path, r.status_code)
+r = client.get("/api/admin/summary?refresh=1", headers=ah)
+assert r.status_code == 200 and r.get_json()["success"], r.status_code
+print("  [PASS] 管理端仪表盘/用户/成绩统计(含缓存与强制刷新)")
+check("admin/stream 已移除(改轮询) 404", client.get("/api/admin/stream", headers=ah), 404)
 check("admin 删除评论", client.delete(f"/api/admin/board/comment/{cmid}", headers=ah), 200)
 r = client.get(f"/api/board/{m1['id']}/comments", headers=bh2).get_json()
 assert all(c["id"] != cmid for c in r["comments"]), r

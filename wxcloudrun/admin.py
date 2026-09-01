@@ -2,8 +2,10 @@
 管理控制面板 — 私有后台
 =========================
 - 管理员鉴权: ADMIN_PASSWORD 环境变量, 登录签发带 TTL 的 token
-- 实时请求监控: 内存环形缓冲 + SSE 推送(前端 EventSource, token 走 query)
-- 用户/成绩统计: 数据库聚合(用户列表/成绩分布/等级分布/各学期均分)
+- 实时请求监控: 内存环形缓冲 + 前端 15s 短轮询(无长连接, 不占服务线程)
+- 用户/成绩统计: 数据库聚合(用户列表/成绩分布/等级分布/各学期均分),
+  重查询带进程内 TTL 缓存, 手动刷新可强制失效
+- 轻量化设计: 单实例 1 核 2G 部署下, 面板不产生长期线程占用
 
 说明: 在线会话池 _sessions 定义在 views.py, 本模块通过函数内
 延迟导入访问, 避免循环导入。
@@ -15,7 +17,8 @@ import threading
 import time
 from collections import deque
 from functools import wraps
-from flask import request, jsonify, Response, render_template, stream_with_context, g
+from flask import request, jsonify, render_template, g
+from sqlalchemy import func
 
 from wxcloudrun import app, db
 from wxcloudrun.model import Course, Exam, Evaluation, Grade, CetScore, Setting
@@ -120,38 +123,34 @@ def admin_logout():
 
 
 # ============================================================
-# 实时请求流(SSE)
+# 实时请求流: 短轮询(前端 15s 拉 /api/admin/requests?since=)
+# 说明: 曾用 SSE 长连接, 单实例部署下每个连接永久占用一个服务线程,
+# 面板多开时线程耗尽导致整站排队卡死, 已改为无长连接轮询。
 # ============================================================
-@app.route("/api/admin/stream")
-@admin_required
-def admin_stream():
-    def gen():
-        try:
-            last_id = int(request.args.get("since", "0") or "0")
-        except ValueError:
-            last_id = 0
-        # 先补发当前快照
-        for r in _recent_since(last_id):
-            yield f"data: {json.dumps(r, ensure_ascii=False)}\n\n"
-            last_id = r["id"]
-        # 持续轮询(15s), 无新数据发心跳保持连接
-        # (心跳间隔不宜过短: 减少无谓 IO; 网关空闲断开一般 >60s)
-        while True:
-            rows = _recent_since(last_id)
-            if rows:
-                for r in rows:
-                    yield f"data: {json.dumps(r, ensure_ascii=False)}\n\n"
-                    last_id = r["id"]
-            else:
-                yield ": ping\n\n"
-            time.sleep(15)
-    return Response(stream_with_context(gen()),
-                    mimetype="text/event-stream",
-                    headers={
-                        "Cache-Control": "no-cache",
-                        "X-Accel-Buffering": "no",
-                        "Connection": "keep-alive",
-                    })
+
+
+# ============================================================
+# 重统计缓存(进程内 TTL): summary 30s / users 60s / stats 300s
+# 数据仅在用户刷新教务时变化, 面板侧无需实时; 手动刷新传 refresh=1 强制失效
+# ============================================================
+_admin_cache = {}   # key -> (expires_ts, value)
+
+
+def _stats_cache_get(key: str):
+    with _admin_lock:
+        item = _admin_cache.get(key)
+        if item and item[0] > time.time():
+            return item[1]
+    return None
+
+
+def _stats_cache_set(key: str, value, ttl: int):
+    with _admin_lock:
+        _admin_cache[key] = (time.time() + ttl, value)
+        if len(_admin_cache) > 50:
+            now = time.time()
+            for k in [k for k, (ts, _v) in _admin_cache.items() if ts <= now]:
+                _admin_cache.pop(k, None)
 
 
 # ============================================================
@@ -161,6 +160,12 @@ def admin_stream():
 @admin_required
 def admin_summary():
     from wxcloudrun import views as _v
+    force = request.args.get("refresh") == "1"
+    cache_key = "summary"
+    if not force:
+        cached = _stats_cache_get(cache_key)
+        if cached is not None:
+            return jsonify(cached)
     # 在线会话
     with _v._sessions_lock:
         sessions = list(_v._sessions.items())
@@ -181,21 +186,29 @@ def admin_summary():
     with _admin_lock:
         req_total = _req_total
         uptime = int(time.time() - _start_ts)
-    return jsonify({
+    resp = {
         "success": True,
         "online_sessions": online,
         "total_users": len(all_users),
         "requests_total": req_total,
         "uptime_sec": uptime,
         "counts": counts,
-    })
+    }
+    _stats_cache_set(cache_key, resp, ttl=30)
+    return jsonify(resp)
 
 
 @app.route("/api/admin/users")
 @admin_required
 def admin_users():
-    """用户列表: 学号 + 数据量 + 最高绩点 + 最近活跃"""
+    """用户列表: 学号 + 数据量 + 最高绩点 + 最近活跃(带 60s 缓存)"""
     from wxcloudrun import views as _v
+    force = request.args.get("refresh") == "1"
+    cache_key = "users"
+    if not force:
+        cached = _stats_cache_get(cache_key)
+        if cached is not None:
+            return jsonify(cached)
     # 在线会话快照
     with _v._sessions_lock:
         sess = {sid: [c, ts] for sid, (c, ts) in _v._sessions.items()}
@@ -240,7 +253,9 @@ def admin_users():
             "name": name,
         })
     users.sort(key=lambda u: (not u["online"], u["student_id"]))
-    return jsonify({"success": True, "users": users})
+    resp = {"success": True, "users": users}
+    _stats_cache_set(cache_key, resp, ttl=60)
+    return jsonify(resp)
 
 
 @app.route("/api/admin/users/<sid>")
@@ -322,7 +337,8 @@ def score_to_gp(score):
 
 def calc_gpa_by_semester(rows):
     """按学期计算加权平均绩点 Σ(学分×绩点)/Σ学分(与桌面端 calcGpa 一致)
-    rows: [(score, grade_point, credit, academic_year, semester)]"""
+    rows: [(score, grade_point, credit, academic_year, semester)]
+    说明: admin_grade_stats 已改为单遍流式扫描, 此函数保留供其他调用方使用。"""
     sem = {}   # (学年,学期) -> [加权绩点和, 学分和]
     for score, gp, credit, ay, sem_key in rows:
         try:
@@ -356,12 +372,26 @@ def calc_gpa_by_semester(rows):
 @app.route("/api/admin/stats/grades")
 @admin_required
 def admin_grade_stats():
-    """成绩统计: 等级分布 + GPA 分布 + 各学期平均绩点(官方绩点制)"""
-    rows = db.session.query(
-        Grade.student_id, Grade.score, Grade.grade_point, Grade.credit,
-        Grade.academic_year, Grade.semester).all()
+    """成绩统计: 等级分布 + GPA 分布 + 各学期平均绩点(官方绩点制)
+
+    轻量化: 全量成绩流式拉取(yield_per), 单遍扫描同时产出三项统计;
+    结果缓存 300s, 手动刷新传 refresh=1 强制重算。
+    """
+    force = request.args.get("refresh") == "1"
+    cache_key = "stats_grades"
+    if not force:
+        cached = _stats_cache_get(cache_key)
+        if cached is not None:
+            return jsonify(cached)
+
     level_dist = {"优秀": 0, "良好": 0, "中等": 0, "及格": 0, "不及格": 0, "其他": 0}
-    for sid, score, gp, credit, ay, sem in rows:
+    sem = {}    # "学年-学期" -> [加权绩点和, 学分和]
+    best = {}   # sid -> 最高绩点
+    q = db.session.query(
+        Grade.student_id, Grade.score, Grade.grade_point, Grade.credit,
+        Grade.academic_year, Grade.semester).yield_per(1000)
+    for sid, score, gp, credit, ay, sem_key in q:
+        # ── 等级分布 ──
         s = str(score or "").strip()
         if s in ("", "缺考", "缓考", "免修"):
             level_dist["其他"] += 1
@@ -379,21 +409,34 @@ def admin_grade_stats():
         elif "中" in s: level_dist["中等"] += 1
         elif "及格" in s or "通过" in s: level_dist["及格"] += 1
         else: level_dist["其他"] += 1
-    # 各学期平均绩点(官方口径, 等级制直接走绩点表)
-    sem_gpa = calc_gpa_by_semester([(r[1], r[2], r[3], r[4], r[5]) for r in rows])
-    # GPA 分布按学生最高绩点(grade_point 为空/0 时按成绩折算)
-    best = {}
-    for sid, score, gp, credit, ay, sem in rows:
+        # ── 绩点换算(数据库 grade_point 为 0/空时按成绩折算; 与桌面端一致) ──
+        try:
+            c = float(credit or 0)
+        except (TypeError, ValueError):
+            c = 0
         try:
             gpv = float(gp or 0)
         except (TypeError, ValueError):
             gpv = 0
         if gpv == 0:
             gpv = score_to_gp(score)
-        if gpv <= 0:
-            continue
-        if sid not in best or gpv > best[sid]:
-            best[sid] = gpv
+        # 各学期加权绩点(学分 <=0 与缓考/缺考等不参与)
+        if gpv >= 0 and c > 0:
+            key = f"{ay}-{sem_key}"
+            if key not in sem:
+                sem[key] = [0.0, 0.0]
+            sem[key][0] += c * gpv
+            sem[key][1] += c
+        # 学生最高绩点(不筛学分, 与旧口径一致)
+        if gpv > 0:
+            if sid not in best or gpv > best[sid]:
+                best[sid] = gpv
+
+    sem_gpa = []
+    for k, (weighted, credits) in sem.items():
+        if credits > 0:
+            sem_gpa.append({"sem": k, "gpa": round(weighted / credits, 2), "credits": round(credits, 1)})
+    sem_gpa.sort(key=lambda x: x["sem"], reverse=True)
     gpa_hist = {"<2.0": 0, "2.0-2.5": 0, "2.5-3.0": 0, "3.0-3.5": 0, "3.5-4.0": 0}
     for v in best.values():
         if v < 2.0: gpa_hist["<2.0"] += 1
@@ -401,7 +444,9 @@ def admin_grade_stats():
         elif v < 3.0: gpa_hist["2.5-3.0"] += 1
         elif v < 3.5: gpa_hist["3.0-3.5"] += 1
         else: gpa_hist["3.5-4.0"] += 1
-    return jsonify({"success": True, "level_dist": level_dist, "gpa_hist": gpa_hist, "sem_gpa": sem_gpa})
+    resp = {"success": True, "level_dist": level_dist, "gpa_hist": gpa_hist, "sem_gpa": sem_gpa}
+    _stats_cache_set(cache_key, resp, ttl=300)
+    return jsonify(resp)
 
 
 @app.route("/api/admin/requests")
@@ -494,10 +539,13 @@ def admin_set_announcement():
 def admin_fetch_names():
     """对无姓名记录的用户, 用默认密码(学号+@Njust)尝试登录教务获取姓名。
 
-    仅对缺失姓名的用户逐个尝试; 串行 + 间隔 2 秒 + 上限 20 人,
-    避免批量登录触发教务风控。改过密码的用户会失败跳过。
+    轻量化: 每批最多 5 人 + 60s 硬超时(串行在请求线程内执行,
+    数量过多会长时间阻塞服务线程, 故分批; 前端可多次点击)。
+    串行 + 间隔 2 秒, 避免批量登录触发教务风控。
     """
     from wxcloudrun.jwc_client import JWCClient
+    FETCH_BATCH_MAX = 5        # 每批最多人数
+    FETCH_DEADLINE_SEC = 60    # 单请求硬超时(到点停止剩余尝试)
     # 1) 全部学生 ID(成绩/课表/考试表并集)
     sids = sorted({r[0] for r in db.session.query(Grade.student_id).filter(Grade.student_id != "").distinct().all()} |
                   {r[0] for r in db.session.query(Course.student_id).filter(Course.student_id != "").distinct().all()} |
@@ -511,9 +559,13 @@ def admin_fetch_names():
     if not missing:
         return jsonify({"success": True, "tried": 0, "ok": [], "fail": [],
                         "message": "所有用户均已有姓名记录"})
-    missing = missing[:20]   # 单次上限, 防风控
+    missing = missing[:FETCH_BATCH_MAX]
+    deadline = time.time() + FETCH_DEADLINE_SEC
     ok_list, fail_list = [], []
+    tried = 0
     for i, sid in enumerate(missing):
+        if time.time() > deadline:
+            break
         if i > 0:
             time.sleep(2)   # 串行 + 间隔, 降低教务风控风险
         client = JWCClient()
@@ -522,6 +574,7 @@ def admin_fetch_names():
         except Exception as e:
             ok = False
             client.last_error = f"异常: {e}"
+        tried += 1
         if ok and client.student_name:
             try:
                 dao.set_user_setting(sid, "name", client.student_name)
@@ -536,12 +589,16 @@ def admin_fetch_names():
             client.logout()
         except Exception:
             pass
+    remain = len(missing) - tried
+    msg = f"成功 {len(ok_list)} 人, 失败 {len(fail_list)} 人(多为已改密码, 可忽略)"
+    if remain > 0:
+        msg += f"; 本批受 60s 超时限制, 剩余 {remain} 人可再次点击继续"
     return jsonify({
         "success": True,
-        "tried": len(missing),
+        "tried": tried,
         "ok": ok_list,
         "fail": fail_list,
-        "message": f"成功 {len(ok_list)} 人, 失败 {len(fail_list)} 人(多为已改密码, 可忽略)",
+        "message": msg,
     })
 
 

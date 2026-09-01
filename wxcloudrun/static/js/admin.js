@@ -6,7 +6,9 @@
 const $ = (id) => document.getElementById(id);
 const TOKEN_KEY = 'admin_token';
 let token = localStorage.getItem(TOKEN_KEY) || '';
-let es = null;
+// 实时请求监控: 15s 短轮询(无长连接, 不占用服务线程)
+let reqPollTimer = null;
+let reqSince = 0;
 let reqCount = 0;
 
 // ============================================================
@@ -90,7 +92,8 @@ async function checkLogin() {
   if (!token) { show('login'); return; }
   try {
     const r = await api('/api/admin/check');
-    if (r.logged_in) { show('main'); startStream(); loadSummary(); loadUsers(); loadSessions(); loadGradeStats(); loadAnnouncement(); loadBoard(); loadFeedback(); }
+    // 轻量启动: 只拉仪表盘/会话/公告; 用户与成绩统计切到对应 Tab 才加载
+    if (r.logged_in) { show('main'); startPoll(); loadSummary(); loadSessions(); loadAnnouncement(); }
     else { logout(); }
   } catch (e) { logout(); }
 }
@@ -98,7 +101,7 @@ async function checkLogin() {
 function logout() {
   token = '';
   localStorage.removeItem(TOKEN_KEY);
-  if (es) { es.close(); es = null; }
+  stopPoll();
   show('login');
 }
 
@@ -114,7 +117,7 @@ $('loginBtn').addEventListener('click', async () => {
       token = r.token;
       localStorage.setItem(TOKEN_KEY, token);
       show('main');
-      startStream(); loadSummary(); loadUsers(); loadSessions(); loadGradeStats();
+      startPoll(); loadSummary(); loadSessions(); loadAnnouncement();
     } else {
       $('loginErr').textContent = r.message || '登录失败';
       $('loginErr').classList.remove('hidden');
@@ -183,21 +186,38 @@ function reqRowHtml(r) {
     `</div>`;
 }
 
-function startStream() {
-  if (es) es.close();
+function startPoll() {
+  stopPoll();
   const status = $('sseStatus');
-  es = new EventSource('/api/admin/stream?token=' + encodeURIComponent(token));
-  es.onopen = () => { status.textContent = '● 实时连接中'; status.className = 'sse-status ok'; };
-  es.onerror = () => { status.textContent = '● 连接断开，重连中…'; status.className = 'sse-status warn'; };
-  es.onmessage = (ev) => {
-    try {
-      const r = JSON.parse(ev.data);
-      // 缓冲上限
-      reqBuf.push(r);
+  status.textContent = '● 监控中';
+  status.className = 'sse-status ok';
+  fetchReqs();
+  reqPollTimer = setInterval(fetchReqs, 15000);
+}
+
+function stopPoll() {
+  if (reqPollTimer) { clearInterval(reqPollTimer); reqPollTimer = null; }
+}
+
+/** 拉取 reqSince 之后的请求记录(15s 轮询, 短请求立即释放服务线程) */
+async function fetchReqs() {
+  try {
+    const r = await api('/api/admin/requests?since=' + reqSince);
+    if (!r.success) return;
+    (r.requests || []).forEach(x => {
+      reqBuf.push(x);
       if (reqBuf.length > 800) reqBuf = reqBuf.slice(-800);
-      renderReqs();
-    } catch (e) {}
-  };
+      if (x.id > reqSince) reqSince = x.id;
+    });
+    const status = $('sseStatus');
+    status.textContent = '● 监控中';
+    status.className = 'sse-status ok';
+    renderReqs();
+  } catch (e) {
+    const status = $('sseStatus');
+    status.textContent = '● 监控异常';
+    status.className = 'sse-status warn';
+  }
 }
 
 $('reqClear').addEventListener('click', () => { reqBuf = []; renderReqs(); });
@@ -214,9 +234,9 @@ $('reqPause').addEventListener('click', () => {
 // ============================================================
 // 仪表盘统计
 // ============================================================
-async function loadSummary() {
+async function loadSummary(force) {
   try {
-    const r = await api('/api/admin/summary');
+    const r = await api('/api/admin/summary' + (force ? '?refresh=1' : ''));
     if (!r.success) return;
     const up = r.uptime_sec;
     const upTxt = up >= 86400 ? Math.floor(up / 86400) + '天' + Math.floor(up % 86400 / 3600) + '时'
@@ -238,9 +258,9 @@ async function loadSummary() {
 // ============================================================
 let allUsersCache = [];
 
-async function loadUsers() {
+async function loadUsers(force) {
   try {
-    const r = await api('/api/admin/users');
+    const r = await api('/api/admin/users' + (force ? '?refresh=1' : ''));
     if (!r.success) return;
     allUsersCache = r.users;
     renderUsers();
@@ -281,12 +301,12 @@ function renderUsers() {
 
 $('userSearch').addEventListener('input', renderUsers);
 
-/** 获取缺失姓名: 后端用默认密码(学号+@Njust)尝试登录教务补齐 */
+/** 获取缺失姓名: 后端用默认密码(学号+@Njust)尝试登录教务补齐(每批最多 5 人) */
 $('fetchNamesBtn').addEventListener('click', async () => {
   const btn = $('fetchNamesBtn');
   const msg = $('fetchNamesMsg');
   btn.disabled = true;
-  msg.textContent = '正在尝试登录教务获取姓名(逐个进行, 可能需 1-2 分钟)…';
+  msg.textContent = '正在尝试登录教务获取姓名(每批最多 5 人, 约需 1 分钟)…';
   try {
     const r = await api('/api/admin/fetch-names', { method: 'POST' });
     if (r.success) {
@@ -369,10 +389,10 @@ function barChart(el, data, color) {
     </div>`).join('');
 }
 
-async function loadGradeStats() {
+async function loadGradeStats(force) {
   try {
     const [r, tr] = await Promise.all([
-      api('/api/admin/stats/grades'),
+      api('/api/admin/stats/grades' + (force ? '?refresh=1' : '')),
       api('/api/admin/stats/requests').catch(() => null)
     ]);
     if (!r.success) return;
@@ -403,14 +423,20 @@ async function loadGradeStats() {
 }
 
 // ============================================================
-// Tab 切换
+// Tab 切换(重数据 Tab 首次切入才加载, 避免登录时集中触发重聚合)
 // ============================================================
+const tabLoaded = {};
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    $('panel-' + tab.dataset.tab).classList.add('active');
+    const t = tab.dataset.tab;
+    $('panel-' + t).classList.add('active');
+    if (t === 'users' && !tabLoaded.users) { tabLoaded.users = true; loadUsers(); }
+    if (t === 'grades' && !tabLoaded.grades) { tabLoaded.grades = true; loadGradeStats(); }
+    if (t === 'board' && !tabLoaded.board) { tabLoaded.board = true; loadBoard(); }
+    if (t === 'feedback' && !tabLoaded.feedback) { tabLoaded.feedback = true; loadFeedback(); }
   });
 });
 
@@ -541,10 +567,9 @@ $('feedbackStatus').addEventListener('change', loadFeedback);
 // 启动
 // ============================================================
 checkLogin();
-// 手动刷新: 仪表盘/用户/成绩统计按需加载(性能优化);
-// 仅在线会话保留 10 秒自动轮询(轻量), SSE 实时请求流保持推送
-$('refreshSummaryBtn').addEventListener('click', loadSummary);
-$('refreshUsersBtn').addEventListener('click', loadUsers);
+// 手动刷新: 传 refresh=1 强制后端跳过缓存重算; 在线会话每 10 秒自动轮询(轻量)
+$('refreshSummaryBtn').addEventListener('click', () => loadSummary(true));
+$('refreshUsersBtn').addEventListener('click', () => loadUsers(true));
 $('refreshSessionsBtn').addEventListener('click', loadSessions);
-$('refreshStatsBtn').addEventListener('click', loadGradeStats);
+$('refreshStatsBtn').addEventListener('click', () => loadGradeStats(true));
 setInterval(loadSessions, 10000);   // 在线会话自动刷新
