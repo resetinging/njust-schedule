@@ -303,6 +303,22 @@ function getAnnouncement() {
   return request('GET', '/api/announcement')
 }
 
+/**
+ * 空教室查询(需登录)
+ * @param {object} opts { campus: '孝陵卫'|'江阴', weekday: 1-7(周一=1), slot: '1-3'|'4-5'|'6-7'|'8-10'|'11-13', week: 周次, building: 教学楼名称 }
+ * weekday/week/building 省略时由后端取默认(今天/本周/全部教学楼)
+ */
+function getFreeClassrooms(opts) {
+  const o = opts || {}
+  const params = {}
+  if (o.campus) params.campus = o.campus
+  if (o.weekday) params.weekday = o.weekday
+  if (o.slot) params.slot = o.slot
+  if (o.week) params.week = o.week
+  if (o.building) params.building = o.building
+  return request('GET', '/api/free-classrooms', params)
+}
+
 /** 提交问题反馈(类型: suggest 功能建议 | bug 问题 | other 其他; 服务端 10 秒限流) */
 function submitFeedback(fbType, content) {
   return request('POST', '/api/feedback', {
@@ -513,6 +529,7 @@ module.exports = {
   submitEval,
   getStatus,
   getAnnouncement,
+  getFreeClassrooms,
   submitFeedback,
   setSemester,
   clearData,

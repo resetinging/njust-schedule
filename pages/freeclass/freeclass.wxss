@@ -1,0 +1,117 @@
+/* 空教室查询页 — 淡紫底 + 白色圆角卡片(与"我的"页风格一致) */
+
+.container {
+  min-height: 100vh;
+  background: #F7F6FB;
+  padding-bottom: 60rpx;
+}
+
+/* 白色圆角卡片 */
+.card {
+  background: #fff;
+  border-radius: 24rpx;
+  border: 2rpx solid #EFEBFC;
+  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.06);
+}
+
+/* ---------- 筛选卡片 ---------- */
+.filter-card {
+  margin: 20rpx 24rpx 0;
+  padding: 4rpx 24rpx;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid var(--border, #F0EEF9);
+}
+
+.filter-row:last-child {
+  border-bottom: none;
+}
+
+.filter-label {
+  width: 140rpx;
+  font-size: 28rpx;
+  color: #8A87A8;
+}
+
+.filter-value {
+  flex: 1;
+  font-size: 29rpx;
+  font-weight: 600;
+  color: #33304F;
+}
+
+.filter-row .arrow {
+  color: #C6C2DD;
+  font-size: 32rpx;
+}
+
+/* ---------- 结果摘要 ---------- */
+.result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 28rpx 28rpx 4rpx;
+}
+
+.result-summary {
+  font-size: 24rpx;
+  color: #8A87A8;
+  flex: 1;
+  margin-right: 16rpx;
+}
+
+.result-count {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #7C6BE8;
+}
+
+/* ---------- 教室 chips(点击复制) ---------- */
+.room-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 12rpx 20rpx;
+}
+
+.room-chip {
+  margin: 10rpx;
+  padding: 18rpx 30rpx;
+  background: #fff;
+  border: 2rpx solid #EFEBFC;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  color: #33304F;
+  box-shadow: 0 4rpx 14rpx rgba(87, 74, 160, 0.06);
+}
+
+.room-chip:active {
+  background: #F2EFFF;
+  border-color: #D8CEF8;
+}
+
+/* ---------- 状态提示 ---------- */
+.state-tip {
+  padding: 80rpx 40rpx;
+  text-align: center;
+  font-size: 27rpx;
+  color: #8A87A8;
+}
+
+.err-tip {
+  margin: 24rpx;
+  padding: 20rpx 24rpx;
+  background: #FDEEEE;
+  color: #C05252;
+  border-radius: 16rpx;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+/* ---------- 未登录 ---------- */
+.login-wrap {
+  padding-top: 120rpx;
+}

@@ -2,6 +2,7 @@
   "pages": [
     "pages/main/main",
     "pages/gallery/gallery",
+    "pages/freeclass/freeclass",
     "pages/schedule/schedule",
     "pages/exams/exams",
     "pages/eval/eval",

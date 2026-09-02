@@ -392,6 +392,11 @@ Component({
       }
     },
 
+    /** 打开空教室查询页 */
+    onGoFreeClass() {
+      wx.navigateTo({ url: '/pages/freeclass/freeclass' })
+    },
+
     /** 打开校历照片墙 */
     onGoGallery() {
       wx.navigateTo({ url: '/pages/gallery/gallery' })
