@@ -5,6 +5,18 @@
   <scroll-view class="view-scroll" scroll-y>
 
   <!-- ============================================================ -->
+  <!-- 公告栏(常驻, 登录前后均显示): 折叠展示, 点击展开全文即视为已读 -->
+  <!-- ============================================================ -->
+  <view class="announce-card" wx:if="{{announcement}}" bindtap="onToggleAnnounce">
+    <view class="announce-head">
+      <text class="announce-icon">📢</text>
+      <text class="announce-title">公告</text>
+      <text class="announce-state" wx:if="{{annLong}}">{{annExpanded ? '收起' : '查看全文'}}</text>
+    </view>
+    <view class="announce-body {{annExpanded || !annLong ? '' : 'clamped'}}">{{announcement}}</view>
+  </view>
+
+  <!-- ============================================================ -->
   <!-- 已登录状态 -->
   <!-- ============================================================ -->
   <view wx:if="{{isLoggedIn}}">

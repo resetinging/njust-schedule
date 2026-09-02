@@ -1,5 +1,13 @@
 <!-- 主页面: swiper 承载 5 个 Tab 视图(课表/考试/评教/成绩/我的) -->
 <view class="main-page">
+
+  <!-- 顶部公告条: 有新公告(updated 未读)时展示, 查看后隐藏 -->
+  <view class="ann-bar" wx:if="{{ann.visible}}" bindtap="onAnnTap">
+    <text class="ann-icon">📢</text>
+    <text class="ann-text">{{ann.text}}</text>
+    <text class="ann-close" catchtap="onAnnClose">✕</text>
+  </view>
+
   <swiper class="main-swiper"
           style="height: {{swiperHeight}}px"
           current="{{current}}"

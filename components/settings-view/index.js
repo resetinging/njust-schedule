@@ -8,6 +8,7 @@ const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const config = require('../../utils/config')
 const dataLoader = require('../../utils/data-loader')
+const ann = require('../../utils/announcement')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
 
 Component({
@@ -47,6 +48,12 @@ Component({
     fbContent: '',
     fbSending: false,
 
+    // 公告栏(常驻: 展示当前公告; 展开即视为已读, 主页面顶部横幅随之隐藏)
+    announcement: '',
+    annUpdated: '',        // 公告更新时间(已读标记)
+    annExpanded: false,    // 长公告展开全文
+    annLong: false,        // 超过折叠阈值(需要"查看全文"提示)
+
     // 版本标识（排查线上版本用）
     build: config.BUILD || '',
 
@@ -60,6 +67,7 @@ Component({
       const rp = storage.get('remember_pwd', '1') !== '0'
       if (rp !== this.data.rememberPwd) this.setData({ rememberPwd: rp })
       this.loadSettings()
+      this._loadAnnouncement()
     }
   },
 
@@ -79,6 +87,36 @@ Component({
           this._updateCanLogin()
         }
       }
+      this._loadAnnouncement()
+    },
+
+    /** 拉取公告并展示(有无新公告都常驻显示; 30s 节流) */
+    _loadAnnouncement() {
+      ann.load().then(a => {
+        const show = a.enabled && !!a.text
+        if (!show) {
+          if (this.data.announcement) this.setData({ announcement: '', annLong: false, annExpanded: false })
+          return
+        }
+        this.setData({
+          announcement: a.text,
+          annUpdated: a.updated,
+          annLong: a.text.length > 24,   // 超过 24 字默认折叠, 点击展开
+          annExpanded: false
+        })
+      })
+    },
+
+    /** 点击公告栏: 展开/收起; 用户查看后标记已读, 并通知主页面隐藏顶部横幅 */
+    onToggleAnnounce() {
+      if (!this.data.announcement) return
+      if (!this.data.annExpanded && this.data.annUpdated) {
+        ann.markSeen(this.data.annUpdated)
+        const pages = getCurrentPages()
+        const page = pages[pages.length - 1]
+        if (page && typeof page.onAnnSeen === 'function') page.onAnnSeen()
+      }
+      this.setData({ annExpanded: !this.data.annExpanded })
     },
 
     /** 刷新页面状态 */

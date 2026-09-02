@@ -3,19 +3,29 @@
  * 5 个 Tab(课表/考试/评教/成绩/我的) 用 swiper 承载,
  * 左右滑动原生切换; 自定义 tabBar 点击同步切换。
  * 组件懒渲染: 激活才渲染, 切换时由本页通知 activate。
+ *
+ * 顶部公告条: 管理端更新公告(updated 变化)后展示横幅,
+ * 用户查看(弹窗确认/✕)后标记已读并隐藏; "我的"页公告栏可随时再读。
  */
+
+const ann = require('../../utils/announcement')
 
 Page({
   data: {
     current: 0,       // swiper 当前索引
-    swiperHeight: 600, // swiper 高度(px), 自适应计算
-    tabs: [0, 1, 2, 3, 4]  // 5 个 Tab 索引(供 swiper-item 循环渲染)
+    swiperHeight: 600, // swiper 高度(px), 自适应计算(公告条可见时扣除其高度)
+    tabs: [0, 1, 2, 3, 4],  // 5 个 Tab 索引(供 swiper-item 循环渲染)
+
+    // 顶部公告条
+    ann: { visible: false, text: '', updated: '' }
   },
 
   onLoad() {
     this._calcHeight()
     // 首屏激活第一个 Tab
     this._activate(0)
+    // 拉取公告(有新公告则顶部横幅展示)
+    this._loadAnnouncement(true)
   },
 
   onReady() {
@@ -29,20 +39,68 @@ Page({
     this._activate(this.data.current)
     // 同步 tabBar 高亮
     this._syncTabBar()
+    // 刷新公告状态(可能刚从"我的"页标记已读, 或公告刚更新)
+    this._loadAnnouncement()
   },
 
-  /** 计算 swiper 高度: 视口高 - tabBar 高(约 88rpx, 纯图标模式) - iOS 底部安全区 */
+  /** 计算 swiper 高度: 视口高 - tabBar 高(约 88rpx) - iOS 底部安全区 - 公告条高(若可见) */
   _calcHeight() {
     try {
       const sys = wx.getSystemInfoSync()
-      const tabH = Math.ceil(88 * (sys.windowWidth / 750))
+      const ratio = sys.windowWidth / 750
+      const tabH = Math.ceil(88 * ratio)
       // iOS 全面屏底部安全区(tabBar 有 env(safe-area-inset-bottom) padding)
       const safeH = (sys.safeArea && sys.safeArea.bottom) ? Math.max(0, sys.windowHeight - sys.safeArea.bottom) : 0
-      const h = sys.windowHeight - tabH - safeH - 2
+      let h = sys.windowHeight - tabH - safeH - 2
+      if (this.data.ann.visible) h -= Math.ceil(88 * ratio)   // 公告条高 88rpx
       this.setData({ swiperHeight: h > 200 ? h : 600 })
     } catch (e) {
       this.setData({ swiperHeight: 600 })
     }
+  },
+
+  /** 拉取公告并决定横幅是否展示(仅 updated 未读时展示) */
+  _loadAnnouncement(force) {
+    ann.load(!!force).then(a => {
+      const visible = a.enabled && !!a.text && ann.isNew(a.updated)
+      this.setData({ 'ann.visible': visible, 'ann.text': visible ? a.text : '', 'ann.updated': a.updated })
+      this._calcHeight()
+    })
+  },
+
+  /** 点击公告条: 弹窗展示全文 → 确认即标记已读并隐藏 */
+  onAnnTap() {
+    const a = this.data.ann
+    if (!a.visible) return
+    wx.showModal({
+      title: '📢 公告',
+      content: a.text,
+      showCancel: false,
+      confirmText: '知道了',
+      success: () => this._dismissAnn()
+    })
+  },
+
+  /** 点 ✕ 关闭(同样视为已读) */
+  onAnnClose() {
+    this._dismissAnn()
+  },
+
+  _dismissAnn() {
+    const a = this.data.ann
+    if (!a.visible) return
+    ann.markSeen(a.updated)
+    this.setData({ 'ann.visible': false, 'ann.text': '', 'ann.updated': '' })
+    this._calcHeight()
+  },
+
+  /** "我的"页公告栏查看后回调(设置页标记已读 → 主页面横幅同步隐藏) */
+  onAnnSeen() {
+    if (!this.data.ann.visible) return
+    const c = ann.cached()
+    const visible = c.enabled && !!c.text && ann.isNew(c.updated)
+    this.setData({ 'ann.visible': visible, 'ann.text': visible ? c.text : '', 'ann.updated': c.updated })
+    this._calcHeight()
   },
 
   /** 获取某索引的视图组件实例 */

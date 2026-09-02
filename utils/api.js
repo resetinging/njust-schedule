@@ -298,6 +298,11 @@ function submitEval(formData, submitType, action) {
 // 系统状态
 // ============================================================
 
+/** 获取公告(公开接口; 含 updated 时间, 用于"新公告未读"判断) */
+function getAnnouncement() {
+  return request('GET', '/api/announcement')
+}
+
 /** 提交问题反馈(类型: suggest 功能建议 | bug 问题 | other 其他; 服务端 10 秒限流) */
 function submitFeedback(fbType, content) {
   return request('POST', '/api/feedback', {
@@ -507,6 +512,7 @@ module.exports = {
   getEvalForm,
   submitEval,
   getStatus,
+  getAnnouncement,
   submitFeedback,
   setSemester,
   clearData,

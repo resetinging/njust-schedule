@@ -6,3 +6,36 @@
 .main-swiper {
   width: 100%;
 }
+
+/* ============================================================
+顶部公告条 — 新公告横幅(查看后隐藏, 高度由 JS 计入 swiperHeight)
+============================================================ */
+.ann-bar {
+  display: flex;
+  align-items: center;
+  height: 88rpx;
+  padding: 0 28rpx;
+  background: linear-gradient(90deg, #7C6BE8, #9B8CF5);
+  color: #fff;
+  font-size: 26rpx;
+  box-sizing: border-box;
+}
+
+.ann-bar .ann-icon {
+  margin-right: 14rpx;
+  font-size: 28rpx;
+}
+
+.ann-bar .ann-text {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ann-bar .ann-close {
+  margin-left: 16rpx;
+  padding: 6rpx 10rpx;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.9);
+}

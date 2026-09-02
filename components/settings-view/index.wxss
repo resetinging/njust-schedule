@@ -4,6 +4,54 @@
   padding-bottom: 40rpx;
 }
 
+/* 公告栏(我的页常驻; 展开即视为已读) */
+.announce-card {
+  margin: 20rpx 24rpx 0;
+  padding: 24rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  border: 2rpx solid #EFEBFC;
+  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.06);
+}
+
+.announce-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6rpx;
+}
+
+.announce-icon {
+  margin-right: 10rpx;
+  font-size: 30rpx;
+}
+
+.announce-title {
+  flex: 1;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
+.announce-state {
+  font-size: 22rpx;
+  color: var(--text-hint);
+}
+
+.announce-body {
+  font-size: 26rpx;
+  color: #555;
+  line-height: 1.6;
+  word-break: break-all;
+  white-space: pre-line;
+}
+
+/* 折叠: 最多显示 2 行, 点击展开 */
+.announce-body.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
 /* 用户信息卡片 */
 .user-card {
   display: flex;
