@@ -531,13 +531,19 @@ def api_post_feedback():
 # ============================================================
 @app.route('/api/announcement')
 def api_announcement():
-    """小程序公告栏: 返回公告文本与显示开关(公开接口, 未登录可读)"""
+    """小程序公告: 返回文本/开关/更新时间(公开接口, 未登录可读)。
+
+    updated 为管理端保存时间字符串, 小程序端以"updated != 本地已读标记"
+    判断是否有新公告 → 主页面顶部横幅仅在更新后展示, 查看后隐藏。
+    """
     text = dao.get_setting("announcement_text", "")
     enabled = dao.get_setting("announcement_enabled", "1") == "1"
+    updated = dao.get_setting("announcement_updated", "")
     return jsonify({
         "success": True,
         "enabled": enabled and bool(text.strip()),
         "text": text.strip(),
+        "updated": updated,
     })
 
 

@@ -60,6 +60,11 @@ check("/api/gallery-image 路径穿越防护",
       client.get("/api/gallery-image?name=..%2Fconfig.py"), 400)
 check("/api/connect-test", client.get("/api/connect-test"), 200)
 
+# 公告公开接口: 返回 enabled/text/updated(小程序端按 updated 判断新公告)
+ann = client.get("/api/announcement").get_json()
+assert ann["success"] is True and set(("enabled", "text", "updated")) <= set(ann), ann
+print("  [PASS] /api/announcement 公开接口(含 updated)")
+
 # 无账号模式: 未登录时不泄露数据库里保存的账号/密码状态
 st = client.get("/api/status").get_json()
 assert st["logged_in"] is False and st["student_id"] == "" and st["student_name"] == ""
