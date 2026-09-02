@@ -359,17 +359,6 @@ Component({
       wx.navigateTo({ url: '/pages/gallery/gallery' })
     },
 
-    /** 打开留言板(合页方案: 通知 main 切 swiper 到留言板 Tab) */
-    onGoBoard() {
-      const pages = getCurrentPages()
-      const page = pages[pages.length - 1]
-      if (page && typeof page.onTabTap === 'function') {
-        page.onTabTap(4)
-      } else {
-        wx.navigateTo({ url: '/pages/board/board' })
-      }
-    },
-
     /** 打开问题反馈弹窗 */
     onOpenFeedback() {
       this.setData({ showFeedback: true })

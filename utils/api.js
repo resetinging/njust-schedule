@@ -298,40 +298,6 @@ function submitEval(formData, submitType, action) {
 // 系统状态
 // ============================================================
 
-/** 获取系统公告(公开接口, 未登录可读) */
-function getAnnouncement() {
-  return request('GET', '/api/announcement')
-}
-
-/** 获取留言列表(before/before_likes 键集分页; sort: time=最新 likes=最热) */
-function getBoardMessages(before, sort, beforeLikes) {
-  return request('GET', '/api/board', {
-    before: before || 0,
-    before_likes: beforeLikes || 0,
-    sort: sort || 'time'
-  })
-}
-
-/** 发布留言(anonymous 为 true 匿名) */
-function postBoardMessage(content, anonymous) {
-  return request('POST', '/api/board', { content, anonymous: !!anonymous })
-}
-
-/** 点赞/取消点赞 */
-function toggleBoardLike(messageId) {
-  return request('POST', '/api/board/' + messageId + '/like')
-}
-
-/** 获取某留言的评论 */
-function getBoardComments(messageId) {
-  return request('GET', '/api/board/' + messageId + '/comments')
-}
-
-/** 发表评论 */
-function postBoardComment(messageId, content, anonymous) {
-  return request('POST', '/api/board/' + messageId + '/comments', { content, anonymous: !!anonymous })
-}
-
 /** 提交问题反馈(类型: suggest 功能建议 | bug 问题 | other 其他; 服务端 10 秒限流) */
 function submitFeedback(fbType, content) {
   return request('POST', '/api/feedback', {
@@ -541,12 +507,6 @@ module.exports = {
   getEvalForm,
   submitEval,
   getStatus,
-  getAnnouncement,
-  getBoardMessages,
-  postBoardMessage,
-  toggleBoardLike,
-  getBoardComments,
-  postBoardComment,
   submitFeedback,
   setSemester,
   clearData,

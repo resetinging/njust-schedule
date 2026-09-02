@@ -1,6 +1,6 @@
 /**
  * 主页面 — swiper 合页方案（方案 A）
- * 6 个 Tab(课表/考试/评教/成绩/留言板/我的) 用 swiper 承载,
+ * 5 个 Tab(课表/考试/评教/成绩/我的) 用 swiper 承载,
  * 左右滑动原生切换; 自定义 tabBar 点击同步切换。
  * 组件懒渲染: 激活才渲染, 切换时由本页通知 activate。
  */
@@ -9,7 +9,7 @@ Page({
   data: {
     current: 0,       // swiper 当前索引
     swiperHeight: 600, // swiper 高度(px), 自适应计算
-    tabs: [0, 1, 2, 3, 4, 5]  // 6 个 Tab 索引(供 swiper-item 循环渲染)
+    tabs: [0, 1, 2, 3, 4]  // 5 个 Tab 索引(供 swiper-item 循环渲染)
   },
 
   onLoad() {
@@ -79,7 +79,7 @@ Page({
     const dx = e.detail.dx
     if (!dx) return
     const target = dx < 0 ? this.data.current + 1 : this.data.current - 1
-    if (target < 0 || target >= 6) return
+    if (target < 0 || target >= 5) return
     if (this._preActivating === target) return
     this._preActivating = target
     this._activate(target)

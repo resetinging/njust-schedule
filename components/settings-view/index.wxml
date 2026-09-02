@@ -40,10 +40,6 @@
 
     <!-- 快捷操作(简洁文字) -->
     <view class="action-list">
-      <view class="action-item" bindtap="onGoBoard">
-        <text>留言板</text>
-        <text class="arrow">›</text>
-      </view>
       <view class="action-item" bindtap="onGoGallery">
         <text>校历 & 照片墙</text>
         <text class="arrow">›</text>

@@ -12,7 +12,6 @@ Component({
       { pagePath: 'pages/exams/exams', emoji: '📝' },
       { pagePath: 'pages/eval/eval', emoji: '📋' },
       { pagePath: 'pages/grades/grades', emoji: '🎓' },
-      { pagePath: 'pages/board/board', emoji: '💬' },
       { pagePath: 'pages/settings/settings', emoji: '👤' }
     ]
   },
