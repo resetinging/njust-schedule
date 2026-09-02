@@ -333,11 +333,10 @@ function postBoardComment(messageId, content, anonymous) {
 }
 
 /** 提交问题反馈(类型: suggest 功能建议 | bug 问题 | other 其他; 服务端 10 秒限流) */
-function submitFeedback(fbType, content, contact) {
+function submitFeedback(fbType, content) {
   return request('POST', '/api/feedback', {
     type: fbType || 'other',
-    content: content || '',
-    contact: contact || ''
+    content: content || ''
   })
 }
 

@@ -572,17 +572,6 @@
   margin-top: 8rpx;
 }
 
-/* 联系方式 */
-.fb-input {
-  height: 80rpx;
-  background: #F7F6FB;
-  border: 2rpx solid #EFEBFC;
-  border-radius: 18rpx;
-  padding: 0 20rpx;
-  font-size: 27rpx;
-  box-sizing: border-box;
-}
-
 /* 提交按钮 */
 .fb-submit {
   margin-top: 32rpx;

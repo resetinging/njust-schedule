@@ -183,10 +183,6 @@
                 cursor-spacing="120" />
       <view class="fb-count">{{fbContent.length}} / 500</view>
 
-      <view class="fb-label">联系方式（选填）</view>
-      <input class="fb-input" placeholder="QQ / 微信 / 邮箱" value="{{fbContact}}"
-             bindinput="onFbContactInput" maxlength="50" />
-
       <button class="btn-primary fb-submit" bindtap="onFbSubmit" disabled="{{fbSending}}">
         {{fbSending ? '提交中…' : '提交反馈'}}
       </button>

@@ -45,7 +45,6 @@ Component({
     showFeedback: false,
     fbType: 'suggest',     // suggest 功能建议 | bug 问题/Bug | other 其他
     fbContent: '',
-    fbContact: '',
     fbSending: false,
 
     // 版本标识（排查线上版本用）
@@ -393,10 +392,6 @@ Component({
       this.setData({ fbContent: e.detail.value })
     },
 
-    onFbContactInput(e) {
-      this.setData({ fbContact: e.detail.value })
-    },
-
     /** 提交反馈(防双击 + 客户端 10 秒冷却 + 服务端限流兜底) */
     async onFbSubmit() {
       if (this.data.fbSending) return
@@ -417,10 +412,10 @@ Component({
       }
       this.setData({ fbSending: true })
       try {
-        const res = await api.submitFeedback(this.data.fbType, text, this.data.fbContact)
+        const res = await api.submitFeedback(this.data.fbType, text)
         if (res.success) {
           this._fbLastTs = Date.now()
-          this.setData({ showFeedback: false, fbContent: '', fbContact: '' })
+          this.setData({ showFeedback: false, fbContent: '' })
           wx.showToast({ title: '反馈已提交，感谢您的建议', icon: 'success' })
         } else {
           wx.showToast({ title: res.message || '提交失败', icon: 'none' })
