@@ -305,17 +305,18 @@ function getAnnouncement() {
 
 /**
  * 空教室查询(需登录)
- * @param {object} opts { campus: '孝陵卫'|'江阴', weekday: 1-7(周一=1), slot: '1-3'|'4-5'|'6-7'|'8-10'|'11-13', week: 周次, building: 教学楼名称 }
- * weekday/week/building 省略时由后端取默认(今天/本周/全部教学楼)
+ * @param {object} opts { campus: '孝陵卫'|'江阴', weekday: 1-7(周一=1),
+ *   jc1/jc2: 节次范围起止(1-13), week: 周次 }
+ * weekday/week 省略时由后端取默认(今天/本周)
  */
 function getFreeClassrooms(opts) {
   const o = opts || {}
   const params = {}
   if (o.campus) params.campus = o.campus
   if (o.weekday) params.weekday = o.weekday
-  if (o.slot) params.slot = o.slot
+  if (o.jc1) params.jc1 = o.jc1
+  if (o.jc2) params.jc2 = o.jc2
   if (o.week) params.week = o.week
-  if (o.building) params.building = o.building
   return request('GET', '/api/free-classrooms', params)
 }
 

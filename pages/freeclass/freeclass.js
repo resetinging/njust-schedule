@@ -1,22 +1,23 @@
 /**
  * 空教室查询页 — 查教务"全校性教室课表"空闲教室
- * 筛选: 校区/星期/时段(官方大节)/周次/教学楼; 需登录
+ * 筛选: 校区/星期/周次/起止时段(可跨官方大节, 时间段内全空闲才算); 需登录
  * - 星期选"今天"、周次选"本周"时省略参数, 由后端按当天/第一周设置推算
- * - 教学楼选项来自教务联动接口, 随每次查询响应返回(首次默认"全部")
+ * - 结果按教学楼分组展示; 点击教室名复制
  * - 选择器确认后自动查询(30s 服务端缓存兜底); 下拉可刷新
- * - 点击教室名复制, 便于分享
  */
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const { groupRooms } = require('../../utils/room-group')
 
 const WEEKDAY_LIST = ['今天', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
+// 官方大节(key/展示名/起止节号); 起止时段各选一个, 发送节号范围
 const SLOT_LIST = [
-  { key: '1-3', label: '第1-3节' },
-  { key: '4-5', label: '第4-5节' },
-  { key: '6-7', label: '第6-7节' },
-  { key: '8-10', label: '第8-10节' },
-  { key: '11-13', label: '第11-13节' }
+  { key: '1-3', label: '第1-3节', j1: 1, j2: 3 },
+  { key: '4-5', label: '第4-5节', j1: 4, j2: 5 },
+  { key: '6-7', label: '第6-7节', j1: 6, j2: 7 },
+  { key: '8-10', label: '第8-10节', j1: 8, j2: 10 },
+  { key: '11-13', label: '第11-13节', j1: 11, j2: 13 }
 ]
 const CAMPUS_LIST = ['孝陵卫', '江阴']
 const WEEK_LIST = (() => {
@@ -35,19 +36,18 @@ Page({
     // 筛选状态(picker 索引)
     campusIndex: 0,
     weekdayIndex: 0,       // 0 = 今天
-    slotIndex: 2,          // 默认 第6-7节
     weekIndex: 0,          // 0 = 本周
-    buildingIndex: 0,      // 0 = 全部
+    startIndex: 2,         // 开始时段(默认 第6-7节)
+    endIndex: 2,           // 结束时段
 
     campusList: CAMPUS_LIST,
     weekdayList: WEEKDAY_LIST,
-    slotList: SLOT_LIST,
     weekList: WEEK_LIST,
-    buildingList: ['全部'],
+    slotList: SLOT_LIST,
 
-    // 结果
+    // 结果: 按教学楼分组
     result: null,          // {summary, count}
-    rooms: []
+    groups: []
   },
 
   onLoad() {
@@ -55,7 +55,7 @@ Page({
       this.setData({ loggedIn: false })
       return
     }
-    // 默认条件首查(顺带带回教学楼选项)
+    // 默认条件首查
     this.search()
   },
 
@@ -66,8 +66,7 @@ Page({
   onCampusChange(e) {
     this.setData({
       campusIndex: Number(e.detail.value),
-      buildingIndex: 0,            // 换校区清空教学楼
-      result: null, rooms: []
+      result: null, groups: []
     })
     this.search()
   },
@@ -77,18 +76,23 @@ Page({
     this.search()
   },
 
-  onSlotChange(e) {
-    this.setData({ slotIndex: Number(e.detail.value) })
-    this.search()
-  },
-
   onWeekChange(e) {
     this.setData({ weekIndex: Number(e.detail.value) })
     this.search()
   },
 
-  onBuildingChange(e) {
-    this.setData({ buildingIndex: Number(e.detail.value) })
+  onStartChange(e) {
+    this._updateRange(Number(e.detail.value), this.data.endIndex)
+  },
+
+  onEndChange(e) {
+    this._updateRange(this.data.startIndex, Number(e.detail.value))
+  },
+
+  /** 起止时段: 若起 > 止则自动交换, 保证时间段有效 */
+  _updateRange(start, end) {
+    const patch = start > end ? { startIndex: end, endIndex: start } : { startIndex: start, endIndex: end }
+    this.setData(patch)
     this.search()
   },
 
@@ -96,13 +100,15 @@ Page({
   search() {
     if (!storage.isLoggedIn()) return Promise.resolve()
     const d = this.data
+    const s = d.slotList[d.startIndex]
+    const e = d.slotList[d.endIndex]
     const params = {
       campus: d.campusList[d.campusIndex],
-      slot: d.slotList[d.slotIndex].key
+      jc1: s.j1,
+      jc2: e.j2
     }
     if (d.weekdayIndex > 0) params.weekday = d.weekdayIndex
     if (d.weekIndex > 0) params.week = d.weekIndex
-    if (d.buildingIndex > 0) params.building = d.buildingList[d.buildingIndex]
 
     this.setData({ loading: true, errorMsg: '' })
     return api.getFreeClassrooms(params)
@@ -111,33 +117,19 @@ Page({
           this.setData({
             loading: false,
             searched: true,
-            rooms: [],
+            groups: [],
             errorMsg: (res && res.message) || '查询失败，请稍后再试'
           })
           return
-        }
-        // 教学楼选项随响应刷新(去重, 保留当前选中)
-        const seen = {}
-        const blds = ['全部']
-        ;(res.buildings || []).forEach(b => {
-          const n = b && b.name
-          if (n && !seen[n]) { seen[n] = true; blds.push(n) }
-        })
-        let bi = 0
-        if (params.building) {
-          const i = blds.indexOf(params.building)
-          bi = i > 0 ? i : 0
         }
         this.setData({
           loading: false,
           searched: true,
           errorMsg: '',
-          rooms: res.rooms || [],
-          buildingList: blds,
-          buildingIndex: bi,
+          groups: groupRooms(res.rooms || [], res.buildings),
           result: {
-            summary: [res.campus, res.weekday_name, '第' + res.week + '周', res.slot_name]
-              .concat(res.building ? [res.building] : []).join(' · '),
+            summary: [res.campus, res.weekday_name, '第' + res.week + '周', res.time_text]
+              .join(' · '),
             count: res.count || 0
           }
         })

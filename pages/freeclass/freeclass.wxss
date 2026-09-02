@@ -24,7 +24,7 @@
   display: flex;
   align-items: center;
   padding: 26rpx 0;
-  border-bottom: 1rpx solid var(--border, #F0EEF9);
+  border-bottom: 1rpx solid #F0EEF9;
 }
 
 .filter-row:last-child {
@@ -32,7 +32,7 @@
 }
 
 .filter-label {
-  width: 140rpx;
+  width: 160rpx;
   font-size: 28rpx;
   color: #8A87A8;
 }
@@ -70,22 +70,51 @@
   color: #7C6BE8;
 }
 
-/* ---------- 教室 chips(点击复制) ---------- */
-.room-wrap {
+/* ---------- 教学楼分组 ---------- */
+.group-list {
+  padding: 8rpx 24rpx;
+}
+
+.group-card {
+  background: #fff;
+  border-radius: 24rpx;
+  border: 2rpx solid #EFEBFC;
+  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.06);
+  margin-top: 20rpx;
+  padding: 22rpx 24rpx 10rpx;
+}
+
+.group-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 6rpx;
+}
+
+.group-name {
+  font-size: 29rpx;
+  font-weight: 700;
+  color: #33304F;
+}
+
+.group-count {
+  font-size: 23rpx;
+  color: #9B96B8;
+}
+
+.group-chips {
   display: flex;
   flex-wrap: wrap;
-  padding: 12rpx 20rpx;
 }
 
 .room-chip {
-  margin: 10rpx;
-  padding: 18rpx 30rpx;
-  background: #fff;
+  margin: 10rpx 12rpx 10rpx 0;
+  padding: 14rpx 26rpx;
+  background: #F7F6FB;
   border: 2rpx solid #EFEBFC;
   border-radius: 999rpx;
-  font-size: 28rpx;
-  color: #33304F;
-  box-shadow: 0 4rpx 14rpx rgba(87, 74, 160, 0.06);
+  font-size: 26rpx;
+  color: #44406B;
 }
 
 .room-chip:active {
