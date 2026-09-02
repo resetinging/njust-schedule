@@ -34,6 +34,9 @@ JW_GRADE_QUERY = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kscj/cjcx_query?Ves632DSdyV=NE
 JW_GRADE_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kscj/cjcx_list"
 JW_CET_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kscj/djkscj_list"
 JW_APP_DO = f"{JW_BASE_9080}{JW_PATH_PREFIX}/app.do"
+# 空教室查询: 全校性教室课表(查询页 + 提交接口)
+JW_CLASSROOM_QUERY = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbcx/kbxx_classroom"
+JW_CLASSROOM_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbcx/kbxx_classroom_ifr"
 JW_CAPTCHA_URLS = [
     f"{JW_BASE_8080}/CheckCode?date=",
     f"{JW_BASE_8080}/verifycode.servlet",

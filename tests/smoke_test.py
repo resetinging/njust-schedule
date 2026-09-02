@@ -278,6 +278,52 @@ r = client.get("/api/courses", headers=h1)
 assert r.status_code == 401
 print("  [PASS] 退出登录后 token 失效（401）")
 
+print("== 空教室网格解析(离线, 教务结构回归) ==")
+
+
+def _grid_html(day_rows):
+    """构造教室课表网格 HTML(单大节形态): day_rows=[(教室名, 周一..周日占用 bool)]"""
+    head = "<table><tr><td></td>" + \
+        "".join(f"<td>{d}</td>" for d in ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]) + "</tr>"
+    head += "<tr><td>教室\\节次</td>" + "<td>0607</td>" * 7 + "</tr>"
+    body = ""
+    for name, occ in day_rows:
+        cells = [f"<td>{name}</td>"] + \
+            [("<td>课程 教师 (1-3周)</td>" if o else "<td>&nbsp;</td>") for o in occ]
+        body += "<tr>" + "".join(cells) + "</tr>"
+    return head + body + "</table>"
+
+
+_grid = _grid_html([
+    ("Ⅳ-A411", [0, 0, 0, 0, 0, 0, 0]),
+    ("Ⅳ-C201", [1, 0, 0, 0, 0, 0, 0]),
+    ("Ⅳ-B505", [0, 0, 1, 0, 0, 0, 0]),
+    ("Ⅳ-A308", [1, 1, 1, 1, 1, 0, 0]),
+])
+free1 = JWCClient.parse_free_classroom_grid(_grid, 1, "0607")
+assert free1 == ["Ⅳ-A411", "Ⅳ-B505"], free1
+free3 = JWCClient.parse_free_classroom_grid(_grid, 3, "0607")
+assert free3 == ["Ⅳ-A411", "Ⅳ-C201"], free3
+free7 = JWCClient.parse_free_classroom_grid(_grid, 7, "0607")
+assert free7 == ["Ⅳ-A411", "Ⅳ-C201", "Ⅳ-B505", "Ⅳ-A308"], free7
+print("  [PASS] 空教室网格解析(单大节形态, 空格=空闲)")
+
+# 全天多列形态: 星期列 colspan=5, 每列一个官方大节码
+_g5 = ["010203", "0405", "0607", "080910", "111213"]
+_head2 = "<tr><td></td>" + "".join(f'<td colspan="5">{d}</td>' for d in ["星期一", "星期二"]) + "</tr>"
+_head2 += "<tr><td>教室\\节次</td>" + "".join(f"<td>{c}</td>" for _ in range(2) for c in _g5) + "</tr>"
+_rows2 = [
+    "<tr><td>Ⅳ-A101</td>" + "<td></td>" * 10 + "</tr>",
+    # Ⅳ-A102 周一第 3 大节(0607)被占: 教室名列后第 3 个格
+    "<tr><td>Ⅳ-A102</td>" + "<td></td>" * 2 + "<td>占</td>" + "<td></td>" * 7 + "</tr>",
+]
+_grid2 = "<table>" + _head2 + "".join(_rows2) + "</table>"
+free_m1 = JWCClient.parse_free_classroom_grid(_grid2, 1, "0607")
+assert free_m1 == ["Ⅳ-A101"], free_m1
+free_t2 = JWCClient.parse_free_classroom_grid(_grid2, 2, "111213")
+assert free_t2 == ["Ⅳ-A101", "Ⅳ-A102"], free_t2
+print("  [PASS] 空教室网格解析(全天多列 colspan 形态)")
+
 print("== 管理端仪表盘与反馈(留言板已下线) ==")
 import time as _time  # noqa: E402
 from wxcloudrun import admin as admin_mod  # noqa: E402

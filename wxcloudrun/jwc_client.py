@@ -48,6 +48,7 @@ from config import (
     JW_APP_DO, JW_CAPTCHA_URLS, BIG_PERIOD_MAP,
     HTTP_TIMEOUT, HTTP_HEADERS,
     SSO_BASE, SSO_LOGIN_URL, DEBUG_WEBVPN,
+    JW_CLASSROOM_QUERY, JW_CLASSROOM_LIST,
 )
 
 # === 加密模块（智慧理工 SSO 密码加密） ===
@@ -72,10 +73,26 @@ URL_EVAL_PAGE = JW_EVAL_PAGE
 URL_GRADE_QUERY = JW_GRADE_QUERY
 URL_GRADE_LIST = JW_GRADE_LIST
 URL_CET_LIST = JW_CET_LIST
+URL_CLASSROOM_QUERY = JW_CLASSROOM_QUERY
+URL_CLASSROOM_LIST = JW_CLASSROOM_LIST
 URL_MAIN_PAGE = f"{BASE_9080}{JW_PATH_PREFIX}/framework/main.jsp"
 URL_CAPTCHA_CANDIDATES = JW_CAPTCHA_URLS
 HEADERS = HTTP_HEADERS
 TIMEOUT = HTTP_TIMEOUT
+
+# ============================================================
+# 空教室查询 — 官方"大节"划分(教室课表列头 010203/0405/0607/080910/111213)
+# 实测规则: 提交节次范围 [jc1, jc2], 服务端选中"起点节号 ∈ [jc1,jc2]"的大节
+# ============================================================
+CLASSROOM_SLOTS = [
+    # (key, 名称, jc1, jc2, 列头码)
+    ("1-3",   "第1-3节",   1,   3,   "010203"),
+    ("4-5",   "第4-5节",   4,   5,   "0405"),
+    ("6-7",   "第6-7节",   6,   7,   "0607"),
+    ("8-10",  "第8-10节",  8,   10,  "080910"),
+    ("11-13", "第11-13节", 11,  13,  "111213"),
+]
+CLASSROOM_SLOT_KEYS = [s[0] for s in CLASSROOM_SLOTS]
 
 
 def _dedupe_schedule_courses(courses: list) -> list:
@@ -1925,6 +1942,128 @@ class JWCClient:
             return float(val)
         except (ValueError, TypeError):
             return 0.0
+
+    # ============================================================
+    # 空教室查询(全校性教室课表 → 空闲教室)
+    # ============================================================
+    def get_free_classrooms(self, campus: str = "孝陵卫", weekday: int = 1,
+                            slot: str = "6-7", week: int = None,
+                            semester: str = "") -> list:
+        """查询空闲教室: 按 校区+星期+官方大节+周次 提交全校教室课表查询,
+        解析返回网格中目标时段无排课的教室。
+
+        campus: 孝陵卫 | 江阴; weekday: 1-7(周一=1);
+        slot: 1-3/4-5/6-7/8-10/11-13(官方大节); week: 周次(None=不按周过滤);
+        semester: 学年学期(默认教务当前学期)。
+        失败/会话过期时设置 last_error 并返回 []。
+        """
+        slot_map = {s[0]: s for s in CLASSROOM_SLOTS}
+        if slot not in slot_map:
+            slot = "6-7"
+        _key, _name, jc1, jc2, expect_code = slot_map[slot]
+        try:
+            # 1) 查询页: 取学期/校区选项(教学楼联动接口未知, 全校区查询)
+            page = self.session.get(URL_CLASSROOM_QUERY, timeout=TIMEOUT,
+                                    allow_redirects=True)
+            if self._is_jw_login_page(page):
+                self.last_error = "登录已过期，请重新登录"
+                return []
+            soup = BeautifulSoup(page.text, "lxml")
+
+            def _opts(name):
+                sel = soup.find("select", {"name": name})
+                if not sel:
+                    return []
+                return [(o.get_text(" ", strip=True), o.get("value") or "")
+                        for o in sel.find_all("option")]
+
+            sem_vals = [v for t, v in _opts("xnxqh") if v]
+            if semester and semester in sem_vals:
+                xnxqh = semester
+            else:
+                xnxqh = sem_vals[0] if sem_vals else ""
+            # 校区: 匹配选项文本前缀(孝陵卫/江阴), 回退内置映射
+            xq_map = {"孝陵卫": "01", "江阴": "4y"}
+            for t, v in _opts("xqid"):
+                if campus and t.startswith(campus):
+                    xq_map[campus] = v
+                    break
+            xqid = xq_map.get(campus, "01")
+            # 周次上限: 以页面可选周数为准
+            zc_opts = [v for t, v in _opts("zc2") if v.isdigit()]
+            max_week = int(zc_opts[-1]) if zc_opts else 20
+            wk = max(1, min(int(week or 1), max_week))
+
+            # 2) 提交查询
+            data = {
+                "xnxqh": xnxqh, "skyx": "", "xqid": xqid, "jzwid": "",
+                "zc1": str(wk), "zc2": str(wk),
+                "xq": str(weekday), "xq2": str(weekday),
+                "jc1": str(jc1), "jc2": str(jc2),
+            }
+            resp = self.session.post(URL_CLASSROOM_LIST, data=data,
+                                     timeout=TIMEOUT, allow_redirects=True,
+                                     headers={"Referer": URL_CLASSROOM_QUERY})
+            if self._is_jw_login_page(resp):
+                self.last_error = "登录已过期，请重新登录"
+                return []
+            rooms = self.parse_free_classroom_grid(resp.text, weekday, expect_code)
+            logger.info("[教室课表] %s 周%s 周%s 大节%s 空闲教室 %d 间",
+                        campus, wk, weekday, slot, len(rooms))
+            return rooms
+        except Exception as e:
+            logger.warning("[教室课表] 查询异常: %s", e)
+            self.last_error = f"教室课表查询失败: {e}"
+            return []
+
+    @staticmethod
+    def parse_free_classroom_grid(html: str, weekday: int, expect_code: str) -> list:
+        """解析"全校性教室课表"返回网格 → 目标(星期, 大节)无排课的教室名列表。
+
+        网格结构: 首行星期名(带 colspan, 按星期分列), 次行每列的大节码
+        (010203/0405/0607/080910/111213), 之后每行 = 一间教室 + 星期×大节格。
+        空格(无文本) = 该时段空闲。结构异常时返回 []。
+        """
+        soup = BeautifulSoup(html or "", "lxml")
+        tb = soup.find("table")
+        if tb is None:
+            return []
+        rows = tb.find_all("tr")
+        if len(rows) < 3:
+            return []
+        day_cells = rows[0].find_all(["td", "th"])     # 星期头(可能 colspan)
+        grp_cells = rows[1].find_all(["td", "th"])     # 大节码行
+        # 星期 → 次行列区间(次行第 0 列为"教室\节次"角标)
+        col = 1
+        day_cols = {}
+        for dc in day_cells[1:]:
+            span = int(dc.get("colspan") or 1)
+            day_cols[len(day_cols) + 1] = list(range(col, col + span))
+            col += span
+        idxs = day_cols.get(weekday, [])
+        if not idxs:
+            return []
+        codes = ["".join(c.get_text(strip=True).split()) for c in grp_cells]
+        # 目标列 = 该星期下列头码 == 期望大节码 的列
+        target = [i for i in idxs if i < len(codes) and codes[i] == expect_code]
+        if not target and len(idxs) == 1:
+            target = idxs   # 结构兜底: 该星期单列
+        if not target:
+            return []
+        free = []
+        for tr in rows[2:]:
+            cells = tr.find_all(["td", "th"])
+            if not cells:
+                continue
+            name = cells[0].get_text(strip=True)
+            if not name:
+                continue
+            occupied = any(
+                i < len(cells) and cells[i].get_text(strip=True)
+                for i in target)
+            if not occupied:
+                free.append(name)
+        return free
 
     def logout(self):
         try:

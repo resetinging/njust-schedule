@@ -17,7 +17,7 @@ from flask import render_template, request, jsonify, Response, g
 from bs4 import BeautifulSoup
 
 from wxcloudrun import app
-from wxcloudrun.jwc_client import JWCClient
+from wxcloudrun.jwc_client import JWCClient, CLASSROOM_SLOT_KEYS
 from wxcloudrun import dao
 
 # ============================================================
@@ -1005,6 +1005,88 @@ def api_get_exams():
         "exams": exams,
     }
     _cache_set(cache_key, resp)
+    return jsonify(resp)
+
+
+# ============================================================
+# API — 空教室查询(需登录; 数据来自教务"全校性教室课表"空闲格解析)
+# ============================================================
+FREE_CLASSROOM_CAMPUSES = ("孝陵卫", "江阴")
+FREE_CLASSROOM_SLOT_KEYS = CLASSROOM_SLOT_KEYS
+
+
+def _current_teaching_week(first_week_date: str) -> int:
+    """按学期第一周周一计算当前教学周(1-25); 无设置/解析失败回退 1"""
+    try:
+        from datetime import date
+        y, m, d = (int(x) for x in str(first_week_date).split("-")[:3])
+        days = (date.today() - date(y, m, d)).days
+        w = days // 7 + 1
+        return w if 1 <= w <= 25 else 1
+    except Exception:
+        return 1
+
+
+@app.route('/api/free-classrooms')
+def api_free_classrooms():
+    """空教室查询: campus(孝陵卫/江阴) + weekday(1-7) + slot(官方大节) + week(周次)
+
+    服务端用当前登录会话提交教务教室课表查询并解析空格;
+    结果缓存 30s, 防止频繁查询打爆教务。
+    """
+    client, err = _require_login()
+    if err:
+        return err
+    sid = client.student_id or ""
+    campus = (request.args.get("campus") or "孝陵卫").strip()
+    if campus not in FREE_CLASSROOM_CAMPUSES:
+        campus = "孝陵卫"
+    try:
+        weekday = int(request.args.get("weekday") or "0")
+    except ValueError:
+        weekday = 0
+    if weekday < 1 or weekday > 7:
+        weekday = 0
+    slot = (request.args.get("slot") or "6-7").strip()
+    if slot not in FREE_CLASSROOM_SLOT_KEYS:
+        slot = "6-7"
+    try:
+        week = int(request.args.get("week") or "0")
+    except ValueError:
+        week = 0
+    semester = (request.args.get("semester") or "").strip() or \
+        dao.get_user_setting(sid, "semester") or _current_semester()
+    if weekday == 0:
+        from datetime import date
+        weekday = date.today().isoweekday()   # 默认今天(周一=1)
+    if week < 1:
+        # 当前教学周: 学期设置优先, 回退全局(与设置页口径一致)
+        fwd = dao.get_setting(f"{sid}:first_week_date:{semester}", "") \
+            or dao.get_setting("first_week_date", "")
+        week = _current_teaching_week(fwd)
+
+    cache_key = f"{sid}:freeclass:{campus}:{weekday}:{slot}:{week}:{semester}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+    with _jwc_request(client):
+        rooms, retry_err = _retry_with_relogin(
+            client,
+            lambda: client.get_free_classrooms(campus=campus, weekday=weekday,
+                                                slot=slot, week=week,
+                                                semester=semester),
+            "查询空闲教室失败")
+    if retry_err:
+        return retry_err
+    resp = {
+        "success": True,
+        "campus": campus, "weekday": weekday, "slot": slot, "week": week,
+        "semester": semester,
+        "count": len(rooms), "rooms": rooms,
+    }
+    _cache_set(cache_key, resp)
+    app.logger.info("[freeclass] rid=%s sid=%s %s 周%s 星期%s %s 空闲教室 %d 间",
+                    _rid(), sid, campus, week, weekday, slot, len(rooms))
     return jsonify(resp)
 
 
