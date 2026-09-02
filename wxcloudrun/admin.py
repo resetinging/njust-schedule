@@ -603,43 +603,6 @@ def admin_fetch_names():
 
 
 # ============================================================
-# 留言板管理
-# ============================================================
-@app.route("/api/admin/board")
-@admin_required
-def admin_board_list():
-    """留言列表(全量, 倒序, 含点赞/评论统计与真实学号; dao 已带评论计数, 无需再查)"""
-    msgs = dao.get_board_messages(limit=500, sort="time", viewer_id="", include_sid=True)
-    return jsonify({"success": True, "messages": msgs})
-
-
-@app.route("/api/admin/board/<int:msg_id>", methods=["DELETE"])
-@admin_required
-def admin_board_delete(msg_id: int):
-    """删除留言"""
-    ok = dao.delete_board_message(msg_id)
-    if not ok:
-        return jsonify({"success": False, "message": "留言不存在"}), 404
-    from wxcloudrun import views as _views  # 延迟导入避免循环依赖
-    _views.invalidate_board_cache()
-    app.logger.info("[admin] rid=%s 删除留言 id=%d", _rid(), msg_id)
-    return jsonify({"success": True})
-
-
-@app.route("/api/admin/board/comment/<int:comment_id>", methods=["DELETE"])
-@admin_required
-def admin_board_comment_delete(comment_id: int):
-    """删除单条评论"""
-    ok = dao.delete_board_comment(comment_id)
-    if not ok:
-        return jsonify({"success": False, "message": "评论不存在"}), 404
-    from wxcloudrun import views as _views  # 延迟导入避免循环依赖
-    _views.invalidate_board_cache()
-    app.logger.info("[admin] rid=%s 删除评论 id=%d", _rid(), comment_id)
-    return jsonify({"success": True})
-
-
-# ============================================================
 # 问题反馈管理
 # ============================================================
 @app.route("/api/admin/feedback")

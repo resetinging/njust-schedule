@@ -482,186 +482,11 @@ def api_connect_test():
 
 
 # ============================================================
-# API — 留言板
-# ============================================================
-BOARD_RATE_SEC = 10            # 每用户发布间隔(秒)
-BOARD_MAX_LEN = 200            # 单条留言最大字数
-_board_last_post = {}          # sid -> 上次发布时间戳(内存限流快路径)
-_board_rate_lock = threading.Lock()
-# 基础敏感词过滤(命中的内容拒绝发布; 可后续扩充)
-_BOARD_BLOCK_WORDS = ["代考", "代做", "代写", "出售答案", "买答案", "刷课", "代刷",
-                      "代课", "替考", "枪手", "作弊", "卖答案", "发答案", "有偿代", "包过"]
-# 内容清洗: 零宽字符(隐形灌水/绕过敏感词常用)
-_BOARD_ZERO_WIDTH = "\u200b\u200c\u200d\ufeff\u2060"
-
-
-def _clean_board_content(raw) -> str:
-    """内容清洗: 去零宽/控制字符, 统一换行, 连续换行折叠为最多 2 行, 首尾空白去除"""
-    text = str(raw or "")
-    for ch in _BOARD_ZERO_WIDTH:
-        text = text.replace(ch, "")
-    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
-    text = re.sub(r"\r\n?", "\n", text)
-    text = re.sub(r"[ \t]+\n", "\n", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
-
-
-def _prune_board_rate_locked():
-    """限流字典惰性清理: 防止用户数增长后内存缓慢堆积"""
-    if len(_board_last_post) > 2000:
-        cutoff = time.time() - BOARD_RATE_SEC
-        for k in [k for k, t in _board_last_post.items() if t <= cutoff]:
-            _board_last_post.pop(k, None)
-
-
-def _board_rate_limited(sid: str):
-    """发布限流: 内存快路径 + DB 最近发言兜底(云托管多实例部署时同样生效)。
-    放行返回 None, 拒绝返回 (响应, 状态码)。"""
-    with _board_rate_lock:
-        last = _board_last_post.get(sid, 0)
-        if time.time() - last < BOARD_RATE_SEC:
-            remain = int(BOARD_RATE_SEC - (time.time() - last)) + 1
-            return jsonify({"success": False, "message": f"发送太频繁，请 {remain} 秒后再试"}), 429
-    # DB 兜底: 其他实例刚写入的发言在本实例内存中不可见
-    db_last = dao.get_last_board_post_time(sid)
-    if db_last and time.time() - db_last < BOARD_RATE_SEC:
-        remain = int(BOARD_RATE_SEC - (time.time() - db_last)) + 1
-        with _board_rate_lock:
-            _board_last_post[sid] = time.time()
-        return jsonify({"success": False, "message": f"发送太频繁，请 {remain} 秒后再试"}), 429
-    with _board_rate_lock:
-        _board_last_post[sid] = time.time()
-        _prune_board_rate_locked()
-    return None
-
-
-@app.route('/api/board')
-def api_get_board():
-    """留言列表(登录可读; sort=time 最新 | likes 最热; before/before_likes 键集分页)"""
-    client, err = _require_login()
-    if err:
-        return err
-    sid = client.student_id or ""
-    sort = request.args.get("sort", "time")
-    if sort not in ("time", "likes"):
-        sort = "time"
-    try:
-        before_id = int(request.args.get("before", "0") or "0") or None
-    except ValueError:
-        before_id = None
-    try:
-        before_likes = int(request.args.get("before_likes", "0") or "0") or None
-    except ValueError:
-        before_likes = None
-    cache_key = f"board:{sort}:{before_id or 0}:{before_likes or 0}"
-    cached = _cache_get(cache_key)
-    if cached is not None:
-        return jsonify(cached)
-    messages = dao.get_board_messages(limit=50, before_id=before_id,
-                                      before_likes=before_likes, sort=sort, viewer_id=sid)
-    resp = {"success": True, "messages": messages, "has_more": len(messages) == 50, "sort": sort}
-    _cache_set(cache_key, resp)
-    return jsonify(resp)
-
-
-@app.route('/api/board', methods=['POST'])
-def api_post_board():
-    """发布留言(需登录; 10 秒限流(内存+DB 双保险); 敏感词过滤; 强制匿名)"""
-    client, err = _require_login()
-    if err:
-        return err
-    sid = client.student_id or ""
-    data = request.get_json(silent=True) or {}
-    content = _clean_board_content(data.get("content", ""))
-    # 强制匿名: 所有留言对外不显示身份(后端保留真实学号仅管理端可见)
-    is_anonymous = 1
-    if not content:
-        return jsonify({"success": False, "message": "内容不能为空"}), 400
-    if len(content) > BOARD_MAX_LEN:
-        return jsonify({"success": False, "message": f"内容不能超过 {BOARD_MAX_LEN} 字"}), 400
-    for w in _BOARD_BLOCK_WORDS:
-        if w in content:
-            return jsonify({"success": False, "message": "内容包含敏感词，请修改"}), 400
-    denied = _board_rate_limited(sid)
-    if denied:
-        return denied
-    name = client.student_name or dao.get_user_setting(sid, "name", "")
-    msg = dao.save_board_message(sid, name, content, is_anonymous)
-    invalidate_board_cache()
-    app.logger.info("[board] rid=%s 留言(匿名) sid=%s len=%d", _rid(), sid, len(content))
-    return jsonify({"success": True, "message": "发布成功", "msg": msg})
-
-
-@app.route('/api/board/<int:msg_id>/like', methods=['POST'])
-def api_board_like(msg_id: int):
-    """点赞/取消点赞"""
-    client, err = _require_login()
-    if err:
-        return err
-    sid = client.student_id or ""
-    result = dao.toggle_board_like(msg_id, sid)
-    if not result.get("exists"):
-        return jsonify({"success": False, "message": "留言不存在"}), 404
-    invalidate_board_cache()
-    return jsonify({"success": True, "likes": result["likes"], "liked": result["liked"]})
-
-
-@app.route('/api/board/<int:msg_id>/comments')
-def api_board_comments(msg_id: int):
-    """某留言的评论列表"""
-    client, err = _require_login()
-    if err:
-        return err
-    if not dao.board_message_exists(msg_id):
-        return jsonify({"success": False, "message": "留言不存在或已删除"}), 404
-    comments = dao.get_board_comments(msg_id)
-    return jsonify({"success": True, "comments": comments})
-
-
-@app.route('/api/board/<int:msg_id>/comments', methods=['POST'])
-def api_board_post_comment(msg_id: int):
-    """发表评论(需登录; 10 秒限流(内存+DB 双保险); 敏感词过滤; 强制匿名)"""
-    client, err = _require_login()
-    if err:
-        return err
-    sid = client.student_id or ""
-    data = request.get_json(silent=True) or {}
-    content = _clean_board_content(data.get("content", ""))
-    # 强制匿名
-    is_anonymous = 1
-    if not content:
-        return jsonify({"success": False, "message": "内容不能为空"}), 400
-    if len(content) > BOARD_MAX_LEN:
-        return jsonify({"success": False, "message": f"内容不能超过 {BOARD_MAX_LEN} 字"}), 400
-    for w in _BOARD_BLOCK_WORDS:
-        if w in content:
-            return jsonify({"success": False, "message": "内容包含敏感词，请修改"}), 400
-    # 先校验留言存在(404 优先于限流, 删除后的留言评论直接提示失效)
-    if not dao.board_message_exists(msg_id):
-        return jsonify({"success": False, "message": "留言不存在或已删除"}), 404
-    denied = _board_rate_limited(sid)
-    if denied:
-        return denied
-    name = client.student_name or dao.get_user_setting(sid, "name", "")
-    cm = dao.save_board_comment(msg_id, sid, name, content, is_anonymous)
-    if cm is None:
-        return jsonify({"success": False, "message": "留言不存在或已删除"}), 404
-    invalidate_board_cache()
-    return jsonify({"success": True, "comment": cm})
-
-
-def invalidate_board_cache():
-    """留言/点赞/评论变更后失效列表缓存(views 与管理端共用)"""
-    with _query_cache_lock:
-        for key in list(_query_cache.keys()):
-            if key.startswith("board:"):
-                _query_cache.pop(key, None)
-
-
-# ============================================================
 # API — 问题反馈(需登录; 10 秒限流防重复提交; 仅管理端可见)
 # ============================================================
+# 内容敏感词过滤(留言板已下线, 反馈内容沿用同一词表)
+_CONTENT_BLOCK_WORDS = ["代考", "代做", "代写", "出售答案", "买答案", "刷课", "代刷",
+                        "代课", "替考", "枪手", "作弊", "卖答案", "发答案", "有偿代", "包过"]
 FEEDBACK_RATE_SEC = 10            # 每用户提交间隔(秒)
 FEEDBACK_MAX_LEN = 500            # 单条反馈最大字数
 _feedback_last_post = {}          # sid -> 上次提交时间戳(内存限流)
@@ -685,7 +510,7 @@ def api_post_feedback():
         return jsonify({"success": False, "message": "反馈内容不能为空"}), 400
     if len(content) > FEEDBACK_MAX_LEN:
         return jsonify({"success": False, "message": f"内容不能超过 {FEEDBACK_MAX_LEN} 字"}), 400
-    for w in _BOARD_BLOCK_WORDS:
+    for w in _CONTENT_BLOCK_WORDS:
         if w in content:
             return jsonify({"success": False, "message": "内容包含敏感词，请修改"}), 400
     # 限流: 每用户 10 秒 1 条, 避免重复提交

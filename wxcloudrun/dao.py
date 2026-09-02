@@ -6,10 +6,9 @@ NJUST 课表/考试/评教/设置/成绩/四六级
 学期等用户级设置以 "{student_id}:{key}" 前缀存储。
 """
 import json
-from sqlalchemy import or_, and_
 from wxcloudrun import db
 from wxcloudrun.model import (Course, Exam, Evaluation, Setting, Grade, CetScore,
-                              BoardMessage, BoardComment, BoardLike, Feedback)
+                              Feedback)
 
 
 # ============================================================
@@ -285,149 +284,6 @@ def get_cet_scores(student_id: str = "") -> list:
             "exam_date": d or "",
         })
     return result
-
-
-# ============================================================
-# 留言板(贴吧式: 留言+评论+点赞+匿名)
-# ============================================================
-def save_board_message(student_id: str, student_name: str, content: str, is_anonymous: int = 0) -> dict:
-    """发布留言, 返回消息 dict"""
-    msg = BoardMessage(student_id=student_id, student_name=student_name,
-                       content=content, is_anonymous=is_anonymous)
-    db.session.add(msg)
-    db.session.commit()
-    return msg.to_dict()
-
-
-def get_board_messages(limit: int = 50, before_id: int = None, before_likes: int = None,
-                       sort: str = "time", viewer_id: str = "", include_sid: bool = False) -> list:
-    """取留言列表:
-      - sort=time:  最新在前, id 键集分页(before_id)
-      - sort=likes: 点赞数在前, (likes, id) 双键集分页(before_likes + before_id),
-        避免同点赞数留言翻页时重复/漏项
-      - include_sid: 管理端置 True, 返回真实学号; 普通接口不暴露
-    """
-    q = BoardMessage.query
-    if sort == "likes":
-        if before_id:
-            bl = before_likes
-            if bl is None:
-                # 客户端未带点赞数时按锚点留言反查(API 向后兼容)
-                bl = db.session.query(BoardMessage.likes) \
-                    .filter(BoardMessage.id == before_id).scalar()
-            if bl is None:
-                # 锚点留言已删除: 退化为 id 分页, 保证仍能翻页
-                q = q.filter(BoardMessage.id < before_id)
-            else:
-                q = q.filter(or_(
-                    BoardMessage.likes < bl,
-                    and_(BoardMessage.likes == bl, BoardMessage.id < before_id),
-                ))
-        rows = q.order_by(BoardMessage.likes.desc(), BoardMessage.id.desc()).limit(limit).all()
-    else:
-        if before_id:
-            q = q.filter(BoardMessage.id < before_id)
-        rows = q.order_by(BoardMessage.id.desc()).limit(limit).all()
-    # 批量取当前用户点赞状态与评论数
-    msg_ids = [r.id for r in rows]
-    liked_ids = set()
-    comment_counts = {}
-    if msg_ids:
-        liked_ids = {r[0] for r in db.session.query(BoardLike.message_id)
-                     .filter(BoardLike.message_id.in_(msg_ids), BoardLike.student_id == viewer_id).all()}
-        for mid, cnt in db.session.query(BoardComment.message_id, db.func.count(BoardComment.id)) \
-                .filter(BoardComment.message_id.in_(msg_ids)).group_by(BoardComment.message_id).all():
-            comment_counts[mid] = cnt
-    result = []
-    for r in rows:
-        d = r.to_dict(liked_by_me=r.id in liked_ids, include_sid=include_sid)
-        d["comments"] = comment_counts.get(r.id, 0)
-        result.append(d)
-    return result
-
-
-def toggle_board_like(message_id: int, student_id: str) -> dict:
-    """点赞/取消点赞(同用户对同留言只能一次), 返回 {likes, liked}
-    行锁串行化: 并发双击/多实例下不产生重复点赞记录、计数不丢失。"""
-    # 先锁留言行, 同一条留言的点赞操作串行执行
-    msg = BoardMessage.query.filter(BoardMessage.id == message_id) \
-        .with_for_update().first()
-    if not msg:
-        return {"likes": 0, "liked": False, "exists": False}
-    existing = BoardLike.query.filter(BoardLike.message_id == message_id,
-                                      BoardLike.student_id == student_id).first()
-    if existing:
-        db.session.delete(existing)
-        msg.likes = max(0, (msg.likes or 0) - 1)
-        liked = False
-    else:
-        db.session.add(BoardLike(message_id=message_id, student_id=student_id))
-        msg.likes = (msg.likes or 0) + 1
-        liked = True
-    db.session.commit()
-    return {"likes": msg.likes or 0, "liked": liked, "exists": True}
-
-
-def board_message_exists(message_id: int) -> bool:
-    """留言是否存在(评论读取/点赞的前置校验)"""
-    return db.session.query(BoardMessage.id) \
-        .filter(BoardMessage.id == message_id).first() is not None
-
-
-def get_board_comments(message_id: int, limit: int = 100, include_sid: bool = False) -> list:
-    """某留言的评论(时间正序, 贴吧楼层式); include_sid 仅管理端置 True"""
-    rows = BoardComment.query.filter(BoardComment.message_id == message_id) \
-        .order_by(BoardComment.id.asc()).limit(limit).all()
-    return [r.to_dict(include_sid=include_sid) for r in rows]
-
-
-def save_board_comment(message_id: int, student_id: str, student_name: str,
-                       content: str, is_anonymous: int = 0):
-    """发表评论; 留言不存在时返回 None(防孤儿评论)"""
-    if not BoardMessage.query.filter(BoardMessage.id == message_id).first():
-        return None
-    cm = BoardComment(message_id=message_id, student_id=student_id,
-                      student_name=student_name, content=content, is_anonymous=is_anonymous)
-    db.session.add(cm)
-    db.session.commit()
-    return cm.to_dict()
-
-
-def get_last_board_post_time(student_id: str) -> float:
-    """该用户最近一次留言/评论时间(epoch 秒), 无则 0。
-    用于跨实例限流: 云托管多实例部署时内存限流不可靠, 以 DB 为准。"""
-    last = 0.0
-    m = (BoardMessage.query.filter(BoardMessage.student_id == student_id)
-         .order_by(BoardMessage.id.desc()).first())
-    if m and m.created_at:
-        last = max(last, m.created_at.timestamp())
-    c = (BoardComment.query.filter(BoardComment.student_id == student_id)
-         .order_by(BoardComment.id.desc()).first())
-    if c and c.created_at:
-        last = max(last, c.created_at.timestamp())
-    return last
-
-
-def delete_board_message(msg_id: int) -> bool:
-    """管理员删除留言(级联删除评论与点赞)"""
-    row = BoardMessage.query.filter(BoardMessage.id == msg_id).first()
-    if not row:
-        return False
-    BoardComment.query.filter(BoardComment.message_id == msg_id).delete()
-    BoardLike.query.filter(BoardLike.message_id == msg_id).delete()
-    db.session.delete(row)
-    db.session.commit()
-    return True
-
-
-def delete_board_comment(comment_id: int) -> bool:
-    """管理员删除单条评论"""
-    row = BoardComment.query.filter(BoardComment.id == comment_id).first()
-    if not row:
-        return False
-    db.session.delete(row)
-    db.session.commit()
-    return True
 
 
 # ============================================================

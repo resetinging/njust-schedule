@@ -435,7 +435,6 @@ document.querySelectorAll('.tab').forEach(tab => {
     $('panel-' + t).classList.add('active');
     if (t === 'users' && !tabLoaded.users) { tabLoaded.users = true; loadUsers(); }
     if (t === 'grades' && !tabLoaded.grades) { tabLoaded.grades = true; loadGradeStats(); }
-    if (t === 'board' && !tabLoaded.board) { tabLoaded.board = true; loadBoard(); }
     if (t === 'feedback' && !tabLoaded.feedback) { tabLoaded.feedback = true; loadFeedback(); }
   });
 });
@@ -471,40 +470,6 @@ $('annSave').addEventListener('click', async () => {
     alert('保存失败: ' + (r.message || '未知错误'));
   }
 });
-
-// ============================================================
-// 留言板管理
-// ============================================================
-async function loadBoard() {
-  try {
-    const r = await api('/api/admin/board');
-    if (!r.success) return;
-    const box = $('boardList');
-    if (!r.messages || !r.messages.length) {
-      box.innerHTML = '<p class="dim center">暂无留言</p>';
-      return;
-    }
-    box.innerHTML = r.messages.map(m => `
-      <div class="board-row">
-        <div class="board-meta">
-          <span class="mono">${esc(m.student_id)}</span>
-          <span>${esc(m.is_anonymous ? '匿名' : (m.student_name || m.student_id))}</span>
-          <span class="dim">${esc(m.created_at || '')} · 👍 ${m.likes || 0} · 💬 ${m.comments || 0}</span>
-        </div>
-        <div class="board-content">${esc(m.content)}</div>
-        <button class="ghost small board-del" data-id="${m.id}">删除</button>
-      </div>`).join('');
-    box.querySelectorAll('.board-del').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (!confirm('确认删除这条留言？')) return;
-        const r2 = await api('/api/admin/board/' + btn.dataset.id, { method: 'DELETE' });
-        if (r2.success) loadBoard();
-      });
-    });
-  } catch (e) {}
-}
-$('refreshBoardBtn').addEventListener('click', loadBoard);
 
 // ============================================================
 // 问题反馈管理

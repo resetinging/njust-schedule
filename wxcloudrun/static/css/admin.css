@@ -120,7 +120,7 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; }
 }
 .ann-save { width: auto; padding: 10px 28px; }
 
-/* ---------- 留言板管理 ---------- */
+/* ---------- 列表卡片(留言板下线后由问题反馈共用) ---------- */
 .board-list { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .board-row {
   display: grid; grid-template-columns: 1fr 2fr auto;

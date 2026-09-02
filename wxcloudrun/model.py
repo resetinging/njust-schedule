@@ -156,64 +156,6 @@ class CetScore(db.Model):
 
 
 # ============================================================
-# 留言板(贴吧式: 留言+评论+点赞+匿名)
-# ============================================================
-class BoardMessage(db.Model):
-    __tablename__ = 'board_messages'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    student_id = db.Column(db.String(50), default='', index=True)
-    student_name = db.Column(db.String(50), default='')
-    content = db.Column(db.String(200), nullable=False, default='')
-    likes = db.Column(db.Integer, default=0)          # 点赞数(冗余计数)
-    is_anonymous = db.Column(db.Integer, default=0)   # 1=匿名发布
-    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
-
-    def to_dict(self, liked_by_me=False, include_sid=False):
-        return {
-            "id": self.id,
-            # 隐私: 学号仅管理端可见(include_sid=True), 普通接口返回空串
-            "student_id": self.student_id if include_sid else "",
-            "student_name": "" if self.is_anonymous else self.student_name,
-            "is_anonymous": self.is_anonymous,
-            "content": self.content,
-            "likes": self.likes or 0,
-            "liked_by_me": liked_by_me,
-            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else "",
-        }
-
-
-class BoardComment(db.Model):
-    __tablename__ = 'board_comments'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    message_id = db.Column(db.Integer, index=True, nullable=False)  # 所属留言
-    student_id = db.Column(db.String(50), default='')
-    student_name = db.Column(db.String(50), default='')
-    content = db.Column(db.String(200), nullable=False, default='')
-    is_anonymous = db.Column(db.Integer, default=0)   # 1=匿名评论
-    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
-
-    def to_dict(self, include_sid=False):
-        return {
-            "id": self.id,
-            "message_id": self.message_id,
-            # 隐私: 学号仅管理端可见(include_sid=True), 普通接口返回空串
-            "student_id": self.student_id if include_sid else "",
-            "student_name": "" if self.is_anonymous else self.student_name,
-            "is_anonymous": self.is_anonymous,
-            "content": self.content,
-            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else "",
-        }
-
-
-class BoardLike(db.Model):
-    __tablename__ = 'board_likes'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    message_id = db.Column(db.Integer, index=True, nullable=False)
-    student_id = db.Column(db.String(50), default='')
-    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
-
-
-# ============================================================
 # 问题反馈(社区化: 用户反馈渠道, 仅管理端可见)
 # ============================================================
 class Feedback(db.Model):
