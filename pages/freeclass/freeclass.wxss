@@ -1,4 +1,4 @@
-/* 空教室查询页 — 淡紫底 + 白色圆角卡片(与"我的"页风格一致) */
+/* 空教室查询页 UI v2 — 紫系渐变 + 白色圆角卡片 */
 
 .container {
   min-height: 100vh;
@@ -6,100 +6,185 @@
   padding-bottom: 60rpx;
 }
 
-/* 白色圆角卡片 */
-.card {
-  background: #fff;
-  border-radius: 24rpx;
-  border: 2rpx solid #EFEBFC;
-  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.06);
+/* ============================================================
+顶部渐变头卡
+============================================================ */
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin: 20rpx 24rpx 0;
+  padding: 30rpx 28rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 70%, #B7A9FA 100%);
+  box-shadow: 0 10rpx 28rpx rgba(124, 107, 232, 0.28);
 }
 
-/* ---------- 筛选卡片 ---------- */
+.hero-icon {
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 26rpx;
+  font-size: 48rpx;
+}
+
+.hero-text {
+  flex: 1;
+}
+
+.hero-title {
+  color: #fff;
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.hero-desc {
+  margin-top: 6rpx;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 23rpx;
+}
+
+/* ============================================================
+筛选卡片
+============================================================ */
 .filter-card {
   margin: 20rpx 24rpx 0;
-  padding: 4rpx 24rpx;
+  padding: 6rpx 26rpx;
+  background: #fff;
+  border-radius: 26rpx;
+  border: 2rpx solid #EFEBFC;
+  box-shadow: 0 8rpx 26rpx rgba(87, 74, 160, 0.07);
 }
 
 .filter-row {
   display: flex;
   align-items: center;
-  padding: 26rpx 0;
-  border-bottom: 1rpx solid #F0EEF9;
+  padding: 27rpx 0;
+  border-bottom: 1rpx solid #F4F2FB;
 }
 
 .filter-row:last-child {
   border-bottom: none;
 }
 
+.filter-row:active {
+  background: #FAF8FF;
+}
+
+.filter-icon {
+  width: 44rpx;
+  font-size: 26rpx;
+}
+
 .filter-label {
-  width: 160rpx;
-  font-size: 28rpx;
+  width: 150rpx;
+  font-size: 27rpx;
   color: #8A87A8;
 }
 
 .filter-value {
   flex: 1;
+  text-align: right;
   font-size: 29rpx;
   font-weight: 600;
   color: #33304F;
 }
 
 .filter-row .arrow {
+  margin-left: 14rpx;
   color: #C6C2DD;
   font-size: 32rpx;
 }
 
-/* ---------- 结果摘要 ---------- */
-.result-head {
+/* ============================================================
+结果摘要(渐变条)
+============================================================ */
+.result-bar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin: 28rpx 28rpx 4rpx;
+  margin: 20rpx 24rpx 0;
+  padding: 20rpx 26rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(90deg, #7C6BE8 0%, #9B8CF5 100%);
+  box-shadow: 0 8rpx 22rpx rgba(124, 107, 232, 0.24);
 }
 
 .result-summary {
-  font-size: 24rpx;
-  color: #8A87A8;
   flex: 1;
   margin-right: 16rpx;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 23rpx;
+  line-height: 1.5;
 }
 
-.result-count {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #7C6BE8;
+.result-count-box {
+  display: flex;
+  align-items: baseline;
 }
 
-/* ---------- 教学楼分组 ---------- */
+.result-count-num {
+  color: #fff;
+  font-size: 46rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.result-count-unit {
+  margin-left: 6rpx;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 22rpx;
+}
+
+/* ============================================================
+教学楼分组
+============================================================ */
 .group-list {
-  padding: 8rpx 24rpx;
+  padding: 4rpx 24rpx;
 }
 
 .group-card {
-  background: #fff;
-  border-radius: 24rpx;
-  border: 2rpx solid #EFEBFC;
-  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.06);
   margin-top: 20rpx;
-  padding: 22rpx 24rpx 10rpx;
+  padding: 24rpx 24rpx 8rpx;
+  background: #fff;
+  border-radius: 26rpx;
+  border: 2rpx solid #EFEBFC;
+  box-shadow: 0 8rpx 26rpx rgba(87, 74, 160, 0.07);
 }
 
 .group-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 6rpx;
+  padding-bottom: 8rpx;
+}
+
+.group-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.group-emoji {
+  font-size: 30rpx;
 }
 
 .group-name {
-  font-size: 29rpx;
+  font-size: 30rpx;
   font-weight: 700;
   color: #33304F;
 }
 
-.group-count {
-  font-size: 23rpx;
-  color: #9B96B8;
+.group-badge {
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  background: #F0ECFF;
+  color: #7C6BE8;
+  font-size: 22rpx;
+  font-weight: 600;
 }
 
 .group-chips {
@@ -108,25 +193,48 @@
 }
 
 .room-chip {
-  margin: 10rpx 12rpx 10rpx 0;
-  padding: 14rpx 26rpx;
-  background: #F7F6FB;
-  border: 2rpx solid #EFEBFC;
+  margin: 12rpx 14rpx 12rpx 0;
+  padding: 16rpx 28rpx;
+  background: #FAF9FE;
+  border: 2rpx solid #E9E4FA;
   border-radius: 999rpx;
   font-size: 26rpx;
-  color: #44406B;
+  color: #4A4670;
+  transition: all 0.15s ease;
 }
 
 .room-chip:active {
   background: #F2EFFF;
   border-color: #D8CEF8;
+  color: #7C6BE8;
 }
 
-/* ---------- 状态提示 ---------- */
-.state-tip {
-  padding: 80rpx 40rpx;
-  text-align: center;
-  font-size: 27rpx;
+/* ============================================================
+加载 / 错误 / 未登录
+============================================================ */
+.loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 110rpx 40rpx;
+}
+
+.spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 6rpx solid #E5DEFB;
+  border-top-color: #7C6BE8;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  margin-top: 24rpx;
+  font-size: 26rpx;
   color: #8A87A8;
 }
 
@@ -140,7 +248,6 @@
   text-align: center;
 }
 
-/* ---------- 未登录 ---------- */
 .login-wrap {
   padding-top: 120rpx;
 }

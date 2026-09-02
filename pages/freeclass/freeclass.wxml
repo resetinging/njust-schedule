@@ -1,13 +1,23 @@
-<!-- 空教室查询页: 筛选卡片 + 按教学楼分组的教室列表 -->
+<!-- 空教室查询页: 渐变头卡 + 筛选卡片 + 按教学楼分组的教室列表 -->
 <view class="container">
 
-  <!-- ============ 已登录: 筛选 + 结果 ============ -->
+  <!-- ============ 已登录 ============ -->
   <block wx:if="{{loggedIn}}">
 
+    <!-- 顶部渐变头卡 -->
+    <view class="hero">
+      <view class="hero-icon">🏫</view>
+      <view class="hero-text">
+        <view class="hero-title">空教室查询</view>
+        <view class="hero-desc">选好时间，按教学楼快速查看空闲教室</view>
+      </view>
+    </view>
+
     <!-- 筛选卡片 -->
-    <view class="card filter-card">
+    <view class="filter-card">
       <picker mode="selector" range="{{campusList}}" value="{{campusIndex}}" bindchange="onCampusChange">
         <view class="filter-row">
+          <text class="filter-icon">🏫</text>
           <text class="filter-label">校区</text>
           <text class="filter-value">{{campusList[campusIndex]}}</text>
           <text class="arrow">›</text>
@@ -15,6 +25,7 @@
       </picker>
       <picker mode="selector" range="{{weekdayList}}" value="{{weekdayIndex}}" bindchange="onWeekdayChange">
         <view class="filter-row">
+          <text class="filter-icon">📅</text>
           <text class="filter-label">星期</text>
           <text class="filter-value">{{weekdayList[weekdayIndex]}}</text>
           <text class="arrow">›</text>
@@ -22,6 +33,7 @@
       </picker>
       <picker mode="selector" range="{{weekList}}" value="{{weekIndex}}" bindchange="onWeekChange">
         <view class="filter-row">
+          <text class="filter-icon">🗓</text>
           <text class="filter-label">周次</text>
           <text class="filter-value">{{weekList[weekIndex]}}</text>
           <text class="arrow">›</text>
@@ -29,6 +41,7 @@
       </picker>
       <picker mode="selector" range="{{slotList}}" range-key="label" value="{{startIndex}}" bindchange="onStartChange">
         <view class="filter-row">
+          <text class="filter-icon">⏰</text>
           <text class="filter-label">开始时段</text>
           <text class="filter-value">{{slotList[startIndex].label}}</text>
           <text class="arrow">›</text>
@@ -36,6 +49,7 @@
       </picker>
       <picker mode="selector" range="{{slotList}}" range-key="label" value="{{endIndex}}" bindchange="onEndChange">
         <view class="filter-row">
+          <text class="filter-icon">⏳</text>
           <text class="filter-label">结束时段</text>
           <text class="filter-value">{{slotList[endIndex].label}}</text>
           <text class="arrow">›</text>
@@ -43,10 +57,13 @@
       </picker>
     </view>
 
-    <!-- 结果摘要 -->
-    <view class="result-head" wx:if="{{result}}">
-      <text class="result-summary">{{result.summary}}</text>
-      <text class="result-count">{{result.count}} 间空闲</text>
+    <!-- 结果摘要(渐变条) -->
+    <view class="result-bar" wx:if="{{result}}">
+      <view class="result-summary">{{result.summary}}</view>
+      <view class="result-count-box">
+        <text class="result-count-num">{{result.count}}</text>
+        <text class="result-count-unit">间空闲</text>
+      </view>
     </view>
 
     <!-- 按教学楼分组的教室(点击复制) -->
@@ -54,8 +71,11 @@
       <block wx:for="{{groups}}" wx:key="prefix" wx:for-item="grp">
         <view class="group-card">
           <view class="group-head">
-            <text class="group-name">🏫 {{grp.label}}</text>
-            <text class="group-count">{{grp.rooms.length}} 间</text>
+            <view class="group-name-wrap">
+              <text class="group-emoji">🏫</text>
+              <text class="group-name">{{grp.label}}</text>
+            </view>
+            <view class="group-badge">{{grp.rooms.length}} 间</view>
           </view>
           <view class="group-chips">
             <view class="room-chip" wx:for="{{grp.rooms}}" wx:key="*this"
@@ -69,8 +89,12 @@
     <empty-state wx:elif="{{searched && !loading && !errorMsg}}" icon="🏫" title="该时段没有空闲教室"
                  desc="试试放宽时段范围、换个星期或校区" />
 
-    <!-- 查询中 / 错误 -->
-    <view class="state-tip" wx:if="{{loading}}">⏳ 正在查询空闲教室…</view>
+    <!-- 查询中 -->
+    <view class="loading-box" wx:if="{{loading}}">
+      <view class="spinner"></view>
+      <text class="loading-text">正在查询空闲教室…</text>
+    </view>
+    <!-- 错误 -->
     <view class="err-tip" wx:elif="{{errorMsg}}">{{errorMsg}}</view>
   </block>
 
