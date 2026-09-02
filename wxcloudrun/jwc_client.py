@@ -2024,21 +2024,29 @@ class JWCClient:
         return out
 
     def get_free_classrooms(self, campus: str = "孝陵卫", weekday: int = 1,
-                            slot: str = "6-7", week: int = None,
-                            semester: str = "", building: str = "") -> dict:
-        """查询空闲教室: 按 校区+星期+官方大节+周次(+教学楼) 提交全校教室课表查询,
-        解析返回网格中目标时段无排课的教室。
+                            slot: str = "6-7", jc1: int = None, jc2: int = None,
+                            week: int = None, semester: str = "",
+                            building: str = "") -> dict:
+        """查询空闲教室: 按 校区+星期+节次范围+周次(+教学楼) 提交全校教室课表查询,
+        解析返回网格中目标时段无排课的教室(范围跨多个大节时, 全部大节均空闲才算)。
 
         campus: 孝陵卫 | 江阴; weekday: 1-7(周一=1);
-        slot: 1-3/4-5/6-7/8-10/11-13(官方大节); week: 周次(None=不按周过滤);
-        semester: 学年学期(默认教务当前学期); building: 教学楼名称(模糊=精确匹配联动列表)。
-        成功返回 {"rooms": [...], "building_name": str, "buildings": [{code,name}...]};
-        失败/会话过期时设置 last_error 并返回 []。
+        jc1/jc2: 节次范围起止(1-13), 缺省时按 slot 大节映射(1-3/4-5/6-7/8-10/11-13);
+        week: 周次(None=不按周过滤);
+        semester: 学年学期(默认教务当前学期); building: 教学楼名称(可选)。
+        成功返回 {"rooms": [...], "jc1":, "jc2":, "building_name": str,
+        "buildings": [{code,name}...]}; 失败/会话过期时设置 last_error 并返回 []。
         """
         slot_map = {s[0]: s for s in CLASSROOM_SLOTS}
-        if slot not in slot_map:
-            slot = "6-7"
-        _key, _name, jc1, jc2, expect_code = slot_map[slot]
+        # 节次范围: jc1/jc2 显式优先, 否则按大节 slot 映射; 非法回退 第6-7节
+        if isinstance(jc1, int) and isinstance(jc2, int):
+            a, b = jc1, jc2
+        elif slot in slot_map:
+            a, b = slot_map[slot][2], slot_map[slot][3]
+        else:
+            a, b = 6, 7
+        if not (1 <= a <= 13 and 1 <= b <= 13 and a <= b):
+            a, b = 6, 7
         try:
             # 1) 选项(10 分钟缓存): 学期/校区/最大周数
             opts = self._classroom_page_opts()
@@ -2067,12 +2075,12 @@ class JWCClient:
                 wk = max(1, min(int(week), opts["max_week"]))
                 zc1 = zc2 = str(wk)
 
-            # 2) 提交查询
+            # 2) 提交查询(jc1/jc2 = 用户节次范围; 服务端选中起点节在该区间的大节)
             data = {
                 "xnxqh": xnxqh, "skyx": "", "xqid": xqid, "jzwid": jzwid,
                 "zc1": zc1, "zc2": zc2,
                 "xq": str(weekday), "xq2": str(weekday),
-                "jc1": str(jc1), "jc2": str(jc2),
+                "jc1": str(a), "jc2": str(b),
             }
             resp = self.session.post(URL_CLASSROOM_LIST, data=data,
                                      timeout=TIMEOUT, allow_redirects=True,
@@ -2080,12 +2088,14 @@ class JWCClient:
             if self._is_jw_login_page(resp):
                 self.last_error = "登录已过期，请重新登录"
                 return []
-            rooms = self.parse_free_classroom_grid(resp.text, weekday, expect_code)
-            logger.info("[教室课表] %s%s 周%s 星期%s 大节%s 空闲教室 %d 间",
+            rooms = self.parse_free_classroom_grid(resp.text, weekday)
+            logger.info("[教室课表] %s%s 周%s 星期%s 第%d-%d节 空闲教室 %d 间",
                         campus, f"/{building_name}" if building_name else "",
-                        week, weekday, slot, len(rooms))
+                        week, weekday, a, b, len(rooms))
             return {
                 "rooms": rooms,
+                "jc1": a,
+                "jc2": b,
                 "building_name": building_name,
                 "buildings": buildings,
             }
@@ -2095,12 +2105,15 @@ class JWCClient:
             return []
 
     @staticmethod
-    def parse_free_classroom_grid(html: str, weekday: int, expect_code: str) -> list:
-        """解析"全校性教室课表"返回网格 → 目标(星期, 大节)无排课的教室名列表。
+    def parse_free_classroom_grid(html: str, weekday: int, expect_code: str = None) -> list:
+        """解析"全校性教室课表"返回网格 → 目标星期无排课的教室名列表。
 
         网格结构: 首行星期名(带 colspan, 按星期分列), 次行每列的大节码
         (010203/0405/0607/080910/111213), 之后每行 = 一间教室 + 星期×大节格。
-        空格(无文本) = 该时段空闲。结构异常时返回 []。
+        空格(无文本) = 该时段空闲。
+        expect_code: 仅核对指定大节列(单大节查询); None 时核对该星期返回的
+        全部列(时间段查询, 服务端按 [jc1,jc2] 选中全部命中的大节)。
+        结构异常时返回 []。
         """
         soup = BeautifulSoup(html or "", "lxml")
         tb = soup.find("table")
@@ -2122,10 +2135,14 @@ class JWCClient:
         if not idxs:
             return []
         codes = ["".join(c.get_text(strip=True).split()) for c in grp_cells]
-        # 目标列 = 该星期下列头码 == 期望大节码 的列
-        target = [i for i in idxs if i < len(codes) and codes[i] == expect_code]
-        if not target and len(idxs) == 1:
-            target = idxs   # 结构兜底: 该星期单列
+        if expect_code is None:
+            # 时间段: 该星期下所有返回列均须空闲
+            target = [i for i in idxs if i < len(codes)]
+        else:
+            # 单大节: 目标列 = 列头码 == 期望大节码 的列
+            target = [i for i in idxs if i < len(codes) and codes[i] == expect_code]
+            if not target and len(idxs) == 1:
+                target = idxs   # 结构兜底: 该星期单列
         if not target:
             return []
         free = []

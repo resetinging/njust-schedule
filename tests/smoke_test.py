@@ -324,6 +324,13 @@ free_t2 = JWCClient.parse_free_classroom_grid(_grid2, 2, "111213")
 assert free_t2 == ["Ⅳ-A101", "Ⅳ-A102"], free_t2
 print("  [PASS] 空教室网格解析(全天多列 colspan 形态)")
 
+# 时间段范围(expect_code=None): 该星期全部列均空闲才算(任一组被占即排除)
+free_m1_all = JWCClient.parse_free_classroom_grid(_grid2, 1, None)
+assert free_m1_all == ["Ⅳ-A101"], free_m1_all    # A102 周一 0607 列被占 → 排除
+free_t2_all = JWCClient.parse_free_classroom_grid(_grid2, 2, None)
+assert free_t2_all == ["Ⅳ-A101", "Ⅳ-A102"], free_t2_all
+print("  [PASS] 空教室网格解析(时间段范围: 全列空闲才算)")
+
 # 教学楼联动接口解析: 数组 / data 包装 / 空与异常输入
 b1 = JWCClient.parse_classroom_buildings(
     '[{"dm":"1","dmmc":"Ⅰ教学楼"},{"dm":"GUID","dmmc":"体育中心"}]')

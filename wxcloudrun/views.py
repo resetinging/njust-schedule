@@ -1012,9 +1012,10 @@ def api_get_exams():
 # API — 空教室查询(需登录; 数据来自教务"全校性教室课表"空闲格解析)
 # ============================================================
 FREE_CLASSROOM_CAMPUSES = ("孝陵卫", "江阴")
-FREE_CLASSROOM_SLOT_KEYS = [s[0] for s in CLASSROOM_SLOTS]
-FREE_CLASSROOM_SLOT_NAMES = {s[0]: s[1] for s in CLASSROOM_SLOTS}
+# 官方大节(key, 名称, 起节, 止节): 兼容旧版 slot 参数
+FREE_CLASSROOM_SLOTS = {s[0]: (s[2], s[3]) for s in CLASSROOM_SLOTS}
 WEEKDAY_NAMES = ("", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日")
+JC_MIN, JC_MAX = 1, 13   # 一天最多 13 节(官方大节 1-3/4-5/6-7/8-10/11-13)
 
 
 def _current_teaching_week(first_week_date: str) -> int:
@@ -1031,11 +1032,12 @@ def _current_teaching_week(first_week_date: str) -> int:
 
 @app.route('/api/free-classrooms')
 def api_free_classrooms():
-    """空教室查询: campus(孝陵卫/江阴) + weekday(1-7) + slot(官方大节)
+    """空教室查询: campus(孝陵卫/江阴) + weekday(1-7)
+    + 节次范围(jc1/jc2, 1-13; 兼容旧版 slot=1-3/4-5/6-7/8-10/11-13)
     + week(周次) + building(教学楼名称, 可选)
 
-    服务端用当前登录会话提交教务教室课表查询并解析空格;
-    结果缓存 30s, 防止频繁查询打爆教务。
+    服务端用当前登录会话提交教务教室课表查询并解析空格(时间段跨多个
+    大节时全部大节空闲才算空闲); 结果缓存 30s, 防止频繁查询打爆教务。
     """
     client, err = _require_login()
     if err:
@@ -1050,9 +1052,23 @@ def api_free_classrooms():
         weekday = 0
     if weekday < 1 or weekday > 7:
         weekday = 0
-    slot = (request.args.get("slot") or "6-7").strip()
-    if slot not in FREE_CLASSROOM_SLOT_KEYS:
-        slot = "6-7"
+    # 节次范围: jc1/jc2 优先; 旧版 slot(大节)映射兜底; 默认 第6-7节
+    try:
+        jc1 = int(request.args.get("jc1") or "0")
+    except ValueError:
+        jc1 = 0
+    try:
+        jc2 = int(request.args.get("jc2") or "0")
+    except ValueError:
+        jc2 = 0
+    if jc1 < JC_MIN or jc2 < JC_MIN or jc1 > jc2:
+        slot = (request.args.get("slot") or "6-7").strip()
+        mapped = FREE_CLASSROOM_SLOTS.get(slot, (6, 7))
+        jc1, jc2 = mapped
+    jc1 = max(JC_MIN, min(jc1, JC_MAX))
+    jc2 = max(JC_MIN, min(jc2, JC_MAX))
+    if jc1 > jc2:
+        jc1, jc2 = 6, 7
     try:
         week = int(request.args.get("week") or "0")
     except ValueError:
@@ -1069,7 +1085,8 @@ def api_free_classrooms():
             or dao.get_setting("first_week_date", "")
         week = _current_teaching_week(fwd)
 
-    cache_key = f"{sid}:freeclass:{campus}:{weekday}:{slot}:{week}:{semester}:{building}"
+    cache_key = (f"{sid}:freeclass:{campus}:{weekday}:{jc1}:{jc2}:"
+                 f"{week}:{semester}:{building}")
     cached = _cache_get(cache_key)
     if cached is not None:
         return jsonify(cached)
@@ -1077,7 +1094,7 @@ def api_free_classrooms():
         result, retry_err = _retry_with_relogin(
             client,
             lambda: client.get_free_classrooms(campus=campus, weekday=weekday,
-                                                slot=slot, week=week,
+                                                jc1=jc1, jc2=jc2, week=week,
                                                 semester=semester,
                                                 building=building),
             "查询空闲教室失败")
@@ -1090,19 +1107,20 @@ def api_free_classrooms():
     rooms = result.get("rooms") or []
     resp = {
         "success": True,
-        "campus": campus, "weekday": weekday, "slot": slot, "week": week,
+        "campus": campus, "weekday": weekday, "week": week,
         "semester": semester,
+        "jc1": jc1, "jc2": jc2,
+        "time_text": f"第{jc1}-{jc2}节",
         "weekday_name": WEEKDAY_NAMES[weekday] if 1 <= weekday <= 7 else "",
-        "slot_name": FREE_CLASSROOM_SLOT_NAMES.get(slot, ""),
         "building": result.get("building_name", ""),
         "buildings": result.get("buildings", []),
         "count": len(rooms), "rooms": rooms,
     }
     _cache_set(cache_key, resp)
-    app.logger.info("[freeclass] rid=%s sid=%s %s%s 周%s 星期%s %s 空闲教室 %d 间",
+    app.logger.info("[freeclass] rid=%s sid=%s %s%s 周%s 星期%s 第%d-%d节 空闲 %d 间",
                     _rid(), sid, campus,
                     f"/{resp['building']}" if resp["building"] else "",
-                    week, weekday, slot, len(rooms))
+                    week, weekday, jc1, jc2, len(rooms))
     return jsonify(resp)
 
 
