@@ -93,7 +93,6 @@ CLASSROOM_SLOTS = [
     ("8-10",  "第8-10节",  8,   10,  "080910"),
     ("11-13", "第11-13节", 11,  13,  "111213"),
 ]
-CLASSROOM_SLOT_KEYS = [s[0] for s in CLASSROOM_SLOTS]
 
 
 def _dedupe_schedule_courses(courses: list) -> list:
