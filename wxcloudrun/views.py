@@ -17,7 +17,7 @@ from flask import render_template, request, jsonify, Response, g
 from bs4 import BeautifulSoup
 
 from wxcloudrun import app
-from wxcloudrun.jwc_client import JWCClient, CLASSROOM_SLOT_KEYS
+from wxcloudrun.jwc_client import JWCClient, CLASSROOM_SLOTS
 from wxcloudrun import dao
 
 # ============================================================
@@ -1012,7 +1012,9 @@ def api_get_exams():
 # API — 空教室查询(需登录; 数据来自教务"全校性教室课表"空闲格解析)
 # ============================================================
 FREE_CLASSROOM_CAMPUSES = ("孝陵卫", "江阴")
-FREE_CLASSROOM_SLOT_KEYS = CLASSROOM_SLOT_KEYS
+FREE_CLASSROOM_SLOT_KEYS = [s[0] for s in CLASSROOM_SLOTS]
+FREE_CLASSROOM_SLOT_NAMES = {s[0]: s[1] for s in CLASSROOM_SLOTS}
+WEEKDAY_NAMES = ("", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日")
 
 
 def _current_teaching_week(first_week_date: str) -> int:
@@ -1029,7 +1031,8 @@ def _current_teaching_week(first_week_date: str) -> int:
 
 @app.route('/api/free-classrooms')
 def api_free_classrooms():
-    """空教室查询: campus(孝陵卫/江阴) + weekday(1-7) + slot(官方大节) + week(周次)
+    """空教室查询: campus(孝陵卫/江阴) + weekday(1-7) + slot(官方大节)
+    + week(周次) + building(教学楼名称, 可选)
 
     服务端用当前登录会话提交教务教室课表查询并解析空格;
     结果缓存 30s, 防止频繁查询打爆教务。
@@ -1054,6 +1057,7 @@ def api_free_classrooms():
         week = int(request.args.get("week") or "0")
     except ValueError:
         week = 0
+    building = (request.args.get("building") or "").strip()[:50]
     semester = (request.args.get("semester") or "").strip() or \
         dao.get_user_setting(sid, "semester") or _current_semester()
     if weekday == 0:
@@ -1065,28 +1069,40 @@ def api_free_classrooms():
             or dao.get_setting("first_week_date", "")
         week = _current_teaching_week(fwd)
 
-    cache_key = f"{sid}:freeclass:{campus}:{weekday}:{slot}:{week}:{semester}"
+    cache_key = f"{sid}:freeclass:{campus}:{weekday}:{slot}:{week}:{semester}:{building}"
     cached = _cache_get(cache_key)
     if cached is not None:
         return jsonify(cached)
     with _jwc_request(client):
-        rooms, retry_err = _retry_with_relogin(
+        result, retry_err = _retry_with_relogin(
             client,
             lambda: client.get_free_classrooms(campus=campus, weekday=weekday,
                                                 slot=slot, week=week,
-                                                semester=semester),
+                                                semester=semester,
+                                                building=building),
             "查询空闲教室失败")
     if retry_err:
+        if "教学楼不存在" in (client.last_error or ""):
+            return jsonify({"success": False,
+                            "message": client.last_error}), 400
         return retry_err
+    result = result if isinstance(result, dict) else {}
+    rooms = result.get("rooms") or []
     resp = {
         "success": True,
         "campus": campus, "weekday": weekday, "slot": slot, "week": week,
         "semester": semester,
+        "weekday_name": WEEKDAY_NAMES[weekday] if 1 <= weekday <= 7 else "",
+        "slot_name": FREE_CLASSROOM_SLOT_NAMES.get(slot, ""),
+        "building": result.get("building_name", ""),
+        "buildings": result.get("buildings", []),
         "count": len(rooms), "rooms": rooms,
     }
     _cache_set(cache_key, resp)
-    app.logger.info("[freeclass] rid=%s sid=%s %s 周%s 星期%s %s 空闲教室 %d 间",
-                    _rid(), sid, campus, week, weekday, slot, len(rooms))
+    app.logger.info("[freeclass] rid=%s sid=%s %s%s 周%s 星期%s %s 空闲教室 %d 间",
+                    _rid(), sid, campus,
+                    f"/{resp['building']}" if resp["building"] else "",
+                    week, weekday, slot, len(rooms))
     return jsonify(resp)
 
 

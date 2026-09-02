@@ -48,7 +48,7 @@ from config import (
     JW_APP_DO, JW_CAPTCHA_URLS, BIG_PERIOD_MAP,
     HTTP_TIMEOUT, HTTP_HEADERS,
     SSO_BASE, SSO_LOGIN_URL, DEBUG_WEBVPN,
-    JW_CLASSROOM_QUERY, JW_CLASSROOM_LIST,
+    JW_CLASSROOM_QUERY, JW_CLASSROOM_LIST, JW_CLASSROOM_BUILDINGS,
 )
 
 # === 加密模块（智慧理工 SSO 密码加密） ===
@@ -75,6 +75,7 @@ URL_GRADE_LIST = JW_GRADE_LIST
 URL_CET_LIST = JW_CET_LIST
 URL_CLASSROOM_QUERY = JW_CLASSROOM_QUERY
 URL_CLASSROOM_LIST = JW_CLASSROOM_LIST
+URL_CLASSROOM_BUILDINGS = JW_CLASSROOM_BUILDINGS
 URL_MAIN_PAGE = f"{BASE_9080}{JW_PATH_PREFIX}/framework/main.jsp"
 URL_CAPTCHA_CANDIDATES = JW_CAPTCHA_URLS
 HEADERS = HTTP_HEADERS
@@ -1946,15 +1947,92 @@ class JWCClient:
     # ============================================================
     # 空教室查询(全校性教室课表 → 空闲教室)
     # ============================================================
+    CLASSROOM_OPTS_TTL = 600   # 查询页选项/教学楼列表缓存(秒): 会话内复用, 教务请求减半
+
+    def _classroom_page_opts(self, force: bool = False):
+        """查询页选项(学期列表/校区映射/最大周数), 会话内缓存 10 分钟。
+
+        返回 None 表示会话过期(已设置 last_error)。
+        """
+        cache = getattr(self, "_classroom_opts_cache", None)
+        if not force and cache and time.time() - cache["ts"] < self.CLASSROOM_OPTS_TTL:
+            return cache
+        try:
+            page = self.session.get(URL_CLASSROOM_QUERY, timeout=TIMEOUT,
+                                    allow_redirects=True)
+        except Exception as e:
+            logger.warning("[教室课表] 查询页获取失败: %s", e)
+            self.last_error = f"教室课表查询失败: {e}"
+            return None
+        if self._is_jw_login_page(page):
+            self.last_error = "登录已过期，请重新登录"
+            return None
+        soup = BeautifulSoup(page.text, "lxml")
+
+        def _opts(name):
+            sel = soup.find("select", {"name": name})
+            if not sel:
+                return []
+            return [(o.get_text(" ", strip=True), o.get("value") or "")
+                    for o in sel.find_all("option")]
+
+        sem_vals = [v for t, v in _opts("xnxqh") if v]
+        xq_map = {t: v for t, v in _opts("xqid") if v}
+        zc_opts = [v for t, v in _opts("zc2") if str(v).isdigit()]
+        opts = {
+            "ts": time.time(),
+            "sem_vals": sem_vals,
+            "xq_map": xq_map,
+            "max_week": int(zc_opts[-1]) if zc_opts else 20,
+        }
+        self._classroom_opts_cache = opts
+        return opts
+
+    def _classroom_buildings(self, xqid: str, force: bool = False) -> list:
+        """教学楼列表(校区联动接口), 会话内按校区缓存 10 分钟"""
+        cache = getattr(self, "_classroom_buildings_cache", None) or {}
+        self._classroom_buildings_cache = cache
+        item = cache.get(xqid)
+        if not force and item and time.time() - item["ts"] < self.CLASSROOM_OPTS_TTL:
+            return item["list"]
+        items = []
+        try:
+            resp = self.session.post(
+                URL_CLASSROOM_BUILDINGS, data=f"&xqid={xqid}",
+                timeout=TIMEOUT, allow_redirects=True,
+                headers={"Referer": URL_CLASSROOM_QUERY,
+                         "Content-Type": "application/x-www-form-urlencoded"})
+            items = self.parse_classroom_buildings(resp.text)
+        except Exception as e:
+            logger.warning("[教室课表] 教学楼列表获取失败: %s", e)
+        cache[xqid] = {"ts": time.time(), "list": items}
+        return items
+
+    @staticmethod
+    def parse_classroom_buildings(payload: str) -> list:
+        """解析教学楼联动接口返回(JSON 数组 [{dm,dmmc}] 或 {data:...} 包装)"""
+        try:
+            data = json.loads(payload or "[]")
+        except Exception:
+            return []
+        if isinstance(data, dict):
+            data = data.get("data") or data.get("list") or data.get("rows") or []
+        out = []
+        for d in data or []:
+            if isinstance(d, dict) and d.get("dmmc"):
+                out.append({"code": str(d.get("dm") or ""), "name": str(d["dmmc"])})
+        return out
+
     def get_free_classrooms(self, campus: str = "孝陵卫", weekday: int = 1,
                             slot: str = "6-7", week: int = None,
-                            semester: str = "") -> list:
-        """查询空闲教室: 按 校区+星期+官方大节+周次 提交全校教室课表查询,
+                            semester: str = "", building: str = "") -> dict:
+        """查询空闲教室: 按 校区+星期+官方大节+周次(+教学楼) 提交全校教室课表查询,
         解析返回网格中目标时段无排课的教室。
 
         campus: 孝陵卫 | 江阴; weekday: 1-7(周一=1);
         slot: 1-3/4-5/6-7/8-10/11-13(官方大节); week: 周次(None=不按周过滤);
-        semester: 学年学期(默认教务当前学期)。
+        semester: 学年学期(默认教务当前学期); building: 教学楼名称(模糊=精确匹配联动列表)。
+        成功返回 {"rooms": [...], "building_name": str, "buildings": [{code,name}...]};
         失败/会话过期时设置 last_error 并返回 []。
         """
         slot_map = {s[0]: s for s in CLASSROOM_SLOTS}
@@ -1962,42 +2040,37 @@ class JWCClient:
             slot = "6-7"
         _key, _name, jc1, jc2, expect_code = slot_map[slot]
         try:
-            # 1) 查询页: 取学期/校区选项(教学楼联动接口未知, 全校区查询)
-            page = self.session.get(URL_CLASSROOM_QUERY, timeout=TIMEOUT,
-                                    allow_redirects=True)
-            if self._is_jw_login_page(page):
-                self.last_error = "登录已过期，请重新登录"
+            # 1) 选项(10 分钟缓存): 学期/校区/最大周数
+            opts = self._classroom_page_opts()
+            if opts is None:
                 return []
-            soup = BeautifulSoup(page.text, "lxml")
-
-            def _opts(name):
-                sel = soup.find("select", {"name": name})
-                if not sel:
+            xnxqh = semester if (semester and semester in opts["sem_vals"]) \
+                else (opts["sem_vals"][0] if opts["sem_vals"] else "")
+            # 校区代码: 按选项文本前缀匹配, 回退内置映射
+            xqid = next((v for t, v in opts["xq_map"].items()
+                         if campus and t.startswith(campus)),
+                        {"孝陵卫": "01", "江阴": "4y"}.get(campus, "01"))
+            # 教学楼(联动接口, 10 分钟按校区缓存)
+            buildings = self._classroom_buildings(xqid)
+            jzwid, building_name = "", ""
+            if building:
+                b = building.strip()
+                hit = next((x for x in buildings if x["name"] == b or x["code"] == b), None)
+                if hit is None:
+                    self.last_error = f"教学楼不存在: {b}"
                     return []
-                return [(o.get_text(" ", strip=True), o.get("value") or "")
-                        for o in sel.find_all("option")]
-
-            sem_vals = [v for t, v in _opts("xnxqh") if v]
-            if semester and semester in sem_vals:
-                xnxqh = semester
+                jzwid, building_name = hit["code"], hit["name"]
+            # 周次: None=不按周过滤; 否则钳制在可选范围内
+            if week is None:
+                zc1 = zc2 = ""
             else:
-                xnxqh = sem_vals[0] if sem_vals else ""
-            # 校区: 匹配选项文本前缀(孝陵卫/江阴), 回退内置映射
-            xq_map = {"孝陵卫": "01", "江阴": "4y"}
-            for t, v in _opts("xqid"):
-                if campus and t.startswith(campus):
-                    xq_map[campus] = v
-                    break
-            xqid = xq_map.get(campus, "01")
-            # 周次上限: 以页面可选周数为准
-            zc_opts = [v for t, v in _opts("zc2") if v.isdigit()]
-            max_week = int(zc_opts[-1]) if zc_opts else 20
-            wk = max(1, min(int(week or 1), max_week))
+                wk = max(1, min(int(week), opts["max_week"]))
+                zc1 = zc2 = str(wk)
 
             # 2) 提交查询
             data = {
-                "xnxqh": xnxqh, "skyx": "", "xqid": xqid, "jzwid": "",
-                "zc1": str(wk), "zc2": str(wk),
+                "xnxqh": xnxqh, "skyx": "", "xqid": xqid, "jzwid": jzwid,
+                "zc1": zc1, "zc2": zc2,
                 "xq": str(weekday), "xq2": str(weekday),
                 "jc1": str(jc1), "jc2": str(jc2),
             }
@@ -2008,9 +2081,14 @@ class JWCClient:
                 self.last_error = "登录已过期，请重新登录"
                 return []
             rooms = self.parse_free_classroom_grid(resp.text, weekday, expect_code)
-            logger.info("[教室课表] %s 周%s 周%s 大节%s 空闲教室 %d 间",
-                        campus, wk, weekday, slot, len(rooms))
-            return rooms
+            logger.info("[教室课表] %s%s 周%s 星期%s 大节%s 空闲教室 %d 间",
+                        campus, f"/{building_name}" if building_name else "",
+                        week, weekday, slot, len(rooms))
+            return {
+                "rooms": rooms,
+                "building_name": building_name,
+                "buildings": buildings,
+            }
         except Exception as e:
             logger.warning("[教室课表] 查询异常: %s", e)
             self.last_error = f"教室课表查询失败: {e}"

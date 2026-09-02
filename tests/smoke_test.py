@@ -324,6 +324,16 @@ free_t2 = JWCClient.parse_free_classroom_grid(_grid2, 2, "111213")
 assert free_t2 == ["Ⅳ-A101", "Ⅳ-A102"], free_t2
 print("  [PASS] 空教室网格解析(全天多列 colspan 形态)")
 
+# 教学楼联动接口解析: 数组 / data 包装 / 空与异常输入
+b1 = JWCClient.parse_classroom_buildings(
+    '[{"dm":"1","dmmc":"Ⅰ教学楼"},{"dm":"GUID","dmmc":"体育中心"}]')
+assert b1 == [{"code": "1", "name": "Ⅰ教学楼"}, {"code": "GUID", "name": "体育中心"}], b1
+b2 = JWCClient.parse_classroom_buildings('{"data":[{"dm":"4y","dmmc":"江阴"}]}')
+assert b2 == [{"code": "4y", "name": "江阴"}], b2
+assert JWCClient.parse_classroom_buildings("not json") == []
+assert JWCClient.parse_classroom_buildings("") == []
+print("  [PASS] 教学楼列表解析(数组/data 包装/异常输入)")
+
 print("== 管理端仪表盘与反馈(留言板已下线) ==")
 import time as _time  # noqa: E402
 from wxcloudrun import admin as admin_mod  # noqa: E402
