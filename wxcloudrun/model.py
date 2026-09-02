@@ -234,7 +234,6 @@ class Feedback(db.Model):
             "student_name": self.student_name,
             "type": self.fb_type,
             "content": self.content,
-            "contact": self.contact,
             "status": self.status,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else "",
         }

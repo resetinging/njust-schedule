@@ -671,7 +671,7 @@ _FEEDBACK_TYPES = ("suggest", "bug", "other")
 
 @app.route('/api/feedback', methods=['POST'])
 def api_post_feedback():
-    """提交问题反馈(需登录; 10 秒限流; 敏感词过滤)"""
+    """提交问题反馈(需登录; 10 秒限流; 敏感词过滤; 不再收集联系方式)"""
     client, err = _require_login()
     if err:
         return err
@@ -681,7 +681,6 @@ def api_post_feedback():
     if fb_type not in _FEEDBACK_TYPES:
         fb_type = "other"
     content = str(data.get("content", "")).strip()
-    contact = str(data.get("contact", "")).strip()[:100]
     if not content:
         return jsonify({"success": False, "message": "反馈内容不能为空"}), 400
     if len(content) > FEEDBACK_MAX_LEN:
@@ -697,7 +696,7 @@ def api_post_feedback():
             return jsonify({"success": False, "message": f"提交太频繁，请 {remain} 秒后再试"}), 429
         _feedback_last_post[sid] = time.time()
     name = client.student_name or dao.get_user_setting(sid, "name", "")
-    fb = dao.save_feedback(sid, name, fb_type, content, contact)
+    fb = dao.save_feedback(sid, name, fb_type, content)
     app.logger.info("[feedback] rid=%s 反馈 sid=%s type=%s len=%d", _rid(), sid, fb_type, len(content))
     return jsonify({"success": True, "message": "反馈已提交，感谢您的建议", "fb": fb})
 

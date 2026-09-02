@@ -529,9 +529,6 @@ async function loadFeedback() {
         </div>
         <div>
           <div class="board-content">${esc(f.content)}</div>
-          <div class="board-meta" ${f.contact ? '' : 'style="display:none"'}>
-            <span class="dim">联系方式: ${esc(f.contact || '')}</span>
-          </div>
         </div>
         <div class="fb-actions">
           <span class="fb-status ${f.status}">${f.status === 'done' ? '已处理' : '待处理'}</span>

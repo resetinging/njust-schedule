@@ -434,10 +434,10 @@ def delete_board_comment(comment_id: int) -> bool:
 # 问题反馈
 # ============================================================
 def save_feedback(student_id: str, student_name: str, fb_type: str,
-                  content: str, contact: str = "") -> dict:
-    """提交反馈, 返回 dict"""
+                  content: str) -> dict:
+    """提交反馈(不再收集联系方式, contact 列保留仅存历史数据), 返回 dict"""
     row = Feedback(student_id=student_id, student_name=student_name,
-                   fb_type=fb_type, content=content, contact=contact, status="pending")
+                   fb_type=fb_type, content=content, status="pending")
     db.session.add(row)
     db.session.commit()
     return row.to_dict()
