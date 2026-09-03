@@ -58,6 +58,7 @@ def record_request(method: str, path: str, status: int, ms: float, sid: str, ip:
         _recent.append({
             "id": _req_seq,
             "ts": time.strftime("%H:%M:%S"),
+            "t": time.time(),          # epoch 秒(前端"近 N 分钟"时间窗筛选用)
             "method": method,
             "path": path,
             "status": status,

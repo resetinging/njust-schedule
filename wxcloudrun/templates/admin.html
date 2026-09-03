@@ -58,16 +58,34 @@
             <option value="5">5xx 服务器错误</option>
             <option value="401">401 未授权</option>
           </select>
+          <select id="fMethod">
+            <option value="">全部方法</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+          </select>
+          <select id="fTime">
+            <option value="0">全部时间</option>
+            <option value="600">近 10 分钟</option>
+            <option value="1800">近 30 分钟</option>
+            <option value="3600">近 1 小时</option>
+            <option value="10800">近 3 小时</option>
+          </select>
           <input id="fSid" placeholder="学号筛选" />
           <input id="fPath" placeholder="路径关键词" />
-          <label class="chk-label"><input type="checkbox" id="autoScroll" checked> 自动滚动</label>
+          <label class="chk-label"><input type="checkbox" id="autoScroll" checked> 跟随最新</label>
         </div>
         <div class="btn-group">
           <button id="reqPause" class="ghost small">⏸ 暂停</button>
+          <button id="reqExport" class="ghost small">⬇ 导出 CSV</button>
           <button id="reqClear" class="ghost small">清空</button>
         </div>
       </div>
       <div id="reqStats" class="req-stats"></div>
+      <div class="req-pager">
+        <button id="pgPrev" class="ghost small">‹ 上一页</button>
+        <span id="pgInfo"></span>
+        <button id="pgNext" class="ghost small">下一页 ›</button>
+      </div>
       <div id="reqList" class="req-list"></div>
     </section>
 

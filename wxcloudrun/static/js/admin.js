@@ -131,14 +131,18 @@ $('adminPwd').addEventListener('keydown', e => { if (e.key === 'Enter') $('login
 $('logoutBtn').addEventListener('click', () => { api('/api/admin/logout', { method: 'POST' }).catch(() => {}); logout(); });
 
 // ============================================================
-// SSE 实时请求流
+// 实时请求(15s 轮询 + 本地筛选/分页/导出)
 // ============================================================
-let reqBuf = [];        // 请求缓冲(全部)
+let reqBuf = [];        // 请求缓冲(全部, 上限与后端一致 800)
 let reqPaused = false;
+let reqPage = 1;        // 当前页码(每页 100)
+const REQ_PAGE_SIZE = 100;
 
 function reqFilters() {
   return {
     status: $('fStatus').value,
+    method: $('fMethod').value,
+    timeSec: Number($('fTime').value) || 0,
     sid: $('fSid').value.trim().toLowerCase(),
     path: $('fPath').value.trim().toLowerCase()
   };
@@ -150,14 +154,16 @@ function reqMatch(r, f) {
   if (f.status === '2' && !(r.status >= 200 && r.status < 300)) return false;
   if (f.status === '4' && !(r.status >= 400 && r.status < 500)) return false;
   if (f.status === '5' && !(r.status >= 500)) return false;
+  if (f.method && r.method !== f.method) return false;
+  if (f.timeSec && !(r.t && Date.now() / 1000 - r.t <= f.timeSec)) return false;
   if (f.sid && !String(r.sid || '').toLowerCase().includes(f.sid)) return false;
   if (f.path && !String(r.path || '').toLowerCase().includes(f.path)) return false;
   return true;
 }
 
-/** 重渲染请求列表(按筛选) */
-function renderReqs() {
-  if (reqPaused) return;
+/** 重渲染请求列表(按筛选 + 分页); force=true 时暂停状态下也允许(翻页/导出) */
+function renderReqs(force) {
+  if (reqPaused && !force) return;
   const f = reqFilters();
   const list = $('reqList');
   const matched = reqBuf.filter(r => reqMatch(r, f));
@@ -165,25 +171,59 @@ function renderReqs() {
   const total = matched.length;
   const slow = matched.filter(r => r.ms >= 2000).length;
   const err5 = matched.filter(r => r.status >= 500).length;
-  $('reqStats').textContent = `匹配 ${total} 条 · 5xx ${err5} 条 · 慢请求 ${slow} 条`;
-  // 渲染(上限 300 行)
-  const rows = matched.slice(-300).map(reqRowHtml).join('');
-  list.innerHTML = rows;
-  if ($('autoScroll').checked) list.scrollTop = list.scrollHeight;
+  const auth401 = matched.filter(r => r.status === 401).length;
+  $('reqStats').textContent = `匹配 ${total} 条 · 5xx ${err5} 条 · 401 ${auth401} 条 · 慢请求 ${slow} 条`;
+  // 分页: "跟随最新"勾选时恒在最后一页
+  const pages = Math.max(1, Math.ceil(total / REQ_PAGE_SIZE));
+  const follow = $('autoScroll').checked;
+  if (follow) reqPage = pages;
+  reqPage = Math.min(Math.max(1, reqPage), pages);
+  const start = (reqPage - 1) * REQ_PAGE_SIZE;
+  const rows = matched.slice(start, start + REQ_PAGE_SIZE).map(reqRowHtml).join('');
+  list.innerHTML = rows || (reqBuf.length
+    ? '<div class="req-empty">无匹配请求，试试放宽筛选条件</div>'
+    : '<div class="req-empty">暂无请求 — 小程序产生请求后会实时出现在这里</div>');
+  $('pgInfo').textContent = `第 ${reqPage} / ${pages} 页 · 共 ${total} 条`;
+  $('pgPrev').disabled = reqPage <= 1;
+  $('pgNext').disabled = reqPage >= pages;
+  if (follow) list.scrollTop = list.scrollHeight;
 }
 
 function reqRowHtml(r) {
   const msCls = r.ms >= 2000 ? 'ms-slow' : '';
-  return `<div class="req-row">` +
+  return `<div class="req-row" title="${esc(r.path || '')} · ${esc(r.ip || '-')}">` +
     `<span class="req-id">#${r.id}</span>` +
     `<span class="req-time">${esc(fmtTs(r.ts))}</span>` +
-    `<span class="req-method">${esc(r.method)}</span>` +
+    `<span class="req-method m-${esc(String(r.method || '').toLowerCase())}">${esc(r.method)}</span>` +
     `<span class="req-path">${esc(r.path)}</span>` +
     `<span class="req-status ${statusClass(r.status)}">${r.status}</span>` +
     `<span class="req-ms ${msCls}">${r.ms}ms</span>` +
     `<span class="req-sid">${esc(r.sid || '-')}</span>` +
     `<span class="req-ip">${esc(r.ip || '-')}</span>` +
     `</div>`;
+}
+
+/** 导出当前筛选结果(全部匹配, 含 BOM 便于 Excel 打开中文) */
+function exportReqs() {
+  const f = reqFilters();
+  const rows = reqBuf.filter(r => reqMatch(r, f));
+  if (!rows.length) { alert('当前筛选下没有可导出的请求'); return; }
+  const head = ['序号', '时间', '方法', '路径', '状态', '耗时ms', '学号', 'IP'];
+  const lines = rows.map(r => [
+    r.id, r.ts, r.method,
+    '"' + String(r.path || '').replace(/"/g, '""') + '"',
+    r.status, r.ms, r.sid || '', r.ip || ''
+  ].join(','));
+  const csv = '\ufeff' + [head.join(',')].concat(lines).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  a.download = `requests_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
 }
 
 function startPoll() {
@@ -220,15 +260,23 @@ async function fetchReqs() {
   }
 }
 
-$('reqClear').addEventListener('click', () => { reqBuf = []; renderReqs(); });
+$('reqClear').addEventListener('click', () => { reqBuf = []; reqPage = 1; renderReqs(true); });
+$('reqExport').addEventListener('click', exportReqs);
 $('reqPause').addEventListener('click', () => {
   reqPaused = !reqPaused;
   $('reqPause').textContent = reqPaused ? '▶ 继续' : '⏸ 暂停';
-  if (!reqPaused) renderReqs();
+  if (!reqPaused) renderReqs(true);
 });
-['fStatus', 'fSid', 'fPath'].forEach(id => {
-  $(id).addEventListener('input', renderReqs);
-  $(id).addEventListener('change', renderReqs);
+$('pgPrev').addEventListener('click', () => { if (reqPage > 1) { reqPage--; renderReqs(true); } });
+$('pgNext').addEventListener('click', () => { reqPage++; renderReqs(true); });
+// 取消"跟随最新"时跳到最后一页, 便于从最新处往回翻
+$('autoScroll').addEventListener('change', () => {
+  if (!$('autoScroll').checked) { reqPage = Math.max(1, Math.ceil(reqBuf.length / REQ_PAGE_SIZE)); }
+  renderReqs(true);
+});
+['fStatus', 'fMethod', 'fTime', 'fSid', 'fPath'].forEach(id => {
+  $(id).addEventListener('input', () => { if (!$('autoScroll').checked) reqPage = 1; renderReqs(); });
+  $(id).addEventListener('change', () => { if (!$('autoScroll').checked) reqPage = 1; renderReqs(); });
 });
 
 // ============================================================

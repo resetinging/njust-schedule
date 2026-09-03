@@ -149,6 +149,8 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; }
 .req-id { color: var(--dim); }
 .req-time { color: var(--dim); }
 .req-method { font-weight: 600; color: var(--accent); }
+.req-method.m-get { color: var(--green); }
+.req-method.m-post { color: #e0a24a; }
 .req-path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .req-status { font-weight: 700; text-align: center; border-radius: 4px; padding: 1px 0; }
 .s2xx { color: var(--green); }
@@ -160,6 +162,12 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; }
 .ms-slow { color: var(--red) !important; font-weight: 700; }
 .req-sid { color: var(--dim); }
 .req-ip { color: var(--dim); }
+.req-pager {
+  display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+  padding: 10px 4px 4px; font-size: 12px; color: var(--dim);
+}
+.req-pager button:disabled { opacity: .4; cursor: default; }
+.req-empty { padding: 60px 0; text-align: center; color: var(--dim); font-size: 13px; }
 
 /* ---------- 表格 ---------- */
 .user-list, .session-list { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
