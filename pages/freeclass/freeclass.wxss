@@ -200,13 +200,6 @@
   border-radius: 999rpx;
   font-size: 26rpx;
   color: #4A4670;
-  transition: all 0.15s ease;
-}
-
-.room-chip:active {
-  background: #F2EFFF;
-  border-color: #D8CEF8;
-  color: #7C6BE8;
 }
 
 /* ============================================================

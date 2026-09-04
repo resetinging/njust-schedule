@@ -2,7 +2,7 @@
  * 空教室查询页 — 查教务"全校性教室课表"空闲教室
  * 筛选: 校区/星期/周次/起止时段(可跨官方大节, 时间段内全空闲才算); 需登录
  * - 星期选"今天"、周次选"本周"时省略参数, 由后端按当天/第一周设置推算
- * - 结果按教学楼分组展示; 点击教室名复制
+ * - 结果按教学楼分组纯展示(不调用剪贴板, 避免隐私授权弹窗)
  * - 选择器确认后自动查询(30s 服务端缓存兜底); 下拉可刷新
  */
 
@@ -137,16 +137,6 @@ Page({
       .catch(() => {
         this.setData({ loading: false, searched: true, errorMsg: '网络异常，请稍后再试' })
       })
-  },
-
-  /** 点击教室名复制 */
-  onCopyRoom(e) {
-    const room = e.currentTarget.dataset.room
-    if (!room) return
-    wx.setClipboardData({
-      data: room,
-      success: () => wx.showToast({ title: '已复制 ' + room, icon: 'none' })
-    })
   },
 
   /** 未登录: 返回"我的"页登录 */

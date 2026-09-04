@@ -66,7 +66,7 @@
       </view>
     </view>
 
-    <!-- 按教学楼分组的教室(点击复制) -->
+    <!-- 按教学楼分组的教室(纯展示) -->
     <view class="group-list" wx:if="{{groups.length}}">
       <block wx:for="{{groups}}" wx:key="prefix" wx:for-item="grp">
         <view class="group-card">
@@ -78,8 +78,7 @@
             <view class="group-badge">{{grp.rooms.length}} 间</view>
           </view>
           <view class="group-chips">
-            <view class="room-chip" wx:for="{{grp.rooms}}" wx:key="*this"
-                  data-room="{{item}}" bindtap="onCopyRoom">{{item}}</view>
+            <view class="room-chip" wx:for="{{grp.rooms}}" wx:key="*this">{{item}}</view>
           </view>
         </view>
       </block>
