@@ -144,7 +144,7 @@
   padding: 32rpx 24rpx 48rpx;
 }
 
-.logout-area button {
+.logout-area .btn-danger-plain {
   font-size: 28rpx;
 }
 

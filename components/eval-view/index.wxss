@@ -322,7 +322,8 @@
   z-index: 10;
 }
 
-.form-actions button {
+.form-actions .btn-outline,
+.form-actions .btn-primary {
   flex: 1;
   font-size: 28rpx;
 }
@@ -382,7 +383,8 @@
   margin-top: 24rpx;
 }
 
-.modal-buttons button {
+.modal-buttons .btn-outline,
+.modal-buttons .btn-primary {
   flex: 1;
 }
 

@@ -46,7 +46,8 @@ Page({
   /** 计算 swiper 高度: 视口高 - tabBar 高(约 88rpx) - iOS 底部安全区 - 公告条高(若可见) */
   _calcHeight() {
     try {
-      const sys = wx.getSystemInfoSync()
+      // getSystemInfoSync 已废弃: 改用 getWindowInfo(视口/安全区), 旧基础库回退
+      const sys = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
       const ratio = sys.windowWidth / 750
       const tabH = Math.ceil(88 * ratio)
       // iOS 全面屏底部安全区(tabBar 有 env(safe-area-inset-bottom) padding)

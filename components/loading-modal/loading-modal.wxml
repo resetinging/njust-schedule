@@ -4,7 +4,7 @@
     <text class="title">{{title}}</text>
 
     <view class="progress-bar" wx:if="{{showProgress}}">
-      <progress percent="{{percent}}" stroke-width="6"
+      <progress class="progress-el" percent="{{percent}}" stroke-width="6"
                 activeColor="#5B3CC4" backgroundColor="#E0E0E0" />
     </view>
 

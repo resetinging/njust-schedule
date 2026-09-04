@@ -56,7 +56,7 @@
   background: linear-gradient(135deg, #7C6BE8, #8B79EC);
   box-shadow: 0 2rpx 6rpx rgba(26, 82, 118, 0.3);
 }
-.progress-bar progress { border-radius: 99rpx; overflow: hidden; }
+.progress-bar .progress-el { border-radius: 99rpx; overflow: hidden; }
 
 
 /* ============================================================
