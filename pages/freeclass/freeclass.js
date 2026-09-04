@@ -177,7 +177,14 @@ Page({
         this.setData({ loading: false, errorMsg: '', cacheNote: '' })
         return Promise.resolve()
       }
-      this.setData({ loading: false, errorMsg: '', cacheNote: '缓存 ' + fmtTime(hit.t) + ' · 更新中…' })
+      // 显示服务端刷新时间(后端定时在上下课时刻预热) — 前后端协作
+      const srvTime = (hit.data && hit.data.updated_at)
+        ? fmtTime(hit.data.updated_at * 1000) : fmtTime(hit.t)
+      this.setData({
+        loading: false,
+        errorMsg: '',
+        cacheNote: '服务端 ' + srvTime + ' 更新 · 刷新中…'
+      })
     } else {
       this.setData({ loading: true, errorMsg: '', cacheNote: '' })
     }
@@ -187,8 +194,13 @@ Page({
       .then(res => {
         if (!res || !res.success) {
           if (fromCache) {
-            // 网络失败: 保留缓存展示, 标注离线
-            this.setData({ loading: false, cacheNote: '网络不可用 · 显示缓存数据' })
+            // 网络失败: 保留缓存展示, 标注离线(附服务端更新时间)
+            const srvTime = (hit.data && hit.data.updated_at)
+              ? fmtTime(hit.data.updated_at * 1000) : ''
+            this.setData({
+              loading: false,
+              cacheNote: '网络不可用 · 缓存数据' + (srvTime ? '(服务端 ' + srvTime + ' 更新)' : '')
+            })
             return
           }
           this.setData({
@@ -205,7 +217,12 @@ Page({
       })
       .catch(() => {
         if (fromCache) {
-          this.setData({ loading: false, cacheNote: '网络不可用 · 显示缓存数据' })
+          const srvTime = (hit.data && hit.data.updated_at)
+            ? fmtTime(hit.data.updated_at * 1000) : ''
+          this.setData({
+            loading: false,
+            cacheNote: '网络不可用 · 缓存数据' + (srvTime ? '(服务端 ' + srvTime + ' 更新)' : '')
+          })
           return
         }
         this.setData({ loading: false, searched: true, errorMsg: '网络异常，请稍后再试' })
