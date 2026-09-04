@@ -4,7 +4,7 @@
  * - 本地缓存优先: 命中缓存立即渲染(秒开), 60s 内不重复请求, 过期后后台静默刷新
  * - 星期选"今天"、周次选"本周"时省略参数, 由后端按当天/第一周设置推算
  * - 结果按教学楼分组纯展示(不调用剪贴板)
- * - 选择器确认后自动查询; 下拉可刷新
+ * - 选择器确认后自动查询(不做下拉刷新)
  */
 
 const api = require('../../utils/api')
@@ -103,11 +103,6 @@ Page({
     this.search()
   },
 
-  onPullDownRefresh() {
-    // 下拉 = 强制刷新(跳过 60s 免请求窗口)
-    this.search(true).finally(() => wx.stopPullDownRefresh())
-  },
-
   onCampusChange(e) {
     this.setData({
       campusIndex: Number(e.detail.value),
@@ -156,7 +151,7 @@ Page({
   },
 
   /** 按当前筛选查询空闲教室(优先本地缓存, 后台静默刷新) */
-  search(forceRefresh) {
+  search() {
     if (!storage.isLoggedIn()) return Promise.resolve()
     const d = this.data
     const s = d.slotList[d.startIndex]
@@ -177,7 +172,7 @@ Page({
       fromCache = true
       this._applyResult(hit.data)
       const age = Date.now() - hit.t
-      if (!forceRefresh && age < NO_REQUEST_AGE) {
+      if (age < NO_REQUEST_AGE) {
         // 缓存足够新: 不再请求
         this.setData({ loading: false, errorMsg: '', cacheNote: '' })
         return Promise.resolve()
