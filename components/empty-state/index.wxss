@@ -68,11 +68,6 @@
 
 .es-btn::after { border: none; }
 
-.es-btn[disabled] {
-  background: #B9B1E4;
-  color: #fff;
-}
-
 :host {
   display: block;
 }
