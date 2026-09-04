@@ -353,6 +353,14 @@ _nxt2, _slot2 = _next_freeclass_refresh(_dt(2026, 9, 1, 23, 0))  # 23:00 → 次
 assert _nxt2.day == 2 and _nxt2.hour == 8 and _slot2 == "1-3", (_nxt2, _slot2)
 print("  [PASS] 空教室定时预热计划(上下课时刻/跨天)")
 
+# 响应兼容性: 旧版前端依赖 slot_name/slot; 新版用 time_text/jc1/jc2/updated_at
+from wxcloudrun.views import _freeclass_resp  # noqa: E402
+_resp = _freeclass_resp("孝陵卫", 3, 1, 5, 2, "2026-2027-1", {"rooms": ["Ⅳ-A101"], "buildings": []})
+assert _resp["slot_name"] == _resp["time_text"] == "第1-5节", _resp
+assert "slot" in _resp and "jc1" in _resp and "updated_at" in _resp
+assert _resp["count"] == 1 and _resp["rooms"] == ["Ⅳ-A101"]
+print("  [PASS] 空教室响应兼容字段(slot_name/time_text/jc1/jc2/updated_at)")
+
 print("== 管理端仪表盘与反馈(留言板已下线) ==")
 import time as _time  # noqa: E402
 from wxcloudrun import admin as admin_mod  # noqa: E402

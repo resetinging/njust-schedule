@@ -1074,14 +1074,21 @@ def _freeclass_cache_key(campus, weekday, jc1, jc2, week, semester, building="")
 
 
 def _freeclass_resp(campus, weekday, jc1, jc2, week, semester, result, updated_at=None) -> dict:
-    """统一构建接口响应(含服务端更新时间, 供前端展示"更新于 xx:xx")"""
+    """统一构建接口响应(含服务端更新时间, 供前端展示"更新于 xx:xx")
+
+    兼容性: 保留 slot_name(旧版前端单时段选择器版本渲染摘要用, 与 time_text 同值);
+    新增字段仅追加, 不删旧字段, 保证旧版小程序可用。
+    """
     rooms = (result or {}).get("rooms") or []
+    time_text = f"第{jc1}-{jc2}节"
     return {
         "success": True,
         "campus": campus, "weekday": weekday, "week": week,
         "semester": semester,
         "jc1": jc1, "jc2": jc2,
-        "time_text": f"第{jc1}-{jc2}节",
+        "slot": "",                       # 旧版字段占位(单大节键, 范围查询下无法单值表达)
+        "slot_name": time_text,           # 旧版兼容
+        "time_text": time_text,
         "weekday_name": WEEKDAY_NAMES[weekday] if 1 <= weekday <= 7 else "",
         "building": (result or {}).get("building_name", ""),
         "buildings": (result or {}).get("buildings", []),
@@ -1098,14 +1105,35 @@ def _freeclass_resp(campus, weekday, jc1, jc2, week, semester, result, updated_a
 # 开关: 环境变量 FREE_CLASSROOM_PREWARM=1(容器 envParams 已默认开启)
 # ============================================================
 # (本地时钟 HH:MM → 官方大节): 南京理工两校区上下课时刻(各校以教务为准,
-# 此处取大节开始点; 可自行增删)
-FREE_CLASSROOM_REFRESH_PLAN = [
-    ("08:00", "1-3"),     # 第一大节 上课
-    ("10:10", "4-5"),     # 第二大节 上课
-    ("14:00", "6-7"),     # 第三大节 上课
-    ("16:10", "8-10"),    # 第四大节 上课
-    ("19:00", "11-13"),   # 第五大节 上课
-]
+# 此处取大节开始点); 支持环境变量 FREE_CLASSROOM_PREWARM_TIMES 覆盖,
+# 如 "08:00,10:10,14:00,16:10,19:00"(依次对应 5 个官方大节)
+def _build_refresh_plan():
+    raw = os.environ.get("FREE_CLASSROOM_PREWARM_TIMES", "")
+    times = [t.strip() for t in raw.replace("，", ",").split(",") if t.strip()]
+    default = [
+        ("08:00", "1-3"),     # 第一大节 上课
+        ("10:10", "4-5"),     # 第二大节 上课
+        ("14:00", "6-7"),     # 第三大节 上课
+        ("16:10", "8-10"),    # 第四大节 上课
+        ("19:00", "11-13"),   # 第五大节 上课
+    ]
+    if not times:
+        return default
+    slot_keys = [s[0] for s in CLASSROOM_SLOTS]
+    plan = []
+    for i, hm in enumerate(times):
+        try:
+            parts = hm.split(":")
+            if not (0 <= int(parts[0]) <= 23 and 0 <= int(parts[1]) <= 59):
+                raise ValueError
+        except (ValueError, IndexError):
+            app.logger.warning("[freeclass] 忽略无效预热时间 %r", hm)
+            continue
+        plan.append((hm, slot_keys[min(i, len(slot_keys) - 1)]))
+    return plan or default
+
+
+FREE_CLASSROOM_REFRESH_PLAN = _build_refresh_plan()
 FREE_CLASSROOM_SLOT_JC = {s[0]: (s[2], s[3]) for s in CLASSROOM_SLOTS}
 
 
@@ -1126,41 +1154,44 @@ def _next_freeclass_refresh(now=None):
         now = _dt.now()
     for t, slot in freeclass_refresh_plan(now):
         when = _dt.combine(now.date(), t)
-        if when > now:
+        if when >= now:
             return when, slot
     t0 = freeclass_refresh_plan(now)[0][0]
     return _dt.combine(now.date(), t0) + timedelta(days=1), freeclass_refresh_plan(now)[0][1]
 
 
 def _prewarm_free_classrooms(slots=None):
-    """预热指定大节(默认全部)在"今天 + 本周"的缓存; 返回成功条数。
+    """预热指定大节(默认全部)在"今天/明天 + 本周"的缓存; 返回成功条数。
 
+    同时预热明天: 晚上/周日"查明天教室"是高频场景, 命中率翻倍。
     需在 app 上下文中调用(内部读 first_week_date 等设置)。
     """
     from datetime import date as _date
-    weekday = _date.today().isoweekday()
+    today = _date.today()
+    weekdays = (today.isoweekday(), today.isoweekday() % 7 + 1)  # 今天 + 明天
     semester = _current_semester()
     fwd = dao.get_setting("first_week_date", "")
     week = _current_teaching_week(fwd)
     slot_keys = slots or [s[0] for s in CLASSROOM_SLOTS]
     ok_n = 0
-    for campus in FREE_CLASSROOM_CAMPUSES:
-        for slot in slot_keys:
-            jc1, jc2 = FREE_CLASSROOM_SLOT_JC.get(slot, (6, 7))
-            result, err = _service_free_classrooms(
-                campus, weekday, jc1, jc2, week, semester, "")
-            if result is None:
-                app.logger.warning("[freeclass][prewarm] %s %s 预热失败: %s",
-                                   campus, slot, err)
-                continue
-            resp = _freeclass_resp(campus, weekday, jc1, jc2, week,
-                                   semester, result)
-            cache_key = _freeclass_cache_key(campus, weekday, jc1, jc2,
-                                             week, semester)
-            _cache_set(cache_key, resp, ttl=120)
-            ok_n += 1
-            app.logger.info("[freeclass][prewarm] %s 周%s 星期%s %s 空闲 %d 间",
-                            campus, week, weekday, slot, resp["count"])
+    for weekday in weekdays:
+        for campus in FREE_CLASSROOM_CAMPUSES:
+            for slot in slot_keys:
+                jc1, jc2 = FREE_CLASSROOM_SLOT_JC.get(slot, (6, 7))
+                result, err = _service_free_classrooms(
+                    campus, weekday, jc1, jc2, week, semester, "")
+                if result is None:
+                    app.logger.warning("[freeclass][prewarm] %s 星期%s %s 预热失败: %s",
+                                       campus, weekday, slot, err)
+                    continue
+                resp = _freeclass_resp(campus, weekday, jc1, jc2, week,
+                                       semester, result)
+                cache_key = _freeclass_cache_key(campus, weekday, jc1, jc2,
+                                                 week, semester)
+                _cache_set(cache_key, resp, ttl=120)
+                ok_n += 1
+                app.logger.info("[freeclass][prewarm] %s 周%s 星期%s %s 空闲 %d 间",
+                                campus, week, weekday, slot, resp["count"])
     return ok_n
 
 
