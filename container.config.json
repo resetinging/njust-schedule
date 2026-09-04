@@ -10,7 +10,9 @@
         {"PolicyType": "cpu", "PolicyThreshold": 60},
         {"PolicyType": "mem", "PolicyThreshold": 60}
     ],
-    "envParams": {},
+    "envParams": {
+        "FREE_CLASSROOM_PREWARM": "1"
+    },
     "customLogs": "stdout",
     "initialDelaySeconds": 10,
     "dataBaseName": "flask_demo",

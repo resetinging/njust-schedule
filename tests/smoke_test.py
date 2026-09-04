@@ -341,6 +341,18 @@ assert JWCClient.parse_classroom_buildings("not json") == []
 assert JWCClient.parse_classroom_buildings("") == []
 print("  [PASS] 教学楼列表解析(数组/data 包装/异常输入)")
 
+# 定时预热计划(上下课时刻): 5 个官方大节按时间升序; 下一刷新时刻跨天正确
+from datetime import datetime as _dt  # noqa: E402
+from wxcloudrun.views import freeclass_refresh_plan, _next_freeclass_refresh  # noqa: E402
+_plan = freeclass_refresh_plan()
+assert len(_plan) == 5 and _plan[0][1] == "1-3" and _plan[-1][1] == "11-13", _plan
+assert [t for t, _ in _plan] == sorted(t for t, _ in _plan)
+_nxt, _slot = _next_freeclass_refresh(_dt(2026, 9, 1, 8, 30))   # 08:30 → 10:10 第二大节
+assert _nxt.hour == 10 and _nxt.minute == 10 and _slot == "4-5", (_nxt, _slot)
+_nxt2, _slot2 = _next_freeclass_refresh(_dt(2026, 9, 1, 23, 0))  # 23:00 → 次日 08:00
+assert _nxt2.day == 2 and _nxt2.hour == 8 and _slot2 == "1-3", (_nxt2, _slot2)
+print("  [PASS] 空教室定时预热计划(上下课时刻/跨天)")
+
 print("== 管理端仪表盘与反馈(留言板已下线) ==")
 import time as _time  # noqa: E402
 from wxcloudrun import admin as admin_mod  # noqa: E402

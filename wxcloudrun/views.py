@@ -1068,6 +1068,130 @@ def _service_free_classrooms(campus, weekday, jc1, jc2, week, semester, building
         return None, "服务账号会话异常"
 
 
+def _freeclass_cache_key(campus, weekday, jc1, jc2, week, semester, building="") -> str:
+    return (f"g_freeclass:{campus}:{weekday}:{jc1}:{jc2}:"
+            f"{week}:{semester}:{building}")
+
+
+def _freeclass_resp(campus, weekday, jc1, jc2, week, semester, result, updated_at=None) -> dict:
+    """统一构建接口响应(含服务端更新时间, 供前端展示"更新于 xx:xx")"""
+    rooms = (result or {}).get("rooms") or []
+    return {
+        "success": True,
+        "campus": campus, "weekday": weekday, "week": week,
+        "semester": semester,
+        "jc1": jc1, "jc2": jc2,
+        "time_text": f"第{jc1}-{jc2}节",
+        "weekday_name": WEEKDAY_NAMES[weekday] if 1 <= weekday <= 7 else "",
+        "building": (result or {}).get("building_name", ""),
+        "buildings": (result or {}).get("buildings", []),
+        "count": len(rooms), "rooms": rooms,
+        "updated_at": int(updated_at or time.time()),
+    }
+
+
+# ============================================================
+# 空教室定时预热 — 按每天"上下课"时刻刷新当天缓存
+# 每天在各大节上课时刻用服务账号刷新一次当天数据(教室占用基本按周次固定,
+# 但临时调停课会变化; 上下课边界刷新保证"当前时段"数据新), 用户查询
+# 基本全部命中 120s 全局缓存, 教务请求降到每天十几次。
+# 开关: 环境变量 FREE_CLASSROOM_PREWARM=1(容器 envParams 已默认开启)
+# ============================================================
+# (本地时钟 HH:MM → 官方大节): 南京理工两校区上下课时刻(各校以教务为准,
+# 此处取大节开始点; 可自行增删)
+FREE_CLASSROOM_REFRESH_PLAN = [
+    ("08:00", "1-3"),     # 第一大节 上课
+    ("10:10", "4-5"),     # 第二大节 上课
+    ("14:00", "6-7"),     # 第三大节 上课
+    ("16:10", "8-10"),    # 第四大节 上课
+    ("19:00", "11-13"),   # 第五大节 上课
+]
+FREE_CLASSROOM_SLOT_JC = {s[0]: (s[2], s[3]) for s in CLASSROOM_SLOTS}
+
+
+def freeclass_refresh_plan(now=None):
+    """当天刷新计划: [(时间, 大节key)...] 按时间升序(便于离线测试)"""
+    if now is None:
+        from datetime import datetime as _dt
+        now = _dt.now()
+    from datetime import datetime as _dt, time as _time
+    return [(_time(*map(int, hm.split(":"))), slot)
+            for hm, slot in FREE_CLASSROOM_REFRESH_PLAN]
+
+
+def _next_freeclass_refresh(now=None):
+    """下一个刷新时刻: (datetime, 大节key); 今日已过则取明天第一个"""
+    from datetime import datetime as _dt, timedelta
+    if now is None:
+        now = _dt.now()
+    for t, slot in freeclass_refresh_plan(now):
+        when = _dt.combine(now.date(), t)
+        if when > now:
+            return when, slot
+    t0 = freeclass_refresh_plan(now)[0][0]
+    return _dt.combine(now.date(), t0) + timedelta(days=1), freeclass_refresh_plan(now)[0][1]
+
+
+def _prewarm_free_classrooms(slots=None):
+    """预热指定大节(默认全部)在"今天 + 本周"的缓存; 返回成功条数。
+
+    需在 app 上下文中调用(内部读 first_week_date 等设置)。
+    """
+    from datetime import date as _date
+    weekday = _date.today().isoweekday()
+    semester = _current_semester()
+    fwd = dao.get_setting("first_week_date", "")
+    week = _current_teaching_week(fwd)
+    slot_keys = slots or [s[0] for s in CLASSROOM_SLOTS]
+    ok_n = 0
+    for campus in FREE_CLASSROOM_CAMPUSES:
+        for slot in slot_keys:
+            jc1, jc2 = FREE_CLASSROOM_SLOT_JC.get(slot, (6, 7))
+            result, err = _service_free_classrooms(
+                campus, weekday, jc1, jc2, week, semester, "")
+            if result is None:
+                app.logger.warning("[freeclass][prewarm] %s %s 预热失败: %s",
+                                   campus, slot, err)
+                continue
+            resp = _freeclass_resp(campus, weekday, jc1, jc2, week,
+                                   semester, result)
+            cache_key = _freeclass_cache_key(campus, weekday, jc1, jc2,
+                                             week, semester)
+            _cache_set(cache_key, resp, ttl=120)
+            ok_n += 1
+            app.logger.info("[freeclass][prewarm] %s 周%s 星期%s %s 空闲 %d 间",
+                            campus, week, weekday, slot, resp["count"])
+    return ok_n
+
+
+def _prewarm_loop():
+    """后台守护线程: 每到上下课时刻预热对应大节"""
+    while True:
+        try:
+            from datetime import datetime as _dt
+            nxt, slot = _next_freeclass_refresh(_dt.now())
+            wait = max(10, (nxt - _dt.now()).total_seconds())
+            time.sleep(wait)
+            from wxcloudrun import app as _app
+            with _app.app_context():
+                _prewarm_free_classrooms([slot])
+        except Exception as e:
+            app.logger.warning("[freeclass][prewarm] 线程异常: %s", e)
+            time.sleep(300)
+
+
+def _start_freeclass_prewarm():
+    """按环境变量开关启动预热线程(测试/本地默认关闭)"""
+    if os.environ.get("FREE_CLASSROOM_PREWARM", "0") != "1":
+        return
+    try:
+        threading.Thread(target=_prewarm_loop, daemon=True,
+                         name="freeclass-prewarm").start()
+        app.logger.info("[freeclass] 定时预热已启用(上下课时刻刷新当天缓存)")
+    except Exception as e:
+        app.logger.warning("[freeclass] 预热线程启动失败: %s", e)
+
+
 @app.route('/api/free-classrooms')
 def api_free_classrooms():
     """空教室查询: campus(孝陵卫/江阴) + weekday(1-7)
@@ -1123,8 +1247,7 @@ def api_free_classrooms():
             or dao.get_setting("first_week_date", "")
         week = _current_teaching_week(fwd)
 
-    cache_key = (f"g_freeclass:{campus}:{weekday}:{jc1}:{jc2}:"
-                 f"{week}:{semester}:{building}")
+    cache_key = _freeclass_cache_key(campus, weekday, jc1, jc2, week, semester, building)
     cached = _cache_get(cache_key)
     if cached is not None:
         return jsonify(cached)
@@ -1150,24 +1273,16 @@ def api_free_classrooms():
                                 "message": client.last_error}), 400
             return retry_err
         result = result if isinstance(result, dict) else {}
-    rooms = result.get("rooms") or []
-    resp = {
-        "success": True,
-        "campus": campus, "weekday": weekday, "week": week,
-        "semester": semester,
-        "jc1": jc1, "jc2": jc2,
-        "time_text": f"第{jc1}-{jc2}节",
-        "weekday_name": WEEKDAY_NAMES[weekday] if 1 <= weekday <= 7 else "",
-        "building": result.get("building_name", ""),
-        "buildings": result.get("buildings", []),
-        "count": len(rooms), "rooms": rooms,
-    }
-    # 全局数据: 缓存 120s(所有用户共享, 教务请求大幅降低)
+    now = int(time.time())
+    resp = _freeclass_resp(campus, weekday, jc1, jc2, week, semester,
+                           result, updated_at=now)
+    # 全局数据: 缓存 120s(所有用户共享, 教务请求大幅降低;
+    # 另有定时预热在上下课时刻刷新当天缓存)
     _cache_set(cache_key, resp, ttl=120)
     app.logger.info("[freeclass] rid=%s sid=%s %s%s 周%s 星期%s 第%d-%d节 空闲 %d 间",
                     _rid(), sid, campus,
                     f"/{resp['building']}" if resp["building"] else "",
-                    week, weekday, jc1, jc2, len(rooms))
+                    week, weekday, jc1, jc2, resp["count"])
     return jsonify(resp)
 
 
@@ -1843,3 +1958,7 @@ def server_error(e):
     # 记录完整堆栈, 便于线上排障(云托管采集 stdout 日志)
     app.logger.error("[500] rid=%s %s %s: %s", _rid(), request.method, request.path, e, exc_info=True)
     return jsonify({"error": "服务器内部错误"}), 500
+
+
+# 空教室定时预热(默认关闭, 云托管环境变量 FREE_CLASSROOM_PREWARM=1 开启)
+_start_freeclass_prewarm()
