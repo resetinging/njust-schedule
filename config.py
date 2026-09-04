@@ -38,6 +38,12 @@ JW_APP_DO = f"{JW_BASE_9080}{JW_PATH_PREFIX}/app.do"
 JW_CLASSROOM_QUERY = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbcx/kbxx_classroom"
 JW_CLASSROOM_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbcx/kbxx_classroom_ifr"
 JW_CLASSROOM_BUILDINGS = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbcx/getJxlByAjax"
+
+# 空教室"服务账号"(共享抓取): 教室数据全校一致, 由该账号统一查询 + 服务端
+# 缓存, 小程序所有用户共享结果(无需每个用户各自用教务会话抓取)。
+# 未配置 FREE_CLASSROOM_PWD 时按教务默认密码规则(学号+@Njust)尝试。
+FREE_CLASSROOM_SID = os.environ.get("FREE_CLASSROOM_SID", "924101960123")
+FREE_CLASSROOM_PWD = os.environ.get("FREE_CLASSROOM_PWD", "")
 JW_CAPTCHA_URLS = [
     f"{JW_BASE_8080}/CheckCode?date=",
     f"{JW_BASE_8080}/verifycode.servlet",

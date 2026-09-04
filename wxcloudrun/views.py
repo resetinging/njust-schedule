@@ -19,6 +19,7 @@ from bs4 import BeautifulSoup
 from wxcloudrun import app
 from wxcloudrun.jwc_client import JWCClient, CLASSROOM_SLOTS
 from wxcloudrun import dao
+import config
 
 # ============================================================
 # 用户会话池（多用户）+ 教务访问池（并发控制）
@@ -65,9 +66,9 @@ def _cache_get(key: str):
     return None
 
 
-def _cache_set(key: str, value):
+def _cache_set(key: str, value, ttl: float = QUERY_CACHE_TTL):
     with _query_cache_lock:
-        _query_cache[key] = (time.time() + QUERY_CACHE_TTL, value)
+        _query_cache[key] = (time.time() + ttl, value)
         # 惰性清理过期条目, 防内存缓慢增长
         if len(_query_cache) > 500:
             now = time.time()
@@ -1030,6 +1031,43 @@ def _current_teaching_week(first_week_date: str) -> int:
         return 1
 
 
+# ── 共享服务账号(空教室全局数据抓取) ──
+# 教室数据全校一致: 用单一账号查询 + 全局缓存(120s), 所有用户共享;
+# 实例锁串行保证同一账号 Cookie 一致, 会话失效时自动重登。
+_classroom_service_lock = threading.Lock()
+_classroom_service_client = JWCClient()
+_service_sid = config.FREE_CLASSROOM_SID.strip()
+_service_pwd = config.FREE_CLASSROOM_PWD.strip()
+
+
+def _service_free_classrooms(campus, weekday, jc1, jc2, week, semester, building):
+    """服务账号统一查询空闲教室。
+
+    返回 (result_dict, None) 成功 / (None, 错误信息) 失败。
+    """
+    if not _service_sid:
+        return None, "未配置空教室服务账号"
+    pwd = _service_pwd or f"{_service_sid}@Njust"
+    with _classroom_service_lock:
+        for _attempt in range(2):
+            if not _classroom_service_client.logged_in:
+                ok = _classroom_service_client.login(_service_sid, pwd)
+                if not ok:
+                    return None, _classroom_service_client.last_error or "服务账号登录失败"
+            res = _classroom_service_client.get_free_classrooms(
+                campus=campus, weekday=weekday, jc1=jc1, jc2=jc2,
+                week=week, semester=semester, building=building)
+            if isinstance(res, dict):
+                return res, None
+            err = _classroom_service_client.last_error or "查询失败"
+            if "登录" in err or "logon" in err.lower():
+                # 会话过期: 标记并重登重试一次
+                _classroom_service_client.logged_in = False
+                continue
+            return None, err
+        return None, "服务账号会话异常"
+
+
 @app.route('/api/free-classrooms')
 def api_free_classrooms():
     """空教室查询: campus(孝陵卫/江阴) + weekday(1-7)
@@ -1085,25 +1123,33 @@ def api_free_classrooms():
             or dao.get_setting("first_week_date", "")
         week = _current_teaching_week(fwd)
 
-    cache_key = (f"{sid}:freeclass:{campus}:{weekday}:{jc1}:{jc2}:"
+    cache_key = (f"g_freeclass:{campus}:{weekday}:{jc1}:{jc2}:"
                  f"{week}:{semester}:{building}")
     cached = _cache_get(cache_key)
     if cached is not None:
         return jsonify(cached)
-    with _jwc_request(client):
-        result, retry_err = _retry_with_relogin(
-            client,
-            lambda: client.get_free_classrooms(campus=campus, weekday=weekday,
-                                                jc1=jc1, jc2=jc2, week=week,
-                                                semester=semester,
-                                                building=building),
-            "查询空闲教室失败")
-    if retry_err:
-        if "教学楼不存在" in (client.last_error or ""):
-            return jsonify({"success": False,
-                            "message": client.last_error}), 400
-        return retry_err
-    result = result if isinstance(result, dict) else {}
+
+    # ── 共享服务账号抓取(数据全校一致; 单实例锁串行 + 失效自动重登) ──
+    result, svc_err = _service_free_classrooms(
+        campus, weekday, jc1, jc2, week, semester, building)
+    if result is None:
+        # 服务账号不可用 → 回退到当前用户自己的教务会话(兼容兜底)
+        app.logger.warning("[freeclass] rid=%s 服务账号失败(%s), 回退用户会话 sid=%s",
+                           _rid(), svc_err, sid)
+        with _jwc_request(client):
+            result, retry_err = _retry_with_relogin(
+                client,
+                lambda: client.get_free_classrooms(campus=campus, weekday=weekday,
+                                                    jc1=jc1, jc2=jc2, week=week,
+                                                    semester=semester,
+                                                    building=building),
+                "查询空闲教室失败")
+        if retry_err:
+            if "教学楼不存在" in (client.last_error or ""):
+                return jsonify({"success": False,
+                                "message": client.last_error}), 400
+            return retry_err
+        result = result if isinstance(result, dict) else {}
     rooms = result.get("rooms") or []
     resp = {
         "success": True,
@@ -1116,7 +1162,8 @@ def api_free_classrooms():
         "buildings": result.get("buildings", []),
         "count": len(rooms), "rooms": rooms,
     }
-    _cache_set(cache_key, resp)
+    # 全局数据: 缓存 120s(所有用户共享, 教务请求大幅降低)
+    _cache_set(cache_key, resp, ttl=120)
     app.logger.info("[freeclass] rid=%s sid=%s %s%s 周%s 星期%s 第%d-%d节 空闲 %d 间",
                     _rid(), sid, campus,
                     f"/{resp['building']}" if resp["building"] else "",
