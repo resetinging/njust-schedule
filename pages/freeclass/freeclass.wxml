@@ -66,6 +66,9 @@
       </view>
     </view>
 
+    <!-- 数据来源提示(缓存秒开/后台更新/离线) -->
+    <view class="cache-note" wx:if="{{cacheNote}}">{{cacheNote}}</view>
+
     <!-- 按教学楼分组的教室(纯展示) -->
     <view class="group-list" wx:if="{{groups.length}}">
       <block wx:for="{{groups}}" wx:key="prefix" wx:for-item="grp">

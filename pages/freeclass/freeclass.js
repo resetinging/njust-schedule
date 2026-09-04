@@ -1,9 +1,10 @@
 /**
  * 空教室查询页 — 查教务"全校性教室课表"空闲教室
  * 筛选: 校区/星期/周次/起止时段(可跨官方大节, 时间段内全空闲才算); 需登录
+ * - 本地缓存优先: 命中缓存立即渲染(秒开), 60s 内不重复请求, 过期后后台静默刷新
  * - 星期选"今天"、周次选"本周"时省略参数, 由后端按当天/第一周设置推算
- * - 结果按教学楼分组纯展示(不调用剪贴板, 避免隐私授权弹窗)
- * - 选择器确认后自动查询(30s 服务端缓存兜底); 下拉可刷新
+ * - 结果按教学楼分组纯展示(不调用剪贴板)
+ * - 选择器确认后自动查询; 下拉可刷新
  */
 
 const api = require('../../utils/api')
@@ -26,12 +27,55 @@ const WEEK_LIST = (() => {
   return arr
 })()
 
+// ---- 本地缓存: 按筛选条件缓存结果(15 分钟有效, 60 秒内免请求) ----
+const CACHE_KEY = 'freeclass_cache'
+const CACHE_MAX_ITEMS = 20
+const NO_REQUEST_AGE = 60 * 1000     // 缓存 60s 内: 直接展示不再请求
+
+function cacheKeyOf(params) {
+  return [params.campus, params.weekday || 0, params.week || 0, params.jc1, params.jc2].join('|')
+}
+
+function readCache(key) {
+  try {
+    const box = storage.getCached(CACHE_KEY) || {}
+    const item = (box.items || {})[key]
+    return item && item.data ? { t: item.t || 0, data: item.data } : null
+  } catch (e) {
+    return null
+  }
+}
+
+function writeCache(key, data) {
+  try {
+    const box = storage.getCached(CACHE_KEY) || {}
+    if (!box.items) box.items = {}
+    box.items[key] = { t: Date.now(), data }
+    // 容量上限: 淘汰最旧
+    const keys = Object.keys(box.items)
+    if (keys.length > CACHE_MAX_ITEMS) {
+      keys.sort((a, b) => (box.items[a].t || 0) - (box.items[b].t || 0))
+      keys.slice(0, keys.length - CACHE_MAX_ITEMS).forEach(k => delete box.items[k])
+    }
+    storage.setCached(CACHE_KEY, box)
+  } catch (e) {
+    // 缓存写入失败忽略(不影响主流程)
+  }
+}
+
+function fmtTime(ts) {
+  const d = new Date(ts || Date.now())
+  const p = n => (n < 10 ? '0' : '') + n
+  return p(d.getHours()) + ':' + p(d.getMinutes())
+}
+
 Page({
   data: {
     loggedIn: true,
     loading: false,
     errorMsg: '',
     searched: false,       // 是否完成过查询(区分首屏空状态)
+    cacheNote: '',         // 数据来源提示(缓存/更新中/离线)
 
     // 筛选状态(picker 索引)
     campusIndex: 0,
@@ -55,12 +99,13 @@ Page({
       this.setData({ loggedIn: false })
       return
     }
-    // 默认条件首查
+    // 默认条件首查(有缓存则秒开)
     this.search()
   },
 
   onPullDownRefresh() {
-    this.search().finally(() => wx.stopPullDownRefresh())
+    // 下拉 = 强制刷新(跳过 60s 免请求窗口)
+    this.search(true).finally(() => wx.stopPullDownRefresh())
   },
 
   onCampusChange(e) {
@@ -96,8 +141,22 @@ Page({
     this.search()
   },
 
-  /** 按当前筛选查询空闲教室 */
-  search() {
+  /** 渲染结果(缓存或网络数据共用) */
+  _applyResult(res) {
+    this.setData({
+      searched: true,
+      errorMsg: '',
+      groups: groupRooms(res.rooms || [], res.buildings),
+      result: {
+        summary: [res.campus, res.weekday_name, '第' + res.week + '周', res.time_text]
+          .join(' · '),
+        count: res.count || 0
+      }
+    })
+  },
+
+  /** 按当前筛选查询空闲教室(优先本地缓存, 后台静默刷新) */
+  search(forceRefresh) {
     if (!storage.isLoggedIn()) return Promise.resolve()
     const d = this.data
     const s = d.slotList[d.startIndex]
@@ -109,11 +168,34 @@ Page({
     }
     if (d.weekdayIndex > 0) params.weekday = d.weekdayIndex
     if (d.weekIndex > 0) params.week = d.weekIndex
+    const key = cacheKeyOf(params)
 
-    this.setData({ loading: true, errorMsg: '' })
+    // ── 1) 命中本地缓存: 立即渲染, 秒开 ──
+    const hit = readCache(key)
+    let fromCache = false
+    if (hit) {
+      fromCache = true
+      this._applyResult(hit.data)
+      const age = Date.now() - hit.t
+      if (!forceRefresh && age < NO_REQUEST_AGE) {
+        // 缓存足够新: 不再请求
+        this.setData({ loading: false, errorMsg: '', cacheNote: '' })
+        return Promise.resolve()
+      }
+      this.setData({ loading: false, errorMsg: '', cacheNote: '缓存 ' + fmtTime(hit.t) + ' · 更新中…' })
+    } else {
+      this.setData({ loading: true, errorMsg: '', cacheNote: '' })
+    }
+
+    // ── 2) 请求最新数据(成功后覆盖缓存与界面) ──
     return api.getFreeClassrooms(params)
       .then(res => {
         if (!res || !res.success) {
+          if (fromCache) {
+            // 网络失败: 保留缓存展示, 标注离线
+            this.setData({ loading: false, cacheNote: '网络不可用 · 显示缓存数据' })
+            return
+          }
           this.setData({
             loading: false,
             searched: true,
@@ -122,19 +204,15 @@ Page({
           })
           return
         }
-        this.setData({
-          loading: false,
-          searched: true,
-          errorMsg: '',
-          groups: groupRooms(res.rooms || [], res.buildings),
-          result: {
-            summary: [res.campus, res.weekday_name, '第' + res.week + '周', res.time_text]
-              .join(' · '),
-            count: res.count || 0
-          }
-        })
+        writeCache(key, res)
+        this._applyResult(res)
+        this.setData({ loading: false, cacheNote: '' })
       })
       .catch(() => {
+        if (fromCache) {
+          this.setData({ loading: false, cacheNote: '网络不可用 · 显示缓存数据' })
+          return
+        }
         this.setData({ loading: false, searched: true, errorMsg: '网络异常，请稍后再试' })
       })
   },
