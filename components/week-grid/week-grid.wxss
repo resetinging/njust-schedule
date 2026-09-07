@@ -63,6 +63,14 @@
 .t-time {
   font-size: 16rpx;
   color: #9A96B8;
+  line-height: 1.15;
+}
+
+/* 下课时间(本节开始 +45 分钟) */
+.t-end {
+  font-size: 15rpx;
+  color: #B9B4D4;
+  line-height: 1.15;
 }
 
 /* 每天列: 相对容器 + 行线背景 */

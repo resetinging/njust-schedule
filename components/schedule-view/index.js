@@ -8,6 +8,7 @@ const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const config = require('../../utils/config')
 const { courseColors } = require('../../utils/course-color')
+const { classClock } = require('../../utils/period-time')
 const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
 Component({
@@ -238,12 +239,24 @@ Component({
       }
 
       // 课程配色: 不同课不同色(按课程名稳定分配; 网格/列表共用)
+      // 上下课钟点: 与网格时间列同一作息(45 分钟/节)
       filtered.forEach(c => {
         if (!c._bg) {
           const pal = courseColors(c.name)
           c._bg = pal.bg
           c._bar = pal.bar
           c._text = pal.text
+        }
+        if (!c._clock) {
+          const cs = c.start || c.start_period
+          const ce = c.end || c.end_period
+          c._clock = (cs && ce) ? classClock(cs, ce) : ''
+        }
+        if (!c._periodLabel) {
+          const cs = c.start || c.start_period
+          const ce = c.end || c.end_period
+          const range = (cs && ce) ? `${cs}-${ce}节` : ''
+          c._periodLabel = (range && c._clock) ? `${range} · ${c._clock}` : (range || c._clock)
         }
       })
 
@@ -390,7 +403,7 @@ Component({
         const enriched = {
           ...course,
           _dayName: DAY[d] || '',
-          _timeText: (s && en) ? `第${s}~${en}节` : '',
+          _timeText: (s && en) ? `第${s}~${en}节 · ${classClock(s, en)}` : '',
           _weeksText: weeksRaw.includes('周') ? weeksRaw : `第${weeksRaw}周`
         }
         this.setData({

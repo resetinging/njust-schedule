@@ -5,18 +5,13 @@
 
 const { WEEKDAY_NAMES, isWeekInRange } = require('../../utils/date')
 const { courseColors } = require('../../utils/course-color')
+const { PERIOD_STARTS, periodEnd, classClock } = require('../../utils/period-time')
 
 // 每小节行高(rpx); 第14节显示"网课"
-// 88 → 80: 在上一轮压缩基础上再减 10%, 保持可读
 // 节次开始时间与桌面端 BIG_PERIODS 一致(南理工官方作息:
-// 第四大节 15:50-18:15 → 8节15:50/9节16:40/10节17:30)
+// 第四大节 15:50-18:15 → 8节15:50/9节16:40/10节17:30; 每节45分钟)
 const ROW_H = 80
 const PERIOD_COUNT = 14
-const TIME_ROWS = [
-  '08:00', '08:50', '09:40', '10:40', '11:30',
-  '14:00', '14:50', '15:50', '16:40', '17:30',
-  '19:00', '19:50', '20:40', '网课'
-]
 
 // 课程块配色: 按课程名分配(不同课不同色, 同一课跨周/多时段同色)
 const COURSE_COLOR = { bg: '#FCF0D9', bar: '#F5D9A0', text: '#8A6116' }   // 兜底
@@ -69,8 +64,16 @@ Component({
         if (c.week_type === 2 && week % 2 === 1) return false
         return isWeekInRange(week, c.weeks)
       })
-      // 2. 时间列
-      const timeRows = TIME_ROWS.map((t, i) => ({ index: i + 1, time: t }))
+      // 2. 时间列: 每节显示 节号 + 上课 + 下课(45分钟/节)
+      const timeRows = []
+      for (let i = 0; i < PERIOD_COUNT; i++) {
+        const idx = i + 1
+        if (idx <= PERIOD_STARTS.length) {
+          timeRows.push({ index: idx, time: PERIOD_STARTS[i], end: periodEnd(idx), label: '' })
+        } else {
+          timeRows.push({ index: idx, time: '', end: '', label: '网课' })  // 第14行
+        }
+      }
 
       // 3. 每天一列, 课程块绝对定位(按开始节/跨节数)
       const dayCols = []
@@ -112,6 +115,7 @@ Component({
             _bg: pal.bg,
             _bar: pal.bar,
             _text: pal.text,
+            _clock: classClock(cs, ce),   // 上下课钟点, 如 '08:00-10:25'
             _range: cs === ce ? `${cs}节` : `${cs}-${ce}节`
           })
         }
