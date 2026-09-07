@@ -34,8 +34,11 @@
         </view>
         <text class="week-btn" bindtap="nextWeek">▶</text>
       </view>
-      <text class="refresh-btn {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
-      <text class="u-ico-btn" style="margin-left:6rpx;font-size:34rpx;" bindtap="onAddCustom">＋</text>
+      <!-- 右侧工具: 刷新 + 加号(靠右成组) -->
+      <view class="tool-actions">
+        <text class="refresh-btn {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
+        <text class="u-ico-btn" style="font-size:34rpx;" bindtap="onAddCustom">＋</text>
+      </view>
     </view>
 
     <!-- 网格视图(刷新时保留旧内容, 仅首次无数据才显示占位) -->
