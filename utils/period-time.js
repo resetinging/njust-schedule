@@ -21,23 +21,25 @@ function toMin(s) {
 function fmtMin(m) {
   const h = Math.floor(m / 60)
   const mm = m % 60
-  return String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0')
+  // 目标 UI 样式: xx.xx-xx.xx(点号分隔, 如 08.00)
+  return String(h).padStart(2, '0') + '.' + String(mm).padStart(2, '0')
 }
 
-/** 第 p 节上课时间(1-13; 越界钳制) */
+/** 第 p 节上课时间(1-13; 越界钳制) — 显示样式 xx.xx */
 function periodStart(p) {
   const i = Math.max(1, Math.min(p || 1, PERIOD_STARTS.length)) - 1
-  return PERIOD_STARTS[i]
+  return PERIOD_STARTS[i].replace(':', '.')
 }
 
-/** 第 p 节下课时间(上课 +45 分钟) */
+/** 第 p 节下课时间(上课 +45 分钟) — 显示样式 xx.xx */
 function periodEnd(p) {
-  return fmtMin(toMin(periodStart(p)) + CLASS_MIN)
+  const i = Math.max(1, Math.min(p || 1, PERIOD_STARTS.length)) - 1
+  return fmtMin(toMin(PERIOD_STARTS[i]) + CLASS_MIN)
 }
 
 /**
- * 课程起止节次 → 上下课钟点, 如 classClock(1,3) → '08:00-10:25'
- * (跨节时下课按最后小节的整段 45 分钟计)
+ * 课程起止节次 → 上下课钟点, 如 classClock(1,3) → '08.00-10.25'
+ * (跨节时下课按最后小节的整段 45 分钟计; 样式 xx.xx-xx.xx)
  */
 function classClock(startPeriod, endPeriod) {
   const s = periodStart(startPeriod)

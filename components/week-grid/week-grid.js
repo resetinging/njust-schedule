@@ -5,7 +5,7 @@
 
 const { WEEKDAY_NAMES, isWeekInRange } = require('../../utils/date')
 const { courseColors } = require('../../utils/course-color')
-const { PERIOD_STARTS, periodStart, periodEnd } = require('../../utils/period-time')
+const { PERIOD_STARTS, periodStart, periodEnd, classClock } = require('../../utils/period-time')
 
 // 每小节行高(rpx); 第14节显示"网课"
 // 节次开始时间与桌面端 BIG_PERIODS 一致(南理工官方作息:
@@ -64,12 +64,12 @@ Component({
         if (c.week_type === 2 && week % 2 === 1) return false
         return isWeekInRange(week, c.weeks)
       })
-      // 2. 时间列: 每节显示 节号 + 上课 + 下课(45分钟/节)
+      // 2. 时间列: 每节显示 节号 + 上课 + 下课(45分钟/节; 样式 xx.xx)
       const timeRows = []
       for (let i = 0; i < PERIOD_COUNT; i++) {
         const idx = i + 1
         if (idx <= PERIOD_STARTS.length) {
-          timeRows.push({ index: idx, time: PERIOD_STARTS[i], end: periodEnd(idx), label: '' })
+          timeRows.push({ index: idx, time: periodStart(idx), end: periodEnd(idx), label: '' })
         } else {
           timeRows.push({ index: idx, time: '', end: '', label: '网课' })  // 第14行
         }
@@ -99,8 +99,8 @@ Component({
             ? { bg: c._bg, bar: c._bar, text: c._text }
             : courseColors(c.name)
 
-          // 上下课钟点(空格分隔: 窄格内自动断成 上课/下课 两行, 不截断)
-          const clockText = periodStart(cs) + ' - ' + periodEnd(ce)
+          // 上下课钟点(目标 UI 样式: xx.xx-xx.xx, 如 08.00-10.25)
+          const clockText = classClock(cs, ce)
 
           blocks.push({
             name: c.name,
