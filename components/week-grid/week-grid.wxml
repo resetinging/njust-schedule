@@ -11,12 +11,14 @@
 
   <!-- 网格体: 时间列 + 7 天列(课程块绝对定位) -->
   <view class="grid-body">
-    <!-- 节次时间列: 节号 + 上课时间 + 下课时间 -->
+    <!-- 节次时间列: 节号+上课 一行, 下课 一行(两行紧凑排版) -->
     <view class="time-col">
       <view class="time-cell" wx:for="{{timeRows}}" wx:key="index">
-        <text class="t-num">{{item.index}}</text>
-        <text class="t-time">{{item.label || item.time}}</text>
-        <text class="t-end" wx:if="{{item.end}}">{{item.end}}</text>
+        <view class="t-top">
+          <text class="t-num">{{item.index}}</text>
+          <text class="t-time">{{item.label || item.time}}</text>
+        </view>
+        <text class="t-end" wx:if="{{item.end}}">↓{{item.end}}</text>
       </view>
     </view>
 

@@ -5,7 +5,7 @@
 
 const { WEEKDAY_NAMES, isWeekInRange } = require('../../utils/date')
 const { courseColors } = require('../../utils/course-color')
-const { PERIOD_STARTS, periodEnd, classClock } = require('../../utils/period-time')
+const { PERIOD_STARTS, periodStart, periodEnd } = require('../../utils/period-time')
 
 // 每小节行高(rpx); 第14节显示"网课"
 // 节次开始时间与桌面端 BIG_PERIODS 一致(南理工官方作息:
@@ -99,6 +99,9 @@ Component({
             ? { bg: c._bg, bar: c._bar, text: c._text }
             : courseColors(c.name)
 
+          // 上下课钟点(空格分隔: 窄格内自动断成 上课/下课 两行, 不截断)
+          const clockText = periodStart(cs) + ' - ' + periodEnd(ce)
+
           blocks.push({
             name: c.name,
             teacher: c.teacher || c.instructor || '',
@@ -115,7 +118,7 @@ Component({
             _bg: pal.bg,
             _bar: pal.bar,
             _text: pal.text,
-            _clock: classClock(cs, ce),   // 上下课钟点, 如 '08:00-10:25'
+            _clock: clockText,
             _range: cs === ce ? `${cs}节` : `${cs}-${ce}节`
           })
         }

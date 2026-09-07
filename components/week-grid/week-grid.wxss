@@ -54,6 +54,14 @@
   gap: 2rpx;
 }
 
+/* 第一行: 节号 + 上课时间 并排 */
+.t-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6rpx;
+  line-height: 1.1;
+}
+
 .t-num {
   font-size: 22rpx;
   font-weight: 700;
@@ -62,15 +70,15 @@
 
 .t-time {
   font-size: 16rpx;
-  color: #9A96B8;
-  line-height: 1.15;
+  color: #6C68A0;
+  line-height: 1.1;
 }
 
-/* 下课时间(本节开始 +45 分钟) */
+/* 第二行: 下课时间(本节开始 +45 分钟), 灰色带箭头示意 */
 .t-end {
   font-size: 15rpx;
   color: #B9B4D4;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
 /* 每天列: 相对容器 + 行线背景 */
