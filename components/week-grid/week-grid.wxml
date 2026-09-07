@@ -1,15 +1,15 @@
 <!-- 周课表网格组件 — 小节行布局 -->
 <view class="week-grid">
 
-  <!-- 表头: 星期(今天高亮) -->
+  <!-- 表头: 星期 -->
   <view class="grid-header">
     <view class="head-time"></view>
-    <view class="head-day {{item.on ? 'on' : ''}}" wx:for="{{weekdays}}" wx:key="index">
-      <text>{{item.text || item}}</text>
+    <view class="head-day" wx:for="{{weekdays}}" wx:key="*this">
+      <text>{{item}}</text>
     </view>
   </view>
 
-  <!-- 网格体: 时间列 + 7 天列(课程块绝对定位; 交替大节底色 + 今天列高亮) -->
+  <!-- 网格体: 时间列 + 7 天列(课程块绝对定位) -->
   <view class="grid-body">
     <!-- 节次时间列: 居中两行 — 节号(灰) / 上课时间 -->
     <view class="time-col">
@@ -20,7 +20,7 @@
     </view>
 
     <!-- 每天一列 -->
-    <view class="day-col {{item.isToday ? 'today' : ''}}" wx:for="{{dayCols}}" wx:key="day">
+    <view class="day-col" wx:for="{{dayCols}}" wx:key="day">
       <!-- 课程块 -->
       <view
         wx:for="{{item.blocks}}"

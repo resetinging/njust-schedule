@@ -76,12 +76,10 @@ Component({
       }
 
       // 3. 每天一列, 课程块绝对定位(按开始节/跨节数)
-      const todayDay = this.properties.todayDay || 0
       const dayCols = []
       for (let d = 1; d <= 7; d++) {
         const seen = new Set()
         const blocks = []
-        const isToday = d === todayDay
         for (const c of visible) {
           const day = c.day || c.day_of_week
           if (day !== d) continue
@@ -123,15 +121,10 @@ Component({
           })
         }
         blocks.sort((a, b) => a._top - b._top)
-        dayCols.push({ day: d, blocks, isToday })
+        dayCols.push({ day: d, blocks })
       }
 
-      // 表头星期: 今天高亮
-      const weekdays = GRID_WEEKDAYS.map((w, i) => ({
-        text: w, on: (i + 1) === todayDay
-      }))
-
-      this.setData({ timeRows, dayCols, weekdays })
+      this.setData({ timeRows, dayCols })
     },
 
     /** 点击课程块 */
