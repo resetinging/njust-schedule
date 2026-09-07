@@ -200,6 +200,18 @@
           <view class="cu-pick">{{weekTypeOptions[formTypeIdx]}} <text class="cu-arrow">›</text></view>
         </picker>
       </view>
+      <view class="cu-field">
+        <text class="cu-label">周次范围</text>
+        <view class="cu-range">
+          <picker mode="selector" range="{{weekOptions}}" value="{{formWeekStartIdx}}" bindchange="onFormWeekStart">
+            <view class="cu-pick">{{weekOptions[formWeekStartIdx]}}</view>
+          </picker>
+          <text class="cu-dash">至</text>
+          <picker mode="selector" range="{{weekOptions}}" value="{{formWeekEndIdx}}" bindchange="onFormWeekEnd">
+            <view class="cu-pick">{{weekOptions[formWeekEndIdx]}}</view>
+          </picker>
+        </view>
+      </view>
 
       <view class="modal-actions">
         <button class="cu-btn outline" bindtap="closeCustomForm">取消</button>

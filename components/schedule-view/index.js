@@ -20,6 +20,11 @@ const PERIOD_OPTIONS = (() => {
   return a
 })()
 const WEEK_TYPE_OPTIONS = ['每周（全学期）', '仅单周', '仅双周']
+const WEEK_OPTIONS = (() => {
+  const a = []
+  for (let i = 1; i <= 20; i++) a.push('第' + i + '周')
+  return a
+})()
 
 Component({
   options: {
@@ -58,9 +63,12 @@ Component({
     formStartIdx: 0,
     formEndIdx: 0,
     formTypeIdx: 0,
+    formWeekStartIdx: 0,    // 周次范围起(第1周)
+    formWeekEndIdx: 19,     // 周次范围止(第20周, 默认全学期)
     dayOptions: DAY_OPTIONS,
     periodOptions: PERIOD_OPTIONS,
     weekTypeOptions: WEEK_TYPE_OPTIONS,
+    weekOptions: WEEK_OPTIONS,
 
     active: false            // 懒渲染: main 激活时才渲染内容
   },
@@ -244,6 +252,16 @@ Component({
 
     _openCustomForm(course) {
       const has = !!course
+      // 周次范围: 解析存量 weeks(如 "3-16"/"1-20"), 默认全学期
+      let ws = 1
+      let we = 20
+      if (has) {
+        const m = /(\d{1,2})\s*[-~至]\s*(\d{1,2})/.exec(String(course.weeks || ''))
+        if (m) {
+          ws = Math.max(1, Math.min(20, parseInt(m[1], 10) || 1))
+          we = Math.max(ws, Math.min(20, parseInt(m[2], 10) || 20))
+        }
+      }
       this.setData({
         showCustomForm: true,
         formTitle: has ? '编辑自定义课程' : '添加自定义课程',
@@ -255,7 +273,9 @@ Component({
           : Math.max(0, (this.data.todayDay || 1) - 1),
         formStartIdx: has ? Math.max(0, ((course.start || course.start_period) || 1) - 1) : 0,
         formEndIdx: has ? Math.max(0, ((course.end || course.end_period) || 1) - 1) : 1,
-        formTypeIdx: has ? (course.week_type || 0) : 0
+        formTypeIdx: has ? (course.week_type || 0) : 0,
+        formWeekStartIdx: ws - 1,
+        formWeekEndIdx: we - 1
       })
     },
 
@@ -280,6 +300,18 @@ Component({
       this.setData({ formEndIdx: en })
     },
     onFormType(e) { this.setData({ formTypeIdx: Number(e.detail.value) }) },
+    onFormWeekStart(e) {
+      let s = Number(e.detail.value)
+      const end = this.data.formWeekEndIdx
+      if (s > end) s = end   // 起 <= 止
+      this.setData({ formWeekStartIdx: s })
+    },
+    onFormWeekEnd(e) {
+      let en = Number(e.detail.value)
+      const start = this.data.formWeekStartIdx
+      if (en < start) en = start
+      this.setData({ formWeekEndIdx: en })
+    },
 
     /** 保存自定义课程(新增/编辑) */
     onSaveCustom() {
@@ -289,6 +321,10 @@ Component({
         return
       }
       const typeMap = [0, 1, 2]
+      // 周次范围(与单/双周类型组合): 如 "3-16" + 单周 → 第3-16周中的单周
+      const ws = this.data.formWeekStartIdx + 1
+      const we = this.data.formWeekEndIdx + 1
+      const weeks = `${ws}-${we}`
       const rec = {
         _custom: true,
         _cid: this.data.formCid || ('c' + Date.now()),
@@ -298,7 +334,7 @@ Component({
         day: this.data.formDayIdx + 1,
         start: this.data.formStartIdx + 1,
         end: this.data.formEndIdx + 1,
-        weeks: '1-20',
+        weeks,
         week_type: typeMap[this.data.formTypeIdx] || 0,
         course_type: '自定义',
         credits: ''
