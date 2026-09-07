@@ -154,9 +154,9 @@
   </view>
 
   <!-- ============================================================ -->
-  <!-- 自定义课程 添加/编辑弹窗 -->
+  <!-- 自定义课程 添加/编辑弹窗(遮罩点击不关闭, 防误触丢失输入) -->
   <!-- ============================================================ -->
-  <view class="modal-mask" wx:if="{{showCustomForm}}" bindtap="closeCustomForm">
+  <view class="modal-mask" wx:if="{{showCustomForm}}">
     <view class="modal-card cu-card" catchtap="">
       <view class="modal-title">{{formTitle}}</view>
 
