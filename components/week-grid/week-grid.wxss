@@ -69,12 +69,6 @@
   color: #44406B;
 }
 
-/* 下课时间: 浅灰, 弱化 */
-.t-end {
-  font-size: 15rpx;
-  color: #B6B0D0;
-}
-
 /* 每天列: 相对容器 + 行线背景 */
 .day-col {
   flex: 1;
@@ -129,30 +123,7 @@
 
 .cb-range {
   flex-shrink: 0;
-  font-size: 16rpx;
-  line-height: 1.2;
-}
-
-/* 上下课钟点: 分段样式(上课加粗 - 下课浅色), 窄格内可换行 */
-.cb-clock {
-  flex-shrink: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: center;
   font-size: 15rpx;
-  line-height: 1.25;
-}
-
-.cb-clk-start {
   font-weight: 600;
-}
-
-.cb-clk-dash {
-  opacity: 0.45;
-  margin: 0 2rpx;
-}
-
-.cb-clk-end {
-  opacity: 0.78;
+  line-height: 1.25;
 }

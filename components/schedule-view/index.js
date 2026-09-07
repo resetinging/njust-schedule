@@ -8,7 +8,7 @@ const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const config = require('../../utils/config')
 const { courseColors } = require('../../utils/course-color')
-const { classClock } = require('../../utils/period-time')
+const { periodStart } = require('../../utils/period-time')
 const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
 Component({
@@ -249,8 +249,7 @@ Component({
         }
         if (!c._clock) {
           const cs = c.start || c.start_period
-          const ce = c.end || c.end_period
-          c._clock = (cs && ce) ? classClock(cs, ce) : ''
+          c._clock = cs ? periodStart(cs) : ''   // 仅显示上课时间 xx.xx
         }
         if (!c._periodLabel) {
           const cs = c.start || c.start_period
@@ -403,7 +402,7 @@ Component({
         const enriched = {
           ...course,
           _dayName: DAY[d] || '',
-          _timeText: (s && en) ? `第${s}~${en}节 · ${classClock(s, en)}` : '',
+          _timeText: s ? `第${s}~${en}节 · ${periodStart(s)}` : '',
           _weeksText: weeksRaw.includes('周') ? weeksRaw : `第${weeksRaw}周`
         }
         this.setData({
