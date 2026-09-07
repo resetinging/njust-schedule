@@ -69,20 +69,29 @@
   color: #44406B;
 }
 
-/* 每天列: 相对容器 + 行线背景 */
+/* 每天列: 相对容器; 行线只画在 5 个大节边界(第4/6/8/11/14小节前),
+   大节内部不细分画线(网格按大节合并) */
 .day-col {
   flex: 1;
   min-width: 0;
   position: relative;
   border-left: 1rpx solid #F1EFF8;
   height: 1120rpx; /* 14 * 80 */
-  background-image: repeating-linear-gradient(
-    180deg,
-    #F1EFF8 0,
-    #F1EFF8 1rpx,
-    transparent 1rpx,
-    transparent 80rpx
-  );
+  background-color: transparent;
+  background-image:
+    linear-gradient(180deg, #DED8EF, #DED8EF),
+    linear-gradient(180deg, #DED8EF, #DED8EF),
+    linear-gradient(180deg, #DED8EF, #DED8EF),
+    linear-gradient(180deg, #DED8EF, #DED8EF),
+    linear-gradient(180deg, #DED8EF, #DED8EF);
+  background-size: 100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+  background-position:
+    0 239rpx,   /* 第4小节前(第一大节 1-3 结束) */
+    0 399rpx,   /* 第6小节前(第二大节 4-5 结束) */
+    0 559rpx,   /* 第8小节前(第三大节 6-7 结束) */
+    0 799rpx,   /* 第11小节前(第四大节 8-10 结束) */
+    0 1039rpx;  /* 第14小节前(第五大节 11-13 结束) */
 }
 
 /* 课程块: 绝对定位 + 圆角 + 左侧深色条 */
