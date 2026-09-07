@@ -49,14 +49,25 @@ Component({
         weekPickerRange: Array.from({ length: 20 }, (_, i) => String(i + 1))
       })
       this._syncUser()
-      // 本地无数据且已登录: 后台静默拉取, 不阻塞显示
-      if (storage.isLoggedIn() && !(storage.getCached(this._coursesCacheKey()) || []).length) {
-        this.loadFromServer('', true)
-      }
+      this._ensureSemesterData()
     }
   },
 
   methods: {
+    /**
+     * 学期数据兜底: 已登录但本地缺学期/学期列表时后台静默补拉,
+     * 避免顶栏一直"选择学期"、切换列表为空(清缓存/首次登录等场景)
+     */
+    _ensureSemesterData() {
+      if (!storage.isLoggedIn()) return
+      const hasCourses = (storage.getCached(this._coursesCacheKey()) || []).length > 0
+      const hasSemester = !!this.data.semester
+      const hasSemesters = this.data.semesters.length > 0
+      if (!hasCourses || !hasSemester || !hasSemesters) {
+        this.loadFromServer('', true)
+      }
+    },
+
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
@@ -72,6 +83,8 @@ Component({
         this.setData({ semester: app.globalData.semester })
       }
       this._syncUser()
+      // 学期/学期列表仍缺失时静默补拉(登录后回到课表即补上)
+      this._ensureSemesterData()
       // 从「我的」页设置第一周日期后回到课表, 自动刷新定位本周
       this.loadFirstWeekDate()
     },
@@ -169,6 +182,9 @@ Component({
       if (courses) {
         this.setData({ courses, semester: semester || '' })
         this.filterByWeek(this.data.currentWeek)
+      } else if (semester && !this.data.semester) {
+        // 无课程缓存时也补上学期文本(否则顶栏恒为"选择学期")
+        this.setData({ semester })
       }
       if (semesters.length) {
         this.setData({ semesters })
@@ -207,6 +223,18 @@ Component({
         if (semRes.success && semRes.semesters) {
           this.setData({ semesters: semRes.semesters })
           storage.setCached('semester_list', semRes.semesters)
+        } else if (!this.data.semesters.length) {
+          // 学期列表接口不可用时的本地兜底(与后端生成规则一致:
+          // 当前学年 ±2 年的秋/春学期), 保证切换界面始终可见学期
+          const cur = this.data.semester || storage.getSemester() || ''
+          const m = /^(\d{4})/.exec(cur)
+          const y = m ? parseInt(m[1], 10) : new Date().getFullYear()
+          const fallback = []
+          for (let yy = y - 2; yy <= y + 2; yy++) {
+            fallback.push(`${yy}-${yy + 1}-1`, `${yy}-${yy + 1}-2`)
+          }
+          this.setData({ semesters: fallback })
+          storage.setCached('semester_list', fallback)
         }
       } catch (e) {
         this.setData({ loading: false })
