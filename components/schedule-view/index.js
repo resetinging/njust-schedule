@@ -47,7 +47,7 @@ Component({
     firstWeekDate: '',       // 学期第一周周一日期
     weekRange: '',           // 当前周日期范围(如 "9/1-9/7")
 
-    searchText: '',          // 课程/教师搜索
+    searchText: '',          // (搜索栏已移除, 字段保留兼容旧缓存路径)
     weekPickerRange: [],     // 周次跳转选择器 (1-20)
     studentName: '',         // 学生姓名(顶部信息卡)
     studentId: '',           // 学号(顶部信息卡)
@@ -425,10 +425,9 @@ Component({
       }
     },
 
-    /** 按周次过滤课程（含搜索关键词）；week 非法时兜底为 1，避免显示 null 周 */
+    /** 按周次过滤课程；week 非法时兜底为 1，避免显示 null 周 */
     filterByWeek(week) {
       const w = (typeof week === 'number' && !isNaN(week) && week >= 1 && week <= 20) ? week : 1
-      const kw = (this.data.searchText || '').trim().toLowerCase()
       // 当前周日期范围
       let weekRange = ''
       if (this.data.firstWeekDate) {
@@ -441,13 +440,6 @@ Component({
         if (c.week_type === 2 && w % 2 === 1) return false
         return isWeekInRange(w, c.weeks)
       })
-
-      if (kw) {
-        filtered = filtered.filter(c =>
-          (c.name || '').toLowerCase().includes(kw) ||
-          (c.teacher || '').toLowerCase().includes(kw)
-        )
-      }
 
       // 课程配色: 不同课不同色(按课程名稳定分配; 网格/列表共用)
       // 上下课钟点: 与网格时间列同一作息(45 分钟/节)
@@ -510,21 +502,6 @@ Component({
     switchView(e) {
       const mode = e.currentTarget.dataset.mode
       this.setData({ viewMode: mode })
-    },
-
-    /** 搜索课程/教师(200ms 防抖) */
-    onSearchInput(e) {
-      this.setData({ searchText: e.detail.value })
-      if (this._searchTimer) clearTimeout(this._searchTimer)
-      this._searchTimer = setTimeout(() => {
-        this.filterByWeek(this.data.currentWeek)
-      }, 200)
-    },
-
-    /** 清空搜索 */
-    onClearSearch() {
-      this.setData({ searchText: '' })
-      this.filterByWeek(this.data.currentWeek)
     },
 
     /** 周次跳转 */
