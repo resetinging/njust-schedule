@@ -31,6 +31,13 @@
   border-left: 1rpx solid #F1EFF8;
 }
 
+/* 今天表头: 主题紫加重 */
+.head-day.on {
+  color: #7C6BE8;
+  font-weight: 700;
+  background: #F1EDFD;
+}
+
 /* 网格体(外层 scroll-view 统一滚动, 这里不再独立滚动) */
 .grid-body {
   display: flex;
@@ -69,8 +76,8 @@
   color: #44406B;
 }
 
-/* 每天列: 相对容器; 行线只画在 5 个大节边界(第4/6/8/11/14小节前),
-   大节内部不细分画线(网格按大节合并) */
+/* 每天列: 相对容器; 大节交替淡紫底(第2/4大节) + 行线只画在 5 个大节边界,
+   内部不细分; 今天列整体淡紫高亮 */
 .day-col {
   flex: 1;
   min-width: 0;
@@ -79,19 +86,32 @@
   height: 1120rpx; /* 14 * 80 */
   background-color: transparent;
   background-image:
+    linear-gradient(180deg, #F7F4FE, #F7F4FE),          /* 第二大节底色 */
+    linear-gradient(180deg, #F7F4FE, #F7F4FE),          /* 第四大节底色 */
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF);
-  background-size: 100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+  background-size:
+    100% 160rpx,   /* 第二大节 240-400 */
+    100% 240rpx,   /* 第四大节 560-800 */
+    100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx;
+  background-repeat: no-repeat;
   background-position:
+    0 240rpx,
+    0 560rpx,
     0 239rpx,   /* 第4小节前(第一大节 1-3 结束) */
     0 399rpx,   /* 第6小节前(第二大节 4-5 结束) */
     0 559rpx,   /* 第8小节前(第三大节 6-7 结束) */
     0 799rpx,   /* 第11小节前(第四大节 8-10 结束) */
     0 1039rpx;  /* 第14小节前(第五大节 11-13 结束) */
+}
+
+/* 今天列: 整体淡紫 + 左侧紫色描边 */
+.day-col.today {
+  background-color: #F6F2FE;
+  border-left: 2rpx solid #C9BCF5;
 }
 
 /* 课程块: 绝对定位 + 圆角 + 左侧深色条 */
