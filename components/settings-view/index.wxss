@@ -620,7 +620,7 @@
   margin-top: 8rpx;
 }
 
-/* 提交按钮 */
+/* 提交按钮(V9: 紫色渐变胶囊, 全局规范) */
 .fb-submit {
   margin-top: 32rpx;
   width: 100%;
@@ -629,4 +629,7 @@
   padding: 0;
   font-size: 29rpx;
   border-radius: 999rpx !important;
+  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28) !important;
 }

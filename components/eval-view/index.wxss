@@ -443,9 +443,10 @@
 .btn-primary {
   display: block;
   padding: 20rpx;
-  background: var(--primary);
+  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%);
   color: #fff;
-  border-radius: 40rpx;
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28);
   font-size: 28rpx;
   text-align: center;
   border: none;
@@ -455,9 +456,9 @@
   display: block;
   padding: 20rpx;
   background: #fff;
-  color: var(--primary);
-  border: 2rpx solid var(--primary);
-  border-radius: 40rpx;
+  color: #7C6BE8;
+  border: 2rpx solid #D8CEF8;
+  border-radius: 999rpx;
   font-size: 28rpx;
   text-align: center;
 }

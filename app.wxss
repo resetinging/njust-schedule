@@ -38,25 +38,26 @@ page {
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
 }
 
-/* 按钮 */
+/* 按钮(V9 统一: 胶囊形; 组件有本地定义处以本地为准, 已对齐同规范) */
 .btn-primary {
-  background: var(--primary) !important;
+  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%) !important;
   color: #fff !important;
-  border-radius: 12rpx !important;
+  border-radius: 999rpx !important;
   font-size: 30rpx !important;
+  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28) !important;
 }
 
 .btn-outline {
   background: #fff !important;
   color: var(--primary) !important;
-  border: 2rpx solid var(--primary) !important;
-  border-radius: 12rpx !important;
+  border: 2rpx solid #D8CEF8 !important;
+  border-radius: 999rpx !important;
 }
 
 .btn-danger {
   background: var(--danger) !important;
   color: #fff !important;
-  border-radius: 12rpx !important;
+  border-radius: 999rpx !important;
 }
 
 /* 空状态 */
@@ -403,4 +404,166 @@ page {
 /* 滑动回弹/滑出过渡 */
 .swipe-rebound {
   transition: transform 0.2s ease-out;
+}
+
+/* ============================================================
+   V9 设计系统 — 全局统一按钮/图标钮/卡片/弹窗/行/徽章
+   (u-* 为统一命名, 组件内可直接复用; 主题色 #7C6BE8)
+   ============================================================ */
+
+/* ---- 胶囊按钮族 ---- */
+.u-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 80rpx;
+  padding: 0 40rpx;
+  border-radius: 999rpx;
+  font-size: 29rpx;
+  font-weight: 600;
+  border: none;
+  background: none;
+}
+
+.u-btn::after { border: none; }
+
+.u-btn-primary {
+  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%);
+  color: #fff;
+  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28);
+}
+
+.u-btn-outline {
+  background: #fff;
+  color: #7C6BE8;
+  border: 2rpx solid #D8CEF8;
+}
+
+.u-btn-danger {
+  background: #FDEEEC;
+  color: #D9534F;
+}
+
+.u-btn-ghost {
+  background: #F4F1FC;
+  color: #6C68A0;
+}
+
+.u-btn-sm {
+  height: 64rpx;
+  padding: 0 28rpx;
+  font-size: 26rpx;
+}
+
+.u-btn-primary:active, .u-btn-outline:active,
+.u-btn-danger:active, .u-btn-ghost:active {
+  opacity: 0.82;
+}
+
+/* ---- 圆形图标按钮(工具栏: 刷新/加号/上下周等) ---- */
+.u-ico-btn {
+  width: 56rpx;
+  height: 56rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #EFEAFC;
+  color: #7C6BE8;
+  border-radius: 50%;
+  font-size: 30rpx;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.u-ico-btn:active {
+  background: #E3DBFA;
+}
+
+.u-ico-btn-soft {
+  width: 64rpx;
+  height: 64rpx;
+  background: rgba(124, 107, 232, 0.10);
+  color: #7C6BE8;
+  font-size: 32rpx;
+}
+
+/* ---- 统一卡片 ---- */
+.u-card {
+  background: #fff;
+  border: 2rpx solid #EFEBFC;
+  border-radius: 26rpx;
+  box-shadow: 0 8rpx 26rpx rgba(87, 74, 160, 0.07);
+}
+
+/* ---- 统一弹窗卡片 ---- */
+.u-modal-card {
+  background: #fff;
+  border-radius: 28rpx;
+  box-shadow: 0 16rpx 44rpx rgba(60, 50, 120, 0.22);
+  padding: 30rpx 28rpx 26rpx;
+  box-sizing: border-box;
+}
+
+/* ---- 选择行(label + 值 + 箭头) ---- */
+.u-row {
+  display: flex;
+  align-items: center;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #F4F2FB;
+}
+
+.u-row:last-child { border-bottom: none; }
+
+.u-row:active { background: #FAF8FF; }
+
+.u-row-label {
+  width: 150rpx;
+  font-size: 27rpx;
+  color: #8A87A8;
+  flex-shrink: 0;
+}
+
+.u-row-value {
+  flex: 1;
+  text-align: right;
+  font-size: 29rpx;
+  font-weight: 600;
+  color: #33304F;
+}
+
+.u-row-arrow {
+  margin-left: 14rpx;
+  color: #C6C2DD;
+  font-size: 32rpx;
+}
+
+/* ---- 徽章(统计/状态) ---- */
+.u-badge {
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  background: #F0ECFF;
+  color: #7C6BE8;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+/* ---- 激活态开关按钮(视图切换/标签) ---- */
+.u-tab {
+  flex: 1;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F7F5FD;
+  color: #9B96B8;
+  border-radius: 18rpx;
+  font-size: 27rpx;
+  font-weight: 600;
+}
+
+.u-tab.on {
+  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%);
+  color: #fff;
+  box-shadow: 0 6rpx 16rpx rgba(124, 107, 232, 0.26);
 }

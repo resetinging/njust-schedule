@@ -18,7 +18,7 @@
 
     <slot></slot>
 
-    <button class="btn-primary" wx:if="{{done}}"
-            style="margin-top:24rpx" bindtap="onClose">{{doneText}}</button>
+    <button class="u-btn u-btn-primary" wx:if="{{done}}"
+            style="margin-top:24rpx;min-width:280rpx;" bindtap="onClose">{{doneText}}</button>
   </view>
 </view>

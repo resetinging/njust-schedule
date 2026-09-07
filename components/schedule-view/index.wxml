@@ -42,7 +42,7 @@
         <text wx:if="{{searchText}}" class="search-clear" bindtap="onClearSearch">✕</text>
       </view>
       <text class="refresh-btn {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
-      <text class="add-btn" bindtap="onAddCustom">＋</text>
+      <text class="u-ico-btn" style="margin-left:6rpx;font-size:34rpx;" bindtap="onAddCustom">＋</text>
     </view>
 
     <!-- 网格视图(刷新时保留旧内容, 仅首次无数据才显示占位) -->
@@ -146,10 +146,10 @@
       </view>
       <!-- 自定义课程: 编辑 / 删除 -->
       <view class="modal-actions" wx:if="{{detailCourse._custom}}">
-        <button class="cu-btn outline" bindtap="onEditCustom">编辑</button>
-        <button class="cu-btn danger" data-cid="{{detailCourse._cid}}" bindtap="onDeleteCustom">删除</button>
+        <button class="u-btn u-btn-outline" bindtap="onEditCustom">编辑</button>
+        <button class="u-btn u-btn-danger" data-cid="{{detailCourse._cid}}" bindtap="onDeleteCustom">删除</button>
       </view>
-      <button class="btn-primary" style="margin-top:24rpx" bindtap="closeDetail">关闭</button>
+      <button class="u-btn u-btn-primary" style="margin-top:24rpx;width:100%;" bindtap="closeDetail">关闭</button>
     </view>
   </view>
 
@@ -214,8 +214,8 @@
       </view>
 
       <view class="modal-actions">
-        <button class="cu-btn outline" bindtap="closeCustomForm">取消</button>
-        <button class="cu-btn primary" bindtap="onSaveCustom">保存</button>
+        <button class="u-btn u-btn-outline" bindtap="closeCustomForm">取消</button>
+        <button class="u-btn u-btn-primary" bindtap="onSaveCustom">保存</button>
       </view>
     </view>
   </view>

@@ -283,9 +283,10 @@
   width: 70%;
   margin: 0 auto;
   padding: 20rpx;
-  background: var(--primary);
+  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%);
   color: #fff;
-  border-radius: 40rpx;
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28);
   font-size: 28rpx;
   text-align: center;
   border: none;
@@ -633,13 +634,18 @@
 .week-btn {
   width: 56rpx;
   height: 56rpx;
-  line-height: 56rpx;
-  text-align: center;
-  background: #fff;
-  border: 2rpx solid #E3DFF5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #EFEAFC;
   color: #7C6BE8;
-  border-radius: 14rpx;
+  border-radius: 50%;
   font-size: 26rpx;
+  font-weight: 600;
+}
+
+.week-btn:active {
+  background: #E3DBFA;
 }
 
 .week-label {
@@ -745,17 +751,22 @@
 .view-scroll {
   height: 100%;
 }
-/* 手动刷新按钮(工具栏右侧): 统一圆形浅紫图标 */
+/* 手动刷新按钮(工具栏右侧): 统一圆形浅紫图标(与 u-ico-btn 一致) */
 .refresh-btn {
   flex-shrink: 0;
-  width: 60rpx;
-  height: 60rpx;
-  line-height: 60rpx;
-  text-align: center;
-  font-size: 30rpx;
-  background: #EFEBFC;
+  width: 56rpx;
+  height: 56rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  background: #EFEAFC;
   border-radius: 50%;
   color: #7C6BE8;
+}
+
+.refresh-btn:active {
+  background: #E3DBFA;
 }
 
 /* 宿主节点高度(swiper-item 内撑满, 保证内部 100% 高度链有效) */
@@ -811,19 +822,8 @@
 
 /* ============================================================
    自定义课程: 添加按钮 + 表单弹窗 + 详情操作
+   (加号按钮使用全局 u-ico-btn; 按钮统一 u-btn-outline/primary/danger)
    ============================================================ */
-.add-btn {
-  margin-left: 6rpx;
-  width: 56rpx;
-  height: 56rpx;
-  line-height: 52rpx;
-  text-align: center;
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #7C6BE8;
-  background: #EFEAFC;
-  border-radius: 50%;
-}
 
 .cu-card {
   max-height: 82vh;
@@ -898,34 +898,4 @@
   display: flex;
   gap: 16rpx;
   margin-top: 26rpx;
-}
-
-.cu-btn {
-  flex: 1;
-  height: 80rpx;
-  line-height: 80rpx;
-  font-size: 29rpx;
-  border-radius: 999rpx;
-  border: none;
-  padding: 0;
-  text-align: center;
-}
-
-.cu-btn::after { border: none; }
-
-.cu-btn.outline {
-  background: #fff;
-  border: 2rpx solid #D8CEF8;
-  color: #7C6BE8;
-}
-
-.cu-btn.primary {
-  background: linear-gradient(135deg, #7C6BE8, #9B8CF5);
-  color: #fff;
-  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28);
-}
-
-.cu-btn.danger {
-  background: #FDEEEC;
-  color: #D9534F;
 }

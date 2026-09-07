@@ -16,6 +16,10 @@
  */
 
 Component({
+  options: {
+    styleIsolation: 'apply-shared'   // 复用全局 u-btn 等统一样式
+  },
+
   properties: {
     visible: { type: Boolean, value: false },
     title: { type: String, value: '加载中' },
