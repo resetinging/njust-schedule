@@ -76,8 +76,8 @@
   color: #44406B;
 }
 
-/* 每天列: 相对容器; 大节交替淡紫底(第2/4大节) + 行线只画在 5 个大节边界,
-   内部不细分; 今天列整体淡紫高亮 */
+/* 每天列: 5 个大节各自一种浅色底(极浅便于课程块突出) + 行线只画在大节边界,
+   内部不细分; 今天列叠加紫色高亮(半透明叠层, 大节底色仍可辨) */
 .day-col {
   flex: 1;
   min-width: 0;
@@ -86,21 +86,24 @@
   height: 1120rpx; /* 14 * 80 */
   background-color: transparent;
   background-image:
-    linear-gradient(180deg, #F5F1FD, #F5F1FD),          /* 第二大节底色 */
-    linear-gradient(180deg, #F5F1FD, #F5F1FD),          /* 第四大节底色 */
+    /* 5 个大节浅色底(第1-5大节) */
+    linear-gradient(180deg, #F3EEFA, #F3EEFA),   /* 第一大节 0-240 */
+    linear-gradient(180deg, #E9F1FC, #E9F1FC),   /* 第二大节 240-400 */
+    linear-gradient(180deg, #E9F5EC, #E9F5EC),   /* 第三大节 400-560 */
+    linear-gradient(180deg, #FCF0EA, #FCF0EA),   /* 第四大节 560-800 */
+    linear-gradient(180deg, #FBF4E3, #FBF4E3),   /* 第五大节 800-1040 */
+    /* 5 条大节边界线 */
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF);
   background-size:
-    100% 160rpx,   /* 第二大节 240-400 */
-    100% 240rpx,   /* 第四大节 560-800 */
+    100% 240rpx, 100% 160rpx, 100% 160rpx, 100% 240rpx, 100% 240rpx,
     100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx;
   background-repeat: no-repeat;
   background-position:
-    0 240rpx,
-    0 560rpx,
+    0 0, 0 240rpx, 0 400rpx, 0 560rpx, 0 800rpx,
     0 239rpx,   /* 第4小节前(第一大节 1-3 结束) */
     0 399rpx,   /* 第6小节前(第二大节 4-5 结束) */
     0 559rpx,   /* 第8小节前(第三大节 6-7 结束) */
@@ -108,11 +111,20 @@
     0 1039rpx;  /* 第14小节前(第五大节 11-13 结束) */
 }
 
-/* 今天列: 整体比交替底更深一档(保持大节块在今日列内仍可辨),
-   左侧紫色描边 + 表头加重 */
+/* 今天列: 半透明紫色叠层高亮(不覆盖大节底色, 课程块仍清晰) + 左侧紫色描边 */
 .day-col.today {
-  background-color: #EDE6FB;
   border-left: 2rpx solid #B9A6F2;
+}
+
+.day-col.today::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(124, 107, 232, 0.11), rgba(124, 107, 232, 0.05));
+  pointer-events: none;
 }
 
 /* 课程块: 绝对定位 + 圆角 + 左侧深色条 */
