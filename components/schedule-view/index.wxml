@@ -64,20 +64,21 @@
             wx:for="{{group.courses}}"
             wx:key="index"
             wx:for-item="c"
-            class="course-card {{c.week_type === 1 ? 'type-odd' : ''}} {{c.week_type === 2 ? 'type-even' : ''}}"
+            class="course-card"
+            style="background: {{c._bg || '#FCF0D9'}}; border-left: 10rpx solid {{c._bar || '#F5D9A0'}};"
             bindtap="onCourseTap"
             data-course="{{c}}"
           >
               <view class="card-header">
-                <text class="card-name">{{c.name}}</text>
-                <text class="card-periods">{{c.start || c.start_period}}-{{c.end || c.end_period}}节</text>
+                <text class="card-name" style="color: {{c._text}}">{{c.name}}</text>
+                <text class="card-periods" style="color: {{c._text}}">{{c.start || c.start_period}}-{{c.end || c.end_period}}节</text>
               </view>
               <view class="card-body">
-                <text wx:if="{{c.teacher}}">{{c.teacher}}</text>
-                <text wx:if="{{c.classroom}}">{{c.classroom}}</text>
+                <text wx:if="{{c.teacher}}" style="color: {{c._text}}">{{c.teacher}}</text>
+                <text wx:if="{{c.classroom}}" style="color: {{c._text}}">{{c.classroom}}</text>
               </view>
               <view class="card-footer">
-                <text class="card-weeks">{{c.weeks || '1-18周'}}</text>
+                <text class="card-weeks" style="color: {{c._text}}">{{c.weeks || '1-18周'}}</text>
                 <text class="card-badge" wx:if="{{c.week_type === 1}}">单周</text>
                 <text class="card-badge even" wx:if="{{c.week_type === 2}}">双周</text>
               </view>

@@ -4,6 +4,7 @@
  */
 
 const { WEEKDAY_NAMES, isWeekInRange } = require('../../utils/date')
+const { courseColors } = require('../../utils/course-color')
 
 // 每小节行高(rpx); 第14节显示"网课"
 // 88 → 80: 在上一轮压缩基础上再减 10%, 保持可读
@@ -17,8 +18,8 @@ const TIME_ROWS = [
   '19:00', '19:50', '20:40', '网课'
 ]
 
-// 课程块统一橙黄色(参考目标 UI: 一周课程均为橙黄长条)
-const COURSE_COLOR = { bg: '#FCF0D9', bar: '#F5D9A0', text: '#8A6116' }
+// 课程块配色: 按课程名分配(不同课不同色, 同一课跨周/多时段同色)
+const COURSE_COLOR = { bg: '#FCF0D9', bar: '#F5D9A0', text: '#8A6116' }   // 兜底
 // 表头简洁日期名(参考目标 UI: 一 二 三 四 五 六 日)
 const GRID_WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 
@@ -90,6 +91,11 @@ Component({
           if (seen.has(key)) continue
           seen.add(key)
 
+          // 课程配色(优先外部装饰字段, 保证与列表视图一致)
+          const pal = (c._bg && c._bar && c._text)
+            ? { bg: c._bg, bar: c._bar, text: c._text }
+            : courseColors(c.name)
+
           blocks.push({
             name: c.name,
             teacher: c.teacher || c.instructor || '',
@@ -103,9 +109,9 @@ Component({
             course_type: c.course_type || '',
             _top: (cs - 1) * ROW_H + 4,
             _height: (ce - cs + 1) * ROW_H - 8,
-            _bg: COURSE_COLOR.bg,
-            _bar: COURSE_COLOR.bar,
-            _text: COURSE_COLOR.text,
+            _bg: pal.bg,
+            _bar: pal.bar,
+            _text: pal.text,
             _range: cs === ce ? `${cs}节` : `${cs}-${ce}节`
           })
         }

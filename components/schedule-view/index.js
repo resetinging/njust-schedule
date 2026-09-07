@@ -7,6 +7,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const config = require('../../utils/config')
+const { courseColors } = require('../../utils/course-color')
 const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
 Component({
@@ -235,6 +236,16 @@ Component({
           (c.teacher || '').toLowerCase().includes(kw)
         )
       }
+
+      // 课程配色: 不同课不同色(按课程名稳定分配; 网格/列表共用)
+      filtered.forEach(c => {
+        if (!c._bg) {
+          const pal = courseColors(c.name)
+          c._bg = pal.bg
+          c._bar = pal.bar
+          c._text = pal.text
+        }
+      })
 
       // 构建列表视图分组（按天分组 + 去重）
       const listDayGroups = this._buildListGroups(filtered)
