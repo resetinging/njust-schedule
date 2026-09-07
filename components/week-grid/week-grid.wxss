@@ -35,7 +35,7 @@
 .head-day.on {
   color: #7C6BE8;
   font-weight: 700;
-  background: #F1EDFD;
+  background: #E9E0FB;
 }
 
 /* 网格体(外层 scroll-view 统一滚动, 这里不再独立滚动) */
@@ -86,8 +86,8 @@
   height: 1120rpx; /* 14 * 80 */
   background-color: transparent;
   background-image:
-    linear-gradient(180deg, #F7F4FE, #F7F4FE),          /* 第二大节底色 */
-    linear-gradient(180deg, #F7F4FE, #F7F4FE),          /* 第四大节底色 */
+    linear-gradient(180deg, #F5F1FD, #F5F1FD),          /* 第二大节底色 */
+    linear-gradient(180deg, #F5F1FD, #F5F1FD),          /* 第四大节底色 */
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF),
     linear-gradient(180deg, #DED8EF, #DED8EF),
@@ -108,10 +108,11 @@
     0 1039rpx;  /* 第14小节前(第五大节 11-13 结束) */
 }
 
-/* 今天列: 整体淡紫 + 左侧紫色描边 */
+/* 今天列: 整体比交替底更深一档(保持大节块在今日列内仍可辨),
+   左侧紫色描边 + 表头加重 */
 .day-col.today {
-  background-color: #F6F2FE;
-  border-left: 2rpx solid #C9BCF5;
+  background-color: #EDE6FB;
+  border-left: 2rpx solid #B9A6F2;
 }
 
 /* 课程块: 绝对定位 + 圆角 + 左侧深色条 */
