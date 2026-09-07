@@ -22,7 +22,7 @@
       </view>
     </view>
 
-    <!-- 工具栏: 上下周 + 搜索 + 手动刷新 -->
+    <!-- 工具栏: 上下周 + 刷新 + 加号 -->
     <view class="toolbar">
       <view class="week-nav">
         <text class="week-btn" bindtap="prevWeek">◀</text>
@@ -34,15 +34,21 @@
         </view>
         <text class="week-btn" bindtap="nextWeek">▶</text>
       </view>
-      <view class="search-box">
-        <text class="search-icon">🔍</text>
-        <input class="search-input" placeholder="搜索课程 / 教师"
-               value="{{searchText}}" bindinput="onSearchInput"
-               confirm-type="search" />
-        <text wx:if="{{searchText}}" class="search-clear" bindtap="onClearSearch">✕</text>
-      </view>
       <text class="refresh-btn {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
       <text class="u-ico-btn" style="margin-left:6rpx;font-size:34rpx;" bindtap="onAddCustom">＋</text>
+    </view>
+
+    <!-- 搜索栏: 独立整行(更宽, 避免误触), ✕ 加大点击区 -->
+    <view class="search-row">
+      <view class="search-box">
+        <text class="search-icon">🔍</text>
+        <input class="search-input" placeholder="搜索课程、教师或教室"
+               value="{{searchText}}" bindinput="onSearchInput"
+               confirm-type="search" />
+        <view wx:if="{{searchText}}" class="search-clear" bindtap="onClearSearch" hover-class="search-clear-hover">
+          <text class="search-clear-x">✕</text>
+        </view>
+      </view>
     </view>
 
     <!-- 网格视图(刷新时保留旧内容, 仅首次无数据才显示占位) -->
