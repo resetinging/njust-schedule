@@ -11,6 +11,16 @@ const { courseColors } = require('../../utils/course-color')
 const { periodStart } = require('../../utils/period-time')
 const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
+// ── 自定义课程(本地存储, 与教务课程合并显示) ──
+const CUSTOM_KEY = 'custom_courses'
+const DAY_OPTIONS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+const PERIOD_OPTIONS = (() => {
+  const a = []
+  for (let i = 1; i <= 13; i++) a.push('第' + i + '节')
+  return a
+})()
+const WEEK_TYPE_OPTIONS = ['每周（全学期）', '仅单周', '仅双周']
+
 Component({
   options: {
     styleIsolation: 'apply-shared'
@@ -37,12 +47,28 @@ Component({
     studentName: '',         // 学生姓名(顶部信息卡)
     studentId: '',           // 学号(顶部信息卡)
 
+    // 自定义课程弹窗表单
+    showCustomForm: false,
+    formTitle: '添加自定义课程',
+    formCid: '',
+    formName: '',
+    formTeacher: '',
+    formClassroom: '',
+    formDayIdx: 0,
+    formStartIdx: 0,
+    formEndIdx: 0,
+    formTypeIdx: 0,
+    dayOptions: DAY_OPTIONS,
+    periodOptions: PERIOD_OPTIONS,
+    weekTypeOptions: WEEK_TYPE_OPTIONS,
+
     active: false            // 懒渲染: main 激活时才渲染内容
   },
 
   lifetimes: {
     attached() {
       // 缓存优先：打开只渲染本地缓存，网络仅在下拉刷新/学期切换时发生
+      this._customs = this._readCustoms()
       this.loadCachedData()
       this.loadFirstWeekDate()
       this.setData({
@@ -180,8 +206,9 @@ Component({
       const semesters = storage.getCached('semester_list') || []
 
       if (courses) {
-        this.setData({ courses, semester: semester || '' })
-        this.filterByWeek(this.data.currentWeek)
+        this._serverCourses = courses
+        this._composeCourses()
+        this.setData({ semester: semester || '' })
       } else if (semester && !this.data.semester) {
         // 无课程缓存时也补上学期文本(否则顶栏恒为"选择学期")
         this.setData({ semester })
@@ -189,6 +216,126 @@ Component({
       if (semesters.length) {
         this.setData({ semesters })
       }
+    },
+
+    // ── 自定义课程: 本地读写 + 与教务课程合并 ──
+    _readCustoms() {
+      const arr = storage.get(CUSTOM_KEY, [])
+      const list = Array.isArray(arr) ? arr.slice() : []
+      list.forEach(c => { c._custom = true })
+      return list
+    },
+
+    _persistCustoms() {
+      storage.set(CUSTOM_KEY, this._customs || [])
+    },
+
+    /** 合并并重渲染: 教务课(基础) + 自定义课 */
+    _composeCourses() {
+      const merged = (this._serverCourses || []).concat(this._customs || [])
+      this.setData({ courses: merged })
+      this.filterByWeek(this.data.currentWeek)
+    },
+
+    /** 打开添加/编辑自定义课程弹窗 */
+    onAddCustom() {
+      this._openCustomForm(null)
+    },
+
+    _openCustomForm(course) {
+      const has = !!course
+      this.setData({
+        showCustomForm: true,
+        formTitle: has ? '编辑自定义课程' : '添加自定义课程',
+        formCid: has ? String(course._cid || '') : '',
+        formName: has ? (course.name || '') : '',
+        formTeacher: has ? (course.teacher || '') : '',
+        formClassroom: has ? (course.classroom || '') : '',
+        formDayIdx: has ? Math.max(0, ((course.day || course.day_of_week) || 1) - 1)
+          : Math.max(0, (this.data.todayDay || 1) - 1),
+        formStartIdx: has ? Math.max(0, ((course.start || course.start_period) || 1) - 1) : 0,
+        formEndIdx: has ? Math.max(0, ((course.end || course.end_period) || 1) - 1) : 1,
+        formTypeIdx: has ? (course.week_type || 0) : 0
+      })
+    },
+
+    closeCustomForm() {
+      this.setData({ showCustomForm: false })
+    },
+
+    onFormName(e) { this.setData({ formName: e.detail.value }) },
+    onFormTeacher(e) { this.setData({ formTeacher: e.detail.value }) },
+    onFormClassroom(e) { this.setData({ formClassroom: e.detail.value }) },
+    onFormDay(e) { this.setData({ formDayIdx: Number(e.detail.value) }) },
+    onFormStart(e) {
+      let s = Number(e.detail.value)
+      const end = this.data.formEndIdx
+      if (s > end) s = end   // 起 <= 止
+      this.setData({ formStartIdx: s })
+    },
+    onFormEnd(e) {
+      let en = Number(e.detail.value)
+      const start = this.data.formStartIdx
+      if (en < start) en = start
+      this.setData({ formEndIdx: en })
+    },
+    onFormType(e) { this.setData({ formTypeIdx: Number(e.detail.value) }) },
+
+    /** 保存自定义课程(新增/编辑) */
+    onSaveCustom() {
+      const name = (this.data.formName || '').trim()
+      if (!name) {
+        wx.showToast({ title: '请填写课程名称', icon: 'none' })
+        return
+      }
+      const typeMap = [0, 1, 2]
+      const rec = {
+        _custom: true,
+        _cid: this.data.formCid || ('c' + Date.now()),
+        name,
+        teacher: (this.data.formTeacher || '').trim(),
+        classroom: (this.data.formClassroom || '').trim(),
+        day: this.data.formDayIdx + 1,
+        start: this.data.formStartIdx + 1,
+        end: this.data.formEndIdx + 1,
+        weeks: '1-20',
+        week_type: typeMap[this.data.formTypeIdx] || 0,
+        course_type: '自定义',
+        credits: ''
+      }
+      const list = (this._customs || []).filter(c => String(c._cid) !== rec._cid)
+      list.push(rec)
+      this._customs = list
+      this._persistCustoms()
+      this.setData({ showCustomForm: false })
+      this._composeCourses()
+      wx.showToast({ title: '已保存', icon: 'success' })
+    },
+
+    /** 删除自定义课程(弹窗内/详情内) */
+    onDeleteCustom(e) {
+      const cid = String((e && e.currentTarget.dataset.cid) || this.data.formCid || '')
+      if (!cid) return
+      wx.showModal({
+        title: '删除自定义课程',
+        content: '确认删除这门自定义课程？',
+        confirmColor: '#D9534F',
+        success: (r) => {
+          if (!r.confirm) return
+          this._customs = (this._customs || []).filter(c => String(c._cid) !== cid)
+          this._persistCustoms()
+          this.setData({ showCustomForm: false, showDetail: false })
+          this._composeCourses()
+          wx.showToast({ title: '已删除', icon: 'none' })
+        }
+      })
+    },
+
+    /** 从课程详情进入编辑 */
+    onEditCustom() {
+      const course = this.data.detailCourse
+      this.setData({ showDetail: false })
+      if (course && course._custom) this._openCustomForm(course)
     },
 
     /** 从服务器加载（semester 参数可显式指定, 不依赖 storage 时序; silent 为后台静默模式） */
@@ -200,19 +347,19 @@ Component({
           api.getSemesters()
         ])
         if (res.success && res.courses) {
+          this._serverCourses = res.courses
           this.setData({
-            courses: res.courses,
             semester: res.semester || this.data.semester,
             loading: false
           })
-          // 缓存键带学期: 按实际返回的学期写缓存
+          // 缓存键带学期: 按实际返回的学期写缓存(只存教务课, 自定义课独立存储)
           const cacheSem = res.semester || storage.getSemester() || 'default'
           storage.setCached('cached_courses_' + cacheSem, res.courses)
           if (res.semester) {
             storage.setSemester(res.semester)
             getApp().globalData.semester = res.semester   // 同步全局
           }
-          this.filterByWeek(this.data.currentWeek)
+          this._composeCourses()
         } else {
           this.setData({ loading: false })
           if (!silent && !res.success && res.message) {

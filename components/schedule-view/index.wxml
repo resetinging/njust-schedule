@@ -42,6 +42,7 @@
         <text wx:if="{{searchText}}" class="search-clear" bindtap="onClearSearch">✕</text>
       </view>
       <text class="refresh-btn {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
+      <text class="add-btn" bindtap="onAddCustom">＋</text>
     </view>
 
     <!-- 网格视图(刷新时保留旧内容, 仅首次无数据才显示占位) -->
@@ -143,7 +144,67 @@
         <text class="label">类型</text>
         <text class="m-value">{{detailCourse.course_type || detailCourse.type}}</text>
       </view>
+      <!-- 自定义课程: 编辑 / 删除 -->
+      <view class="modal-actions" wx:if="{{detailCourse._custom}}">
+        <button class="cu-btn outline" bindtap="onEditCustom">编辑</button>
+        <button class="cu-btn danger" data-cid="{{detailCourse._cid}}" bindtap="onDeleteCustom">删除</button>
+      </view>
       <button class="btn-primary" style="margin-top:24rpx" bindtap="closeDetail">关闭</button>
+    </view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!-- 自定义课程 添加/编辑弹窗 -->
+  <!-- ============================================================ -->
+  <view class="modal-mask" wx:if="{{showCustomForm}}" bindtap="closeCustomForm">
+    <view class="modal-card cu-card" catchtap="">
+      <view class="modal-title">{{formTitle}}</view>
+
+      <view class="cu-field">
+        <text class="cu-label">课程名 *</text>
+        <input class="cu-input" value="{{formName}}" bindinput="onFormName" maxlength="30"
+               placeholder="如：健身 / 日语自习" placeholder-class="cu-ph" />
+      </view>
+      <view class="cu-field">
+        <text class="cu-label">教师</text>
+        <input class="cu-input" value="{{formTeacher}}" bindinput="onFormTeacher" maxlength="20"
+               placeholder="选填" placeholder-class="cu-ph" />
+      </view>
+      <view class="cu-field">
+        <text class="cu-label">教室</text>
+        <input class="cu-input" value="{{formClassroom}}" bindinput="onFormClassroom" maxlength="30"
+               placeholder="选填" placeholder-class="cu-ph" />
+      </view>
+
+      <view class="cu-field">
+        <text class="cu-label">星期</text>
+        <picker mode="selector" range="{{dayOptions}}" value="{{formDayIdx}}" bindchange="onFormDay">
+          <view class="cu-pick">{{dayOptions[formDayIdx]}} <text class="cu-arrow">›</text></view>
+        </picker>
+      </view>
+      <view class="cu-field">
+        <text class="cu-label">上课时间</text>
+        <view class="cu-range">
+          <picker mode="selector" range="{{periodOptions}}" value="{{formStartIdx}}" bindchange="onFormStart">
+            <view class="cu-pick">{{periodOptions[formStartIdx]}}</view>
+          </picker>
+          <text class="cu-dash">—</text>
+          <picker mode="selector" range="{{periodOptions}}" value="{{formEndIdx}}" bindchange="onFormEnd">
+            <view class="cu-pick">{{periodOptions[formEndIdx]}}</view>
+          </picker>
+        </view>
+      </view>
+      <view class="cu-field">
+        <text class="cu-label">周次类型</text>
+        <picker mode="selector" range="{{weekTypeOptions}}" value="{{formTypeIdx}}" bindchange="onFormType">
+          <view class="cu-pick">{{weekTypeOptions[formTypeIdx]}} <text class="cu-arrow">›</text></view>
+        </picker>
+      </view>
+
+      <view class="modal-actions">
+        <button class="cu-btn outline" bindtap="closeCustomForm">取消</button>
+        <button class="cu-btn primary" bindtap="onSaveCustom">保存</button>
+      </view>
     </view>
   </view>
 

@@ -117,7 +117,9 @@ Component({
             _bar: pal.bar,
             _text: pal.text,
             _clockStart: periodStart(cs),
-            _range: cs === ce ? `${cs}节` : `${cs}-${ce}节`
+            _range: cs === ce ? `${cs}节` : `${cs}-${ce}节`,
+            _cid: c._cid || '',
+            _custom: !!c._custom
           })
         }
         blocks.sort((a, b) => a._top - b._top)

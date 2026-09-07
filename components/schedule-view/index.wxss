@@ -808,3 +808,124 @@
   background: #F5D9A0;
   color: #8A6116;
 }
+
+/* ============================================================
+   自定义课程: 添加按钮 + 表单弹窗 + 详情操作
+   ============================================================ */
+.add-btn {
+  margin-left: 6rpx;
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 52rpx;
+  text-align: center;
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #7C6BE8;
+  background: #EFEAFC;
+  border-radius: 50%;
+}
+
+.cu-card {
+  max-height: 82vh;
+  overflow-y: auto;
+}
+
+.cu-field {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 14rpx 0;
+}
+
+.cu-label {
+  width: 150rpx;
+  flex-shrink: 0;
+  font-size: 27rpx;
+  color: #8A87A8;
+}
+
+.cu-input {
+  flex: 1;
+  height: 72rpx;
+  padding: 0 20rpx;
+  background: #F7F5FD;
+  border: 2rpx solid #EFEBFC;
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.cu-ph {
+  color: #B8B3D4;
+}
+
+.cu-pick {
+  min-width: 240rpx;
+  height: 72rpx;
+  padding: 0 20rpx;
+  line-height: 72rpx;
+  background: #F7F5FD;
+  border: 2rpx solid #EFEBFC;
+  border-radius: 14rpx;
+  font-size: 27rpx;
+  color: #3A3560;
+  box-sizing: border-box;
+}
+
+.cu-arrow {
+  float: right;
+  color: #B8B3D4;
+}
+
+.cu-range {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  flex: 1;
+}
+
+.cu-range .cu-pick {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.cu-dash {
+  color: #B8B3D4;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 26rpx;
+}
+
+.cu-btn {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  font-size: 29rpx;
+  border-radius: 999rpx;
+  border: none;
+  padding: 0;
+  text-align: center;
+}
+
+.cu-btn::after { border: none; }
+
+.cu-btn.outline {
+  background: #fff;
+  border: 2rpx solid #D8CEF8;
+  color: #7C6BE8;
+}
+
+.cu-btn.primary {
+  background: linear-gradient(135deg, #7C6BE8, #9B8CF5);
+  color: #fff;
+  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28);
+}
+
+.cu-btn.danger {
+  background: #FDEEEC;
+  color: #D9534F;
+}
