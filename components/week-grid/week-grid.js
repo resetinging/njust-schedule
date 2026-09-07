@@ -99,7 +99,7 @@ Component({
             ? { bg: c._bg, bar: c._bar, text: c._text }
             : courseColors(c.name)
 
-          // 上下课钟点(目标 UI 样式: xx.xx-xx.xx, 如 08.00-10.25)
+          // 上下课钟点(目标 UI 样式: xx.xx-xx.xx, 分段渲染: 上课加粗/下课浅色)
           const clockText = classClock(cs, ce)
 
           blocks.push({
@@ -119,6 +119,8 @@ Component({
             _bar: pal.bar,
             _text: pal.text,
             _clock: clockText,
+            _clockStart: periodStart(cs),
+            _clockEnd: periodEnd(ce),
             _range: cs === ce ? `${cs}节` : `${cs}-${ce}节`
           })
         }

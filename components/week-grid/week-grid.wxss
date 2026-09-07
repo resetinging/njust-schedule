@@ -51,34 +51,28 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2rpx;
+  gap: 4rpx;
+  line-height: 1;
 }
 
-/* 第一行: 节号 + 上课时间 并排 */
-.t-top {
-  display: flex;
-  align-items: baseline;
-  gap: 6rpx;
-  line-height: 1.1;
-}
-
+/* 节号: 浅灰小字 */
 .t-num {
-  font-size: 22rpx;
-  font-weight: 700;
-  color: #4A4670;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #C0BBD9;
 }
 
+/* 上课时间: 深紫黑, 重点 */
 .t-time {
-  font-size: 16rpx;
-  color: #6C68A0;
-  line-height: 1.1;
+  font-size: 17rpx;
+  font-weight: 600;
+  color: #44406B;
 }
 
-/* 第二行: 下课时间(本节开始 +45 分钟), 灰色带箭头示意 */
+/* 下课时间: 浅灰, 弱化 */
 .t-end {
   font-size: 15rpx;
-  color: #B9B4D4;
-  line-height: 1.1;
+  color: #B6B0D0;
 }
 
 /* 每天列: 相对容器 + 行线背景 */
@@ -137,4 +131,28 @@
   flex-shrink: 0;
   font-size: 16rpx;
   line-height: 1.2;
+}
+
+/* 上下课钟点: 分段样式(上课加粗 - 下课浅色), 窄格内可换行 */
+.cb-clock {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  font-size: 15rpx;
+  line-height: 1.25;
+}
+
+.cb-clk-start {
+  font-weight: 600;
+}
+
+.cb-clk-dash {
+  opacity: 0.45;
+  margin: 0 2rpx;
+}
+
+.cb-clk-end {
+  opacity: 0.78;
 }

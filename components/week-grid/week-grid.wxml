@@ -11,14 +11,12 @@
 
   <!-- 网格体: 时间列 + 7 天列(课程块绝对定位) -->
   <view class="grid-body">
-    <!-- 节次时间列: 节号+上课 一行, 下课 一行(两行紧凑排版) -->
+    <!-- 节次时间列: 居中三行 — 节号(灰) / 上课(深) / 下课(浅) -->
     <view class="time-col">
       <view class="time-cell" wx:for="{{timeRows}}" wx:key="index">
-        <view class="t-top">
-          <text class="t-num">{{item.index}}</text>
-          <text class="t-time">{{item.label || item.time}}</text>
-        </view>
-        <text class="t-end" wx:if="{{item.end}}">↓{{item.end}}</text>
+        <text class="t-num">{{item.index}}</text>
+        <text class="t-time">{{item.label || item.time}}</text>
+        <text class="t-end" wx:if="{{item.end}}">{{item.end}}</text>
       </view>
     </view>
 
@@ -36,7 +34,11 @@
       >
         <text class="cb-name" style="color: {{b._text}}">{{b.name}}</text>
         <text class="cb-code" wx:if="{{b.classroom}}" style="color: {{b._text}}">{{b.classroom}}</text>
-        <text class="cb-range" style="color: {{b._text}}">{{b._clock}}</text>
+        <view class="cb-clock" style="color: {{b._text}}">
+          <text class="cb-clk-start">{{b._clockStart}}</text>
+          <text class="cb-clk-dash">-</text>
+          <text class="cb-clk-end">{{b._clockEnd}}</text>
+        </view>
       </view>
     </view>
   </view>
