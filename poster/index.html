@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>南理工课表助手 · 宣传海报</title>
+<style>
+  :root {
+    --pri: #7C6BE8;
+    --pri2: #9B8CF5;
+    --pri3: #B7A9FA;
+    --ink: #33304F;
+    --ink2: #6C68A0;
+    --bg: #F7F6FB;
+    --line: #EFEBFC;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #E9E4F7;
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+
+  .poster {
+    width: 100%;
+    max-width: 520px;
+    background: var(--bg);
+    border-radius: 32px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(60, 50, 120, 0.28);
+  }
+
+  /* ── 顶部头图 ── */
+  .hero {
+    position: relative;
+    padding: 44px 30px 96px;
+    background: linear-gradient(140deg, #8F7DF0 0%, #7C6BE8 45%, #5A4AC8 100%);
+    color: #fff;
+    overflow: hidden;
+  }
+  .hero::before,
+  .hero::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.10);
+  }
+  .hero::before { width: 260px; height: 260px; right: -80px; top: -90px; }
+  .hero::after  { width: 180px; height: 180px; left: -60px; bottom: -70px; }
+
+  .hero .badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.20);
+    border: 1px solid rgba(255,255,255,0.35);
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    letter-spacing: 2px;
+    backdrop-filter: blur(4px);
+  }
+  .hero h1 {
+    margin-top: 18px;
+    font-size: 42px;
+    letter-spacing: 3px;
+    text-shadow: 0 4px 18px rgba(0,0,0,0.18);
+  }
+  .hero .slogan {
+    margin-top: 10px;
+    font-size: 17px;
+    color: rgba(255,255,255,0.88);
+    letter-spacing: 1px;
+  }
+  .hero .chips { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .hero .chip {
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.28);
+    padding: 8px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+  }
+  .hero .num-row { margin-top: 24px; display: flex; gap: 26px; }
+  .hero .num-row b { font-size: 30px; display: block; }
+  .hero .num-row span { font-size: 12px; color: rgba(255,255,255,0.78); }
+
+  /* ── 截图卡片 ── */
+  .shots {
+    position: relative;
+    margin-top: -64px;
+    padding: 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    z-index: 2;
+  }
+  .shot-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: 0 12px 32px rgba(87, 74, 160, 0.10);
+    overflow: hidden;
+  }
+  .shot-card .cap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 4px;
+  }
+  .shot-card .cap h2 { font-size: 20px; }
+  .shot-card .cap .tag {
+    font-size: 12px;
+    color: var(--pri);
+    background: #F0ECFF;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .shot-card .desc {
+    padding: 0 20px 12px;
+    font-size: 13px;
+    color: var(--ink2);
+    line-height: 1.6;
+  }
+  .shot {
+    display: block;
+    width: 100%;
+    height: 430px;
+    overflow: hidden;
+    background: #F1EEFB;
+  }
+  .shot img {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: top;
+  }
+  .shot.tall img { transform: translateY(0); }
+
+  /* ── 卖点网格 ── */
+  .features {
+    padding: 26px 24px 10px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .feat {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 18px 16px;
+  }
+  .feat .ico { font-size: 26px; }
+  .feat h3 { margin-top: 8px; font-size: 16px; }
+  .feat p { margin-top: 4px; font-size: 12px; color: var(--ink2); line-height: 1.5; }
+
+  /* ── CTA ── */
+  .cta {
+    margin: 4px 24px 28px;
+    padding: 26px 22px;
+    text-align: center;
+    color: #fff;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%);
+    box-shadow: 0 14px 34px rgba(124, 107, 232, 0.36);
+  }
+  .cta h2 { font-size: 22px; letter-spacing: 2px; }
+  .cta p { margin-top: 8px; font-size: 13px; color: rgba(255,255,255,0.86); }
+  .qr {
+    margin: 18px auto 0;
+    width: 132px;
+    height: 132px;
+    background: #fff;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8B79EC;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .cta .foot { margin-top: 14px; font-size: 11px; color: rgba(255,255,255,0.7); }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <!-- 头图 -->
+  <div class="hero">
+    <span class="badge">N JUST · 官方课表伴侣</span>
+    <h1>南理工课表助手</h1>
+    <p class="slogan">课表 · 考试 · 评教 · 成绩 · 空教室，一站搞定</p>
+    <div class="chips">
+      <span class="chip">📅 周视图课表</span>
+      <span class="chip">🏫 空教室查询</span>
+      <span class="chip">🎓 绩点计算</span>
+      <span class="chip">📝 一键评教</span>
+    </div>
+    <div class="num-row">
+      <div><b>61</b><span>间空闲教室 · 实测</span></div>
+      <div><b>96.7</b><span>总学分 · 一键统计</span></div>
+      <div><b>5</b><span>大节时间轴 · 当天定位</span></div>
+    </div>
+  </div>
+
+  <!-- 实拍截图 -->
+  <div class="shots">
+
+    <div class="shot-card">
+      <div class="cap"><h2>📅 彩色周课表</h2><span class="tag">多色课程块</span></div>
+      <p class="desc">不同课程不同颜色 · 大节合并时间轴 · 上课钟点一目了然 · 还可添加自定义课程</p>
+      <div class="shot"><img src="assets/s1.jpg" alt="周课表截图"></div>
+    </div>
+
+    <div class="shot-card">
+      <div class="cap"><h2>🏫 空教室查询</h2><span class="tag">当天 61 间空闲</span></div>
+      <p class="desc">校区 / 星期 / 周次 / 起止时段随心筛，按教学楼分组，空闲一目了然</p>
+      <div class="shot"><img src="assets/s2.jpg" alt="空教室查询截图"></div>
+    </div>
+
+    <div class="shot-card">
+      <div class="cap"><h2>📝 评教与考试提醒</h2><span class="tag">不错过任何待办</span></div>
+      <p class="desc">评教倒计时 · 考试安排 · 成绩绩点自动计算，教务数据自动同步</p>
+      <div class="shot"><img src="assets/s3.jpg" alt="评教截图"></div>
+    </div>
+  </div>
+
+  <!-- 卖点 -->
+  <div class="features">
+    <div class="feat"><div class="ico">🎨</div><h3>多色课程块</h3><p>按课程自动配色，同一门课颜色稳定</p></div>
+    <div class="feat"><div class="ico">⏰</div><h3>上下课钟点</h3><p>每节 45 分钟官方作息，起止时间直显</p></div>
+    <div class="feat"><div class="ico">➕</div><h3>自定义课程</h3><p>自习/社团课手动添加，支持单双周与周范围</p></div>
+    <div class="feat"><div class="ico">📢</div><h3>公告即时送达</h3><p>管理端一键发布，打开即见新公告</p></div>
+    <div class="feat"><div class="ico">📊</div><h3>成绩与绩点</h3><p>四六级折算 · GPA 一键核对，与教务一致</p></div>
+    <div class="feat"><div class="ico">🧭</div><h3>教学周定位</h3><p>设置第一周日期，自动高亮今天所在列</p></div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <h2>微信搜索小程序</h2>
+    <p>「课表助手」 · 南理工同学的学习搭子</p>
+    <div class="qr">小程序码<br>（替换为你的<br>小程序二维码）</div>
+    <div class="foot">数据同步自教务系统 · 仅限校内学习使用 · 隐私数据加密存储</div>
+  </div>
+
+</div>
+</body>
+</html>
