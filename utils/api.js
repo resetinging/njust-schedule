@@ -328,6 +328,16 @@ function submitFeedback(fbType, content) {
   })
 }
 
+/** 我的反馈列表(含管理员回复) + 未读回复数 */
+function getMyFeedback() {
+  return request('GET', '/api/my-feedback')
+}
+
+/** 标记回复已读(打开「我的反馈」时调用) */
+function markFeedbackRead() {
+  return request('POST', '/api/my-feedback/read')
+}
+
 /** 获取系统状态（登录状态、学期等） */
 function getStatus() {
   return request('GET', '/api/status')
@@ -534,6 +544,8 @@ module.exports = {
   getAnnouncement,
   getFreeClassrooms,
   submitFeedback,
+  getMyFeedback,
+  markFeedbackRead,
   setSemester,
   clearData,
   getSemesters,

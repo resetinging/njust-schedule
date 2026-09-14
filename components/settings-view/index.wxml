@@ -64,6 +64,13 @@
         <text>问题反馈</text>
         <text class="arrow">›</text>
       </view>
+      <view class="action-item" bindtap="onOpenMyFeedback">
+        <view class="action-label">
+          <text>我的反馈</text>
+          <text class="fb-dot" wx:if="{{fbUnread > 0}}">{{fbUnread > 99 ? '99+' : fbUnread}}</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
       <view class="action-item" bindtap="onClearData">
         <text>清除缓存数据</text>
         <text class="arrow">›</text>
@@ -198,6 +205,44 @@
       <button class="btn-primary fb-submit" bindtap="onFbSubmit" disabled="{{fbSending}}">
         {{fbSending ? '提交中…' : '提交反馈'}}
       </button>
+    </view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!-- 我的反馈弹窗: 查看官方回复(有新回复时入口带小红点) -->
+  <!-- ============================================================ -->
+  <view class="fb-mask" wx:if="{{showMyFeedback}}" bindtap="onMyFbClose">
+    <view class="fb-card" catchtap="noop">
+      <view class="fb-head">
+        <text class="fb-title">我的反馈</text>
+        <text class="fb-close" bindtap="onMyFbClose">✕</text>
+      </view>
+
+      <scroll-view class="myfb-list" scroll-y>
+        <view class="myfb-item" wx:for="{{myFeedback}}" wx:key="id">
+          <view class="myfb-top">
+            <text class="myfb-type">{{item._typeLabel}}</text>
+            <text class="myfb-time">{{item.created_at}}</text>
+            <text class="myfb-status {{item._reply ? 'replied' : 'pending'}}">{{item._reply ? '已回复' : '待处理'}}</text>
+          </view>
+          <view class="myfb-content">{{item.content}}</view>
+          <view class="myfb-reply" wx:if="{{item._reply}}">
+            <view class="myfb-reply-head">
+              <text class="myfb-reply-tag">官方回复</text>
+              <text class="myfb-reply-time" wx:if="{{item.replied_at}}">{{item.replied_at}}</text>
+            </view>
+            <view class="myfb-reply-text">{{item._reply}}</view>
+          </view>
+          <view class="myfb-noreply" wx:else>尚无回复，我们会尽快处理</view>
+        </view>
+
+        <view class="myfb-empty" wx:if="{{fbLoading}}"><text>加载中…</text></view>
+        <view class="myfb-empty" wx:if="{{!fbLoading && myFeedback.length === 0}}">
+          <text>还没有提交过反馈</text>
+        </view>
+      </scroll-view>
+
+      <button class="btn-primary fb-submit" bindtap="onMyFbClose">关闭</button>
     </view>
   </view>
 

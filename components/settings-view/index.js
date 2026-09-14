@@ -11,6 +11,9 @@ const dataLoader = require('../../utils/data-loader')
 const ann = require('../../utils/announcement')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
 
+// 反馈类型中文名(与后端 suggest/bug/other 对应)
+const FB_TYPES = { suggest: '功能建议', bug: '问题/Bug', other: '其他' }
+
 Component({
   options: {
     styleIsolation: 'apply-shared'
@@ -47,6 +50,12 @@ Component({
     fbType: 'suggest',     // suggest 功能建议 | bug 问题/Bug | other 其他
     fbContent: '',
     fbSending: false,
+
+    // 我的反馈(含管理员回复; 有新回复时入口显示小红点)
+    showMyFeedback: false,
+    myFeedback: [],
+    fbLoading: false,
+    fbUnread: 0,
 
     // 公告栏(常驻: 展示当前公告; 展开即视为已读, 主页面顶部横幅随之隐藏)
     announcement: '',
@@ -88,6 +97,8 @@ Component({
         }
       }
       this._loadAnnouncement()
+      // 我的反馈未读回复(小红点)
+      if (this.data.isLoggedIn) this._loadMyFeedback(false)
     },
 
     /** 拉取公告并展示(有无新公告都常驻显示; 30s 节流) */
@@ -448,7 +459,8 @@ Component({
         if (res.success) {
           this._fbLastTs = Date.now()
           this.setData({ showFeedback: false, fbContent: '' })
-          wx.showToast({ title: '反馈已提交，感谢您的建议', icon: 'success' })
+          wx.showToast({ title: '已提交，回复见「我的反馈」', icon: 'none', duration: 2500 })
+          this._loadMyFeedback(false)
         } else {
           wx.showToast({ title: res.message || '提交失败', icon: 'none' })
         }
@@ -456,6 +468,50 @@ Component({
         wx.showToast({ title: '提交失败，请稍后再试', icon: 'none' })
       } finally {
         this.setData({ fbSending: false })
+      }
+    },
+
+    // ── 我的反馈(查看官方回复) ──
+    /** 打开「我的反馈」: 拉取列表 + 清除未读小红点 */
+    async onOpenMyFeedback() {
+      if (!storage.isLoggedIn()) {
+        wx.showToast({ title: '请先登录后查看反馈', icon: 'none' })
+        return
+      }
+      this.setData({ showMyFeedback: true })
+      await this._loadMyFeedback(true)
+    },
+
+    onMyFbClose() {
+      this.setData({ showMyFeedback: false })
+    },
+
+    /** 拉取我的反馈; markRead=true 时把回复标记为已读(清小红点) */
+    async _loadMyFeedback(markRead) {
+      if (!storage.isLoggedIn()) {
+        this.setData({ myFeedback: [], fbUnread: 0, fbLoading: false })
+        return
+      }
+      this.setData({ fbLoading: true })
+      try {
+        const res = await api.getMyFeedback()
+        if (res && res.success) {
+          const list = (res.feedback || []).map(f => ({
+            ...f,
+            _typeLabel: FB_TYPES[f.type] || '其他',
+            _reply: (f.reply || '').trim()
+          }))
+          const unread = res.unread || 0
+          this.setData({ myFeedback: list, fbUnread: unread })
+          if (markRead && unread > 0) {
+            await api.markFeedbackRead()
+            this.setData({ fbUnread: 0 })
+          }
+        }
+      } catch (e) {
+        // 静默: 反馈列表加载失败不影响其他功能
+      } finally {
+        this.setData({ fbLoading: false })
       }
     },
 

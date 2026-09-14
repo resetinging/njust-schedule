@@ -633,3 +633,128 @@
   color: #fff !important;
   box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28) !important;
 }
+
+/* ============================================================ */
+/* 我的反馈(查看官方回复) */
+/* ============================================================ */
+.action-label {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+/* 未读回复小红点 */
+.fb-dot {
+  min-width: 34rpx;
+  height: 34rpx;
+  padding: 0 10rpx;
+  border-radius: 17rpx;
+  background: #FF4D4F;
+  color: #fff;
+  font-size: 20rpx;
+  line-height: 34rpx;
+  text-align: center;
+}
+
+.myfb-list {
+  max-height: 720rpx;
+}
+
+.myfb-item {
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #EFEBFB;
+}
+
+.myfb-item:last-child {
+  border-bottom: none;
+}
+
+.myfb-top {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 10rpx;
+}
+
+.myfb-type {
+  font-size: 22rpx;
+  color: #7C6BE8;
+  background: #F1EDFD;
+  border-radius: 8rpx;
+  padding: 2rpx 12rpx;
+}
+
+.myfb-time {
+  flex: 1;
+  font-size: 22rpx;
+  color: #9A96B8;
+}
+
+.myfb-status {
+  font-size: 22rpx;
+  border-radius: 20rpx;
+  padding: 2rpx 14rpx;
+}
+
+.myfb-status.replied {
+  background: #E8F7EE;
+  color: #2E9E5B;
+}
+
+.myfb-status.pending {
+  background: #F2F1F7;
+  color: #9A96B8;
+}
+
+.myfb-content {
+  font-size: 26rpx;
+  color: #3A3752;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.myfb-reply {
+  margin-top: 14rpx;
+  padding: 14rpx 18rpx;
+  background: #F7F5FE;
+  border-left: 6rpx solid #7C6BE8;
+  border-radius: 10rpx;
+}
+
+.myfb-reply-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6rpx;
+}
+
+.myfb-reply-tag {
+  font-size: 22rpx;
+  color: #7C6BE8;
+  font-weight: 600;
+}
+
+.myfb-reply-time {
+  font-size: 20rpx;
+  color: #9A96B8;
+}
+
+.myfb-reply-text {
+  font-size: 25rpx;
+  color: #45415E;
+  line-height: 1.65;
+  word-break: break-all;
+}
+
+.myfb-noreply {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #B3AFC6;
+}
+
+.myfb-empty {
+  padding: 60rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #9A96B8;
+}
