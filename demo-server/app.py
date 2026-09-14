@@ -68,8 +68,12 @@ def _seed(sid: str) -> str:
              weeks="1-20", week_type=0, credits="1.0", course_type="必修", raw={}),
         dict(name="形势与政策", teacher="周强", classroom="Ⅱ-101", day=2, start=11, end=13,
              weeks="1-16", week_type=0, credits="2.0", course_type="必修", raw={}),
+        # 同一门课"不同周次上课时间不同"(第1-8周 第4-5节 → 第9-16周 第1-2节):
+        # 用于演示"按周次各显示各自时间"(多时段解析修复)
         dict(name="概率论与数理统计", teacher="吴敏", classroom="Ⅳ-B411", day=5, start=4, end=5,
-             weeks="1-20", week_type=0, credits="3.0", course_type="必修", raw={}),
+             weeks="1-8", week_type=0, credits="3.0", course_type="必修", raw={}),
+        dict(name="概率论与数理统计", teacher="吴敏", classroom="Ⅳ-B411", day=5, start=1, end=2,
+             weeks="9-16", week_type=0, credits="3.0", course_type="必修", raw={}),
         dict(name="工程制图", teacher="郑华", classroom="I-102", day=5, start=1, end=3,
              weeks="1-20", week_type=0, credits="3.0", course_type="必修", raw={}),
         dict(name="军事理论", teacher="胡教官", classroom="Ⅳ-A308", day=3, start=11, end=13,
@@ -141,6 +145,22 @@ def _seed(sid: str) -> str:
              items=[dict(name="进入评教", url="/demo/eval")]),
     ], semester, sid)
 
+    # ── 公告: 主页面顶部横幅 + "我的"页公告栏(拍摄"公告即时送达") ──
+    dao.set_setting("announcement_enabled", "1")
+    dao.set_setting("announcement_text",
+                    "期末考试安排已发布，可在「考试」页查看时间与考场；"
+                    "评教第一批已开放，记得在截止前完成～")
+    import time as _time
+    dao.set_setting("announcement_updated", _time.strftime("%Y-%m-%d %H:%M:%S"))
+
+    # ── 反馈: 一条已回复(带未读小红点) + 一条待处理(拍摄"查看官方回复") ──
+    fb_replied = dao.save_feedback(
+        sid, DEMO_NAME, "bug",
+        "课表里有门课在第1-8周和第9-16周的上课时间不一样，之前只显示一个时间")
+    dao.set_feedback_reply(
+        fb_replied.get("id"), "已修复：现在按周次分别显示各自的上课时间，重新获取课表即可看到。感谢反馈！")
+    dao.save_feedback(sid, DEMO_NAME, "suggest", "希望空教室能收藏常用教学楼～")
+
     return semester
 
 
@@ -158,27 +178,70 @@ def _demo_sid():
 # 视图替换: 演示账号走演示逻辑, 其余照旧
 # ============================================================
 
-_orig_login = app.view_functions.get("api_login")
-
-
-def _demo_login():
-    from flask import request
-    data = request.get_json(silent=True) or {}
-    sid = (data.get("student_id") or "").strip()
-    if sid != DEMO_SID:
-        return _orig_login()
+def _demo_client(sid, login_method="demo"):
+    """构造演示会话客户端(不联网)"""
     _seed(sid)
     client = JWCClient()
     client.logged_in = True
     client.student_id = sid
     client.student_name = DEMO_NAME
-    client.login_method = "demo"
+    client.login_method = login_method
     client.is_session_valid = lambda: True
+    return client
+
+
+def _demo_sid_from_request():
+    from flask import request
+    return ((request.get_json(silent=True) or {}).get("student_id") or "").strip()
+
+
+def _wrap_login(name, login_method="demo"):
+    """登录类接口: 演示学号 → 直接签发会话(不联网); 其它学号走原逻辑"""
+    orig = app.view_functions.get(name)
+    if orig is None:
+        return
+
+    def wrapper():
+        if _demo_sid_from_request() != DEMO_SID:
+            return orig()
+        client = _demo_client(DEMO_SID, login_method)
+        token = views._register_session(client)
+        return views._on_login_success(client, token)
+
+    app.view_functions[name] = wrapper
+
+
+# 教务直连(自动 OCR / 手动验证码) + 智慧理工(自动 / 手动验证码) 全部支持演示账号
+_wrap_login("api_login", "demo")
+_wrap_login("api_login_manual", "demo")
+_wrap_login("api_login_webvpn", "webvpn")
+_wrap_login("api_login_webvpn_manual", "webvpn")
+
+# 智慧理工第一步: 演示账号直接返回"验证码已自动识别, 登录成功"
+# (与线上新流程一致: SSO 通过后自动识别教务验证码, 一次点击即登录)
+_orig_webvpn_captcha = app.view_functions.get("api_get_webvpn_captcha")
+
+
+def _demo_webvpn_captcha():
+    from flask import jsonify
+    if _demo_sid_from_request() != DEMO_SID:
+        return _orig_webvpn_captcha()
+    client = _demo_client(DEMO_SID, "webvpn")
     token = views._register_session(client)
-    return views._on_login_success(client, token)
+    views._on_login_success(client, token)   # 初始化用户学期设置(不重复返回 JSON)
+    return jsonify({
+        "success": True,
+        "already_logged_in": True,
+        "token": token,
+        "student_id": DEMO_SID,
+        "student_name": DEMO_NAME,
+        "semester": client._current_semester(),
+        "message": "验证码已自动识别，登录成功",
+    })
 
 
-app.view_functions["api_login"] = _demo_login
+if _orig_webvpn_captcha:
+    app.view_functions["api_get_webvpn_captcha"] = _demo_webvpn_captcha
 
 # 刷新类接口: 演示账号直接返回成功(不清不写, 种子数据永不丢失)
 for _name in ("api_refresh_schedule", "api_refresh_exams", "api_refresh_all",
