@@ -139,14 +139,15 @@
     <section id="panel-announce" class="panel">
       <div class="card">
         <h3>📢 小程序公告栏管理</h3>
-        <p class="dim" style="margin-bottom:12px">公告显示在小程序"我的"页面下方横幅；保存后小程序端自动生效（每次进入页面拉取）。</p>
+        <p class="dim" style="margin-bottom:12px">公告在小程序出现两处：① 主页面顶部横幅（有新公告时显示，点开看全文后不再提示）②「我的」页公告栏（常驻，带"新"标记，可随时查看）。保存后小程序端自动生效。</p>
         <div class="announce-row">
           <label class="chk-label"><input type="checkbox" id="annEnabled" checked> 显示公告</label>
           <span id="annUpdated" class="dim"></span>
         </div>
         <textarea id="annText" class="ann-input"
-                  placeholder="输入公告内容（如：期末考试成绩已发布，请同学们查收…）"
+                  placeholder="输入公告内容（建议 1~2 句，如：期末考试成绩已发布，请同学们查收…）"
                   maxlength="500"></textarea>
+        <p class="dim" style="margin-top:8px">顶部横幅只显示一行，超过约 14 字会以省略号截断（会出现「查看 ›」提示）；「我的」页超过 24 字默认折叠，点击展开。</p>
         <div class="ann-actions">
           <span id="annCount" class="dim">0 / 500</span>
           <button id="annSave" class="primary ann-save">保存公告</button>
