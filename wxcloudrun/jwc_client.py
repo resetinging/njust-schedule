@@ -1116,6 +1116,24 @@ class JWCClient:
         logger.debug("[课表] dataList 解析完成: %d 条", len(courses))
         return courses
 
+    @staticmethod
+    def _pick_period_slot(slots, rough):
+        """同一课程同一天可能有多个上课时段(不同周次上课时间不同)。
+
+        按"大节位置"挑选对应的时段: kbtable 中每个包含该课的大节格都会产生一条
+        条目, 若用 (课程名, 星期) 单键存时段, 后解析到的会覆盖先前的, 导致所有
+        条目都被写成同一个时间(表现为"课表只显示第一个时间")。
+        slots: [(start, end, ...), ...]; rough: (大节起始, 大节结束)
+        """
+        if not slots:
+            return None
+        rough_start, rough_end = rough
+        for slot in slots:
+            if rough_start <= slot[0] <= rough_end:      # 时段起点落在本大节内
+                return slot
+        # 兜底: 取与本大节重叠最大的时段
+        return max(slots, key=lambda s: min(s[1], rough_end) - max(s[0], rough_start))
+
     def _parse_merged(self, grid, data_table) -> list[dict]:
         """
         合并 kbtable（周次/教室/教师） + dataList（精确小节/学分/类型）
@@ -1123,7 +1141,9 @@ class JWCClient:
         """
         # Step 1: 从 dataList 提取精确小节信息
         day_map = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 7}
-        period_info = {}  # {(name, day): (start, end, credits, course_type)}
+        # {(name, day): [(start, end, credits, course_type), ...]}
+        # 值用列表: 同一门课同一天可能有两个时段(不同周次时间不同), 不能互相覆盖
+        period_info = {}
         dl_rows = data_table.find_all("tr")
         for row in dl_rows[1:]:
             cells = row.find_all("td")
@@ -1136,7 +1156,8 @@ class JWCClient:
             matches = re.findall(r'星期([一二三四五六日])\((\d+)-(\d+)小节\)', raw_time)
             for day_char, s, e in matches:
                 d = day_map.get(day_char, 0)
-                period_info[(name, d)] = (int(s), int(e), credits, ctype)
+                period_info.setdefault((name, d), []).append(
+                    (int(s), int(e), credits, ctype))
 
         # Step 2: 从 kbtable 提取课程条目（含周次、教室），用 period_info 补小节
         # 大节 → 小节（粗略，period_info 会覆盖）
@@ -1201,10 +1222,10 @@ class JWCClient:
                         if not name or name == '\xa0':
                             continue
 
-                        # ★ 从 period_info 获取精确小节
+                        # ★ 从 period_info 获取精确小节(按大节位置匹配, 支持同课多时段)
                         p_start, p_end = rough
                         credits = ctype = ""
-                        exact = period_info.get((name, day))
+                        exact = self._pick_period_slot(period_info.get((name, day)), rough)
                         if exact:
                             p_start, p_end, credits, ctype = exact
 
@@ -1307,11 +1328,12 @@ class JWCClient:
                                     teacher = val
 
                         if name and name != '\xa0':
-                            # 从 dataList 获取精确小节号
+                            # 从 dataList 获取精确小节号(按大节位置匹配, 支持同课多时段)
                             if period_info:
-                                exact = period_info.get((name, day))
-                                if exact:
-                                    p_start, p_end = exact
+                                slot = self._pick_period_slot(
+                                    period_info.get((name, day)), period_range)
+                                if slot:
+                                    p_start, p_end = slot[0], slot[1]
 
                             courses.append({
                                 "name": name,
