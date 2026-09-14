@@ -11,6 +11,7 @@
     <view class="announce-head">
       <text class="announce-icon">📢</text>
       <text class="announce-title">公告</text>
+      <text class="announce-new" wx:if="{{annIsNew}}">新</text>
       <text class="announce-state" wx:if="{{annLong}}">{{annExpanded ? '收起' : '查看全文'}}</text>
     </view>
     <view class="announce-body {{annExpanded || !annLong ? '' : 'clamped'}}">{{announcement}}</view>

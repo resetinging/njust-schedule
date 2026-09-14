@@ -16,8 +16,8 @@ Page({
     swiperHeight: 600, // swiper 高度(px), 自适应计算(公告条可见时扣除其高度)
     tabs: [0, 1, 2, 3, 4],  // 5 个 Tab 索引(供 swiper-item 循环渲染)
 
-    // 顶部公告条
-    ann: { visible: false, text: '', updated: '' }
+    // 顶部公告条(long: 文本被单行截断, 显示"查看 ›"提示)
+    ann: { visible: false, text: '', updated: '', long: false }
   },
 
   onLoad() {
@@ -63,8 +63,15 @@ Page({
   /** 拉取公告并决定横幅是否展示(仅 updated 未读时展示) */
   _loadAnnouncement(force) {
     ann.load(!!force).then(a => {
-      const visible = a.enabled && !!a.text && ann.isNew(a.updated)
-      this.setData({ 'ann.visible': visible, 'ann.text': visible ? a.text : '', 'ann.updated': a.updated })
+      const text = a.text || ''
+      const visible = a.enabled && !!text && ann.isNew(a.updated)
+      this.setData({
+        'ann.visible': visible,
+        'ann.text': visible ? text : '',
+        'ann.updated': a.updated,
+        // 横幅只有一行, 超过约 14 字会被省略号截断 → 给出"查看"提示
+        'ann.long': visible && text.length > 14
+      })
       this._calcHeight()
     })
   },
@@ -91,7 +98,7 @@ Page({
     const a = this.data.ann
     if (!a.visible) return
     ann.markSeen(a.updated)
-    this.setData({ 'ann.visible': false, 'ann.text': '', 'ann.updated': '' })
+    this.setData({ 'ann.visible': false, 'ann.text': '', 'ann.updated': '', 'ann.long': false })
     this._calcHeight()
   },
 
@@ -99,8 +106,14 @@ Page({
   onAnnSeen() {
     if (!this.data.ann.visible) return
     const c = ann.cached()
-    const visible = c.enabled && !!c.text && ann.isNew(c.updated)
-    this.setData({ 'ann.visible': visible, 'ann.text': visible ? c.text : '', 'ann.updated': c.updated })
+    const text = c.text || ''
+    const visible = c.enabled && !!text && ann.isNew(c.updated)
+    this.setData({
+      'ann.visible': visible,
+      'ann.text': visible ? text : '',
+      'ann.updated': c.updated,
+      'ann.long': visible && text.length > 14
+    })
     this._calcHeight()
   },
 

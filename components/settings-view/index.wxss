@@ -31,6 +31,19 @@
   font-weight: bold;
 }
 
+/* 未读新公告标记(展开查看后消失) */
+.announce-new {
+  flex-shrink: 0;
+  margin-right: 12rpx;
+  padding: 1rpx 12rpx;
+  border-radius: 20rpx;
+  background: #FF4D4F;
+  color: #fff;
+  font-size: 20rpx;
+  line-height: 1.7;
+  font-weight: normal;
+}
+
 .announce-state {
   font-size: 22rpx;
   color: var(--text-hint);

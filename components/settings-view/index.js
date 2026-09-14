@@ -62,6 +62,7 @@ Component({
     annUpdated: '',        // 公告更新时间(已读标记)
     annExpanded: false,    // 长公告展开全文
     annLong: false,        // 超过折叠阈值(需要"查看全文"提示)
+    annIsNew: false,       // 未读新公告(显示"新"标记, 展开查看后消失)
 
     // 版本标识（排查线上版本用）
     build: config.BUILD || '',
@@ -106,14 +107,15 @@ Component({
       ann.load().then(a => {
         const show = a.enabled && !!a.text
         if (!show) {
-          if (this.data.announcement) this.setData({ announcement: '', annLong: false, annExpanded: false })
+          if (this.data.announcement) this.setData({ announcement: '', annLong: false, annExpanded: false, annIsNew: false })
           return
         }
         this.setData({
           announcement: a.text,
           annUpdated: a.updated,
           annLong: a.text.length > 24,   // 超过 24 字默认折叠, 点击展开
-          annExpanded: false
+          annExpanded: false,
+          annIsNew: ann.isNew(a.updated)  // 未读 → 显示"新"标记
         })
       })
     },
@@ -123,6 +125,7 @@ Component({
       if (!this.data.announcement) return
       if (!this.data.annExpanded && this.data.annUpdated) {
         ann.markSeen(this.data.annUpdated)
+        this.setData({ annIsNew: false })   // 已读: 移除"新"标记
         const pages = getCurrentPages()
         const page = pages[pages.length - 1]
         if (page && typeof page.onAnnSeen === 'function') page.onAnnSeen()
