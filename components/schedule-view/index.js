@@ -235,7 +235,17 @@ Component({
     },
 
     _persistCustoms() {
-      storage.set(CUSTOM_KEY, this._customs || [])
+      // 只持久化原始字段: _bg/_clock/_periodLabel 等派生字段随作息与显示格式变化,
+      // 存进本地会在下次启动被当成"已有值"复用 → 一直显示旧钟点
+      const clean = (this._customs || []).map(c => {
+        const o = {}
+        Object.keys(c).forEach(k => {
+          if (k.charAt(0) === '_' && k !== '_cid') return
+          o[k] = c[k]
+        })
+        return o
+      })
+      storage.set(CUSTOM_KEY, clean)
     },
 
     /** 合并并重渲染: 教务课(基础) + 自定义课 */
@@ -443,23 +453,20 @@ Component({
 
       // 课程配色: 不同课不同色(按课程名稳定分配; 网格/列表共用)
       // 上下课钟点: 与网格时间列同一作息(45 分钟/节)
+      // ⚠️ 派生字段一律重算: 本地自定义课程/缓存里可能残留旧钟点(旧格式或旧作息),
+      //    若用 if(!c._clock) 跳过, 会永久显示"之前的时间"(改了代码也不更新)
       filtered.forEach(c => {
-        if (!c._bg) {
-          const pal = courseColors(c.name)
-          c._bg = pal.bg
-          c._bar = pal.bar
-          c._text = pal.text
-        }
-        if (!c._clock) {
-          const cs = c.start || c.start_period
-          c._clock = cs ? periodStart(cs) : ''   // 仅显示上课时间 xx.xx
-        }
-        if (!c._periodLabel) {
-          const cs = c.start || c.start_period
-          const ce = c.end || c.end_period
-          const range = (cs && ce) ? `${cs}-${ce}节` : ''
-          c._periodLabel = (range && c._clock) ? `${range} · ${c._clock}` : (range || c._clock)
-        }
+        const cs = c.start || c.start_period
+        const ce = c.end || c.end_period
+
+        const pal = courseColors(c.name)
+        c._bg = pal.bg
+        c._bar = pal.bar
+        c._text = pal.text
+
+        c._clock = cs ? periodStart(cs) : ''   // 仅显示上课时间 xx.xx
+        const range = (cs && ce) ? `${cs}-${ce}节` : ''
+        c._periodLabel = (range && c._clock) ? `${range} · ${c._clock}` : (range || c._clock)
       })
 
       // 构建列表视图分组（按天分组 + 去重）
