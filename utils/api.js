@@ -394,12 +394,14 @@ function refreshCet() {
 // 智慧理工 SSO 登录接口
 // ============================================================
 
-/** Step 1: 智慧理工 SSO 登录并获取教务验证码（含 captcha_id / 直接登录 token） */
-function getWebvpnCaptcha(studentId, password) {
+/** Step 1: 智慧理工 SSO 登录并获取教务验证码（含 captcha_id / 直接登录 token）
+ *  同时传 jwc_password: 服务端自动识别教务验证码时要用它登教务 */
+function getWebvpnCaptcha(studentId, password, jwcPassword) {
   const hadSavedPwd = storage.get('saved_password', '')
   return request('POST', '/api/get-webvpn-captcha', {
     student_id: studentId,
-    password: password
+    password: password,
+    jwc_password: jwcPassword || password
   }).then(res => {
     // SSO 后已有教务会话：直接获得登录 token
     if (res.success && res.already_logged_in && res.token) {

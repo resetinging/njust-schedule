@@ -225,7 +225,7 @@ Component({
 
     /** 获取验证码（按登录模式选择端点） */
     async onRefreshCaptcha() {
-      const { loginMode, studentId, password } = this.data
+      const { loginMode, studentId, password, jwcPassword } = this.data
 
       if (loginMode === 'webvpn') {
         if (!studentId || !password) {
@@ -234,7 +234,7 @@ Component({
         }
         wx.showLoading({ title: '智慧理工登录中…' })
         try {
-          const res = await api.getWebvpnCaptcha(studentId, password)
+          const res = await api.getWebvpnCaptcha(studentId, password, jwcPassword)
           wx.hideLoading()
           if (res.success && res.captcha_b64) {
             this.setData({
@@ -243,11 +243,11 @@ Component({
               captcha: '',
               ssoStepDone: true
             })
-            wx.showToast({ title: '✅ 智慧理工已通过，请输入教务密码和验证码', icon: 'none' })
+            wx.showToast({ title: res.message || '✅ 智慧理工已通过，请输入教务密码和验证码', icon: 'none' })
           } else if (res.success && res.already_logged_in) {
             this.setData({ captchaId: '' })
             this.refreshState()
-            wx.showToast({ title: '✅ 已有教务会话，无需重复登录', icon: 'success' })
+            wx.showToast({ title: res.message || '✅ 已有教务会话，无需重复登录', icon: 'success' })
           } else {
             this.setData({ captchaId: '' })
             wx.showToast({ title: res.message || '智慧理工登录失败', icon: 'none' })
