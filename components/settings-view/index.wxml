@@ -107,9 +107,9 @@
               data-mode="webvpn" bindtap="switchLoginMode">🌐 智慧理工</view>
       </view>
       <view class="mode-desc" wx:if="{{loginMode === 'webvpn'}}">
-        两步登录：Step 1 智慧理工 SSO 验证 → Step 2 教务系统登录（适合校外网络）
+        智慧理工统一认证登录（校外可用）
       </view>
-      <view class="mode-desc" wx:else>直接登录教务系统（需教务可达）</view>
+      <view class="mode-desc" wx:else>校内网络直连教务</view>
 
       <!-- 学号 -->
       <view class="form-group">
@@ -120,27 +120,27 @@
 
       <!-- 密码 -->
       <view class="form-group">
-        <text class="form-label">{{loginMode === 'webvpn' ? '智慧理工密码（Step 1）' : '教务密码'}}</text>
+        <text class="form-label">{{loginMode === 'webvpn' ? '智慧理工密码' : '教务密码'}}</text>
         <view class="pwd-row">
           <input class="form-input pwd-input" placeholder="{{loginMode === 'webvpn' ? '请输入智慧理工密码' : '请输入教务密码'}}"
                  password="{{!showPassword}}" value="{{password}}"
                  bindinput="onPasswordInput" />
           <text class="pwd-toggle" bindtap="onTogglePassword">{{showPassword ? '🙈' : '👁'}}</text>
         </view>
-        <view class="pwd-hint" wx:if="{{loginMode === 'direct'}}">💡 教务处默认密码为: 学号 + @Njust（如未修改过）</view>
+        <view class="pwd-hint" wx:if="{{loginMode === 'direct'}}">💡 默认密码：学号+@Njust</view>
       </view>
 
       <!-- 记住学号密码 -->
       <view class="remember-row">
         <switch checked="{{rememberPwd}}" bindchange="onToggleRemember" color="#7C6BE8" style="transform:scale(0.8);" />
-        <text class="remember-label" bindtap="onTapRemember">记住学号和密码（保存在本机）</text>
+        <text class="remember-label" bindtap="onTapRemember">记住学号和密码</text>
       </view>
 
       <!-- 教务密码（智慧理工模式，与智慧理工密码相同可留空） -->
       <view class="form-group" wx:if="{{loginMode === 'webvpn'}}">
-        <text class="form-label">教务密码（Step 2，不同时填写）</text>
+        <text class="form-label">教务密码</text>
         <view class="pwd-row">
-          <input class="form-input pwd-input" placeholder="教务密码与智慧理工密码相同可留空"
+          <input class="form-input pwd-input" placeholder="与智慧理工密码相同可留空"
                  password="{{!showJwcPassword}}" value="{{jwcPassword}}"
                  bindinput="onJwcPasswordInput" />
           <text class="pwd-toggle" bindtap="onToggleJwcPassword">{{showJwcPassword ? '🙈' : '👁'}}</text>
@@ -149,7 +149,7 @@
 
       <!-- 验证码 -->
       <view class="form-group">
-        <text class="form-label">{{loginMode === 'webvpn' ? (ssoStepDone ? '教务验证码（Step 2）' : '验证码（点击右侧刷新完成 Step 1）') : '验证码'}}</text>
+        <text class="form-label">{{loginMode === 'webvpn' ? (ssoStepDone ? '教务验证码' : '验证码（点右侧刷新）') : '验证码'}}</text>
         <captcha-input src="{{captchaSrc}}" value="{{captcha}}"
                        bind:input="onCaptchaInput" bind:refresh="onRefreshCaptcha" />
       </view>
@@ -157,13 +157,13 @@
       <!-- 登录按钮(不禁用: 空表单点击时 onLogin 校验并提示, 避免"点了没反应") -->
       <button class="btn-primary login-btn" bindtap="onLogin"
               disabled="{{loggingIn}}">
-        {{loggingIn ? '登录中…' : (loginMode === 'webvpn' ? '智慧理工登录' : (captcha ? '登录' : '登录（自动识别验证码）'))}}
+        {{loggingIn ? '登录中…' : (captcha ? '登录' : '自动识别登录')}}
       </button>
     </view>
 
     <!-- 提示 -->
     <view class="login-tip">
-      <text>{{loginMode === 'webvpn' ? '智慧理工密码与教务密码可能不同，请分别填写' : '登录后即可查看课表、考试与成绩'}}</text>
+      <text>{{loginMode === 'webvpn' ? '验证码自动识别，失败可手动输入' : '登录后即可查看课表与成绩'}}</text>
     </view>
   </view>
 
