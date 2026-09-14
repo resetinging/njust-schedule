@@ -704,6 +704,57 @@ class JWCClient:
             self.last_error = f"登录异常: {e}"
             return False
 
+    def auto_complete_webvpn_login(self, student_id: str, password: str,
+                                   attempts: int = 3) -> bool:
+        """在智慧理工已建立的教务会话上自动 OCR 教务验证码并完成登录。
+
+        与 complete_webvpn_login 的区别: 验证码由服务端识别(最多 attempts 次,
+        每次换一张), 无需用户手动输入。复用 Step 1 的 8080 会话, 不重建。
+
+        失败时保持会话可用(_webvpn_manual_ready 不变), 调用方可回退到
+        "返回验证码图让用户手动输入"的原流程。
+        """
+        if not self._webvpn_manual_ready:
+            self.last_error = "会话已过期，请重新获取验证码"
+            return False
+        try:
+            import ddddocr
+        except ImportError:
+            self.last_error = "自动识别需要 ddddocr 模块"
+            return False
+
+        ocr = ddddocr.DdddOcr(show_ad=False)
+        for i in range(max(1, attempts)):
+            try:
+                img = self._fetch_captcha()
+            except Exception as e:
+                self._log(f"[SSO-OCR] 取验证码异常: {e}")
+                img = b""
+            if not img:
+                self.last_error = "获取验证码失败"
+                return False
+
+            code = self._ocr_with_preprocess(ocr, img)
+            self._log(f"[SSO-OCR] #{i + 1} 教务验证码识别: '{code}'")
+            if not code:
+                continue
+
+            if self._try_simple_login(student_id, password, code):
+                self.logged_in = True
+                self.login_method = "webvpn"
+                self._log(f"[SSO-OCR] [OK] 自动识别登录成功 (#{i + 1})")
+                return True
+
+            # 非验证码问题(如密码错误)重试无意义, 立即返回(避免连续错密码被风控)
+            if self.last_error and "验证码" not in self.last_error:
+                self._log(f"[SSO-OCR] [FAIL] {self.last_error}")
+                return False
+
+        if not self.last_error or "验证码" in self.last_error:
+            self.last_error = "验证码自动识别失败，请手动输入"
+        self._log(f"[SSO-OCR] [FAIL] {self.last_error}")
+        return False
+
     def _is_jw_login_page(self, resp) -> bool:
         """检测是否为教务登录页面（强智教务）"""
         t = resp.text.lower()

@@ -673,10 +673,13 @@ def api_login_manual():
 # ============================================================
 @app.route('/api/get-webvpn-captcha', methods=['POST'])
 def api_get_webvpn_captcha():
-    """Step 1: 智慧理工 SSO 登录 → 获取教务验证码（或发现已有教务会话）"""
+    """Step 1: 智慧理工 SSO 登录 → 自动识别教务验证码登录（失败回退返回验证码图）"""
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
     password = _resolve_password(student_id, data.get("password") or "")
+    # 教务密码可与智慧理工密码不同(自动识别要用它登教务); 未填回退智慧理工密码
+    jwc_password = (data.get("jwc_password") or "").strip()
+    auto_password = jwc_password or password
 
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
@@ -699,6 +702,7 @@ def api_get_webvpn_captcha():
             "token": token,
             "student_id": client.student_id,
             "student_name": client.student_name or client.student_id,
+            "semester": client._current_semester(),
             "message": "已有教务会话，无需重复登录",
         })
 
@@ -710,13 +714,48 @@ def api_get_webvpn_captcha():
             "debug_log": client.debug_log[-20:],
         }), 500
 
+    # Step 1.5: 服务端自动识别教务验证码(与直连模式同款能力) → 直接完成登录。
+    # 识别失败则回退原流程: 返回验证码图, 由用户在第二步手动输入。
+    try:
+        with _jwc_request_priority(client):
+            auto_ok = client.auto_complete_webvpn_login(student_id, auto_password)
+    except Exception as e:
+        auto_ok = False
+        app.logger.warning("[login] rid=%s 自动识别教务验证码异常: %s", _rid(), e)
+
+    if auto_ok:
+        _pop_captcha_client(cid)
+        token = _register_session(client)
+        _on_login_success(client, token)  # 初始化用户学期设置（不重复返回 JSON）
+        app.logger.info("[login] rid=%s 智慧理工自动识别教务验证码成功 sid=%s",
+                        _rid(), student_id)
+        return jsonify({
+            "success": True,
+            "already_logged_in": True,
+            "token": token,
+            "student_id": client.student_id,
+            "student_name": client.student_name or client.student_id,
+            "semester": client._current_semester(),
+            "message": "验证码已自动识别，登录成功",
+        })
+
+    app.logger.info("[login] rid=%s 教务验证码自动识别未成功 sid=%s reason=%s, 回退手动输入",
+                    _rid(), student_id, client.last_error)
+    # 回退: 重新取一张验证码(自动识别的重试已把原图换掉)
+    try:
+        img = client._fetch_captcha()
+        if img:
+            b64 = base64.b64encode(img).decode()
+    except Exception as e:
+        app.logger.warning("[login] rid=%s 回退取验证码异常: %s", _rid(), e)
+
     # 验证码获取成功说明 SSO 登录成功（不保存密码），返回 captcha_id 供第二步使用
     return jsonify({
         "success": True,
         "captcha_id": cid,
         "captcha_b64": b64,
         "captcha_mime": _sniff_image_mime(base64.b64decode(b64)),
-        "message": "智慧理工登录成功，请输入教务密码和验证码",
+        "message": "验证码自动识别未成功，请手动输入验证码",
     })
 
 
