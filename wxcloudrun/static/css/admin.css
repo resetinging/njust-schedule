@@ -136,6 +136,26 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; }
 .fb-actions { display: flex; align-items: center; gap: 8px; }
 .fb-done .board-content { opacity: 0.6; }
 
+/* 回复区: 占据整行(避开 .board-row 的三列网格) */
+.fb-reply, .fb-reply-box { grid-column: 1 / -1; }
+.fb-reply {
+  background: #1e1e30; border-left: 3px solid var(--accent, #7c6be8);
+  border-radius: 6px; padding: 8px 12px;
+}
+.fb-reply-head { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+.fb-reply-tag { color: #b3a6ff; font-weight: 600; }
+.fb-reply-text { font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+.fb-unread-tag, .fb-read-tag { font-size: 11px; padding: 1px 8px; border-radius: 20px; }
+.fb-unread-tag { background: #3a2e6e; color: #ffd479; }
+.fb-read-tag { background: #26263c; color: var(--dim); }
+.fb-reply-box { display: flex; gap: 8px; align-items: flex-start; }
+.fb-reply-input {
+  flex: 1; min-height: 40px; resize: vertical; line-height: 1.6;
+  background: #191926; color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px;
+}
+.fb-reply-input:focus { outline: none; border-color: var(--accent, #7c6be8); }
+
 /* ---------- 实时请求流 ---------- */
 .req-list {
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px;

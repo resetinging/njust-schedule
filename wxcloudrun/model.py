@@ -167,6 +167,9 @@ class Feedback(db.Model):
     content = db.Column(db.String(500), nullable=False, default='')
     contact = db.Column(db.String(100), default='')         # 可选联系方式
     status = db.Column(db.String(20), default='pending')    # pending 待处理 | done 已处理
+    reply = db.Column(db.String(500), default='')           # 管理员回复(用户可见)
+    replied_at = db.Column(db.TIMESTAMP, nullable=True)     # 回复时间
+    reply_read = db.Column(db.Boolean, default=False)       # 用户是否已读回复(未读=小程序小红点)
     created_at = db.Column(db.TIMESTAMP, default=datetime.now)
 
     def to_dict(self):
@@ -177,5 +180,8 @@ class Feedback(db.Model):
             "type": self.fb_type,
             "content": self.content,
             "status": self.status,
+            "reply": self.reply or "",
+            "replied_at": self.replied_at.strftime("%Y-%m-%d %H:%M") if self.replied_at else "",
+            "reply_read": bool(self.reply_read),
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else "",
         }

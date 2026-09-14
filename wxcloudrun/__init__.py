@@ -78,11 +78,36 @@ def _migrate_student_id():
             app.logger.info("[migrate] %s 已创建 student_id 索引", tbl_name)
 
 
+def _migrate_feedback_reply():
+    """存量库迁移：feedback 表补充"管理员回复"相关列。
+
+    新模型 create_all 不会给已存在的表加列；旧库缺少 reply/replied_at/reply_read,
+    用户端读取回复会直接报错, 故用 ALTER TABLE 补齐(MySQL / SQLite 均支持)。
+    """
+    from sqlalchemy import inspect as sa_inspect, text as sa_text
+    insp = sa_inspect(db.engine)
+    if not insp.has_table("feedback"):
+        return
+    cols = [c["name"] for c in insp.get_columns("feedback")]
+    stmts = []
+    if "reply" not in cols:
+        stmts.append("ALTER TABLE `feedback` ADD COLUMN reply VARCHAR(500) DEFAULT ''")
+    if "replied_at" not in cols:
+        stmts.append("ALTER TABLE `feedback` ADD COLUMN replied_at TIMESTAMP NULL")
+    if "reply_read" not in cols:
+        stmts.append("ALTER TABLE `feedback` ADD COLUMN reply_read TINYINT(1) DEFAULT 0")
+    for sql in stmts:
+        with db.engine.begin() as conn:
+            conn.execute(sa_text(sql))
+        app.logger.info("[migrate] feedback 已补充列: %s", sql)
+
+
 # 确保数据表存在（container.config.json 的 executeSQLs 可能未执行）
 from wxcloudrun import model  # noqa: E402
 with app.app_context():
     db.create_all()
     _migrate_student_id()
+    _migrate_feedback_reply()
 
 
 # gzip 压缩文本响应（JSON/HTML/JS/CSS, >500 字节）: 移动网络下显著提速

@@ -643,6 +643,22 @@ def admin_feedback_delete(fid: int):
     return jsonify({"success": True})
 
 
+@app.route("/api/admin/feedback/<int:fid>/reply", methods=["POST"])
+@admin_required
+def admin_feedback_reply(fid: int):
+    """回复反馈(用户在小程序「我的反馈」中可见; 回复后自动标记已处理)"""
+    data = request.get_json(silent=True) or {}
+    reply = str(data.get("reply", "")).strip()
+    if len(reply) > 500:
+        return jsonify({"success": False, "message": "回复不能超过 500 字"}), 400
+    fb = dao.set_feedback_reply(fid, reply)
+    if not fb:
+        return jsonify({"success": False, "message": "反馈不存在"}), 404
+    app.logger.info("[admin] rid=%s 回复反馈 id=%d len=%d%s",
+                    _rid(), fid, len(reply), "(撤销)" if not reply else "")
+    return jsonify({"success": True, "fb": fb})
+
+
 @app.route("/api/admin/check")
 def admin_check():
     """前端登录态检查(不带 token 也可调, 返回是否已登录)"""

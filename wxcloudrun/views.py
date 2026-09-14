@@ -524,7 +524,32 @@ def api_post_feedback():
     name = client.student_name or dao.get_user_setting(sid, "name", "")
     fb = dao.save_feedback(sid, name, fb_type, content)
     app.logger.info("[feedback] rid=%s 反馈 sid=%s type=%s len=%d", _rid(), sid, fb_type, len(content))
-    return jsonify({"success": True, "message": "反馈已提交，感谢您的建议", "fb": fb})
+    return jsonify({"success": True, "message": "反馈已提交，可在「我的反馈」查看回复", "fb": fb})
+
+
+@app.route('/api/my-feedback')
+def api_my_feedback():
+    """我的反馈列表(倒序, 含管理员回复) + 未读回复数(小程序小红点)"""
+    client, err = _require_login()
+    if err:
+        return err
+    sid = client.student_id or ""
+    items = dao.list_feedback_by_user(sid, limit=50)
+    return jsonify({
+        "success": True,
+        "feedback": items,
+        "unread": dao.count_unread_replies(sid),
+    })
+
+
+@app.route('/api/my-feedback/read', methods=['POST'])
+def api_my_feedback_read():
+    """标记回复已读(用户打开「我的反馈」时调用, 清除小红点)"""
+    client, err = _require_login()
+    if err:
+        return err
+    marked = dao.mark_replies_read(client.student_id or "")
+    return jsonify({"success": True, "marked": marked})
 
 
 # ============================================================

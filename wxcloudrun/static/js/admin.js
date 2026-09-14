@@ -549,7 +549,38 @@ async function loadFeedback() {
                   data-status="${f.status === 'done' ? 'pending' : 'done'}">${f.status === 'done' ? '标记待处理' : '标记已处理'}</button>
           <button class="ghost small fb-del" data-id="${f.id}">删除</button>
         </div>
+        ${f.reply ? `
+        <div class="fb-reply">
+          <div class="fb-reply-head">
+            <span class="fb-reply-tag">我的回复</span>
+            <span class="dim">${esc(f.replied_at || '')}</span>
+            <span class="${f.reply_read ? 'fb-read-tag' : 'fb-unread-tag'}">${f.reply_read ? '用户已读' : '用户未读'}</span>
+          </div>
+          <div class="fb-reply-text">${esc(f.reply)}</div>
+        </div>` : ''}
+        <div class="fb-reply-box">
+          <textarea class="fb-reply-input" data-id="${f.id}" rows="2" maxlength="500"
+                    placeholder="回复该用户（保存后用户在小程序「我的反馈」可见）">${esc(f.reply || '')}</textarea>
+          <button class="ghost small fb-reply-save" data-id="${f.id}">${f.reply ? '更新回复' : '回复'}</button>
+        </div>
       </div>`).join('');
+    box.querySelectorAll('.fb-reply-save').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const ta = box.querySelector('.fb-reply-input[data-id="' + id + '"]');
+        const text = ta ? ta.value.trim() : '';
+        if (!text && !confirm('回复内容为空，确认撤销这条回复？')) return;
+        btn.disabled = true;
+        const r2 = await api('/api/admin/feedback/' + id + '/reply', {
+          method: 'POST',
+          body: JSON.stringify({ reply: text })
+        });
+        btn.disabled = false;
+        if (r2.success) loadFeedback();
+        else alert(r2.message || '回复失败');
+      });
+    });
     box.querySelectorAll('.fb-toggle').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();

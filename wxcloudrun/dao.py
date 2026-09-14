@@ -6,6 +6,7 @@ NJUST 课表/考试/评教/设置/成绩/四六级
 学期等用户级设置以 "{student_id}:{key}" 前缀存储。
 """
 import json
+from datetime import datetime
 from wxcloudrun import db
 from wxcloudrun.model import (Course, Exam, Evaluation, Setting, Grade, CetScore,
                               Feedback)
@@ -326,3 +327,64 @@ def delete_feedback(feedback_id: int) -> bool:
     db.session.delete(row)
     db.session.commit()
     return True
+
+
+def set_feedback_reply(feedback_id: int, reply: str) -> dict:
+    """管理员回复反馈: 写入回复内容 + 回复时间, 并标记已处理。
+
+    回复非空时把 reply_read 置 False → 用户端出现"新回复"小红点;
+    传入空回复 = 撤销回复(清空内容, 不动处理状态)。
+    """
+    row = Feedback.query.filter(Feedback.id == feedback_id).first()
+    if not row:
+        return {}
+    text = (reply or "").strip()[:500]
+    row.reply = text
+    if text:
+        row.replied_at = datetime.now()
+        row.status = "done"
+        row.reply_read = False
+    else:
+        row.replied_at = None
+    db.session.commit()
+    return row.to_dict()
+
+
+def list_feedback_by_user(student_id: str, limit: int = 50) -> list:
+    """某用户自己的反馈(倒序, 含管理员回复)"""
+    if not student_id:
+        return []
+    rows = (Feedback.query
+            .filter(Feedback.student_id == student_id)
+            .order_by(Feedback.id.desc())
+            .limit(limit).all())
+    return [r.to_dict() for r in rows]
+
+
+def count_unread_replies(student_id: str) -> int:
+    """未读回复数(用户端小红点)"""
+    if not student_id:
+        return 0
+    return (Feedback.query
+            .filter(Feedback.student_id == student_id,
+                    Feedback.reply.isnot(None),
+                    Feedback.reply != "",
+                    Feedback.reply_read.is_(False))
+            .count())
+
+
+def mark_replies_read(student_id: str) -> int:
+    """把该用户所有未读回复标记为已读, 返回更新条数"""
+    if not student_id:
+        return 0
+    rows = (Feedback.query
+            .filter(Feedback.student_id == student_id,
+                    Feedback.reply.isnot(None),
+                    Feedback.reply != "",
+                    Feedback.reply_read.is_(False))
+            .all())
+    for r in rows:
+        r.reply_read = True
+    if rows:
+        db.session.commit()
+    return len(rows)
