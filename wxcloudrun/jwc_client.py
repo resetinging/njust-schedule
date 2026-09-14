@@ -354,14 +354,19 @@ class JWCClient:
         if DEBUG_WEBVPN:
             logger.debug("[SSO] %s", msg)
 
-    def login_webvpn(self, student_id: str, password: str) -> bool:
+    def login_webvpn(self, student_id: str, password: str,
+                     jwc_password: str = "") -> bool:
         """通过智慧理工 SSO 登录 + 直连教务（不走 WebVPN 代理）
 
         流程：
         1. 直连 SSO（ids.njust.edu.cn）登录验证身份
         2. 尝试直连教务（CAS ticket 自动登录）
         3. 否则走标准 8080 Logon.do 登录 → 302 → 9080 重定向链
+
+        password = 智慧理工密码; jwc_password = 教务密码(可与前者不同,
+        未提供时回退为智慧理工密码)。SSO 用前者, 教务登录用后者。
         """
+        jwc_pwd = jwc_password or password
         self.student_id = student_id
         self.student_name = None
         self.last_error = ""
@@ -389,7 +394,7 @@ class JWCClient:
 
             # Step 3: 标准 8080 Logon.do 流程
             self._log("[SSO-JW] 教务需要表单登录，走 8080 Logon.do 标准流程...")
-            if self._try_web_auto(student_id, password):
+            if self._try_web_auto(student_id, jwc_pwd):
                 self.logged_in = True
                 self.login_method = "webvpn"
                 return True
@@ -796,6 +801,13 @@ class JWCClient:
 
     def _check_success(self, resp) -> bool:
         t = resp.text
+        url_str = resp.url if hasattr(resp, 'url') else ""
+        # 智慧理工 SSO 页面一律不算成功: 该页面自带「安全退出」链接
+        # (实测 ids.njust.edu.cn 登录页含 title="安全退出"), 否则会被下面的
+        # 成功关键词误判成"已登录教务", 导致跳过取验证码步骤、后续请求全部失败。
+        # 只拦 SSO 域名, 不影响教务自身页面(含 Logon.do 的原有判断顺序保持不变)
+        if "authserver" in url_str or "ids.njust.edu.cn" in url_str:
+            return False
         # 明确的失败标记
         for kw in ["验证码错误", "密码错误", "账号错误", "用户不存在"]:
             if kw in t:

@@ -725,7 +725,10 @@ def api_login_webvpn_manual():
     """Step 2: 使用手动输入的验证码完成教务登录（智慧理工模式）"""
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
-    password = _resolve_password(student_id, data.get("password") or "")
+    # 教务密码: 优先用 jwc_password(界面上与智慧理工密码分开填写),
+    # 未填时回退智慧理工密码(两者相同是最常见情况)
+    sso_password = _resolve_password(student_id, data.get("password") or "")
+    password = (data.get("jwc_password") or "").strip() or sso_password
     captcha_text = (data.get("captcha") or "").strip()
     captcha_id = data.get("captcha_id") or ""
 
@@ -744,9 +747,12 @@ def api_login_webvpn_manual():
         client.login_method = "webvpn"
         token = _register_session(client)
         return _on_login_success(client, token)
+    app.logger.info("[login] rid=%s 智慧理工手动登录失败 sid=%s reason=%s",
+                    _rid(), student_id, client.last_error)
     return jsonify({
         "success": False,
         "message": client.last_error or "登录失败，请检查验证码",
+        "debug_log": client.debug_log[-20:],
     }), 401
 
 
@@ -756,6 +762,8 @@ def api_login_webvpn():
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
     password = _resolve_password(student_id, data.get("password") or "")
+    # 教务密码可与智慧理工密码不同(见 api_login_webvpn_manual)
+    jwc_password = (data.get("jwc_password") or "").strip()
 
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
@@ -763,7 +771,7 @@ def api_login_webvpn():
 
     client = JWCClient()
     with _jwc_request_priority(client):
-        success = client.login_webvpn(student_id, password)
+        success = client.login_webvpn(student_id, password, jwc_password)
 
     if success:
         token = _register_session(client)
