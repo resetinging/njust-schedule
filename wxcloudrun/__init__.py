@@ -95,11 +95,18 @@ def _migrate_feedback_reply():
     if "replied_at" not in cols:
         stmts.append("ALTER TABLE `feedback` ADD COLUMN replied_at TIMESTAMP NULL")
     if "reply_read" not in cols:
-        stmts.append("ALTER TABLE `feedback` ADD COLUMN reply_read TINYINT(1) DEFAULT 0")
+        # 用 BOOLEAN 而非 TINYINT(1): MySQL 下 BOOLEAN 即 TINYINT(1)(与模型一致),
+        # SQLite 下 TINYINT(1) 会在反射时报 SAWarning、BOOLEAN 则不会
+        stmts.append("ALTER TABLE `feedback` ADD COLUMN reply_read BOOLEAN DEFAULT 0")
     for sql in stmts:
-        with db.engine.begin() as conn:
-            conn.execute(sa_text(sql))
-        app.logger.info("[migrate] feedback 已补充列: %s", sql)
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(sa_text(sql))
+            app.logger.info("[migrate] feedback 已补充列: %s", sql)
+        except Exception as e:
+            # 滚动更新时可能多个容器同时启动, 另一个实例已加过列 → 忽略重复列错误,
+            # 不能让迁移异常冒泡: 它在导入期执行, 抛出会导致容器起不来(崩溃循环)
+            app.logger.warning("[migrate] feedback 补列跳过(可能已被其他实例补充): %s", e)
 
 
 # 确保数据表存在（container.config.json 的 executeSQLs 可能未执行）
