@@ -344,6 +344,8 @@ Component({
             password: '', jwcPassword: '', captcha: '', captchaId: '', captchaSrc: '', ssoStepDone: false
           })
           this.loadSettings()
+          // 登录后立即刷新「我的反馈」未读回复(小红点)
+          this._loadMyFeedback(false)
           // 自动向后端获取全部数据并载入缓存(课表/考试/评教/成绩/CET/校历)
           dataLoader.fetchAllData().then((ok) => {
             if (ok > 0) {

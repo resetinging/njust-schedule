@@ -656,8 +656,9 @@
   text-align: center;
 }
 
+/* 列表由弹窗卡片自身滚动(.fb-card 已有 max-height + overflow-y), 避免嵌套滚动 */
 .myfb-list {
-  max-height: 720rpx;
+  padding-right: 4rpx;
 }
 
 .myfb-item {
