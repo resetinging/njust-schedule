@@ -144,20 +144,10 @@
         <text class="remember-label" bindtap="onTapRemember">记住学号和密码</text>
       </view>
 
-      <!-- 教务密码（智慧理工模式，与智慧理工密码相同可留空） -->
-      <view class="form-group" wx:if="{{loginMode === 'webvpn'}}">
-        <text class="form-label">教务密码</text>
-        <view class="pwd-row">
-          <input class="form-input pwd-input" placeholder="与智慧理工密码相同可留空"
-                 password="{{!showJwcPassword}}" value="{{jwcPassword}}"
-                 bindinput="onJwcPasswordInput" />
-          <text class="pwd-toggle" bindtap="onToggleJwcPassword">{{showJwcPassword ? '🙈' : '👁'}}</text>
-        </view>
-      </view>
-
-      <!-- 验证码 -->
-      <view class="form-group">
-        <text class="form-label">{{loginMode === 'webvpn' ? (ssoStepDone ? '教务验证码' : '验证码（点右侧刷新）') : '验证码'}}</text>
+      <!-- 验证码：智慧理工模式走 SSO 直连，正常情况下完全不需要验证码，
+           只有后端回退到教务表单登录(ssoStepDone)时才显示 -->
+      <view class="form-group" wx:if="{{loginMode === 'direct' || ssoStepDone}}">
+        <text class="form-label">{{loginMode === 'webvpn' ? '教务验证码' : '验证码'}}</text>
         <captcha-input src="{{captchaSrc}}" value="{{captcha}}"
                        bind:input="onCaptchaInput" bind:refresh="onRefreshCaptcha" />
       </view>
@@ -165,13 +155,13 @@
       <!-- 登录按钮(不禁用: 空表单点击时 onLogin 校验并提示, 避免"点了没反应") -->
       <button class="btn-primary login-btn" bindtap="onLogin"
               disabled="{{loggingIn}}">
-        {{loggingIn ? '登录中…' : (captcha ? '登录' : '自动识别登录')}}
+        {{loggingIn ? '登录中…' : '登录'}}
       </button>
     </view>
 
     <!-- 提示 -->
     <view class="login-tip">
-      <text>{{loginMode === 'webvpn' ? '验证码自动识别，失败可手动输入' : '登录后即可查看课表与成绩'}}</text>
+      <text>{{loginMode === 'webvpn' ? (ssoStepDone ? '请输入上方验证码完成登录' : '只填学号和智慧理工密码，无需验证码') : '登录后即可查看课表与成绩'}}</text>
     </view>
   </view>
 

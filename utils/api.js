@@ -405,13 +405,12 @@ function refreshCet() {
 // ============================================================
 
 /** Step 1: 智慧理工 SSO 登录并获取教务验证码（含 captcha_id / 直接登录 token）
- *  同时传 jwc_password: 服务端自动识别教务验证码时要用它登教务 */
-function getWebvpnCaptcha(studentId, password, jwcPassword) {
+ *  教务走 SSO 直连（indexsso.jsp），无需教务密码 */
+function getWebvpnCaptcha(studentId, password) {
   const hadSavedPwd = storage.get('saved_password', '')
   return request('POST', '/api/get-webvpn-captcha', {
     student_id: studentId,
-    password: password,
-    jwc_password: jwcPassword || password
+    password: password
   }).then(res => {
     // SSO 后已有教务会话：直接获得登录 token
     if (res.success && res.already_logged_in && res.token) {
@@ -427,12 +426,11 @@ function getWebvpnCaptcha(studentId, password, jwcPassword) {
 }
 
 /** Step 2: 使用验证码完成教务登录（智慧理工模式，携带 captcha_id） */
-function loginWebvpnManual(studentId, password, jwcPassword, captcha, captchaId) {
+function loginWebvpnManual(studentId, password, captcha, captchaId) {
   const hadSavedPwd = storage.get('saved_password', '')
   return request('POST', '/api/login-webvpn-manual', {
     student_id: studentId,
     password: password,
-    jwc_password: jwcPassword || password,
     captcha: captcha,
     captcha_id: captchaId || ''
   }).then(res => {
@@ -448,13 +446,12 @@ function loginWebvpnManual(studentId, password, jwcPassword, captcha, captchaId)
   })
 }
 
-/** 智慧理工模式自动登录（自动 OCR 教务验证码） */
-function loginWebvpn(studentId, password, jwcPassword) {
+/** 智慧理工模式自动登录（SSO 直连教务，服务端自动处理验证码） */
+function loginWebvpn(studentId, password) {
   const hadSavedPwd = storage.get('saved_password', '')
   return request('POST', '/api/login-webvpn', {
     student_id: studentId,
-    password: password,
-    jwc_password: jwcPassword || password
+    password: password
   }).then(res => {
     if (res.success) {
       storage.clearAll()   // 换号登录：清空上一用户的全部本地数据

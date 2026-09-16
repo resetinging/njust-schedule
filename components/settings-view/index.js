@@ -31,7 +31,6 @@ Component({
 
     // 登录表单
     password: '',
-    jwcPassword: '',       // 智慧理工模式下可选的教务密码
     captcha: '',
     captchaId: '',         // 当前验证码会话 ID（多用户：登录时回传绑定）
     captchaSrc: '',
@@ -40,7 +39,6 @@ Component({
     ssoStepDone: false,    // 智慧理工模式: SSO 已通过, 显示教务验证码
     rememberPwd: true,     // 记住学号与密码（保存在本机）
     showPassword: false,   // 密码明文显示开关
-    showJwcPassword: false,// 教务密码明文显示开关
 
     // 校历设置
     firstWeekDate: '',
@@ -171,8 +169,7 @@ Component({
         loginMode: mode,
         captcha: '',
         captchaSrc: '',
-        ssoStepDone: false,
-        jwcPassword: ''
+        ssoStepDone: false
       })
       this._updateCanLogin()
     },
@@ -191,19 +188,9 @@ Component({
       this._updateCanLogin()
     },
 
-    onJwcPasswordInput(e) {
-      this.setData({ jwcPassword: e.detail.value })
-      this._updateCanLogin()
-    },
-
     /** 切换密码明文显示 */
     onTogglePassword() {
       this.setData({ showPassword: !this.data.showPassword })
-    },
-
-    /** 切换教务密码明文显示 */
-    onToggleJwcPassword() {
-      this.setData({ showJwcPassword: !this.data.showJwcPassword })
     },
 
     onCaptchaInput(e) {
@@ -239,7 +226,7 @@ Component({
 
     /** 获取验证码（按登录模式选择端点） */
     async onRefreshCaptcha() {
-      const { loginMode, studentId, password, jwcPassword } = this.data
+      const { loginMode, studentId, password } = this.data
 
       if (loginMode === 'webvpn') {
         if (!studentId || !password) {
@@ -248,7 +235,7 @@ Component({
         }
         wx.showLoading({ title: '智慧理工登录中…' })
         try {
-          const res = await api.getWebvpnCaptcha(studentId, password, jwcPassword)
+          const res = await api.getWebvpnCaptcha(studentId, password)
           wx.hideLoading()
           if (res.success && res.captcha_b64) {
             this.setData({
@@ -257,7 +244,7 @@ Component({
               captcha: '',
               ssoStepDone: true
             })
-            wx.showToast({ title: res.message || '✅ 智慧理工已通过，请输入教务密码和验证码', icon: 'none' })
+            wx.showToast({ title: res.message || '✅ 智慧理工已通过，请输入验证码', icon: 'none' })
           } else if (res.success && res.already_logged_in) {
             this.setData({ captchaId: '' })
             this.refreshState()
@@ -294,7 +281,7 @@ Component({
 
     /** 登录（无验证码时走服务端自动 OCR，失败自动切换手动验证码） */
     async onLogin() {
-      const { loginMode, studentId, password, jwcPassword, captcha, rememberPwd } = this.data
+      const { loginMode, studentId, password, captcha, rememberPwd } = this.data
       if (!studentId || !password) {
         wx.showToast({ title: '请填写学号和密码', icon: 'none' })
         return
@@ -304,13 +291,13 @@ Component({
       this.setData({ loggingIn: true })
       try {
         if (loginMode === 'webvpn') {
-          // 智慧理工：SSO 已完成且有验证码 → 手动两步；否则全自动（含教务 OCR）
+          // 智慧理工：SSO 已完成且有验证码 → 手动两步；否则全自动（SSO 直连教务）
           if (captcha && this.data.ssoStepDone) {
             wx.showLoading({ title: '登录中…' })
-            res = await api.loginWebvpnManual(studentId, password, jwcPassword, captcha, this.data.captchaId)
+            res = await api.loginWebvpnManual(studentId, password, captcha, this.data.captchaId)
           } else if (!this.data.ssoStepDone) {
             wx.showLoading({ title: '智慧理工自动登录中…' })
-            res = await api.loginWebvpn(studentId, password, jwcPassword)
+            res = await api.loginWebvpn(studentId, password)
           } else {
             wx.showToast({ title: '请先输入验证码', icon: 'none' })
             this.setData({ loggingIn: false })
@@ -344,7 +331,7 @@ Component({
           // 通知全局
           getApp().setLoginState(true, res.student_name || studentId, res.semester || '')
           this.setData({
-            password: '', jwcPassword: '', captcha: '', captchaId: '', captchaSrc: '', ssoStepDone: false
+            password: '', captcha: '', captchaId: '', captchaSrc: '', ssoStepDone: false
           })
           this.loadSettings()
           // 登录后立即刷新「我的反馈」未读回复(小红点)
@@ -583,7 +570,6 @@ Component({
             this.refreshState()
             this.setData({
               password: '',
-              jwcPassword: '',
               captcha: '',
               captchaId: '',
               captchaSrc: '',
