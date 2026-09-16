@@ -166,7 +166,8 @@ Page({
   },
 
   _syncTabBar() {
-    // main 非 tabBar list 页面, getTabBar 不可用; 用 selectComponent 同步高亮
+    // 已无平台级 tabBar 配置(custom-tab-bar 由本页手动渲染), getTabBar 不可用;
+    // 用 selectComponent 同步高亮
     const bar = this.selectComponent('#tabbar')
     if (bar) bar.setData({ selected: this.data.current })
   }

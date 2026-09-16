@@ -1,6 +1,0 @@
-{
-  "usingComponents": {
-    "week-grid": "../../components/week-grid/week-grid"
-  },
-  "enablePullDownRefresh": true
-}

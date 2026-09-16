@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "成绩查询",
-  "enablePullDownRefresh": true, "usingComponents": {
-    "loading-modal": "/components/loading-modal/loading-modal"
-  }
-}

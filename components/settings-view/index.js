@@ -387,11 +387,11 @@ Component({
     onGoGrades() {
       const pages = getCurrentPages()
       const page = pages[pages.length - 1]
-      // 当前页面可能是 main(合页) 或本组件所在页; main 提供 onTabTap 切换 swiper
+      // 旧版独立成绩页已删除, 只能由 main 的 swiper 承载; 兜底回到 main
       if (page && typeof page.onTabTap === 'function') {
         page.onTabTap(3)
       } else {
-        wx.switchTab({ url: '/pages/grades/grades' })
+        wx.reLaunch({ url: '/pages/main/main' })
       }
     },
 

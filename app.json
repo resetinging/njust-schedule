@@ -2,12 +2,7 @@
   "pages": [
     "pages/main/main",
     "pages/gallery/gallery",
-    "pages/freeclass/freeclass",
-    "pages/schedule/schedule",
-    "pages/exams/exams",
-    "pages/eval/eval",
-    "pages/grades/grades",
-    "pages/settings/settings"
+    "pages/freeclass/freeclass"
   ],
   "window": {
     "navigationBarTitleText": "课表助手",
@@ -15,45 +10,6 @@
     "navigationBarTextStyle": "white",
     "backgroundColor": "#F7F6FB",
     "backgroundTextStyle": "dark"
-  },
-  "tabBar": {
-    "custom": true,
-    "color": "#9A96B8",
-    "selectedColor": "#7C6BE8",
-    "backgroundColor": "#FFFFFF",
-    "borderStyle": "white",
-    "list": [
-      {
-        "pagePath": "pages/schedule/schedule",
-        "text": "课表",
-        "iconPath": "static/icons/schedule.png",
-        "selectedIconPath": "static/icons/schedule-active.png"
-      },
-      {
-        "pagePath": "pages/exams/exams",
-        "text": "考试",
-        "iconPath": "static/icons/exam.png",
-        "selectedIconPath": "static/icons/exam-active.png"
-      },
-      {
-        "pagePath": "pages/eval/eval",
-        "text": "评教",
-        "iconPath": "static/icons/eval.png",
-        "selectedIconPath": "static/icons/eval-active.png"
-      },
-      {
-        "pagePath": "pages/grades/grades",
-        "text": "成绩",
-        "iconPath": "static/icons/grades.png",
-        "selectedIconPath": "static/icons/grades-active.png"
-      },
-      {
-        "pagePath": "pages/settings/settings",
-        "text": "我的",
-        "iconPath": "static/icons/settings.png",
-        "selectedIconPath": "static/icons/settings-active.png"
-      }
-    ]
   },
   "style": "v2",
   "cloud": true,

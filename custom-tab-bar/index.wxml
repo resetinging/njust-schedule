@@ -1,7 +1,7 @@
 <!-- 自定义 tabBar(纯图标, 无文字) -->
 <view class="tab-bar">
   <view class="tab-bar-item {{selected === index ? 'on' : ''}}"
-        wx:for="{{list}}" wx:key="pagePath"
+        wx:for="{{list}}" wx:key="name"
         data-index="{{index}}" bindtap="onTap">
     <view class="tab-emoji-wrap">
       <text class="tab-emoji">{{item.emoji}}</text>
