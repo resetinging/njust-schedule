@@ -41,6 +41,56 @@ class _DedupCookieJar(RequestsCookieJar):
             return matches[0]
         return None
 
+    # ---- 发送前的同名遮蔽去重 ----
+    @staticmethod
+    def _domain_matches(host: str, domain: str) -> bool:
+        d = (domain or "").lower()
+        if not d:
+            return False
+        if d.startswith("."):
+            d = d[1:]
+        return host == d or host.endswith("." + d)
+
+    @staticmethod
+    def _domain_rank(cookie):
+        """域更具体者优先：host-only 优于 .domain，域越长越具体"""
+        d = (cookie.domain or "").lower()
+        return (0 if d and not d.startswith(".") else -1, len(d))
+
+    def add_cookie_header(self, request):
+        """发 Cookie 头之前，丢掉被遮蔽的同名重复 cookie
+
+        上面 `_find_no_duplicates` 只在按 (name, domain, path) 取值时生效，
+        而真正拼 Cookie 头走的是 http.cookiejar 的 add_cookie_header，它会把
+        同名 cookie 一起发出去。WebVPN 网关代理过程中会轮换票据
+        （旧票据域 .webvpn.njust.edu.cn → 新票据域 webvpn.njust.edu.cn），
+        两张票一起发时网关取到失效的那张就判「未登录」→ 302 /login。
+        这里按「域更具体优先」只保留应当生效的那张；作用域限定在当前请求
+        主机，避免误删其它站点的同名 cookie。
+        """
+        try:
+            from urllib.parse import urlsplit
+            host = (urlsplit(request.get_full_url()).hostname or "").lower()
+            if host:
+                best = {}
+                for c in list(self):
+                    if not self._domain_matches(host, c.domain):
+                        continue
+                    key = (c.name, c.path or "/")
+                    cur = best.get(key)
+                    if cur is None or self._domain_rank(c) > self._domain_rank(cur):
+                        best[key] = c
+                if best:
+                    keep = {id(c) for c in best.values()}
+                    for c in list(self):
+                        if not self._domain_matches(host, c.domain):
+                            continue
+                        if (c.name, c.path or "/") in best and id(c) not in keep:
+                            self.clear(c.domain, c.path, c.name)
+        except Exception:
+            pass
+        return super().add_cookie_header(request)
+
 from config import (
     JW_BASE_8080, JW_BASE_9080, JW_PATH_PREFIX,
     JW_LOGON_PAGE, JW_SCHEDULE_URL, JW_EXAM_QUERY, JW_EXAM_LIST,
@@ -50,6 +100,36 @@ from config import (
     SSO_BASE, SSO_LOGIN_URL, DEBUG_WEBVPN,
     JW_CLASSROOM_QUERY, JW_CLASSROOM_LIST, JW_CLASSROOM_BUILDINGS,
 )
+
+# === WebVPN（网瑞达 wengine）代理直连 ===
+try:
+    from webvpn import WebVPNAdapter, WebVPNTransport
+except ImportError:  # 以包方式导入（views/admin 的用法）
+    from wxcloudrun.webvpn import WebVPNAdapter, WebVPNTransport
+
+try:
+    from config import WEBVPN_BASE, WEBVPN_CAS_SERVICE, WEBVPN_ENABLED
+except ImportError:  # pragma: no cover
+    WEBVPN_BASE = "https://webvpn.njust.edu.cn"
+    WEBVPN_CAS_SERVICE = f"{WEBVPN_BASE}/login?cas_login=true"
+    WEBVPN_ENABLED = "auto"
+
+try:
+    from config import JW_DEFAULT_PWD_TEMPLATE, JW_TRY_DEFAULT_PWD
+except ImportError:  # pragma: no cover
+    JW_DEFAULT_PWD_TEMPLATE = "{sid}@Njust"
+    JW_TRY_DEFAULT_PWD = True
+
+try:
+    from config import JW_LOGON_BASES
+except ImportError:  # pragma: no cover
+    JW_LOGON_BASES = [JW_BASE_8080]
+
+try:
+    from config import JW_SSO_BASE, JW_SSO_ENTRY
+except ImportError:  # pragma: no cover
+    JW_SSO_BASE = "http://bkjw.njust.edu.cn"
+    JW_SSO_ENTRY = f"{JW_SSO_BASE}{JW_PATH_PREFIX}/indexsso.jsp"
 
 # === 加密模块（智慧理工 SSO 密码加密） ===
 try:
@@ -139,17 +219,12 @@ class JWCClient:
     # 不同用户实例互不阻塞（配合 views 的全局信号量限流 = 访问池）
     def __init__(self, pool_maxsize: int = 8):
         import threading
-        from requests.adapters import HTTPAdapter
         self._lock = threading.Lock()
-        self.session = requests.Session()
-        self.session.cookies = _DedupCookieJar()
-        self.session.headers.update(HEADERS)
-        # HTTP 连接池：复用 keep-alive 连接，减少 TCP/TLS 握手开销
-        adapter = HTTPAdapter(pool_connections=pool_maxsize,
-                              pool_maxsize=pool_maxsize,
-                              pool_block=True)
-        self.session.mount("http://", adapter)
-        self.session.mount("https://", adapter)
+        self._pool_maxsize = pool_maxsize
+        self.debug_log = []  # 智慧理工 SSO 诊断日志
+        self.webvpn = None
+        self._logon_base_idx = 0  # 登录入口候选下标（节点不通时自动切换）
+        self._setup_session()
         self.token = None
         self.student_id = None
         self.student_name = None
@@ -158,7 +233,6 @@ class JWCClient:
         self.last_error = ""
         self._captcha_ready = False
         self._active_captcha_url = URL_CAPTCHA_CANDIDATES[0]
-        self.debug_log = []  # 智慧理工 SSO 诊断日志
         # 智慧理工手动验证码中间状态
         self._webvpn_manual_ready = False
         self._webvpn_post_url = ""
@@ -166,6 +240,25 @@ class JWCClient:
         # 会话有效性探测缓存（避免每个请求都访问教务主页探测）
         self._validity_cache_ts = 0.0
         self._validity_cache_ok = False
+
+    def _setup_session(self):
+        """（重）建 HTTP 会话：连接池适配器 + WebVPN 改写适配器
+
+        适配器只在 WebVPNTransport.active 为真时改写教务请求；未开启时
+        行为与普通 HTTPAdapter 一致（保留原连接池参数）。
+        """
+        self.session = requests.Session()
+        self.session.cookies = _DedupCookieJar()
+        self.session.headers.update(HEADERS)
+        self.webvpn = WebVPNTransport(self.session, base=WEBVPN_BASE,
+                                      service=WEBVPN_CAS_SERVICE, log=self._log)
+        adapter = WebVPNAdapter(self.webvpn,
+                                pool_connections=self._pool_maxsize,
+                                pool_maxsize=self._pool_maxsize,
+                                pool_block=True)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+        return self.session
 
     # ================================================================
     # 登录入口
@@ -177,12 +270,10 @@ class JWCClient:
         self.logged_in = False
         self.token = None
         self._captcha_ready = False
-        self.session = requests.Session()
-        self.session.cookies = _DedupCookieJar()
-        self.session.headers.update(HEADERS)
+        self._setup_session()
 
-        # 8080 端口 Web 登录 + OCR
-        if self._try_web_auto(student_id, password):
+        # 8080 端口 Web 登录 + OCR（密码被拒时自动按初始密码规则再试一次）
+        if self._try_web_auto_candidates(student_id, password):
             return True
 
         return False
@@ -207,11 +298,11 @@ class JWCClient:
         try:
             # ★ 用 allow_redirects=True 让 requests 自动跟随整个重定向链
             resp = self.session.post(
-                URL_LOGON_PAGE,
+                self.logon_page,
                 data=payload,
                 timeout=TIMEOUT,
                 allow_redirects=True,  # ← 自动跟随 302 → 9080 → ...
-                headers={"Referer": URL_LOGON_PAGE},
+                headers={"Referer": self.logon_page},
             )
             # ★ 先去重 cookie，否则 dict() 会崩溃
             self._dedupe_cookies()
@@ -263,6 +354,76 @@ class JWCClient:
     # 方式2: Web 登录 + OCR
     # ================================================================
 
+    def _jw_password_candidates(self, student_id: str, given: str = "") -> list:
+        """教务登录密码候选：先用手上这个，再用初始密码规则（学号@Njust）
+
+        用户只登智慧理工时，后端手上只有智慧理工密码；而教务密码通常是学校
+        初始密码，多试一次就能免去用户额外输入。关闭见 JW_TRY_DEFAULT_PWD。
+        """
+        cands = []
+        for pwd in (given,):
+            if pwd and pwd not in cands:
+                cands.append(pwd)
+        if JW_TRY_DEFAULT_PWD and JW_DEFAULT_PWD_TEMPLATE:
+            try:
+                default_pwd = JW_DEFAULT_PWD_TEMPLATE.format(sid=student_id)
+            except Exception:  # noqa: BLE001 — 模板写错不该影响登录
+                default_pwd = ""
+            if default_pwd and default_pwd not in cands:
+                cands.append(default_pwd)
+        return cands
+
+    # ---- 登录入口(教务双节点)选择 ----
+    @property
+    def logon_base(self) -> str:
+        bases = JW_LOGON_BASES or [BASE_URL]
+        return bases[min(self._logon_base_idx, len(bases) - 1)]
+
+    @property
+    def logon_page(self) -> str:
+        return f"{self.logon_base}/Logon.do?method=logon"
+
+    @property
+    def logon_sess(self) -> str:
+        return f"{self.logon_base}/Logon.do?method=logon&flag=sess"
+
+    def _captcha_candidates(self) -> list:
+        b = self.logon_base
+        return [f"{b}/CheckCode?date=", f"{b}/verifycode.servlet",
+                f"{b}/Logon.do?method=logon&rand="]
+
+    def _use_logon_base(self, idx: int):
+        self._logon_base_idx = idx
+        self._active_captcha_url = self._captcha_candidates()[0]
+
+    def _try_web_auto_candidates(self, student_id: str, given: str) -> bool:
+        """带兜底的 OCR 登录：密码被拒 → 换初始密码规则；入口不通 → 换备用节点"""
+        cands = self._jw_password_candidates(student_id, given)
+        bases = JW_LOGON_BASES or [BASE_URL]
+        for base_idx in range(len(bases)):
+            self._use_logon_base(base_idx)
+            network_failed = False
+            for idx, pwd in enumerate(cands):
+                self.last_error = ""
+                if self._try_web_auto(student_id, pwd):
+                    if idx > 0:
+                        self._log(f"[JW-PWD] 候选 #{idx + 1}（初始密码规则）登录成功")
+                    return True
+                err = self.last_error or ""
+                if self._is_network_error():
+                    self._log(f"[JW-HOST] 登录入口 {self.logon_base} 不可达（{err}）")
+                    network_failed = True
+                    break
+                if "密码错误" not in err and "用户名或密码错误" not in err:
+                    return False  # 验证码/其它问题：换密码和换节点都没用
+                if idx + 1 < len(cands):
+                    self._log(f"[JW-PWD] 候选 #{idx + 1} 被拒（{err}），改用初始密码规则重试")
+            if not network_failed:
+                return False
+            if base_idx + 1 < len(bases):
+                self._log(f"[JW-HOST] 切换到备用登录入口 {bases[base_idx + 1]}")
+        return False
+
     def _try_web_auto(self, student_id: str, password: str) -> bool:
         """自动 OCR 识别验证码登录"""
         try:
@@ -308,9 +469,7 @@ class JWCClient:
 
     def get_captcha_base64(self) -> Tuple[str, str]:
         self._captcha_ready = False
-        self.session = requests.Session()
-        self.session.cookies = _DedupCookieJar()
-        self.session.headers.update(HEADERS)
+        self._setup_session()
         try:
             self._init_logon_session()
             img = self._fetch_captcha()
@@ -354,17 +513,28 @@ class JWCClient:
         if DEBUG_WEBVPN:
             logger.debug("[SSO] %s", msg)
 
+    def _is_network_error(self) -> bool:
+        """上次失败是否属于网络层问题（可改走 WebVPN 代理重试）"""
+        msg = self.last_error or ""
+        return any(k in msg for k in (
+            "无法连接", "连接超时", "超时", "timed out", "Timeout",
+            "Connection", "Max retries", "unreachable", "拒绝",
+        ))
+
     def login_webvpn(self, student_id: str, password: str,
-                     jwc_password: str = "") -> bool:
-        """通过智慧理工 SSO 登录 + 直连教务（不走 WebVPN 代理）
+                     jwc_password: str = "", use_webvpn: bool = False) -> bool:
+        """通过智慧理工 SSO 登录 + 直连教务（可选 WebVPN 代理）
 
         流程：
         1. 直连 SSO（ids.njust.edu.cn）登录验证身份
-        2. 尝试直连教务（CAS ticket 自动登录）
-        3. 否则走标准 8080 Logon.do 登录 → 302 → 9080 重定向链
+        2. 用 CAS 票据建立 WebVPN 会话（校外只开放 WebVPN 入口时使用）
+        3. 尝试直连教务（CAS ticket 自动登录）
+        4. 否则走标准 8080 Logon.do 登录 → 302 → 9080 重定向链
+        5. 直连被网络阻断时，自动改走 WebVPN 代理重试（WEBVPN_ENABLED=auto）
 
         password = 智慧理工密码; jwc_password = 教务密码(可与前者不同,
         未提供时回退为智慧理工密码)。SSO 用前者, 教务登录用后者。
+        use_webvpn=True 时强制教务请求走 WebVPN 代理。
         """
         jwc_pwd = jwc_password or password
         self.student_id = student_id
@@ -375,9 +545,7 @@ class JWCClient:
         self.token = None
         self._captcha_ready = False
         self.debug_log = []
-        self.session = requests.Session()
-        self.session.cookies = _DedupCookieJar()
-        self.session.headers.update(HEADERS)
+        self._setup_session()
 
         if not _HAS_CRYPTO:
             self.last_error = "SSO 登录需要 pycryptodome 模块，请重新部署服务"
@@ -388,16 +556,47 @@ class JWCClient:
             if not self._direct_sso_login(student_id, password):
                 return False
 
-            # Step 2: 尝试 CAS 自动登录教务
+            # Step 2: 需要代理时建立 WebVPN 会话（网关登录入口即统一身份认证 CAS）
+            # 注意: auto 模式不在这里建会话 —— 每个账号的 WebVPN 会话可能互踢，
+            # 无谓地登录会把用户浏览器自己的 WebVPN 会话顶掉，只在直连网络
+            # 失败时（Step 5）才建。
+            want_webvpn = use_webvpn or WEBVPN_ENABLED == "on"
+            if want_webvpn:
+                if WEBVPN_ENABLED == "off":
+                    self.last_error = "WebVPN 已关闭（WEBVPN_ENABLED=off）"
+                    return False
+                if not self.webvpn.authenticate():
+                    self.last_error = "WebVPN 会话建立失败，请稍后重试"
+                    return False
+                self.webvpn.verify()
+                self.webvpn.activate()
+
+            # Step 3: SSO 直连教务（首选：免教务密码、免验证码）
+            if self._try_indexsso_login():
+                return True
+
+            # Step 4: 尝试 CAS 自动登录教务（旧的 service 猜测，保留兜底）
             if self._try_direct_jw_access():
                 return True
 
-            # Step 3: 标准 8080 Logon.do 流程
+            # Step 5: 标准 8080 Logon.do 流程（含初始密码规则兜底）
             self._log("[SSO-JW] 教务需要表单登录，走 8080 Logon.do 标准流程...")
-            if self._try_web_auto(student_id, jwc_pwd):
+            if self._try_web_auto_candidates(student_id, jwc_pwd):
                 self.logged_in = True
                 self.login_method = "webvpn"
                 return True
+
+            # Step 6: 直连被网络阻断时改走 WebVPN 代理重试
+            if not self.webvpn.active and WEBVPN_ENABLED == "auto" and self._is_network_error():
+                self._log(f"[WebVPN] 直连失败({self.last_error})，尝试建会话并改走代理...")
+                if self.webvpn.authenticate():
+                    self.webvpn.verify()
+                    self.webvpn.activate()
+                    self.last_error = ""
+                    if self._try_web_auto_candidates(student_id, jwc_pwd):
+                        self.logged_in = True
+                        self.login_method = "webvpn-proxy"
+                        return True
 
             if not self.last_error:
                 self.last_error = "教务系统登录失败，请尝试手动输入验证码"
@@ -413,7 +612,7 @@ class JWCClient:
 
     def _direct_sso_login(self, student_id: str, password: str) -> bool:
         """直连 SSO 登录（ids.njust.edu.cn，不走 WebVPN 代理）"""
-        from urllib.parse import urljoin
+        from urllib.parse import urljoin, urlparse
 
         try:
             # Step D1: GET SSO 登录页 → 解析表单
@@ -505,6 +704,14 @@ class JWCClient:
             else:
                 post_url = resp.url
 
+            # ★ 必须保留 service 参数: 登录页表单 action 是 '/authserver/login'(不含
+            #   service), 直接按 action POST 会让 CAS 不知道该为哪个服务发票据 ——
+            #   实测结果是被重定向到 error.njust.edu.cn/errorTips500.html 且没有 CASTGC。
+            _query = urlparse(resp.url).query
+            if "service=" in _query and "service=" not in post_url:
+                post_url = f"{post_url}{'&' if '?' in post_url else '?'}{_query}"
+                self._log("[SSO-Direct]   已为 POST 补回 service 参数")
+
             form_data = {
                 "username": student_id,
                 "passwordText": password,
@@ -548,7 +755,20 @@ class JWCClient:
                 self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
                 return False
 
-            self._log("[SSO-Direct] [OK] SSO 登录成功")
+            # ★ NJUST 出错页(出错啦)不是登录成功: 未带 service 参数 POST 时会跳到这里
+            if "error.njust.edu.cn" in login_resp.url or "errorTips" in login_resp.url:
+                self.last_error = "智慧理工登录未被接受（被跳转到出错页，请稍后重试）"
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error} url={login_resp.url[:80]}")
+                return False
+
+            # ★ 以 CASTGC(统一身份认证票据 cookie) 为准: 有它才是真的登录成功
+            has_castgc = any("CASTGC" in c.name for c in self.session.cookies)
+            if not has_castgc:
+                self.last_error = "智慧理工未建立有效会话（未获得 CASTGC 票据）"
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+                return False
+
+            self._log("[SSO-Direct] [OK] SSO 登录成功 (CASTGC 已获取)")
             return True
 
         except requests.exceptions.ConnectionError:
@@ -559,6 +779,39 @@ class JWCClient:
             self.last_error = f"SSO 登录异常: {e}"
             self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
             logger.debug("[SSO] 异常: %s", e, exc_info=True)
+            return False
+
+    def _try_indexsso_login(self) -> bool:
+        """智慧理工 SSO 直连教务（免教务密码、免验证码）
+
+        教务的 CAS 单点登录入口是 /njlgdx/indexsso.jsp：带着 CASTGC 访问它，它会
+        跳 ids 换 ST 票据再回来建立教务会话。实测链路：
+            indexsso.jsp → ids/authserver/login?service=…indexsso.jsp
+            → indexsso.jsp?ticket=ST-… → xk/LoginToXk?method=ptdl → framework/main.jsp
+
+        会话 cookie 落在 JW_SSO_BASE（bkjw.njust.edu.cn）域上，因此成功后必须把
+        后续教务请求都改写到该入口（enable_sso_direct），否则 cookie 跟不过去。
+        """
+        try:
+            self._log(f"[SSO-JW] 尝试 SSO 直连入口: {JW_SSO_ENTRY}")
+            resp = self.session.get(JW_SSO_ENTRY, timeout=TIMEOUT, allow_redirects=True)
+            self._dedupe_cookies()
+            chain = " → ".join(
+                f"{h.status_code} {h.headers.get('Location', '')[:60]}" for h in resp.history[-4:])
+            self._log(f"[SSO-JW]   链路: {chain or '(无跳转)'}")
+            self._log(f"[SSO-JW]   最终 {resp.status_code} {resp.url[:80]} "
+                      f"标题={self._page_title(resp)}")
+            if not self._check_success(resp):
+                self._log("[SSO-JW]   SSO 入口未建立教务会话")
+                return False
+            self._extract_name(resp.text)
+            self.webvpn.enable_sso_direct(JW_SSO_BASE)
+            self.logged_in = True
+            self.login_method = "sso"
+            self._log("[SSO-JW] [OK] SSO 直连教务成功（无需教务密码/验证码）")
+            return True
+        except Exception as e:  # noqa: BLE001 — 失败就走后面的密码登录兜底
+            self._log(f"[SSO-JW]   SSO 直连异常: {type(e).__name__}: {e}")
             return False
 
     def _try_direct_jw_access(self) -> bool:
@@ -627,9 +880,7 @@ class JWCClient:
         self._webvpn_post_url = ""
         self._webvpn_login_page_url = ""
         self.debug_log = []
-        self.session = requests.Session()
-        self.session.cookies = _DedupCookieJar()
-        self.session.headers.update(HEADERS)
+        self._setup_session()
 
         if not _HAS_CRYPTO:
             return "", "SSO 登录需要 pycryptodome 模块，请重新部署服务"
@@ -640,20 +891,25 @@ class JWCClient:
             if not self._direct_sso_login(student_id, password):
                 return "", self.last_error
 
-            # Step 2: 尝试 CAS 自动登录教务
-            self._log("[SSO-Captcha] Step 2: 尝试直连教务...")
+            # Step 2: SSO 直连教务（首选：indexsso.jsp，免教务密码/验证码）
+            self._log("[SSO-Captcha] Step 2: 尝试 SSO 直连教务...")
+            if self._try_indexsso_login():
+                self._webvpn_manual_ready = True
+                return "__ALREADY_LOGGED_IN__", ""
+
+            # Step 2b: 旧的 CAS service 猜测（兜底）
             if self._try_direct_jw_access():
                 self._webvpn_manual_ready = True
                 return "__ALREADY_LOGGED_IN__", ""
 
-            # Step 3: 从 8080 Logon.do 获取验证码（不清除 SSO cookie）
-            self._log("[SSO-Captcha] Step 3: 从 8080 Logon.do 获取验证码...")
-            self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
-            self.session.headers.update({"Referer": URL_LOGON_PAGE})
+            # Step 3: 从 Logon.do 获取验证码（不清除 SSO cookie）
+            self._log(f"[SSO-Captcha] Step 3: 从 {self.logon_base} 获取验证码...")
+            self.session.get(self.logon_page, timeout=TIMEOUT)
+            self.session.headers.update({"Referer": self.logon_page})
             self._dedupe_cookies()
             self._detect_captcha_url_from_page()
             try:
-                self.session.get(URL_LOGON_SESS, timeout=TIMEOUT)
+                self.session.get(self.logon_sess, timeout=TIMEOUT)
                 self._dedupe_cookies()
             except Exception:
                 pass
@@ -663,8 +919,8 @@ class JWCClient:
                 return "", "获取验证码失败：无法从教务服务器获取验证码图片"
 
             self._webvpn_manual_ready = True
-            self._webvpn_login_page_url = URL_LOGON_PAGE
-            self._webvpn_post_url = URL_LOGON_PAGE
+            self._webvpn_login_page_url = self.logon_page
+            self._webvpn_post_url = self.logon_page
             self._log(f"[SSO-Captcha] [OK] 验证码就绪 ({len(img)} bytes)")
             return base64.b64encode(img).decode(), ""
 
@@ -756,14 +1012,18 @@ class JWCClient:
         return False
 
     def _is_jw_login_page(self, resp) -> bool:
-        """检测是否为教务登录页面（强智教务）"""
+        """检测是否为教务登录页面（强智教务）
+
+        注意 t 已 lower()，特征串必须用小写（原来写 "USERNAME"/"Verifyservlet"
+        永远匹配不到，导致表单字段这一条判据形同虚设）。
+        """
         t = resp.text.lower()
         url = resp.url.lower() if hasattr(resp, 'url') else ""
         indicators = [
-            "Logon.do" in url,
-            "Verifyservlet" in t,
+            "logon.do" in url,
+            "verifyservlet" in t,
             "verifycode.servlet" in t,
-            ("USERNAME" in t and "PASSWORD" in t and "RANDOMCODE" in t),
+            ("username" in t and "password" in t and "randomcode" in t),
         ]
         return any(indicators)
 
@@ -773,35 +1033,63 @@ class JWCClient:
 
     def _init_logon_session(self):
         self.session.cookies.clear()
-        self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
-        self.session.headers.update({"Referer": URL_LOGON_PAGE})
+        self.session.get(self.logon_page, timeout=TIMEOUT)
+        self.session.headers.update({"Referer": self.logon_page})
         self._dedupe_cookies()
         self._detect_captcha_url_from_page()
         try:
-            self.session.get(URL_LOGON_SESS, timeout=TIMEOUT)
+            self.session.get(self.logon_sess, timeout=TIMEOUT)
             self._dedupe_cookies()
         except Exception:
             pass
 
     def _detect_captcha_url_from_page(self):
         try:
-            resp = self.session.get(URL_LOGON_PAGE, timeout=TIMEOUT)
+            resp = self.session.get(self.logon_page, timeout=TIMEOUT)
             m = re.search(
                 r'<img[^>]+src=["\']([^"\']*(?:verifycode|checkcode|code)[^"\']*)["\']',
                 resp.text, re.IGNORECASE)
             if m:
-                src = m.group(1)
-                self._active_captcha_url = src if src.startswith("http") else f"{BASE_URL}{src}"
+                src = m.group(1).strip()
+                # WebVPN 网关会改写地址并注入 JS 模板，正则可能抓到
+                # "…@{${#themes.code(" 这种碎片；只接受干净的 URL 形态，
+                # 且跳过带 vpn- 后缀/以 /http 开头的网关改写地址
+                if (src.startswith("/http") or "vpn-" in src
+                        or not re.fullmatch(r"[A-Za-z0-9_\-./?=&%:]+", src)):
+                    return
+                self._active_captcha_url = src if src.startswith("http") else f"{self.logon_base}{src}"
                 logger.debug("CaptchaURL: %s", self._active_captcha_url)
         except Exception:
             pass
 
+    @staticmethod
+    def _looks_like_image(data: bytes) -> bool:
+        """按魔数判断是否图片
+
+        原来只校验「200 且长度>100」，经 WebVPN 代理时某些候选地址会返回
+        HTML（例如 /njlgdx/CheckCode），会被当成验证码交给 OCR 直接报
+        「cannot identify image file」。
+        """
+        if len(data) < 12:
+            return False
+        if data[:2] == b"\xff\xd8":                      # JPEG
+            return True
+        if data[:8] == b"\x89PNG\r\n\x1a\n":             # PNG
+            return True
+        if data[:6] in (b"GIF87a", b"GIF89a"):           # GIF
+            return True
+        if data[:2] == b"BM":                            # BMP
+            return True
+        if data[:4] == b"RIFF" and data[8:12] == b"WEBP":  # WebP
+            return True
+        return False
+
     def _fetch_captcha(self) -> bytes:
-        for url in [self._active_captcha_url] + URL_CAPTCHA_CANDIDATES:
+        for url in [self._active_captcha_url] + self._captcha_candidates():
             try:
                 r = self.session.get(url, timeout=TIMEOUT)
                 self._dedupe_cookies()
-                if r.status_code == 200 and len(r.content) > 100:
+                if r.status_code == 200 and self._looks_like_image(r.content):
                     self._active_captcha_url = url
                     return r.content
             except Exception:
@@ -858,6 +1146,14 @@ class JWCClient:
         # 成功关键词误判成"已登录教务", 导致跳过取验证码步骤、后续请求全部失败。
         # 只拦 SSO 域名, 不影响教务自身页面(含 Logon.do 的原有判断顺序保持不变)
         if "authserver" in url_str or "ids.njust.edu.cn" in url_str:
+            return False
+        # NJUST 统一出错页(e.g. error.njust.edu.cn/errorpage/errorTips500.html,
+        # 标题"出错啦")同样不是教务已登录 —— 实测会被下面的关键词/URL 兜底误判为成功
+        if "error.njust.edu.cn" in url_str or "errorTips" in url_str or "出错啦" in t:
+            return False
+        # WebVPN 网关自身的页面(门户首页/出错页)不是教务页面: 实测门户首页
+        # 「资源访问控制系统 - 资源站点」会因下面的 URL 兜底被误判为已登录教务
+        if "/wengine-vpn/" in url_str or "资源访问控制系统" in t:
             return False
         # 明确的失败标记
         for kw in ["验证码错误", "密码错误", "账号错误", "用户不存在"]:
@@ -1689,7 +1985,10 @@ class JWCClient:
             self._dedupe_cookies()
             if resp.status_code == 200:
                 t = resp.text.lower()
-                if "logon.do" in t or "userrname" in t or "randmcode" in t:
+                # 注意: 判定串必须是小写("userrname"/"randmcode" 是历史拼写错误,
+                # 永远匹配不到, 导致会话过期被判成有效)
+                if ("logon.do" in t or "username" in t or "randomcode" in t
+                        or "verifycode" in t or "请先登录" in t):
                     ok = False   # 明确过期: 返回了登录表单
                 else:
                     ok = True
@@ -1705,14 +2004,33 @@ class JWCClient:
         return ok
 
     def test_connection(self, timeout: float = None) -> Tuple[bool, str]:
-        """教务连通性探测（可指定短超时, 避免阻塞调用方接口响应）"""
-        try:
-            r = self.session.get(URL_LOGON_PAGE, timeout=timeout or TIMEOUT)
-            return (True, "连接正常") if r.status_code == 200 else (False, f"{r.status_code}")
-        except requests.exceptions.ConnectionError:
-            return False, "无法连接，请确认校园网/VPN"
-        except Exception as e:
-            return False, str(e)
+        """教务连通性探测（逐个登录入口试, 可指定短超时, 避免阻塞调用方接口响应）
+
+        实测教务双节点会单独不通(.113 两端口同时超时), 所以这里也按候选逐个探。
+        SSO 直连模式下教务只从 JW_SSO_BASE 进, 不能再去探 8080 登录入口。
+        """
+        if self.webvpn is not None and self.webvpn.remap_to:
+            try:
+                r = self.session.get(f"{JW_SSO_BASE}{JW_PATH_PREFIX}/framework/main.jsp",
+                                     timeout=timeout or TIMEOUT)
+                return (True, "连接正常") if r.status_code == 200 else (False, f"{r.status_code}")
+            except Exception as e:  # noqa: BLE001
+                return False, f"{JW_SSO_BASE} 无法连接: {e}"
+        bases = JW_LOGON_BASES or [BASE_URL]
+        last_err = "无法连接，请确认校园网/VPN"
+        for idx, base in enumerate(bases):
+            try:
+                r = self.session.get(f"{base}/Logon.do?method=logon",
+                                     timeout=timeout or TIMEOUT)
+                if r.status_code == 200:
+                    self._use_logon_base(idx)
+                    return True, "连接正常"
+                last_err = f"{r.status_code}"
+            except requests.exceptions.ConnectionError:
+                last_err = f"{base} 无法连接，请确认校园网/VPN"
+            except Exception as e:  # noqa: BLE001
+                last_err = str(e)
+        return False, last_err
 
     # ================================================================
     # 成绩查询
@@ -2252,6 +2570,4 @@ class JWCClient:
         self.logged_in = False
         self.token = None
         self.student_name = None
-        self.session = requests.Session()
-        self.session.cookies = _DedupCookieJar()
-        self.session.headers.update(HEADERS)
+        self._setup_session()

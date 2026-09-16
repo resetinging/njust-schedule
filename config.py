@@ -25,7 +25,24 @@ MYSQL_ADDRESS = os.environ.get("MYSQL_ADDRESS", "127.0.0.1:3306")
 JW_BASE_8080 = "http://202.119.81.113:8080"
 JW_BASE_9080 = "http://202.119.81.112:9080"
 JW_LOGON_PAGE = f"{JW_BASE_8080}/Logon.do?method=logon"
+# 登录入口候选（按序尝试）：教务是双节点，实测 .113 会整体不通（两个端口都超时），
+# 而 .112:8080 形态完全一致，作为备用登录入口。环境变量 JW_LOGON_BASES 可覆盖（逗号分隔）
+J_LOGON_BASES_ENV = os.environ.get("JW_LOGON_BASES", "").strip()
+JW_LOGON_BASES = ([b.strip().rstrip("/") for b in J_LOGON_BASES_ENV.split(",") if b.strip()]
+                  if J_LOGON_BASES_ENV
+                  else [JW_BASE_8080, "http://202.119.81.112:8080"])
+
+# ============================================================
+# 智慧理工 SSO 直连教务（免教务密码/免验证码）
+# ============================================================
+# 教务的 CAS 单点登录入口就是 /njlgdx/indexsso.jsp：携带 CASTGC 访问它会自动
+# 换到 ST 票据并建立教务会话（实测链路：
+#   indexsso.jsp → ids/authserver/login?service=…indexsso.jsp
+#   → indexsso.jsp?ticket=ST-… → xk/LoginToXk?method=ptdl → framework/main.jsp）
+# 会话 cookie 落在 bkjw.njust.edu.cn 域上，因此 SSO 模式下教务请求统一走该入口。
+JW_SSO_BASE = os.environ.get("JW_SSO_BASE", "http://bkjw.njust.edu.cn")
 JW_PATH_PREFIX = "/njlgdx"
+JW_SSO_ENTRY = f"{JW_SSO_BASE}{JW_PATH_PREFIX}/indexsso.jsp"
 JW_SCHEDULE_URL = f"{JW_BASE_9080}{JW_PATH_PREFIX}/xskb/xskb_list.do?Ves632DSdyV=NEW_XSD_PYGL"
 JW_EXAM_QUERY = f"{JW_BASE_9080}{JW_PATH_PREFIX}/xsks/xsksap_query?Ves632DSdyV=NEW_XSD_KSBM"
 JW_EXAM_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/xsks/xsksap_list"
@@ -85,6 +102,27 @@ SSO_LOGIN_URL = (
     f"{SSO_BASE}/authserver/login"
     "?service=https%3A%2F%2Fehall2.njust.edu.cn%2Flogin"
 )
+
+# ============================================================
+# WebVPN（网瑞达 wengine）代理直连
+# ============================================================
+# 网关地址与 CAS 服务（网关登录入口就是统一身份认证）
+WEBVPN_BASE = os.environ.get("WEBVPN_BASE", "https://webvpn.njust.edu.cn")
+WEBVPN_CAS_SERVICE = f"{WEBVPN_BASE}/login?cas_login=true"
+# URL 改写密钥（网关 /user/info 接口返回，实测一致）
+WEBVPN_KEY = "wrdvpnisthebest!"
+WEBVPN_IV = "wrdvpnisthebest!"
+# off = 不用；auto = 直连失败(网络不通)时自动改走代理；on = 教务请求一律走代理
+WEBVPN_ENABLED = os.environ.get("WEBVPN_ENABLED", "auto").strip().lower()
+
+# ============================================================
+# 教务登录密码兜底规则
+# ============================================================
+# 用户只登智慧理工时后端手上只有智慧理工密码，而教务密码通常是学校初始密码。
+# 按此规则多试一次(仅在密码被拒时才换候选)，用户就只需输一次智慧理工密码。
+# 关闭：JW_TRY_DEFAULT_PWD=false，或把模板置空
+JW_DEFAULT_PWD_TEMPLATE = os.environ.get("JW_DEFAULT_PWD_TEMPLATE", "{sid}@Njust")
+JW_TRY_DEFAULT_PWD = os.environ.get("JW_TRY_DEFAULT_PWD", "true").strip().lower() != "false"
 
 # ============================================================
 # 管理控制面板
