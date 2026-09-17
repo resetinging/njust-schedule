@@ -70,8 +70,30 @@ def main():
     if hits == 0:
         print('   无 pages/links 或 onGoLinks 残留 ✓')
 
-    # 4) 资源体积
-    print('4) 体积')
+    # 4) 剪贴板只写不读
+    # 约束: 本项目不得读取用户剪贴板(getClipboardData 属微信隐私接口, 需要用户授权,
+    # 且与功能无关)。常用链接只做"写入"(setClipboardData 复制), 不读回任何内容。
+    print('4) 剪贴板只写不读')
+    read_api = re.compile(r'getClipboardData|readClipboard|Clipboard\.getData|onClipboard')
+    reads = 0
+    writes = 0
+    for ext in ('.js', '.wxml'):
+        for p in walk(ext):
+            if os.sep + 'tools' + os.sep in p:
+                continue
+            with io.open(p, encoding='utf-8', errors='replace') as f:
+                txt = f.read()
+            for m in read_api.finditer(txt):
+                reads += 1
+                line = txt[:m.start()].count('\n') + 1
+                print('   ✗ 读取剪贴板: %s:%d  %s' % (rel(p), line, txt.splitlines()[line - 1].strip()[:80]))
+            writes += txt.count('setClipboardData')
+    bad += reads
+    if reads == 0:
+        print('   无任何剪贴板读取调用 ✓ (写入/复制 %d 处, 属功能所需)' % writes)
+
+    # 5) 资源体积
+    print('5) 体积')
     total = 0
     for base, dirs, files in os.walk(ROOT):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
