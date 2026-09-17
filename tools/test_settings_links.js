@@ -94,8 +94,8 @@ const inst = {
 }
 
 console.log('\n2) 链接数据已注入组件 data')
-check('data.linkShown 存在', Array.isArray(inst.data.linkShown), 'type=' + typeof inst.data.linkShown)
-const groups = inst.data.linkShown || []
+check('data.linkGroups 存在', Array.isArray(inst.data.linkGroups), 'type=' + typeof inst.data.linkGroups)
+const groups = inst.data.linkGroups || []
 const total = groups.reduce((n, g) => n + (g.items ? g.items.length : 0), 0)
 check('分组数 = 2', groups.length === 2, '实际 ' + groups.length)
 check('链接总数 = 20', total === 20, '实际 ' + total)
@@ -106,24 +106,11 @@ check('data.showLinks 初始为 false', inst.data.showLinks === false)
 console.log('\n3) 打开弹窗')
 inst.onOpenLinks()
 check('onOpenLinks → showLinks=true', inst.data.showLinks === true)
-check('onOpenLinks 重置搜索词', inst.data.linkKeyword === '')
-check('onOpenLinks 重置为全量列表', (inst.data.linkShown || []).length === 2)
+check('列表为全量分组(无搜索/过滤)', (inst.data.linkGroups || []).length === 2)
+check('不再存在搜索相关字段', inst.data.linkKeyword === undefined && inst.data.linkShown === undefined)
+check('不再存在搜索相关方法', inst.onLinkSearch === undefined && inst.onLinkClear === undefined)
 
-console.log('\n4) 搜索过滤')
-inst.onLinkSearch({ detail: { value: '四六级' } })
-const hits = (inst.data.linkShown || []).reduce((n, g) => n + g.items.length, 0)
-check('搜索「四六级」命中 3 条', hits === 3, '实际 ' + hits)
-check('搜索词已记录', inst.data.linkKeyword === '四六级')
-inst.onLinkSearch({ detail: { value: 'neea' } })
-const hits2 = (inst.data.linkShown || []).reduce((n, g) => n + g.items.length, 0)
-// cet-bm×2 + cet + cjcx + ncre-bm = 5 条(.neea 域名)
-check('按网址搜索「neea」命中 5 条', hits2 === 5, '实际 ' + hits2)
-inst.onLinkSearch({ detail: { value: 'zzz不存在' } })
-check('无匹配时返回空数组', (inst.data.linkShown || []).length === 0)
-inst.onLinkClear()
-check('清空搜索恢复全量', (inst.data.linkShown || []).length === 2 && inst.data.linkKeyword === '')
-
-console.log('\n5) 点击复制')
+console.log('\n4) 点击复制')
 const first = groups[0].items[0]
 const clipBefore = calls.clipboard.length
 const toastBefore = calls.toast.length
@@ -135,14 +122,14 @@ const clipAfterOk = calls.clipboard.length
 inst.onCopyLink({ currentTarget: { dataset: {} } })
 check('无 url 时安全返回(不复制、不报错)', calls.clipboard.length === clipAfterOk && calls.toast.length === toastBefore)
 
-console.log('\n6) 长按查看')
+console.log('\n5) 长按查看')
 inst.onShowLink({ currentTarget: { dataset: { url: first.url, name: first.name } } })
 const m = calls.modal[calls.modal.length - 1]
 check('长按弹出 modal', !!m)
 check('modal 含完整网址', m && m.content === first.url)
 check('modal 标题为链接名', m && m.title === first.name)
 
-console.log('\n7) 关闭弹窗')
+console.log('\n6) 关闭弹窗')
 inst.onLinksClose()
 check('onLinksClose → showLinks=false', inst.data.showLinks === false)
 

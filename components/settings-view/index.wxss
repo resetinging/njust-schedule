@@ -776,32 +776,6 @@
 /* ============================================================
    常用链接弹窗
    ============================================================ */
-.link-search-row {
-  display: flex;
-  align-items: center;
-  background: #F7F6FB;
-  border-radius: 16rpx;
-  padding: 0 16rpx;
-  margin-bottom: 10rpx;
-}
-
-.link-search {
-  flex: 1;
-  height: 72rpx;
-  font-size: 27rpx;
-  color: #33304F;
-}
-
-.link-search-clear {
-  flex-shrink: 0;
-  width: 44rpx;
-  height: 44rpx;
-  line-height: 44rpx;
-  text-align: center;
-  font-size: 24rpx;
-  color: #8A87A8;
-}
-
 .link-tip {
   font-size: 21rpx;
   color: #8A87A8;

@@ -251,15 +251,10 @@
         <text class="fb-close" bindtap="onLinksClose">✕</text>
       </view>
 
-      <view class="link-search-row">
-        <input class="link-search" placeholder="搜索名称或网址" value="{{linkKeyword}}"
-               bindinput="onLinkSearch" confirm-type="search" />
-        <text class="link-search-clear" wx:if="{{linkKeyword}}" bindtap="onLinkClear">✕</text>
-      </view>
       <view class="link-tip">点击复制链接，在浏览器粘贴打开 · 长按查看完整网址</view>
 
-            <view class="link-list">
-  <block wx:for="{{linkShown}}" wx:key="title" wx:for-item="group">
+      <view class="link-list">
+        <block wx:for="{{linkGroups}}" wx:key="title" wx:for-item="group">
           <view class="link-group-title">{{group.icon}} {{group.title}}（{{group.items.length}}）</view>
           <view class="link-row" wx:for="{{group.items}}" wx:key="url" wx:for-item="item"
                 data-url="{{item.url}}" data-name="{{item.name}}"
@@ -272,9 +267,10 @@
           </view>
         </block>
 
-        <view class="link-empty" wx:if="{{linkShown.length === 0}}">{{linkKeyword ? '没有匹配的链接' : '链接数据加载失败，请重新编译'}}</view>
-            </view>
- <view class="link-foot">共 {{linkTotal}} 个常用链接</view>
+        <view class="link-empty" wx:if="{{linkGroups.length === 0}}">链接数据加载失败，请重新编译</view>
+      </view>
+
+      <view class="link-foot">共 {{linkTotal}} 个常用链接</view>
     </view>
   </view>
 

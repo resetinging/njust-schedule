@@ -74,8 +74,7 @@ Component({
 
     // 常用链接弹窗
     showLinks: false,
-    linkKeyword: '',
-    linkShown: LINK_GROUPS,      // 搜索过滤后的分组
+    linkGroups: LINK_GROUPS,     // 分组链接(静态数据, 无搜索/过滤)
     linkTotal: LINK_TOTAL,
 
     // 版本标识（排查线上版本用）
@@ -423,38 +422,12 @@ Component({
 
     /** 打开常用链接弹窗 */
     onOpenLinks() {
-      this.setData({ showLinks: true, linkKeyword: '', linkShown: LINK_GROUPS })
+      this.setData({ showLinks: true })
     },
 
     /** 关闭常用链接弹窗 */
     onLinksClose() {
       this.setData({ showLinks: false })
-    },
-
-    /** 常用链接搜索(按名称/网址过滤) */
-    onLinkSearch(e) {
-      const kw = ((e.detail && e.detail.value) || '').trim().toLowerCase()
-      if (!kw) {
-        this.setData({ linkKeyword: kw, linkShown: LINK_GROUPS })
-        return
-      }
-      const shown = []
-      for (let i = 0; i < LINK_GROUPS.length; i++) {
-        const g = LINK_GROUPS[i]
-        const items = []
-        for (let j = 0; j < g.items.length; j++) {
-          const it = g.items[j]
-          if (it.name.toLowerCase().indexOf(kw) >= 0 ||
-              it.url.toLowerCase().indexOf(kw) >= 0) items.push(it)
-        }
-        if (items.length) shown.push({ title: g.title, icon: g.icon, items: items })
-      }
-      this.setData({ linkKeyword: kw, linkShown: shown })
-    },
-
-    /** 清空常用链接搜索 */
-    onLinkClear() {
-      this.setData({ linkKeyword: '', linkShown: LINK_GROUPS })
     },
 
     /** 点击链接: 复制到剪贴板(小程序无法直接打开外部网页)
