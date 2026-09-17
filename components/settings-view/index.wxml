@@ -61,6 +61,10 @@
         <text>校历 & 照片墙</text>
         <text class="arrow">›</text>
       </view>
+      <view class="action-item" bindtap="onOpenLinks">
+        <text>常用链接</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="action-item" bindtap="onOpenFeedback">
         <text>问题反馈</text>
         <text class="arrow">›</text>
@@ -234,6 +238,43 @@
       </view>
 
       <button class="btn-primary fb-submit" bindtap="onMyFbClose">关闭</button>
+    </view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!-- 常用链接弹窗(点击复制; 小程序无法直接打开外部网页) -->
+  <!-- ============================================================ -->
+  <view class="fb-mask" wx:if="{{showLinks}}" bindtap="onLinksClose">
+    <view class="fb-card" catchtap="noop">
+      <view class="fb-head">
+        <text class="fb-title">常用链接</text>
+        <text class="fb-close" bindtap="onLinksClose">✕</text>
+      </view>
+
+      <view class="link-search-row">
+        <input class="link-search" placeholder="搜索名称或网址" value="{{linkKeyword}}"
+               bindinput="onLinkSearch" confirm-type="search" />
+        <text class="link-search-clear" wx:if="{{linkKeyword}}" bindtap="onLinkClear">✕</text>
+      </view>
+      <view class="link-tip">点击复制链接，在浏览器粘贴打开 · 长按查看完整网址</view>
+
+            <view class="link-list">
+  <block wx:for="{{linkShown}}" wx:key="title" wx:for-item="group">
+          <view class="link-group-title">{{group.icon}} {{group.title}}（{{group.items.length}}）</view>
+          <view class="link-row" wx:for="{{group.items}}" wx:key="url" wx:for-item="item"
+                data-url="{{item.url}}" data-name="{{item.name}}"
+                bindtap="onCopyLink" bindlongpress="onShowLink">
+            <view class="link-main">
+              <text class="link-name">{{item.name}}</text>
+              <text class="link-url">{{item.url}}</text>
+            </view>
+            <text class="link-act">复制</text>
+          </view>
+        </block>
+
+        <view class="link-empty" wx:if="{{linkShown.length === 0}}">{{linkKeyword ? '没有匹配的链接' : '链接数据加载失败，请重新编译'}}</view>
+            </view>
+ <view class="link-foot">共 {{linkTotal}} 个常用链接</view>
     </view>
   </view>
 

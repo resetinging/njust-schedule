@@ -10,6 +10,16 @@ const config = require('../../utils/config')
 const dataLoader = require('../../utils/data-loader')
 const ann = require('../../utils/announcement')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
+// 常用链接数据源(容错加载: 模块异常时降级为空列表,
+// 避免 require 失败导致整个组件定义抛错、页面全白)
+let linksData = { LINK_GROUPS: [], totalCount: () => 0 }
+try {
+  linksData = require('../../utils/links') || linksData
+} catch (e) {
+  console.error('[常用链接] 数据模块加载失败:', e)
+}
+const LINK_GROUPS = linksData.LINK_GROUPS || []
+const LINK_TOTAL = typeof linksData.totalCount === 'function' ? linksData.totalCount() : 0
 
 // 反馈类型中文名(与后端 suggest/bug/other 对应)
 const FB_TYPES = { suggest: '功能建议', bug: '问题/Bug', other: '其他' }
@@ -61,6 +71,12 @@ Component({
     annExpanded: false,    // 长公告展开全文
     annLong: false,        // 超过折叠阈值(需要"查看全文"提示)
     annIsNew: false,       // 未读新公告(显示"新"标记, 展开查看后消失)
+
+    // 常用链接弹窗
+    showLinks: false,
+    linkKeyword: '',
+    linkShown: LINK_GROUPS,      // 搜索过滤后的分组
+    linkTotal: LINK_TOTAL,
 
     // 版本标识（排查线上版本用）
     build: config.BUILD || '',
@@ -403,6 +419,71 @@ Component({
     /** 打开校历照片墙 */
     onGoGallery() {
       wx.navigateTo({ url: '/pages/gallery/gallery' })
+    },
+
+    /** 打开常用链接弹窗 */
+    onOpenLinks() {
+      this.setData({ showLinks: true, linkKeyword: '', linkShown: LINK_GROUPS })
+    },
+
+    /** 关闭常用链接弹窗 */
+    onLinksClose() {
+      this.setData({ showLinks: false })
+    },
+
+    /** 常用链接搜索(按名称/网址过滤) */
+    onLinkSearch(e) {
+      const kw = ((e.detail && e.detail.value) || '').trim().toLowerCase()
+      if (!kw) {
+        this.setData({ linkKeyword: kw, linkShown: LINK_GROUPS })
+        return
+      }
+      const shown = []
+      for (let i = 0; i < LINK_GROUPS.length; i++) {
+        const g = LINK_GROUPS[i]
+        const items = []
+        for (let j = 0; j < g.items.length; j++) {
+          const it = g.items[j]
+          if (it.name.toLowerCase().indexOf(kw) >= 0 ||
+              it.url.toLowerCase().indexOf(kw) >= 0) items.push(it)
+        }
+        if (items.length) shown.push({ title: g.title, icon: g.icon, items: items })
+      }
+      this.setData({ linkKeyword: kw, linkShown: shown })
+    },
+
+    /** 清空常用链接搜索 */
+    onLinkClear() {
+      this.setData({ linkKeyword: '', linkShown: LINK_GROUPS })
+    },
+
+    /** 点击链接: 复制到剪贴板(小程序无法直接打开外部网页)
+     *  复制成功由系统自带"内容已复制"提示, 不再叠加 toast;
+     *  "去浏览器粘贴打开"的引导常驻在弹窗顶部提示行 */
+    onCopyLink(e) {
+      const url = e.currentTarget.dataset.url
+      if (!url) return
+      wx.setClipboardData({
+        data: url,
+        fail() {
+          wx.showToast({ title: '复制失败，可长按查看完整链接', icon: 'none' })
+        },
+      })
+    },
+
+    /** 长按链接: 弹窗显示完整网址(便于核对/手动复制) */
+    onShowLink(e) {
+      const ds = e.currentTarget.dataset
+      if (!ds.url) return
+      wx.showModal({
+        title: ds.name || '链接',
+        content: ds.url,
+        confirmText: '复制',
+        cancelText: '关闭',
+        success(res) {
+          if (res.confirm) wx.setClipboardData({ data: ds.url })
+        },
+      })
     },
 
     /** 打开问题反馈弹窗 */
