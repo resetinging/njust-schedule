@@ -46,8 +46,10 @@ Page({
   /** 计算 swiper 高度: 视口高 - tabBar 高(约 88rpx) - iOS 底部安全区 - 公告条高(若可见) */
   _calcHeight() {
     try {
-      // getSystemInfoSync 已废弃: 改用 getWindowInfo(视口/安全区), 旧基础库回退
-      const sys = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
+      // 仅取视口/安全区尺寸用于布局。不使用 getSystemInfoSync: 该接口已废弃,
+      // 且属于微信隐私接口清单中的「设备信息」——本项目不采集设备信息,
+      // 详见 docs/privacy-guideline.md(getWindowInfo 只返回窗口尺寸, 不涉及个人信息)
+      const sys = wx.getWindowInfo()
       const ratio = sys.windowWidth / 750
       const tabH = Math.ceil(88 * ratio)
       // iOS 全面屏底部安全区(tabBar 有 env(safe-area-inset-bottom) padding)
