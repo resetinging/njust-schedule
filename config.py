@@ -51,10 +51,9 @@ JW_GRADE_QUERY = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kscj/cjcx_query?Ves632DSdyV=NE
 JW_GRADE_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kscj/cjcx_list"
 JW_CET_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kscj/djkscj_list"
 JW_APP_DO = f"{JW_BASE_9080}{JW_PATH_PREFIX}/app.do"
-# 空教室查询: 全校性教室课表(查询页 + 提交接口 + 教学楼联动接口)
-JW_CLASSROOM_QUERY = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbcx/kbxx_classroom"
-JW_CLASSROOM_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbcx/kbxx_classroom_ifr"
-JW_CLASSROOM_BUILDINGS = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbcx/getJxlByAjax"
+# 空教室查询: 教室借用查询(查询页 + 结果接口)
+JW_BORROW_QUERY = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbxx/jsjy_query"
+JW_BORROW_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbxx/jsjy_query2"
 
 # 空教室"服务账号"(共享抓取): 教室数据全校一致, 由该账号统一查询 + 服务端
 # 缓存, 小程序所有用户共享结果(无需每个用户各自用教务会话抓取)。

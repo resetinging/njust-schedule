@@ -278,143 +278,124 @@ r = client.get("/api/courses", headers=h1)
 assert r.status_code == 401
 print("  [PASS] 退出登录后 token 失效（401）")
 
-print("== 空教室网格解析(离线, 教务结构回归) ==")
+print("== 空教室查询解析(离线, 借用页结构回归) ==")
+
+from wxcloudrun.jwc_client import ClassroomBorrowError  # noqa: E402
 
 
-def _grid_html(day_rows):
-    """构造教室课表网格 HTML(单大节形态): day_rows=[(教室名, 周一..周日占用 bool)]"""
-    head = "<table><tr><td></td>" + \
-        "".join(f"<td>{d}</td>" for d in ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]) + "</tr>"
-    head += "<tr><td>教室\\节次</td>" + "<td>0607</td>" * 7 + "</tr>"
-    body = ""
-    for name, occ in day_rows:
-        cells = [f"<td>{name}</td>"] + \
-            [("<td>课程 教师 (1-3周)</td>" if o else "<td>&nbsp;</td>") for o in occ]
-        body += "<tr>" + "".join(cells) + "</tr>"
-    return head + body + "</table>"
+def _borrow_html(rows):
+    """构造 jsjy_query2 结果页(教务实测形态): form + table#dataList + jsids 行"""
+    trs = ('<tr><th>星期</th><th>星期三</th></tr>'
+           '<tr><td></td><td id="jc2" tdvalue="0607">第三大节</td></tr>')
+    for name in rows:
+        trs += ('<tr><td><input type="checkbox" name="jsids" value="x" /> %s</td>'
+                '<td></td></tr>' % name)
+    return ('<html><body><form action="/njlgdx/jspyfa/selectJx02" id="Form1" '
+            'name="Form1" method="post"><input type="hidden" name="jszt" value="5" />'
+            '<table id="dataList" class="Nsb_table">%s</table>'
+            '</form></body></html>' % trs)
 
 
-_grid = _grid_html([
-    ("Ⅳ-A411", [0, 0, 0, 0, 0, 0, 0]),
-    ("Ⅳ-C201", [1, 0, 0, 0, 0, 0, 0]),
-    ("Ⅳ-B505", [0, 0, 1, 0, 0, 0, 0]),
-    ("Ⅳ-A308", [1, 1, 1, 1, 1, 0, 0]),
-])
-free1 = JWCClient.parse_free_classroom_grid(_grid, 1, "0607")
-assert free1 == ["Ⅳ-A411", "Ⅳ-B505"], free1
-free3 = JWCClient.parse_free_classroom_grid(_grid, 3, "0607")
-assert free3 == ["Ⅳ-A411", "Ⅳ-C201"], free3
-free7 = JWCClient.parse_free_classroom_grid(_grid, 7, "0607")
-assert free7 == ["Ⅳ-A411", "Ⅳ-C201", "Ⅳ-B505", "Ⅳ-A308"], free7
-print("  [PASS] 空教室网格解析(单大节形态, 空格=空闲)")
+_rooms = JWCClient.parse_borrow_free_list(_borrow_html([
+    "Ⅳ-A312(60/0)", "II-101(187/60)", "345-101(40/0)", "江阴致源B331(80/0)",
+    "347-1(150/75)", "99-107(40/40)", "384栋405(100/0)", "线上(1/0)", "其它教室(1/0)",
+]))
+assert _rooms == ["Ⅳ教学楼-A312", "Ⅱ教学楼-101",
+                  "东区平房-101", "致源楼B331"], _rooms
+print("  [PASS] 借用页清单解析: 去容量后缀 + 楼名映射 + 未映射/非实体过滤")
 
-# 全天多列形态: 星期列 colspan=5, 每列一个官方大节码
-_g5 = ["010203", "0405", "0607", "080910", "111213"]
-_head2 = "<tr><td></td>" + "".join(f'<td colspan="5">{d}</td>' for d in ["星期一", "星期二"]) + "</tr>"
-_head2 += "<tr><td>教室\\节次</td>" + "".join(f"<td>{c}</td>" for _ in range(2) for c in _g5) + "</tr>"
-_rows2 = [
-    "<tr><td>Ⅳ-A101</td>" + "<td></td>" * 10 + "</tr>",
-    # Ⅳ-A102 周一第 3 大节(0607)被占: 教室名列后第 3 个格
-    "<tr><td>Ⅳ-A102</td>" + "<td></td>" * 2 + "<td>占</td>" + "<td></td>" * 7 + "</tr>",
-]
-_grid2 = "<table>" + _head2 + "".join(_rows2) + "</table>"
-free_m1 = JWCClient.parse_free_classroom_grid(_grid2, 1, "0607")
-assert free_m1 == ["Ⅳ-A101"], free_m1
-free_t2 = JWCClient.parse_free_classroom_grid(_grid2, 2, "111213")
-assert free_t2 == ["Ⅳ-A101", "Ⅳ-A102"], free_t2
-print("  [PASS] 空教室网格解析(全天多列 colspan 形态)")
+assert JWCClient.parse_borrow_free_list(_borrow_html([])) == []
+print("  [PASS] 借用页空清单(无 jsids 行) = 0 间, 不当作解析失败")
 
-# 时间段范围(expect_code=None): 该星期全部列均空闲才算(任一组被占即排除)
-free_m1_all = JWCClient.parse_free_classroom_grid(_grid2, 1, None)
-assert free_m1_all == ["Ⅳ-A101"], free_m1_all    # A102 周一 0607 列被占 → 排除
-free_t2_all = JWCClient.parse_free_classroom_grid(_grid2, 2, None)
-assert free_t2_all == ["Ⅳ-A101", "Ⅳ-A102"], free_t2_all
-print("  [PASS] 空教室网格解析(时间段范围: 全列空闲才算)")
 
-# 教学楼联动接口解析: 数组 / data 包装 / 空与异常输入
-b1 = JWCClient.parse_classroom_buildings(
-    '[{"dm":"1","dmmc":"Ⅰ教学楼"},{"dm":"GUID","dmmc":"体育中心"}]')
-assert b1 == [{"code": "1", "name": "Ⅰ教学楼"}, {"code": "GUID", "name": "体育中心"}], b1
-b2 = JWCClient.parse_classroom_buildings('{"data":[{"dm":"4y","dmmc":"江阴"}]}')
-assert b2 == [{"code": "4y", "name": "江阴"}], b2
-assert JWCClient.parse_classroom_buildings("not json") == []
-assert JWCClient.parse_classroom_buildings("") == []
-print("  [PASS] 教学楼列表解析(数组/data 包装/异常输入)")
+def _borrow_html_multi(rows):
+    """跨大节响应形态: 每行 = 教室 + N 个状态列(空/"空闲"=空闲, 其他=占用)"""
+    trs = ('<tr><th>星期</th><th>星期三</th></tr>'
+           '<tr><td></td><td>第一大节</td><td>第二大节</td></tr>')
+    for name, marks in rows:
+        trs += ('<tr><td><input type="checkbox" name="jsids" value="x" /> %s</td>%s</tr>'
+                % (name, ''.join('<td>%s</td>' % m for m in marks)))
+    return ('<html><body><form action="/njlgdx/jspyfa/selectJx02" id="Form1" '
+            'name="Form1" method="post"><table id="dataList">%s</table>'
+            '</form></body></html>' % trs)
+
+
+_multi = JWCClient.parse_borrow_free_list(_borrow_html_multi([
+    ("Ⅳ-A101(60/0)", ["", ""]),        # 两个大节都空闲 → 保留
+    ("Ⅳ-A102(60/0)", ["◆", ""]),       # 仅第二大节空闲 → 排除
+    ("Ⅰ-201(60/0)", ["空闲", "空闲"]),   # 字面"空闲" → 保留
+]))
+assert _multi == ["Ⅳ教学楼-A101", "Ⅰ教学楼-201"], _multi
+print("  [PASS] 跨大节时段: 所有大节均空闲才保留(并集响应按交集过滤)")
+
+# 请求契约: get_free_classrooms 按借用页表单字段提交(规则八: 不猜字段名)
+_contract = {}
+_c = JWCClient()
+_c._borrow_page_opts = lambda force=False: {
+    "ts": 0, "sem_vals": ["2026-2027-1"], "cur_sem": "2026-2027-1",
+    "xq_map": {"孝陵卫": "01"}, "action": "/njlgdx/kbxx/jsjy_query2"}
+
+
+class _BorrowResp:
+    url = "http://202.119.81.112:9080/njlgdx/kbxx/jsjy_query2"
+    text = _borrow_html(["345-101(40/0)"])
+
+
+def _fake_post(url, data=None, **kw):
+    _contract["url"] = url
+    _contract["data"] = data
+    return _BorrowResp()
+
+
+_c.session.post = _fake_post
+_c._is_jw_login_page = lambda resp: False
+_rooms2 = _c.get_free_classrooms(campus="孝陵卫", weekday=3, jc1=6, jc2=7,
+                                 week=3, semester="2026-2027-1")
+assert _rooms2.get("rooms") == ["东区平房-101"], _rooms2
+assert _contract["data"] == {
+    "typewhere": "jszq", "xnxqh": "2026-2027-1", "xqbh": "01",
+    "jxqbh": "", "jxlbh": "", "jsbh": "", "bjfh": "=", "rnrs": "",
+    "jszt": "5", "zc": "3", "zc2": "3", "xq": "3", "xq2": "3",
+    "jc": "06", "jc2": "07"}, _contract["data"]
+assert _contract["url"].endswith("/njlgdx/kbxx/jsjy_query2")
+print("  [PASS] 请求契约: 表单字段名/取值/节次补零 与借用页实测一致")
+
+for _name, _bad in [
+    ("空响应", ""),
+    ("错误页", "<html><body>非法访问！</body></html>"),
+    ("只有表格无表单", '<table id="dataList"><tr><td>1</td></tr></table>'),
+]:
+    try:
+        JWCClient.parse_borrow_free_list(_bad)
+        raise AssertionError(f"{_name}: 应抛 ClassroomBorrowError")
+    except ClassroomBorrowError:
+        pass
+print("  [PASS] 借用页结构异常抛 ClassroomBorrowError(不与'没有空闲教室'混淆)")
 
 # 定时预热计划(上下课时刻): 5 个官方大节按时间升序; 下一刷新时刻跨天正确
 from datetime import datetime as _dt  # noqa: E402
-from wxcloudrun.views import freeclass_refresh_plan, _next_freeclass_refresh  # noqa: E402
+from wxcloudrun.views import (  # noqa: E402
+    freeclass_refresh_plan, _next_freeclass_refresh, _freeclass_ttl)
 _plan = freeclass_refresh_plan()
 assert len(_plan) == 5 and _plan[0][1] == "1-3" and _plan[-1][1] == "11-13", _plan
 assert [t for t, _ in _plan] == sorted(t for t, _ in _plan)
-_nxt, _slot = _next_freeclass_refresh(_dt(2026, 9, 1, 8, 30))   # 08:30 → 10:10 第二大节
+_nxt, _slot = _next_freeclass_refresh(_dt(2026, 9, 1, 8, 30))   # 08:30 → 10:10
 assert _nxt.hour == 10 and _nxt.minute == 10 and _slot == "4-5", (_nxt, _slot)
 _nxt2, _slot2 = _next_freeclass_refresh(_dt(2026, 9, 1, 23, 0))  # 23:00 → 次日 08:00
 assert _nxt2.day == 2 and _nxt2.hour == 8 and _slot2 == "1-3", (_nxt2, _slot2)
-print("  [PASS] 空教室定时预热计划(上下课时刻/跨天)")
+# 缓存 TTL: 到下一个大节时刻 + 120s 缓冲(取代固定 120s)
+assert _freeclass_ttl(_dt(2026, 9, 1, 8, 30)) == 100 * 60 + 120
+assert _freeclass_ttl(_dt(2026, 9, 1, 23, 0)) == 9 * 3600 + 120
+print("  [PASS] 预热计划(上下课时刻/跨天) + 缓存 TTL 跟随后端刷新")
 
 # 响应兼容性: 旧版前端依赖 slot_name/slot; 新版用 time_text/jc1/jc2/updated_at
 from wxcloudrun.views import _freeclass_resp  # noqa: E402
-_resp = _freeclass_resp("孝陵卫", 3, 1, 5, 2, "2026-2027-1", {"rooms": ["Ⅳ-A101"], "buildings": []})
+_resp = _freeclass_resp("孝陵卫", 3, 1, 5, 2, "2026-2027-1",
+                        {"rooms": ["东区平房-101"], "buildings": []})
 assert _resp["slot_name"] == _resp["time_text"] == "第1-5节", _resp
 assert "slot" in _resp and "jc1" in _resp and "updated_at" in _resp
-assert _resp["count"] == 1 and _resp["rooms"] == ["Ⅳ-A101"]
+assert _resp["count"] == 1 and _resp["rooms"] == ["东区平房-101"]
 print("  [PASS] 空教室响应兼容字段(slot_name/time_text/jc1/jc2/updated_at)")
-
-# ── 状态码语义 / 结构异常 / 时区(2026-09-19 对教务实测后固化) ──
-from wxcloudrun.jwc_client import ClassroomGridError  # noqa: E402
-
-_DAYS = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
-
-
-def _grid_real_shape(rows, code="0607"):
-    """真实形态网格(取自教务实测原文): <nobr>&nbsp;</nobr>=空闲, 其余文本=占用"""
-    head = ('<table id="kbtable" border="1"><tr><th height="28">&nbsp;</th>'
-            + "".join(f'<th colspan="1">{d}</th>' for d in _DAYS) + "</tr>")
-    head += ("<tr><td>教室\\节次</td>"
-             + "".join(f"<td>{code}</td>" for _ in _DAYS) + "</tr>")
-    body = ""
-    for name, cells in rows:
-        tds = "".join(("<td><nobr>&nbsp;</nobr></td>" if c == ""
-                       else f"<td><nobr>{c}</nobr></td>") for c in cells)
-        body += f"<tr><td><nobr>{name}</nobr></td>{tds}</tr>"
-    return head + body + "</table>"
-
-
-_g_real = _grid_real_shape([
-    ("Ⅳ-A101", [""] * 7),                                    # 全空 → 空闲
-    ("Ⅳ-A102", ["L"] + [""] * 6),                            # 临时调课
-    ("Ⅳ-A103", ["G"] + [""] * 6),                            # 固定调课
-    ("Ⅳ-A104", ["K"] + [""] * 6),                            # 考试
-    ("Ⅳ-A105", ["X"] + [""] * 6),                            # 锁定
-    ("Ⅳ-A106", ["J"] + [""] * 6),                            # 借用
-    ("Ⅳ-A107", ["◆"] + [""] * 6),                            # 正常上课
-    ("Ⅳ-A108", ["空闲"] + [""] * 6),                          # 字面"空闲" → 仍算空闲
-    ("Ⅳ-A109", ["军事理论冯成\n(1-3周)9251108001"] + [""] * 6),  # 课程文本
-])
-_free_real = JWCClient.parse_free_classroom_grid(_g_real, 1)
-assert _free_real == ["Ⅳ-A101", "Ⅳ-A108"], _free_real
-print("  [PASS] 状态码语义: L/G/K/X/J/◆/课程文本 判占用; 空与字面'空闲' 判空闲")
-
-# 结构异常必须抛错 —— 否则接口会以 success + 0 间 掩盖解析失败
-_bad_cases = [
-    ("空响应", ""),
-    ("非课表页", "<html><body>请先登录</body></html>"),
-    ("仅表头", "<table><tr><th>星期一</th></tr></table>"),
-    ("缺星期列", '<table><tr><th>&nbsp;</th><th>星期一</th></tr>'
-                 '<tr><td>教室\\节次</td><td>0607</td></tr>'
-                 '<tr><td><nobr>A101</nobr></td><td><nobr>&nbsp;</nobr></td></tr></table>'),
-    ("无教室行", '<table><tr><th>&nbsp;</th><th>星期一</th></tr>'
-                 '<tr><td>教室\\节次</td><td>0607</td></tr>'
-                 '<tr><td></td><td></td></tr></table>'),
-]
-for _name, _bad in _bad_cases:
-    try:
-        JWCClient.parse_free_classroom_grid(_bad, 3 if _name == "缺星期列" else 1)
-        raise AssertionError(f"{_name}: 应抛 ClassroomGridError")
-    except ClassroomGridError:
-        pass
-print("  [PASS] 结构异常抛 ClassroomGridError(不与'没有空闲教室'混淆)")
 
 # 时区: 教学周按传入日期计算(修复前用 date.today(), 容器 UTC 时会偏一天)
 from wxcloudrun.views import (  # noqa: E402

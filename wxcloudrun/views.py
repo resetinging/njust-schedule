@@ -1241,6 +1241,19 @@ def _next_freeclass_refresh(now=None):
     return _dt.combine(now.date(), t0) + timedelta(days=1), freeclass_refresh_plan(now)[0][1]
 
 
+def _freeclass_ttl(now=None) -> float:
+    """空教室缓存有效期: 到下一个大节上课时刻 + 120s 缓冲。
+
+    数据由后端预热线程在每天各大节上课时刻统一更新(今天+明天),
+    用户请求命中缓存即可; 未命中(冷启动/周末等)按需抓取后同样缓存到
+    下一个刷新时刻, 取代原先的 120s 短 TTL。
+    """
+    from datetime import datetime as _dt
+    now = now or _dt.now()
+    nxt, _slot = _next_freeclass_refresh(now)
+    return max(120.0, (nxt - now).total_seconds() + 120.0)
+
+
 def _prewarm_targets(fwd: str, today=None):
     """预热目标: [(日期, 星期, 周次)...] —— 今天 + 明天, 周次各自按**所属周**计算。
 
@@ -1280,7 +1293,7 @@ def _prewarm_free_classrooms(slots=None):
                                        semester, result)
                 cache_key = _freeclass_cache_key(campus, weekday, jc1, jc2,
                                                  week, semester)
-                _cache_set(cache_key, resp, ttl=120)
+                _cache_set(cache_key, resp, ttl=_freeclass_ttl())
                 ok_n += 1
                 app.logger.info("[freeclass][prewarm] %s 周%s 星期%s %s 空闲 %d 间",
                                 campus, week, weekday, slot, resp["count"])
@@ -1321,8 +1334,9 @@ def api_free_classrooms():
     + 节次范围(jc1/jc2, 1-13; 兼容旧版 slot=1-3/4-5/6-7/8-10/11-13)
     + week(周次) + building(教学楼名称, 可选)
 
-    服务端用当前登录会话提交教务教室课表查询并解析空格(时间段跨多个
-    大节时全部大节空闲才算空闲); 结果缓存 30s, 防止频繁查询打爆教务。
+    服务端用共享服务账号查询教务「教室借用」页(教室状态=空闲), 只保留
+    有楼名映射的教室; 结果缓存到下一个大节刷新时刻(预热线程在每天各大节
+    上课时统一更新今天+明天), 防止频繁查询打爆教务。
     """
     client, err = _require_login()
     if err:
@@ -1381,10 +1395,11 @@ def api_free_classrooms():
         if "解析失败" in (svc_err or ""):
             # 结构性失败(教务页面变化/返回异常页): 换会话重试结果一样,
             # 直接返回错误 —— 绝不能退化成 success + 0 间("该时段没有空闲教室")
+            # 对外固定文案, 解析细节只写日志(不暴露页面结构信息)
             app.logger.warning("[freeclass] rid=%s 解析失败, 直接返回错误: %s",
                                _rid(), svc_err)
             return jsonify({"success": False,
-                            "message": svc_err or "教室课表解析失败，请稍后重试"}), 502
+                            "message": "教室数据暂时获取失败，请稍后重试"}), 502
         # 服务账号不可用 → 回退到当前用户自己的教务会话(兼容兜底)
         app.logger.warning("[freeclass] rid=%s 服务账号失败(%s), 回退用户会话 sid=%s",
                            _rid(), svc_err, sid)
@@ -1400,14 +1415,20 @@ def api_free_classrooms():
             if "教学楼不存在" in (client.last_error or ""):
                 return jsonify({"success": False,
                                 "message": client.last_error}), 400
+            if "解析失败" in (client.last_error or ""):
+                # 用户会话兜底路径同样返回固定文案(细节只进日志)
+                app.logger.warning("[freeclass] rid=%s 兜底会话解析失败: %s",
+                                   _rid(), client.last_error)
+                return jsonify({"success": False,
+                                "message": "教室数据暂时获取失败，请稍后重试"}), 502
             return retry_err
         result = result if isinstance(result, dict) else {}
     now = int(time.time())
     resp = _freeclass_resp(campus, weekday, jc1, jc2, week, semester,
                            result, updated_at=now)
-    # 全局数据: 缓存 120s(所有用户共享, 教务请求大幅降低;
-    # 另有定时预热在上下课时刻刷新当天缓存)
-    _cache_set(cache_key, resp, ttl=120)
+    # 全局数据: 缓存到下一个大节刷新时刻(所有用户共享, 教务请求大幅降低;
+    # 另有定时预热在上下课时刻刷新今天+明天的缓存)
+    _cache_set(cache_key, resp, ttl=_freeclass_ttl())
     app.logger.info("[freeclass] rid=%s sid=%s %s%s 周%s 星期%s 第%d-%d节 空闲 %d 间",
                     _rid(), sid, campus,
                     f"/{resp['building']}" if resp["building"] else "",

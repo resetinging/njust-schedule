@@ -51,7 +51,7 @@ debug_*.json
 # Python ç‰ˆæœ¬
 .python-version
 
-# ±¾µØÑéÖ¤¹¤¾ß(uv ÓëÍĞ¹Ü Python)
+# æœ¬åœ°éªŒè¯å·¥å…·(uv ä¸æ‰˜ç®¡ Python)
 .uvbin/
 
 
@@ -59,6 +59,11 @@ debug_*.json
 .miniapp/
 
 
-# ¿Õ½ÌÊÒÈ¡Êı²úÎï(±¾µØÉú³É, º¬½ÌÎñÔ­Ê¼·µ»Ø, ²»Èë¿â)
+# ç©ºæ•™å®¤å–æ•°äº§ç‰©(æœ¬åœ°ç”Ÿæˆ, å«æ•™åŠ¡åŸå§‹è¿”å›, ä¸å…¥åº“)
 tests/_classroom_grid_sample.html
 tests/_freeclass_probe.txt
+tests/_borrow_probe.txt
+tests/_borrow_page_*.html
+tests/_borrow_result_*.html
+tests/_borrow_jxl.json
+tests/_borrow_rooms.json
