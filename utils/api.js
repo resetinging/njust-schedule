@@ -306,8 +306,9 @@ function getAnnouncement() {
 /**
  * 空教室查询(需登录)
  * @param {object} opts { campus: '孝陵卫'|'江阴', weekday: 1-7(周一=1),
- *   jc1/jc2: 节次范围起止(1-13), week: 周次 }
- * weekday/week 省略时由后端取默认(今天/本周)
+ *   jc1/jc2: 节次范围起止(1-13), week: 周次, semester: 学年学期(可选) }
+ * weekday/week 省略时由后端取默认(今天/本周);
+ * semester 传入时后端仅在教务学期选项里存在时采用, 否则回退教务当前学期
  */
 function getFreeClassrooms(opts) {
   const o = opts || {}
@@ -317,6 +318,7 @@ function getFreeClassrooms(opts) {
   if (o.jc1) params.jc1 = o.jc1
   if (o.jc2) params.jc2 = o.jc2
   if (o.week) params.week = o.week
+  if (o.semester) params.semester = o.semester
   return request('GET', '/api/free-classrooms', params)
 }
 

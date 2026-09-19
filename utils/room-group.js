@@ -28,13 +28,16 @@ function roomPrefix(room) {
  * 尽力把前缀映射成教学楼显示名
  * - 罗马数字前缀 → 匹配 "X教学楼"(忽略 教学楼/楼 后缀, 归一罗马数字)
  * - 汉字前缀(江阴致知B) → 剥离校区词后与楼名匹配
+ * 注意: 后端 buildings 实测为 [{code,name}] 对象数组(同时兼容字符串数组)
  */
 function buildingLabel(prefix, buildings) {
   const list = buildings || []
   if (!prefix || !list.length) return ''
   const p = normRoman(prefix)
   const isRoman = /^[IVX]+$/i.test(p)
-  for (const b of list) {
+  for (const item of list) {
+    const b = (item && typeof item === 'object') ? String(item.name || '') : String(item || '')
+    if (!b) continue
     if (b === prefix) return b
     const bn = normRoman(b).replace(/教学楼|楼/g, '')
     if (!bn) continue

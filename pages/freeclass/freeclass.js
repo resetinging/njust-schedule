@@ -32,8 +32,23 @@ const CACHE_KEY = 'freeclass_cache'
 const CACHE_MAX_ITEMS = 20
 const NO_REQUEST_AGE = 60 * 1000     // 缓存 60s 内: 直接展示不再请求
 
+/**
+ * 缓存键: 请求条件(含学期 —— 跨学期若不区分, 首屏会先闪一次旧学期数据)
+ * weekday/week 用 0 表示"今天/本周"(未指定, 由后端推算)
+ */
 function cacheKeyOf(params) {
-  return [params.campus, params.weekday || 0, params.week || 0, params.jc1, params.jc2].join('|')
+  return [params.campus, params.weekday || 0, params.week || 0, params.jc1, params.jc2,
+    params.semester || ''].join('|')
+}
+
+/**
+ * 响应里后端已把"今天/本周"解析成具体星期/周次 → 用实际条件再算一个键。
+ * 这样"今天"与"显式选同一星期"能共用同一份缓存, 不再重复请求。
+ */
+function resolvedKeyOf(res) {
+  if (!res || !res.campus) return ''
+  return [res.campus, res.weekday || 0, res.week || 0, res.jc1, res.jc2,
+    res.semester || ''].join('|')
 }
 
 function readCache(key) {
@@ -159,11 +174,14 @@ Page({
     const params = {
       campus: d.campusList[d.campusIndex],
       jc1: s.j1,
-      jc2: e.j2
+      jc2: e.j2,
+      semester: storage.getSemester() || ''
     }
     if (d.weekdayIndex > 0) params.weekday = d.weekdayIndex
     if (d.weekIndex > 0) params.week = d.weekIndex
     const key = cacheKeyOf(params)
+    // 竞态保护: 快速切换筛选时会并发多个请求, 只认最后一次的结果
+    const seq = (this._seq = (this._seq || 0) + 1)
 
     // ── 1) 命中本地缓存: 立即渲染, 秒开 ──
     const hit = readCache(key)
@@ -192,6 +210,7 @@ Page({
     // ── 2) 请求最新数据(成功后覆盖缓存与界面) ──
     return api.getFreeClassrooms(params)
       .then(res => {
+        if (seq !== this._seq) return          // 已有更新的查询: 丢弃过期响应
         if (!res || !res.success) {
           if (fromCache) {
             // 网络失败: 保留缓存展示, 标注离线(附服务端更新时间)
@@ -212,10 +231,14 @@ Page({
           return
         }
         writeCache(key, res)
+        // 同时按"后端解析后的实际条件"存一份(今天/本周 → 具体星期/周次), 便于复用
+        const rk = resolvedKeyOf(res)
+        if (rk && rk !== key) writeCache(rk, res)
         this._applyResult(res)
         this.setData({ loading: false, cacheNote: '' })
       })
       .catch(() => {
+        if (seq !== this._seq) return          // 过期请求的失败同样忽略
         if (fromCache) {
           const srvTime = (hit.data && hit.data.updated_at)
             ? fmtTime(hit.data.updated_at * 1000) : ''
