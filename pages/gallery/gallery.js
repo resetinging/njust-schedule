@@ -2,7 +2,8 @@
  * 校历 & 照片墙页面
  * 缓存策略: 图片下载后保存到本地文件(USER_DATA_PATH);
  * 渲染时优先检索本地文件 → 秒开零等待;
- * 同时后台静默检查服务器列表, 补齐缺失图片(新图/失败重试自动生效)。
+ * 同时后台静默检查服务器列表, 补齐缺失图片(新图/失败重试自动生效),
+ * 并清理服务器已下架的图片(如被替换掉的旧地图)。
  */
 
 const api = require('../../utils/api')
@@ -152,10 +153,23 @@ Page({
         return
       }
 
-      const have = new Set(local.map(i => i.name))
       const serverNames = res.images.slice().sort()
+      const serverSet = new Set(serverNames)
+      // 服务器已下架(例如被替换掉的旧地图): 删除本地缓存文件并从列表移除,
+      // 否则已经下载过旧图的手机会一直显示残留旧图
+      const stale = local.filter(i => !serverSet.has(i.name))
+      if (stale.length > 0) {
+        stale.forEach(i => {
+          try { fs.unlinkSync(i.src) } catch (e) { /* 文件已不存在则忽略 */ }
+        })
+      }
+      const kept = local.filter(i => serverSet.has(i.name))
+      const have = new Set(kept.map(i => i.name))
       const need = serverNames.filter(n => !have.has(n))
-      const images = local.slice()
+      const images = kept.slice()
+      if (stale.length > 0) {
+        this.setData({ images: images.slice() })
+      }
 
       if (need.length > 0) {
         this.setData({ downloadMsg: `正在下载图片 (0/${need.length})…`, downloadPercent: 0 })
