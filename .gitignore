@@ -58,3 +58,7 @@ debug_*.json
 # å°ç¨‹åºåˆ†æ”¯ worktree(ç‹¬ç«‹ git ä»“åº“, å‹¿çº³å…¥ server æäº¤)
 .miniapp/
 
+
+# ¿Õ½ÌÊÒÈ¡Êı²úÎï(±¾µØÉú³É, º¬½ÌÎñÔ­Ê¼·µ»Ø, ²»Èë¿â)
+tests/_classroom_grid_sample.html
+tests/_freeclass_probe.txt

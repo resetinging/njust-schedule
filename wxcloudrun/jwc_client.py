@@ -18,6 +18,14 @@ from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 
 
+class ClassroomGridError(Exception):
+    """教室课表网格结构异常。
+
+    必须与"确实没有空闲教室"区分开: 结构异常时不能返回空列表, 否则接口会以
+    success/True + count=0 的形式把"解析失败"伪装成"该时段没有空闲教室"。
+    """
+
+
 class _DedupCookieJar(RequestsCookieJar):
     """自定义 CookieJar：遇到重复 cookie 时保留最后一个，不抛异常。
     NJUST 教务系统会返回多个同名 JSESSIONID，导致默认 jar 崩溃。"""
@@ -2490,10 +2498,21 @@ class JWCClient:
             if self._is_jw_login_page(resp):
                 self.last_error = "登录已过期，请重新登录"
                 return []
-            rooms = self.parse_free_classroom_grid(resp.text, weekday)
-            logger.info("[教室课表] %s%s 周%s 星期%s 第%d-%d节 空闲教室 %d 间",
+            try:
+                rooms = self.parse_free_classroom_grid(resp.text, weekday)
+            except ClassroomGridError as e:
+                # 结构异常 → 明确失败, 绝不退化成"0 间空闲"
+                self.last_error = "教室课表解析失败: %s" % e
+                logger.warning("[教室课表] 解析失败 %s%s xqid=%s xnxqh=%s 周%s 星期%s "
+                               "第%d-%d节: %s(%d 字节)",
+                               campus, f"/{building_name}" if building_name else "",
+                               xqid, xnxqh, week, weekday, a, b, e, len(resp.text))
+                return []
+            logger.info("[教室课表] %s%s xqid=%s xnxqh=%s 周%s 星期%s 第%d-%d节 "
+                        "教室行 %d 空闲 %d 间",
                         campus, f"/{building_name}" if building_name else "",
-                        week, weekday, a, b, len(rooms))
+                        xqid, xnxqh, week, weekday, a, b,
+                        len(rooms), len(rooms))
             return {
                 "rooms": rooms,
                 "jc1": a,
@@ -2506,36 +2525,54 @@ class JWCClient:
             self.last_error = f"教室课表查询失败: {e}"
             return []
 
+    # ── 教室课表网格判定(2026-09 实测 孝陵卫/第3周) ──
+    # 空闲格渲染为 <nobr>&nbsp;</nobr> → get_text(strip=True) == ""；
+    # 占用格为"课程名\n(周次)班级"。实测未出现任何状态码字面量。
+    # 教务「教室借用」页的状态码 L临时调课/G固定调课/K考试/X锁定/J借用/◆正常上课
+    # 若将来出现在本网格里, "非空即占用"天然覆盖; 另外对"短文本"告警, 便于发现
+    # 教务新增的标记形态(不阻断, 因为短课程名也存在)。
+    FREE_CELL_TEXTS = ("", "空闲", "空")
+    STATUS_MARKER_TEXTS = ("L", "G", "K", "X", "J", "◆", "●", "○",
+                           "临时调课", "固定调课", "考试", "锁定", "借用", "正常上课")
+
     @staticmethod
     def parse_free_classroom_grid(html: str, weekday: int, expect_code: str = None) -> list:
         """解析"全校性教室课表"返回网格 → 目标星期无排课的教室名列表。
 
         网格结构: 首行星期名(带 colspan, 按星期分列), 次行每列的大节码
         (010203/0405/0607/080910/111213), 之后每行 = 一间教室 + 星期×大节格。
-        空格(无文本) = 该时段空闲。
+        空闲格为空白/&nbsp;(实测), 非空一律视为占用。
         expect_code: 仅核对指定大节列(单大节查询); None 时核对该星期返回的
-        全部列(时间段查询, 服务端按 [jc1,jc2] 选中全部命中的大节)。
-        结构异常时返回 []。
+        全部列(时间段查询, 服务端按 [jc1,jc2] 选中全部命中的大节 —— 已实测确认)。
+
+        结构异常时抛 ClassroomGridError 而**不是**返回 [] —— 否则调用方无法区分
+        "解析失败"与"确实没有空闲教室", 接口会以 success/0 间 的形式掩盖故障。
         """
-        soup = BeautifulSoup(html or "", "lxml")
+        try:
+            soup = BeautifulSoup(html or "", "lxml")
+        except Exception as e:                                  # 极端输入
+            raise ClassroomGridError("课表 HTML 无法解析: %s" % e)
         tb = soup.find("table")
         if tb is None:
-            return []
+            raise ClassroomGridError("未找到课表表格(可能返回了错误页或登录页)")
         rows = tb.find_all("tr")
         if len(rows) < 3:
-            return []
+            raise ClassroomGridError("课表行数不足(%d 行)" % len(rows))
         day_cells = rows[0].find_all(["td", "th"])     # 星期头(可能 colspan)
         grp_cells = rows[1].find_all(["td", "th"])     # 大节码行
         # 星期 → 次行列区间(次行第 0 列为"教室\节次"角标)
         col = 1
         day_cols = {}
         for dc in day_cells[1:]:
-            span = int(dc.get("colspan") or 1)
+            try:
+                span = int(dc.get("colspan") or 1)
+            except ValueError:
+                span = 1
             day_cols[len(day_cols) + 1] = list(range(col, col + span))
             col += span
         idxs = day_cols.get(weekday, [])
         if not idxs:
-            return []
+            raise ClassroomGridError("课表中没有星期%d 的列(表头结构可能变化)" % weekday)
         codes = ["".join(c.get_text(strip=True).split()) for c in grp_cells]
         if expect_code is None:
             # 时间段: 该星期下所有返回列均须空闲
@@ -2546,8 +2583,12 @@ class JWCClient:
             if not target and len(idxs) == 1:
                 target = idxs   # 结构兜底: 该星期单列
         if not target:
-            return []
+            raise ClassroomGridError("目标大节列缺失(列头码 %s)" % codes[1:])
+
         free = []
+        room_rows = 0
+        marker_hits = {}
+        short_texts = {}
         for tr in rows[2:]:
             cells = tr.find_all(["td", "th"])
             if not cells:
@@ -2555,11 +2596,28 @@ class JWCClient:
             name = cells[0].get_text(strip=True)
             if not name:
                 continue
-            occupied = any(
-                i < len(cells) and cells[i].get_text(strip=True)
-                for i in target)
+            room_rows += 1
+            occupied = False
+            for i in target:
+                if i >= len(cells):
+                    continue
+                text = cells[i].get_text(strip=True)
+                if text in JWCClient.FREE_CELL_TEXTS:
+                    continue
+                occupied = True
+                if text in JWCClient.STATUS_MARKER_TEXTS:
+                    marker_hits[text] = marker_hits.get(text, 0) + 1
+                elif len(text) <= 2:
+                    short_texts[text] = short_texts.get(text, 0) + 1
             if not occupied:
                 free.append(name)
+        if room_rows == 0:
+            raise ClassroomGridError("课表没有教室行(可能查询条件无数据或页面结构变化)")
+        if marker_hits:
+            logger.info("[教室课表] 网格出现状态码: %s(按占用处理)", marker_hits)
+        if short_texts:
+            logger.warning("[教室课表] 网格出现未识别的短文本 %s(按占用处理; "
+                           "若为新的空闲标记, 请补进 FREE_CELL_TEXTS)", short_texts)
         return free
 
     def logout(self):

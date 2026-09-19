@@ -361,6 +361,76 @@ assert "slot" in _resp and "jc1" in _resp and "updated_at" in _resp
 assert _resp["count"] == 1 and _resp["rooms"] == ["Ⅳ-A101"]
 print("  [PASS] 空教室响应兼容字段(slot_name/time_text/jc1/jc2/updated_at)")
 
+# ── 状态码语义 / 结构异常 / 时区(2026-09-19 对教务实测后固化) ──
+from wxcloudrun.jwc_client import ClassroomGridError  # noqa: E402
+
+_DAYS = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+
+
+def _grid_real_shape(rows, code="0607"):
+    """真实形态网格(取自教务实测原文): <nobr>&nbsp;</nobr>=空闲, 其余文本=占用"""
+    head = ('<table id="kbtable" border="1"><tr><th height="28">&nbsp;</th>'
+            + "".join(f'<th colspan="1">{d}</th>' for d in _DAYS) + "</tr>")
+    head += ("<tr><td>教室\\节次</td>"
+             + "".join(f"<td>{code}</td>" for _ in _DAYS) + "</tr>")
+    body = ""
+    for name, cells in rows:
+        tds = "".join(("<td><nobr>&nbsp;</nobr></td>" if c == ""
+                       else f"<td><nobr>{c}</nobr></td>") for c in cells)
+        body += f"<tr><td><nobr>{name}</nobr></td>{tds}</tr>"
+    return head + body + "</table>"
+
+
+_g_real = _grid_real_shape([
+    ("Ⅳ-A101", [""] * 7),                                    # 全空 → 空闲
+    ("Ⅳ-A102", ["L"] + [""] * 6),                            # 临时调课
+    ("Ⅳ-A103", ["G"] + [""] * 6),                            # 固定调课
+    ("Ⅳ-A104", ["K"] + [""] * 6),                            # 考试
+    ("Ⅳ-A105", ["X"] + [""] * 6),                            # 锁定
+    ("Ⅳ-A106", ["J"] + [""] * 6),                            # 借用
+    ("Ⅳ-A107", ["◆"] + [""] * 6),                            # 正常上课
+    ("Ⅳ-A108", ["空闲"] + [""] * 6),                          # 字面"空闲" → 仍算空闲
+    ("Ⅳ-A109", ["军事理论冯成\n(1-3周)9251108001"] + [""] * 6),  # 课程文本
+])
+_free_real = JWCClient.parse_free_classroom_grid(_g_real, 1)
+assert _free_real == ["Ⅳ-A101", "Ⅳ-A108"], _free_real
+print("  [PASS] 状态码语义: L/G/K/X/J/◆/课程文本 判占用; 空与字面'空闲' 判空闲")
+
+# 结构异常必须抛错 —— 否则接口会以 success + 0 间 掩盖解析失败
+_bad_cases = [
+    ("空响应", ""),
+    ("非课表页", "<html><body>请先登录</body></html>"),
+    ("仅表头", "<table><tr><th>星期一</th></tr></table>"),
+    ("缺星期列", '<table><tr><th>&nbsp;</th><th>星期一</th></tr>'
+                 '<tr><td>教室\\节次</td><td>0607</td></tr>'
+                 '<tr><td><nobr>A101</nobr></td><td><nobr>&nbsp;</nobr></td></tr></table>'),
+    ("无教室行", '<table><tr><th>&nbsp;</th><th>星期一</th></tr>'
+                 '<tr><td>教室\\节次</td><td>0607</td></tr>'
+                 '<tr><td></td><td></td></tr></table>'),
+]
+for _name, _bad in _bad_cases:
+    try:
+        JWCClient.parse_free_classroom_grid(_bad, 3 if _name == "缺星期列" else 1)
+        raise AssertionError(f"{_name}: 应抛 ClassroomGridError")
+    except ClassroomGridError:
+        pass
+print("  [PASS] 结构异常抛 ClassroomGridError(不与'没有空闲教室'混淆)")
+
+# 时区: 教学周按传入日期计算(修复前用 date.today(), 容器 UTC 时会偏一天)
+from wxcloudrun.views import (  # noqa: E402
+    _beijing_date, _current_teaching_week, _prewarm_targets)
+from datetime import date as _d  # noqa: E402
+
+assert _current_teaching_week("2026-09-07", on=_d(2026, 9, 7)) == 1
+assert _current_teaching_week("2026-09-07", on=_d(2026, 9, 13)) == 1     # 周日仍属第1周
+assert _current_teaching_week("2026-09-07", on=_d(2026, 9, 14)) == 2     # 周一进入第2周
+assert _current_teaching_week("", on=_d(2026, 9, 14)) == 1               # 无设置回退 1
+assert isinstance(_beijing_date(), _d)
+# 预热跨周: 周日预热的"明天(周一)"必须用第2周, 否则周一早上命中不了缓存
+_tg = [(x[1], x[2]) for x in _prewarm_targets("2026-09-07", today=_d(2026, 9, 13))]
+assert _tg == [(7, 1), (1, 2)], _tg
+print("  [PASS] 时区: 教学周按给定日期算 + 预热跨周取下一周周次")
+
 print("== 管理端仪表盘与反馈(留言板已下线) ==")
 import time as _time  # noqa: E402
 from wxcloudrun import admin as admin_mod  # noqa: E402

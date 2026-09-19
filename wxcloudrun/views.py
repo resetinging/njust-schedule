@@ -289,6 +289,13 @@ def _beijing_now() -> str:
     return now.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _beijing_date():
+    """北京时间"今天"（容器时区可能为 UTC: 直接用 date.today() 会在
+    北京时间 00:00-08:00 期间偏成前一天, 进而把"今天/本周"算错）"""
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=8))).date()
+
+
 EVAL_HEADERS = {
     "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
     "Host": "202.119.81.112:9080",
@@ -1091,12 +1098,14 @@ WEEKDAY_NAMES = ("", "星期一", "星期二", "星期三", "星期四", "星期
 JC_MIN, JC_MAX = 1, 13   # 一天最多 13 节(官方大节 1-3/4-5/6-7/8-10/11-13)
 
 
-def _current_teaching_week(first_week_date: str) -> int:
-    """按学期第一周周一计算当前教学周(1-25); 无设置/解析失败回退 1"""
+def _current_teaching_week(first_week_date: str, on=None) -> int:
+    """按学期第一周周一计算教学周(1-25); on 默认北京时间今天; 无设置/解析失败回退 1"""
     try:
         from datetime import date
+        if on is None:
+            on = _beijing_date()
         y, m, d = (int(x) for x in str(first_week_date).split("-")[:3])
-        days = (date.today() - date(y, m, d)).days
+        days = (on - date(y, m, d)).days
         w = days // 7 + 1
         return w if 1 <= w <= 25 else 1
     except Exception:
@@ -1232,21 +1241,32 @@ def _next_freeclass_refresh(now=None):
     return _dt.combine(now.date(), t0) + timedelta(days=1), freeclass_refresh_plan(now)[0][1]
 
 
+def _prewarm_targets(fwd: str, today=None):
+    """预热目标: [(日期, 星期, 周次)...] —— 今天 + 明天, 周次各自按**所属周**计算。
+
+    明天可能跨周(周日→周一): 若沿用"本周"周次, 预热出的缓存键与用户端算出的
+    周次不一致, 周一早上就命中不了缓存。
+    """
+    from datetime import timedelta as _td
+    base = today or _beijing_date()
+    out = []
+    for offset in (0, 1):
+        day = base + _td(days=offset)
+        out.append((day, day.isoweekday(), _current_teaching_week(fwd, on=day)))
+    return out
+
+
 def _prewarm_free_classrooms(slots=None):
-    """预热指定大节(默认全部)在"今天/明天 + 本周"的缓存; 返回成功条数。
+    """预热指定大节(默认全部)在"今天/明天 + 各自周次"的缓存; 返回成功条数。
 
     同时预热明天: 晚上/周日"查明天教室"是高频场景, 命中率翻倍。
     需在 app 上下文中调用(内部读 first_week_date 等设置)。
     """
-    from datetime import date as _date
-    today = _date.today()
-    weekdays = (today.isoweekday(), today.isoweekday() % 7 + 1)  # 今天 + 明天
     semester = _current_semester()
     fwd = dao.get_setting("first_week_date", "")
-    week = _current_teaching_week(fwd)
     slot_keys = slots or [s[0] for s in CLASSROOM_SLOTS]
     ok_n = 0
-    for weekday in weekdays:
+    for _day, weekday, week in _prewarm_targets(fwd):
         for campus in FREE_CLASSROOM_CAMPUSES:
             for slot in slot_keys:
                 jc1, jc2 = FREE_CLASSROOM_SLOT_JC.get(slot, (6, 7))
@@ -1342,8 +1362,7 @@ def api_free_classrooms():
     semester = (request.args.get("semester") or "").strip() or \
         dao.get_user_setting(sid, "semester") or _current_semester()
     if weekday == 0:
-        from datetime import date
-        weekday = date.today().isoweekday()   # 默认今天(周一=1)
+        weekday = _beijing_date().isoweekday()   # 默认今天(周一=1); 按北京时间取, 避免容器 UTC 偏差
     if week < 1:
         # 当前教学周: 学期设置优先, 回退全局(与设置页口径一致)
         fwd = dao.get_setting(f"{sid}:first_week_date:{semester}", "") \
@@ -1359,6 +1378,13 @@ def api_free_classrooms():
     result, svc_err = _service_free_classrooms(
         campus, weekday, jc1, jc2, week, semester, building)
     if result is None:
+        if "解析失败" in (svc_err or ""):
+            # 结构性失败(教务页面变化/返回异常页): 换会话重试结果一样,
+            # 直接返回错误 —— 绝不能退化成 success + 0 间("该时段没有空闲教室")
+            app.logger.warning("[freeclass] rid=%s 解析失败, 直接返回错误: %s",
+                               _rid(), svc_err)
+            return jsonify({"success": False,
+                            "message": svc_err or "教室课表解析失败，请稍后重试"}), 502
         # 服务账号不可用 → 回退到当前用户自己的教务会话(兼容兜底)
         app.logger.warning("[freeclass] rid=%s 服务账号失败(%s), 回退用户会话 sid=%s",
                            _rid(), svc_err, sid)
