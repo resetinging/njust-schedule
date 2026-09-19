@@ -73,6 +73,10 @@ function deferred() {
   })
 
   console.log('加载页面: ' + path.join(ROOT, 'pages/freeclass/freeclass.js') + '\n')
+  check('周次列表覆盖教务借用页 1-30 周', () => {
+    assert.strictEqual(inst.data.weekList.length, 31, JSON.stringify(inst.data.weekList.length))
+    assert.ok(inst.data.weekList.indexOf('第30周') >= 0)
+  })
   console.log('1) 请求竞态: 慢响应不得覆盖新结果')
   const dA = deferred()
   nextDeferred = dA
@@ -83,12 +87,12 @@ function deferred() {
   const pB = inst.search()                       // B: 星期三/第5周/第1-3节
   dB.resolve({ success: true, campus: '孝陵卫', weekday: 3, week: 5, jc1: 1, jc2: 3,
     weekday_name: '星期三', time_text: '第1-3节', count: 2,
-    rooms: ['Ⅳ-B201', 'Ⅳ-B202'], buildings: [{ code: 'x', name: 'Ⅳ教学楼' }],
+    rooms: ['Ⅳ教学楼-B201', 'Ⅳ教学楼-B202'], buildings: [],
     semester: '2026-2027-1', updated_at: 111 })
   await pB
   dA.resolve({ success: true, campus: '孝陵卫', weekday: 6, week: 3, jc1: 1, jc2: 3,
     weekday_name: '星期六', time_text: '第1-3节', count: 99,
-    rooms: ['Ⅳ-A101'], buildings: [], semester: '2026-2027-1', updated_at: 222 })
+    rooms: ['Ⅳ教学楼-A101'], buildings: [], semester: '2026-2027-1', updated_at: 222 })
   await pA
   check('过期响应被丢弃(仍是星期三的结果)', () => {
     assert.strictEqual(inst.data.result.count, 2)
@@ -99,7 +103,11 @@ function deferred() {
   })
 
   console.log('\n2) 缓存键: 含学期 + 解析后条件各存一份')
-  const box = JSON.parse(store.get('freeclass_cache') || '{}')
+  check('结果按楼名前缀分组(后端已映射楼名)', () => {
+    const g = inst.data.groups.find(x => x.prefix === 'Ⅳ教学楼')
+    assert.ok(g && g.label === 'Ⅳ教学楼' && g.rooms.length === 2, JSON.stringify(inst.data.groups))
+  })
+  const box = JSON.parse(store.get('freeclass_cache_v2') || '{}')
   const keys = Object.keys(box.items || {})
   check('键含学期', () => {
     assert.ok(keys.length > 0 && keys.every(k => k.indexOf('2026-2027-1') >= 0), JSON.stringify(keys))
@@ -118,9 +126,13 @@ function deferred() {
   const pC = inst.search()
   dC.resolve({ success: true, campus: '孝陵卫', weekday: 6, week: 3, jc1: 1, jc2: 3,
     weekday_name: '星期六', time_text: '第1-3节', count: 7,
-    rooms: ['Ⅳ-C101'], buildings: [], semester: '2026-2027-1', updated_at: 333 })
+    rooms: ['东区平房-101'], buildings: [], semester: '2026-2027-1', updated_at: 333 })
   await pC
-  const box2 = JSON.parse(store.get('freeclass_cache') || '{}')
+  check('映射楼名(东区平房-101)分组正确', () => {
+    const g = inst.data.groups.find(x => x.prefix === '东区平房')
+    assert.ok(g && g.label === '东区平房', JSON.stringify(inst.data.groups))
+  })
+  const box2 = JSON.parse(store.get('freeclass_cache_v2') || '{}')
   const keys2 = Object.keys(box2.items || {})
   check('请求键(今天/本周)已缓存', () => {
     assert.ok(keys2.indexOf('孝陵卫|0|0|1|3|2026-2027-1') >= 0, JSON.stringify(keys2))
