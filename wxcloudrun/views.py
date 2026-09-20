@@ -22,240 +22,26 @@ from wxcloudrun import dao
 import config
 
 # ============================================================
-# 用户会话池（多用户）+ 教务访问池（并发控制）
+# 基础设施已拆分到 wxcloudrun/core/ (Phase 1 重构)
+# 此处显式 re-export, 保持 views.<name> 旧引用(测试/其它模块)可用
 # ============================================================
-# - 会话池: 每个登录用户持有独立 JWCClient(独立教务会话/Cookie),
-#   登录签发随机 token, 请求经 X-Auth-Token 头识别; 带 TTL 与上限,
-#   防止长运行后内存堆积。
-# - 访问池: 同一用户的教务请求经实例锁串行(保证 Cookie 一致性),
-#   不同用户并行, 全局信号量限制教务并发总数(防打爆教务服务器)。
-# - 验证码临时会话: 登录尝试的客户端, 10 分钟未使用自动回收。
-_sessions = {}          # token -> [JWCClient, last_active_ts]
-_captcha_clients = {}   # captcha_id -> [JWCClient, created_ts]
-_sessions_lock = threading.Lock()
-TOKEN_HEADER = "X-Auth-Token"
-
-# 访问池: 全局教务请求并发上限
-JW_MAX_CONCURRENT = int(os.environ.get("JW_MAX_CONCURRENT", "4"))
-_jw_semaphore = threading.BoundedSemaphore(JW_MAX_CONCURRENT)
-
-# 用户池: 会话 TTL(秒) 与上限(超限淘汰最旧)
-SESSION_TTL = int(os.environ.get("SESSION_TTL", str(12 * 3600)))  # 默认 12h
-MAX_SESSIONS = int(os.environ.get("MAX_SESSIONS", "200"))
-CAPTCHA_TTL = 10 * 60  # 验证码临时会话 10 分钟
+from wxcloudrun.core.cache import (  # noqa: E402
+    QUERY_CACHE_TTL, _cache_get, _cache_set, invalidate_user_cache)
+from wxcloudrun.core.sessions import (  # noqa: E402
+    TOKEN_HEADER, JW_MAX_CONCURRENT, SESSION_TTL, MAX_SESSIONS, CAPTCHA_TTL,
+    _sessions, _captcha_clients, _sessions_lock, _prune_captcha_locked,
+    _prune_sessions_locked, _new_captcha_client, _pop_captcha_client,
+    _register_session, _get_session_client, _logout_session, _sid_by_token)
+from wxcloudrun.core.pool import (  # noqa: E402
+    _jw_semaphore, _jwc_request, _jwc_request_priority)
+from wxcloudrun.core.web import (  # noqa: E402
+    SLOW_MS, _rid, register_request_logging)
 
 # 全局教务客户端：仅用于学期计算等无状态工具方法（不参与业务会话）
 jwc_client = JWCClient()
 
-
-# ============================================================
-# 查询接口进程内缓存(30s): 多人并发/频繁切页时 DB 查询归零
-# - 键格式 "{sid}:{kind}:{param}", 按用户隔离
-# - 数据刷新接口成功后调用 invalidate_user_cache 主动失效
-# ============================================================
-QUERY_CACHE_TTL = 30
-_query_cache = {}
-_query_cache_lock = threading.Lock()
-
-
-def _cache_get(key: str):
-    with _query_cache_lock:
-        item = _query_cache.get(key)
-        if item and item[0] > time.time():
-            return item[1]
-    return None
-
-
-def _cache_set(key: str, value, ttl: float = QUERY_CACHE_TTL):
-    with _query_cache_lock:
-        _query_cache[key] = (time.time() + ttl, value)
-        # 惰性清理过期条目, 防内存缓慢增长
-        if len(_query_cache) > 500:
-            now = time.time()
-            for k in [k for k, (ts, _v) in _query_cache.items() if ts <= now]:
-                _query_cache.pop(k, None)
-
-
-def invalidate_user_cache(sid: str, *kinds):
-    """数据刷新后使该用户相关查询缓存失效(kinds 为空则全部)"""
-    prefix = f"{sid}:"
-    with _query_cache_lock:
-        for key in list(_query_cache.keys()):
-            if not key.startswith(prefix):
-                continue
-            if kinds and not any(f":{k}:" in key or key.endswith(f":{k}") for k in kinds):
-                continue
-            _query_cache.pop(key, None)
-
-
-# ============================================================
-# 调试日志: 请求级记录（/api/* 与 /proxy/* 每次请求一行）
-# - rid: 请求ID(before_request 生成), 关联错误/业务日志, 云托管按关键词过滤
-# - sid: 由 token 反查当前用户, 调试时按学号过滤
-# - 慢请求(>=SLOW_MS)自动升为 WARNING, 便于告警
-# ============================================================
-SLOW_MS = int(os.environ.get("SLOW_MS", "2000"))
-
-
-def _rid() -> str:
-    """当前请求 ID(无请求上下文时返回 '-', 如测试/后台调用)"""
-    try:
-        return g.get("rid", "-")
-    except Exception:
-        return "-"
-
-
-def _sid_by_token(token: str) -> str:
-    """token → 用户学号(会话池反查; 未登录/失效返回 '-')"""
-    if not token:
-        return "-"
-    with _sessions_lock:
-        sess = _sessions.get(token)
-    return sess[0].student_id if sess else "-"
-
-
-@app.before_request
-def _log_request_start():
-    g.rid = "r-" + uuid.uuid4().hex[:8]
-    request._log_t0 = time.time()
-
-
-@app.after_request
-def _log_request_end(resp):
-    if request.path.startswith(("/api/", "/proxy/")):
-        dur_ms = (time.time() - getattr(request, "_log_t0", time.time())) * 1000
-        token = request.headers.get(TOKEN_HEADER, "") or ""
-        tok = f"{token[:6]}…" if token else "-"
-        sid = _sid_by_token(token)
-        xff = request.headers.get("X-Forwarded-For") or ""
-        ip = xff.split(",")[0].strip() if xff else (request.remote_addr or "-")
-        rid = _rid()
-        # 记录到管理面板的实时请求缓冲(线程安全)
-        try:
-            from wxcloudrun import admin as _admin
-            _admin.record_request(request.method, request.path, resp.status_code, dur_ms, sid, ip)
-        except Exception:
-            pass
-        line = (f"[req] rid={rid} {request.method} {request.path} "
-                f"status={resp.status_code} sid={sid} tok={tok} ip={ip} d={dur_ms:.0f}ms")
-        if dur_ms >= SLOW_MS:
-            app.logger.warning("[slow] %s", line)
-        else:
-            app.logger.info(line)
-    return resp
-
-
-@contextmanager
-def _jwc_request(client: JWCClient):
-    """访问池入口: 同一用户串行(实例锁) + 全局并发限流(信号量)。"""
-    with client._lock:
-        with _jw_semaphore:
-            yield client
-
-
-@contextmanager
-def _jwc_request_priority(client: JWCClient):
-    """登录/验证码请求的优先通道: 仅实例锁串行, 不参与全局信号量排队。
-
-    验证码时效仅几十秒, 若与其他用户的数据刷新一起排队, 轮到执行时
-    验证码已过期 — 表现为"验证码一直不正确"。登录请求量极小,
-    不限流风险可控。
-    """
-    with client._lock:
-        yield client
-
-
-def _prune_captcha_locked():
-    now = time.time()
-    expired = [cid for cid, (_c, ts) in _captcha_clients.items()
-               if now - ts > CAPTCHA_TTL]
-    for cid in expired:
-        _captcha_clients.pop(cid, None)
-
-
-def _prune_sessions_locked():
-    now = time.time()
-    expired = [t for t, (_c, ts) in _sessions.items() if now - ts > SESSION_TTL]
-    for t in expired:
-        _sessions.pop(t, None)
-    # 上限保护: 淘汰最久未活动的会话
-    while len(_sessions) > MAX_SESSIONS:
-        oldest = min(_sessions, key=lambda t: _sessions[t][1])
-        _sessions.pop(oldest, None)
-
-
-def _new_captcha_client() -> Tuple[str, JWCClient]:
-    """创建一次登录尝试的临时教务会话，返回 (captcha_id, client)"""
-    cid = secrets.token_urlsafe(16)
-    client = JWCClient()
-    with _sessions_lock:
-        _prune_captcha_locked()
-        _captcha_clients[cid] = [client, time.time()]
-    return cid, client
-
-
-def _pop_captcha_client(captcha_id: str) -> Optional[JWCClient]:
-    """取出并删除登录尝试会话（验证码与教务 Cookie 绑定同一实例）"""
-    with _sessions_lock:
-        item = _captcha_clients.pop(captcha_id or "", None)
-    return item[0] if item else None
-
-
-def _register_session(client: JWCClient) -> str:
-    """登录成功后注册用户会话，返回 token。
-
-    同一学号只保留一个会话: 新登录顶掉旧会话(旧 token 立即失效)。
-    小程序每次进入自动重登会新建会话, 不清理会导致在线会话列表
-    出现多个相同用户。
-    """
-    token = secrets.token_urlsafe(32)
-    with _sessions_lock:
-        # 顶掉同学生已有会话(单设备场景; 多设备交替使用会互相顶掉,
-        # 旧端 401 后自动重登即可恢复)
-        same_sid = [t for t, (c, _ts) in _sessions.items()
-                    if c.student_id and c.student_id == client.student_id]
-        for t in same_sid:
-            _sessions.pop(t, None)
-        _sessions[token] = [client, time.time()]
-        _prune_sessions_locked()
-    app.logger.info("[session] rid=%s 登录成功 sid=%s name=%s token=%s… 顶掉旧会话=%d 在线=%d",
-                    _rid(), client.student_id, client.student_name, token[:6],
-                    len(same_sid), len(_sessions))
-    # 持久化姓名: 控制面板用户列表离线也能显示真实姓名(而非 "-")
-    if client.student_id and client.student_name:
-        try:
-            dao.set_user_setting(client.student_id, "name", client.student_name)
-        except Exception:
-            pass
-    return token
-
-
-def _get_session_client() -> Optional[JWCClient]:
-    """从当前请求头取 token 并返回对应会话客户端（未登录返回 None）。
-
-    惰性回收: 会话超过 TTL 未活动时当场删除并视为未登录(内存保护 +
-    过期会话及时失效, 不依赖下次注册时统一清理)。
-    """
-    token = request.headers.get(TOKEN_HEADER) or ""
-    with _sessions_lock:
-        item = _sessions.get(token)
-        if item is None:
-            return None
-        if time.time() - item[1] > SESSION_TTL:
-            _sessions.pop(token, None)
-            return None
-        item[1] = time.time()  # 更新活动时间
-        return item[0]
-
-
-def _logout_session(token: str):
-    with _sessions_lock:
-        item = _sessions.pop(token or "", None)
-    if item is not None:
-        try:
-            item[0].logout()
-        except Exception:
-            pass
+# 请求级日志(before_request/after_request)
+register_request_logging(app)
 
 
 # 教务连通性探测缓存（导航栏/设置页高频调用，30 秒内复用结果）
