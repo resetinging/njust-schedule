@@ -139,145 +139,24 @@ def gallery_page():
     return render_template('admin.html')
 
 
-@app.route('/proxy/jw/<path:target_path>', methods=['GET', 'POST'])
-def proxy_jw(target_path):
-    client = _get_session_client()
-    if client is None or not client.logged_in:
-        return "请先登录教务系统", 401
-    target_url = f"http://202.119.81.112:9080/njlgdx/{target_path}"
-    qs = request.query_string.decode()
-    if qs:
-        target_url += "?" + qs
-    try:
-        if request.method == 'POST':
-            resp = client.session.post(target_url, data=request.form,
-                                       headers=EVAL_HEADERS, timeout=15)
-        else:
-            _warm_eval_session(client)
-            resp = client.session.get(target_url, headers=EVAL_HEADERS, timeout=15)
-    except Exception as e:
-        return f"代理请求失败: {e}", 502
-    if "text/html" in (resp.headers.get("content-type") or ""):
-        content = resp.text
-        if "非法访问" in content or "非法操作" in content:
-            return Response(f"""
-                <html><body style="padding:40px;text-align:center;font-family:sans-serif;">
-                <h2>⚠️ 教务系统拒绝了请求</h2><p>{target_path}</p>
-                <p><a href="/evaluations">返回评价列表</a></p>
-                <p><a href="/settings">重新登录教务系统</a></p>
-                </body></html>
-            """, status=403)
-        for old, new in [
-            ('src="/njlgdx/', 'src="/proxy/jw/'),
-            ('href="/njlgdx/', 'href="/proxy/jw/'),
-            ("src='/njlgdx/", "src='/proxy/jw/"),
-            ("href='/njlgdx/", "href='/proxy/jw/"),
-            ('action="/njlgdx/', 'action="/proxy/jw/'),
-            ("action='/njlgdx/", "action='/proxy/jw/"),
-            ('"/njlgdx/js/', '"/proxy/jw/js/'),
-            ("'/njlgdx/js/", "'/proxy/jw/js/"),
-        ]:
-            content = content.replace(old, new)
-        return Response(content, status=resp.status_code,
-                        content_type="text/html; charset=utf-8")
-    return Response(resp.content, status=resp.status_code,
-                    content_type=resp.headers.get("content-type", "text/html"))
+from wxcloudrun.api.proxy import proxy_bp  # noqa: E402
+from wxcloudrun.api.status import status_bp  # noqa: E402
 
+app.register_blueprint(proxy_bp)
+app.register_blueprint(status_bp)
 
-# ============================================================
-# API — 状态 / 连接测试
-# ============================================================
-from wxcloudrun.core.stats import (  # noqa: E402
-    _stats_cache, _stats_cache_lock, STATS_CACHE_TTL, _get_data_stats)
-
-
-@app.route('/api/status')
-def api_status():
-    # 仅支持手动登录：登录态只取决于当前请求 token 对应的会话
-    client = _get_session_client()
-    logged_in = bool(client and client.logged_in)
-    student_id = client.student_id if logged_in else ""
-    student_name = client.student_name if logged_in else ""
-    semester = (dao.get_user_setting(student_id, "semester")
-                if logged_in else "") or dao.get_setting("semester") or _current_semester()
-
-    has_courses = False
-    has_exams = False
-    if logged_in and semester:
-        has_courses, has_exams = _get_data_stats(student_id, semester)
-
-    # 教务连通性(桌面端导航栏/设置页依赖, 30 秒缓存)
-    try:
-        ok, _msg = _check_network()
-        network = {
-            "reachable": ok,
-            "method": "direct" if ok else "offline",
-            "latency_ms": 0,
-            "label": "教务在线" if ok else "离线",
-            "hint": "" if ok else "请检查教务系统连接",
-        }
-    except Exception:
-        network = {"reachable": False, "method": "offline", "latency_ms": 0,
-                   "label": "离线", "hint": "请检查教务系统连接"}
-
-    # 学期第一周周一: 按学期分别存储({sid}:first_week_date:{semester}),
-    # 无学期值时回退全局设置(兼容旧数据)
-    first_week_date = dao.get_setting("first_week_date", "")
-    if logged_in and student_id and semester:
-        first_week_date = dao.get_setting(
-            f"{student_id}:first_week_date:{semester}", "") or first_week_date
-
-    return jsonify({
-        "logged_in": logged_in,
-        "student_id": student_id,
-        "student_name": student_name,
-        "semester": semester,
-        "has_courses": has_courses,
-        "has_exams": has_exams,
-        "login_method": client.login_method if logged_in else "",
-        "auto_login_attempted": False,
-        "auto_login_error": "",
-        "server_time": _beijing_now(),
-        "first_week_date": first_week_date,
-        "network": network,
-    })
-
-
-@app.route('/api/connect-test')
-def api_connect_test():
-    ok, msg = _check_network()
-    return jsonify({"ok": ok, "message": msg})
-
-
-# ============================================================
-# API — 问题反馈(需登录; 10 秒限流防重复提交; 仅管理端可见)
-# ============================================================
-# 内容敏感词过滤(留言板已下线, 反馈内容沿用同一词表)
 from wxcloudrun.api.feedback import feedback_bp  # noqa: E402
-
-app.register_blueprint(feedback_bp)
-
-
-# 登录/验证码/WebVPN 路由已拆到 wxcloudrun/api/auth.py (Phase 1b)
 from wxcloudrun.api.auth import auth_bp  # noqa: E402
-
-app.register_blueprint(auth_bp)
-
-
-# 登录守卫/重登封装已下沉 core/auth.py(Phase 1b)
-from wxcloudrun.core.auth import _require_login, _retry_with_relogin  # noqa: E402
-
-
 from wxcloudrun.api.schedule import schedule_bp  # noqa: E402
-
-app.register_blueprint(schedule_bp)
-
 from wxcloudrun.api.freeclass import (  # noqa: E402
     freeclass_bp, FREE_CLASSROOM_CAMPUSES, _current_teaching_week,
     _service_free_classrooms, _freeclass_cache_key, _freeclass_resp,
     freeclass_refresh_plan, _next_freeclass_refresh, _freeclass_ttl,
     _prewarm_targets, _prewarm_free_classrooms, _start_freeclass_prewarm)
 
+app.register_blueprint(feedback_bp)
+app.register_blueprint(auth_bp)
+app.register_blueprint(schedule_bp)
 app.register_blueprint(freeclass_bp)
 
 
