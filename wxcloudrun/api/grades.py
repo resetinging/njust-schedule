@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """成绩与四六级路由(Phase 1b 从 views.py 拆出)。"""
+from collections import defaultdict
+
 from flask import Blueprint, jsonify, request
 
 import config
