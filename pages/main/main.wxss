@@ -3,8 +3,13 @@
   height: 100vh;
   background: #F7F6FB;
 }
-.main-swiper {
+.main-body {
   width: 100%;
+  overflow: hidden;
+}
+
+.tab-wrap {
+  height: 100%;
 }
 
 /* ============================================================

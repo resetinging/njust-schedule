@@ -1,8 +1,9 @@
 /**
- * 主页面 — swiper 合页方案（方案 A）
- * 5 个 Tab(课表/考试/评教/成绩/我的) 用 swiper 承载,
- * 左右滑动原生切换; 自定义 tabBar 点击同步切换。
- * 组件懒渲染: 激活才渲染, 切换时由本页通知 activate。
+ * 主页面 — 5 个 Tab(课表/考试/评教/成绩/我的)
+ * - 无 swiper: 横滑不再切换页面, 翻页只由底部 tabBar 触发;
+ * - 横滑手势在课表页切换周次(左滑下一周 / 右滑上一周);
+ * - 组件懒渲染: 首次进入才挂载, 之后保留挂载(hidden 隐藏), 保留滚动/周次状态;
+ * - 自定义 tabBar 点击同步切换与高亮。
  *
  * 顶部公告条: 管理端更新公告(updated 变化)后展示横幅,
  * 用户查看(弹窗确认/✕)后标记已读并隐藏; "我的"页公告栏可随时再读。
@@ -12,9 +13,9 @@ const ann = require('../../utils/announcement')
 
 Page({
   data: {
-    current: 0,       // swiper 当前索引
-    swiperHeight: 600, // swiper 高度(px), 自适应计算(公告条可见时扣除其高度)
-    tabs: [0, 1, 2, 3, 4],  // 5 个 Tab 索引(供 swiper-item 循环渲染)
+    current: 0,        // 当前 Tab 索引
+    swiperHeight: 600, // 内容区高度(px), 自适应计算(公告条可见时扣除其高度)
+    visited: [true, false, false, false, false],  // 已挂载的 Tab(懒渲染)
 
     // 顶部公告条(long: 文本被单行截断, 显示"查看 ›"提示)
     ann: { visible: false, text: '', updated: '', long: false }
@@ -43,7 +44,7 @@ Page({
     this._loadAnnouncement()
   },
 
-  /** 计算 swiper 高度: 视口高 - tabBar 高(约 88rpx) - iOS 底部安全区 - 公告条高(若可见) */
+  /** 计算内容区高度: 视口高 - tabBar 高(约 88rpx) - iOS 底部安全区 - 公告条高(若可见) */
   _calcHeight() {
     try {
       // 仅取视口/安全区尺寸用于布局。不使用 getSystemInfoSync: 该接口已废弃,
@@ -136,33 +137,39 @@ Page({
     if (r < 20) setTimeout(() => this._activate(i, r + 1), 100)
   },
 
-  /** swiper 滑动结束: 更新激活视图 + tabBar 高亮 */
-  onSwiperChange(e) {
-    const i = e.detail.current
-    this.setData({ current: i })
-    this._preActivating = null   // 复位预激活标记
-    this._activate(i)
-    this._syncTabBar()
+  /** 横滑手势起点(仅课表页用于周次切换) */
+  onSwipeTouchStart(e) {
+    const t = e.touches && e.touches[0]
+    if (!t) return
+    this._swipeStart = { x: t.clientX, y: t.clientY }
   },
 
   /**
-   * swiper 滑动进行中: 提前激活目标页(懒渲染组件此时渲染, 数据已在缓存),
-   * 滑到位时内容已就绪, 消除"首次滑动进入空白页"问题
+   * 横滑手势结束: 课表页左滑下一周 / 右滑上一周。
+   * 页面翻页已由 disable-touch 关闭, 此手势不再切换 Tab。
    */
-  onSwiperTransition(e) {
-    const dx = e.detail.dx
-    if (!dx) return
-    const target = dx < 0 ? this.data.current + 1 : this.data.current - 1
-    if (target < 0 || target >= 5) return
-    if (this._preActivating === target) return
-    this._preActivating = target
-    this._activate(target)
+  onSwipeTouchEnd(e) {
+    const s = this._swipeStart
+    this._swipeStart = null
+    if (!s || this.data.current !== 0) return
+    const t = e.changedTouches && e.changedTouches[0]
+    if (!t) return
+    const dx = t.clientX - s.x
+    const dy = t.clientY - s.y
+    // 横向位移足够大, 且明显大于纵向(避开上下滚动)
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2) return
+    const view = this.selectComponent('#tabview0')
+    if (!view) return
+    if (dx < 0 && typeof view.nextWeek === 'function') view.nextWeek()
+    if (dx > 0 && typeof view.prevWeek === 'function') view.prevWeek()
   },
 
-  /** tabBar 点击(自定义 tabBar 组件回调): 切 swiper 带动画 */
+  /** tabBar 点击(自定义 tabBar 组件回调): 切换当前 Tab(首次进入时挂载) */
   onTabTap(i) {
+    const visited = this.data.visited.slice()
+    visited[i] = true
     // 即使 i === current 也重新激活(修复: 首次激活失败后再次点击无反应的死循环)
-    if (i !== this.data.current) this.setData({ current: i })
+    this.setData({ current: i, visited })
     this._activate(i)
     this._syncTabBar()
   },

@@ -41,6 +41,9 @@
       </view>
     </view>
 
+    <!-- 周次相关内容: 切换周次时整体做滑入动画 -->
+    <view class="week-body {{weekAnim}}">
+
     <!-- 网格视图(刷新时保留旧内容, 仅首次无数据才显示占位) -->
     <view class="grid-wrapper" wx:if="{{viewMode === 'grid' && filteredCourses.length > 0 && !(loading && courses.length === 0)}}">
       <week-grid
@@ -106,6 +109,7 @@
                  action-text="获取课表"
                  bind:action="onRefresh" />
 
+    </view>
   </scroll-view>
 
   <!-- 课程详情弹窗(fixed, 放 scroll-view 外避免随滚动) -->

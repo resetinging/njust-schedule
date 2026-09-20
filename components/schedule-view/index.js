@@ -46,6 +46,7 @@ Component({
     detailCourse: {},
     firstWeekDate: '',       // 学期第一周周一日期
     weekRange: '',           // 当前周日期范围(如 "9/1-9/7")
+    weekAnim: '',            // 周次切换动画方向: '' | from-left | from-right
 
     searchText: '',          // (搜索栏已移除, 字段保留兼容旧缓存路径)
     weekPickerRange: [],     // 周次跳转选择器 (1-20)
@@ -84,6 +85,9 @@ Component({
       })
       this._syncUser()
       this._ensureSemesterData()
+    },
+    detached() {
+      if (this._weekAnimTimer) clearTimeout(this._weekAnimTimer)
     }
   },
 
@@ -515,7 +519,8 @@ Component({
     onJumpWeek(e) {
       const idx = e.detail.value
       const week = parseInt(this.data.weekPickerRange[idx]) || 1
-      this.filterByWeek(week)
+      const delta = week - (this.data.currentWeek || 1)
+      if (delta) this.switchWeek(delta)
     },
 
     /** 切换学期（显式传学期请求数据 + 自动从教务拉取该学期课表） */
@@ -548,16 +553,33 @@ Component({
       }
     },
 
-    /** 上一周 */
-    prevWeek() {
-      const w = Math.max(1, (this.data.currentWeek || 1) - 1)
-      this.filterByWeek(w)
+    /**
+     * 带动画切换周次: delta>0 下一周(内容从右滑入), delta<0 上一周(从左滑入)。
+     * 课表页横滑、◀▶ 按钮、周次选择器共用同一实现。
+     */
+    switchWeek(delta) {
+      const cur = this.data.currentWeek || 1
+      const w = Math.max(1, Math.min(20, cur + delta))
+      if (w === cur) return
+      const anim = delta > 0 ? 'from-right' : 'from-left'
+      // 先清空动画类, 下一拍再挂上 —— 连续切换时动画能重新播放
+      if (this._weekAnimTimer) clearTimeout(this._weekAnimTimer)
+      this.setData({ weekAnim: '' })
+      this._weekAnimTimer = setTimeout(() => {
+        this.setData({ weekAnim: anim })
+        this.filterByWeek(w)
+        this._weekAnimTimer = setTimeout(() => this.setData({ weekAnim: '' }), 300)
+      }, 20)
     },
 
-    /** 下一周 */
+    /** 上一周(带动画) */
+    prevWeek() {
+      this.switchWeek(-1)
+    },
+
+    /** 下一周(带动画) */
     nextWeek() {
-      const w = Math.min(20, (this.data.currentWeek || 1) + 1)
-      this.filterByWeek(w)
+      this.switchWeek(1)
     },
 
     /** 手动刷新(主动操作, 显示反馈; 防重复点击) */

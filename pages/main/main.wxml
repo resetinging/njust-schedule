@@ -1,4 +1,5 @@
-<!-- 主页面: swiper 承载 5 个 Tab 视图(课表/考试/评教/成绩/我的) -->
+<!-- 主页面: swiper 承载 5 个 Tab 视图(仅 tabBar 切页);
+     横滑手势在课表页用于切换周次, 不再翻页 -->
 <view class="main-page">
 
   <!-- 顶部公告条: 有新公告(updated 未读)时展示, 查看后隐藏 -->
@@ -10,20 +11,30 @@
     <text class="ann-close" catchtap="onAnnClose">✕</text>
   </view>
 
-  <swiper class="main-swiper"
-          style="height: {{swiperHeight}}px"
-          current="{{current}}"
-          bindchange="onSwiperChange"
-          bindtransition="onSwiperTransition"
-          duration="260">
-    <swiper-item wx:for="{{tabs}}" wx:key="index">
-      <schedule-view wx:if="{{index === 0}}" id="tabview0" />
-      <exams-view wx:elif="{{index === 1}}" id="tabview1" />
-      <eval-view wx:elif="{{index === 2}}" id="tabview2" />
-      <grades-view wx:elif="{{index === 3}}" id="tabview3" />
-      <settings-view wx:elif="{{index === 4}}" id="tabview4" />
-    </swiper-item>
-  </swiper>
+  <!-- 内容区: 已无 swiper, 横滑不再翻页(翻页只走底部 tabBar);
+       横滑手势在课表页用于切换周次; 已访问过的 Tab 保留挂载,
+       用内置 view 包装后 hidden 隐藏(自定义组件直接 hidden 不生效),
+       从而保留各自的滚动位置与周次状态 -->
+  <view class="main-body"
+        style="height: {{swiperHeight}}px"
+        bindtouchstart="onSwipeTouchStart"
+        bindtouchend="onSwipeTouchEnd">
+    <view class="tab-wrap" hidden="{{current !== 0}}">
+      <schedule-view wx:if="{{visited[0]}}" id="tabview0" />
+    </view>
+    <view class="tab-wrap" hidden="{{current !== 1}}">
+      <exams-view wx:if="{{visited[1]}}" id="tabview1" />
+    </view>
+    <view class="tab-wrap" hidden="{{current !== 2}}">
+      <eval-view wx:if="{{visited[2]}}" id="tabview2" />
+    </view>
+    <view class="tab-wrap" hidden="{{current !== 3}}">
+      <grades-view wx:if="{{visited[3]}}" id="tabview3" />
+    </view>
+    <view class="tab-wrap" hidden="{{current !== 4}}">
+      <settings-view wx:if="{{visited[4]}}" id="tabview4" />
+    </view>
+  </view>
 
   <!-- 自定义 tabBar(手动引用: main 不在 tabBar list 中, 需自渲染) -->
   <custom-tab-bar id="tabbar" />
