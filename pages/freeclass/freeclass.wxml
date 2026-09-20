@@ -80,8 +80,14 @@
             </view>
             <view class="group-badge">{{grp.rooms.length}} 间</view>
           </view>
-          <view class="group-chips">
-            <view class="room-chip" wx:for="{{grp.rooms}}" wx:key="*this">{{item}}</view>
+          <view class="group-chips {{grp.expanded ? '' : 'is-collapsed'}}">
+            <view class="chips-inner">
+              <view class="room-chip" wx:for="{{grp.chips}}" wx:key="*this">{{item}}</view>
+            </view>
+          </view>
+          <view class="group-toggle" wx:if="{{grp.overflow}}" data-index="{{index}}" bindtap="onToggleGroup">
+            <text>{{grp.expanded ? '收起' : '展开全部 ' + grp.rooms.length + ' 间'}}</text>
+            <text class="toggle-arrow">{{grp.expanded ? '︿' : '﹀'}}</text>
           </view>
         </view>
       </block>

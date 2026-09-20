@@ -9,7 +9,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
-const { groupRooms } = require('../../utils/room-group')
+const { groupRooms, isMainTeaching } = require('../../utils/room-group')
 
 const WEEKDAY_LIST = ['今天', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
 // 官方大节(key/展示名/起止节号); 起止时段各选一个, 发送节号范围
@@ -157,16 +157,52 @@ Page({
 
   /** 渲染结果(缓存或网络数据共用) */
   _applyResult(res) {
+    const groups = groupRooms(res.rooms || [], res.buildings)
+      .filter(isMainTeaching)              // 只展示四大教学楼
+      .map(g => Object.assign({}, g, { expanded: false, overflow: false }))
+    const count = groups.reduce((n, g) => n + g.rooms.length, 0)
     this.setData({
       searched: true,
       errorMsg: '',
-      groups: groupRooms(res.rooms || [], res.buildings),
+      groups,
       result: {
         summary: [res.campus, res.weekday_name, '第' + res.week + '周', res.time_text]
           .join(' · '),
-        count: res.count || 0
+        count
       }
+    }, () => this._markOverflow())
+  },
+
+  /** 实测各分组内容高度: 超过折叠高度(两行)的组显示"展开"按钮 */
+  _markOverflow() {
+    const q = (typeof wx !== 'undefined' && typeof wx.createSelectorQuery === 'function')
+      ? wx.createSelectorQuery() : null
+    if (!q || typeof q.selectAll !== 'function') return
+    q.selectAll('.group-chips').boundingClientRect()
+    q.selectAll('.chips-inner').boundingClientRect()
+    q.exec(res => {
+      const outer = (res && res[0]) || []
+      const inner = (res && res[1]) || []
+      let changed = false
+      const groups = this.data.groups.map((g, i) => {
+        if (!outer[i] || !inner[i]) return g
+        const overflow = inner[i].height > outer[i].height + 1
+        if (g.overflow === overflow) return g
+        changed = true
+        return Object.assign({}, g, { overflow })
+      })
+      if (changed) this.setData({ groups })
     })
+  },
+
+  /** 折叠分组 展开/收起 */
+  onToggleGroup(e) {
+    const i = Number(e.currentTarget.dataset.index)
+    const g = this.data.groups[i]
+    if (!g || !g.overflow) return
+    const groups = this.data.groups.slice()
+    groups[i] = Object.assign({}, g, { expanded: !g.expanded })
+    this.setData({ groups })
   },
 
   /** 按当前筛选查询空闲教室(优先本地缓存, 后台静默刷新) */

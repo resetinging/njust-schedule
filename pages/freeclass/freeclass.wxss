@@ -196,18 +196,46 @@
 }
 
 .group-chips {
+  overflow: hidden;          /* 折叠时裁剪多余行 */
+}
+
+/* 默认只展示两行教室 chip: 行盒 58rpx + 上下间距 20rpx → 2 行 = 156rpx
+   (chip 行高固定, 保证不同机型下第二行不会被裁切; 是否溢出由 JS 实测) */
+.group-chips.is-collapsed {
+  max-height: 156rpx;
+}
+
+.chips-inner {
   display: flex;
   flex-wrap: wrap;
 }
 
 .room-chip {
-  margin: 12rpx 14rpx 12rpx 0;
-  padding: 16rpx 28rpx;
+  margin: 10rpx 12rpx 10rpx 0;
+  padding: 12rpx 24rpx;
   background: #FAF9FE;
   border: 2rpx solid #E9E4FA;
   border-radius: 999rpx;
-  font-size: 26rpx;
+  font-size: 24rpx;
+  line-height: 30rpx;
   color: #4A4670;
+}
+
+.group-toggle {
+  margin: 2rpx 0 14rpx;
+  padding: 10rpx 0 4rpx;
+  text-align: center;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #7C6BE8;
+}
+
+.group-toggle:active {
+  opacity: 0.6;
+}
+
+.group-toggle .toggle-arrow {
+  margin-left: 8rpx;
 }
 
 /* ============================================================

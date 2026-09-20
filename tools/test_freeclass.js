@@ -126,11 +126,11 @@ function deferred() {
   const pC = inst.search()
   dC.resolve({ success: true, campus: '孝陵卫', weekday: 6, week: 3, jc1: 1, jc2: 3,
     weekday_name: '星期六', time_text: '第1-3节', count: 7,
-    rooms: ['东区平房-101'], buildings: [], semester: '2026-2027-1', updated_at: 333 })
+    rooms: ['Ⅳ教学楼-C101'], buildings: [], semester: '2026-2027-1', updated_at: 333 })
   await pC
-  check('映射楼名(东区平房-101)分组正确', () => {
-    const g = inst.data.groups.find(x => x.prefix === '东区平房')
-    assert.ok(g && g.label === '东区平房', JSON.stringify(inst.data.groups))
+  check('映射楼名(Ⅳ教学楼-C101)分组正确', () => {
+    const g = inst.data.groups.find(x => x.prefix === 'Ⅳ教学楼')
+    assert.ok(g && g.label === 'Ⅳ教学楼', JSON.stringify(inst.data.groups))
   })
   const box2 = JSON.parse(store.get('freeclass_cache_v2') || '{}')
   const keys2 = Object.keys(box2.items || {})
@@ -139,6 +139,47 @@ function deferred() {
   })
   check('解析键(星期六/第3周)也已缓存', () => {
     assert.ok(keys2.indexOf('孝陵卫|6|3|1|3|2026-2027-1') >= 0, JSON.stringify(keys2))
+  })
+
+  console.log('\n2c) 分组折叠: 默认收起 + 点击按钮展开')
+  check('结果分组默认未展开、未标记溢出', () => {
+    const g = inst.data.groups[0]
+    assert.ok(g && g.expanded === false && g.overflow === false, JSON.stringify(g))
+  })
+  check('溢出分组点击后展开, 再点收起', () => {
+    inst.setData({ groups: [{ prefix: 'X', label: 'X', rooms: ['X-101'], expanded: false, overflow: true }] })
+    inst.onToggleGroup({ currentTarget: { dataset: { index: 0 } } })
+    assert.strictEqual(inst.data.groups[0].expanded, true)
+    inst.onToggleGroup({ currentTarget: { dataset: { index: 0 } } })
+    assert.strictEqual(inst.data.groups[0].expanded, false)
+  })
+  check('未溢出的分组点击不展开', () => {
+    inst.setData({ groups: [{ prefix: 'Y', label: 'Y', rooms: ['Y-101'], expanded: false, overflow: false }] })
+    inst.onToggleGroup({ currentTarget: { dataset: { index: 0 } } })
+    assert.strictEqual(inst.data.groups[0].expanded, false)
+  })
+  check('_markOverflow 在无选择器能力的环境下安全返回', () => {
+    inst._markOverflow()
+  })
+
+  console.log('\n2d) 只展示四大教学楼(其余楼过滤, 数量按展示结果重算)')
+  inst.setData({ weekdayIndex: 4, weekIndex: 2, startIndex: 1, endIndex: 1 })
+  const dD = deferred()
+  nextDeferred = dD
+  const pD = inst.search()
+  dD.resolve({ success: true, campus: '孝陵卫', weekday: 4, week: 2, jc1: 4, jc2: 5,
+    weekday_name: '星期四', time_text: '第4-5节', count: 3,
+    rooms: ['东区平房-101', 'Ⅳ教学楼-A101', 'Ⅱ教学楼-B201'], buildings: [],
+    semester: '2026-2027-1', updated_at: 444 })
+  await pD
+  check('非四大教学楼(东区平房)不显示', () => {
+    assert.ok(!inst.data.groups.find(x => x.prefix === '东区平房'),
+      JSON.stringify(inst.data.groups))
+  })
+  check('仅显示四大教学楼且数量按展示结果重算', () => {
+    assert.deepStrictEqual(inst.data.groups.map(x => x.prefix),
+      ['Ⅱ教学楼', 'Ⅳ教学楼'], JSON.stringify(inst.data.groups.map(x => x.prefix)))
+    assert.strictEqual(inst.data.result.count, 2)
   })
 
   console.log('\n3) 等价查询命中缓存(不再重复请求)')
@@ -157,7 +198,7 @@ function deferred() {
   await inst.search()                            // 显式星期六/第3周 → 命中 2b 的解析键
   check('"今天"与"显式同一星期"共用同一份缓存', () => {
     assert.strictEqual(calls.length, before, '多发了 ' + (calls.length - before) + ' 次请求')
-    assert.strictEqual(inst.data.result.count, 7)
+    assert.strictEqual(inst.data.result.count, 1)
   })
 
   console.log('\n4) 楼名映射: buildings 为 [{code,name}] 对象数组')
@@ -180,6 +221,36 @@ function deferred() {
   check('映射失败时回退原始前缀(不崩)', () => {
     const g3 = groupRooms(['Z-101'], [{ code: 'z', name: '未知楼' }])
     assert.strictEqual(g3[0].label, 'Z')
+  })
+  check('四大教学楼置顶且按 Ⅰ→Ⅳ 排序', () => {
+    const g4 = groupRooms(['东区平房-101', 'Ⅳ教学楼-A101', 'Ⅰ教学楼-201',
+      'Ⅲ教学楼-301', 'Ⅱ教学楼-401'], [])
+    assert.deepStrictEqual(g4.map(x => x.label).slice(0, 4),
+      ['Ⅰ教学楼', 'Ⅱ教学楼', 'Ⅲ教学楼', 'Ⅳ教学楼'],
+      JSON.stringify(g4.map(x => x.label)))
+    assert.strictEqual(g4[4].label, '东区平房', JSON.stringify(g4.map(x => x.label)))
+  })
+  check('组内教室名去掉重复楼名, 只显示房间号', () => {
+    const g5 = groupRooms(['Ⅳ教学楼-A312', 'Ⅳ教学楼-B201', '东区平房-101',
+      '致源楼B331', '体育中心健美操房'], [])
+    const iv = g5.find(x => x.prefix === 'Ⅳ教学楼')
+    const dq = g5.find(x => x.prefix === '东区平房')
+    const zy = g5.find(x => x.prefix === '致源楼B')
+    const ty = g5.find(x => x.prefix === '体育中心健美操房')
+    // 分组时已按楼层排序(B201 在 2 层 → A312 在 3 层)
+    assert.deepStrictEqual(iv.chips, ['B201', 'A312'], JSON.stringify(g5))
+    assert.deepStrictEqual(dq.chips, ['101'], JSON.stringify(g5))
+    assert.deepStrictEqual(zy.chips, ['331'], JSON.stringify(g5))
+    assert.deepStrictEqual(ty.chips, ['体育中心健美操房'], JSON.stringify(g5))
+  })
+  check('组内按楼层升序(同层按房间号, 场馆排最后)', () => {
+    const g6 = groupRooms(['Ⅳ教学楼-C203', 'Ⅳ教学楼-A312', 'Ⅳ教学楼-A101',
+      'Ⅳ教学楼-B201', '东区平房-7', '东区平房-101', '体育中心健美操房'], [])
+    const iv = g6.find(x => x.prefix === 'Ⅳ教学楼')
+    const dq = g6.find(x => x.prefix === '东区平房')
+    assert.deepStrictEqual(iv.chips, ['A101', 'B201', 'C203', 'A312'], JSON.stringify(g6))
+    assert.deepStrictEqual(dq.chips, ['7', '101'], JSON.stringify(g6))
+    assert.strictEqual(g6[g6.length - 1].prefix, '体育中心健美操房', JSON.stringify(g6.map(x => x.label)))
   })
 
   console.log('\n' + '='.repeat(52))

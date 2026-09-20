@@ -52,7 +52,59 @@ function buildingLabel(prefix, buildings) {
   return ''
 }
 
-/** 分组: [{label, prefix, rooms:[...]}], 按首次出现顺序, 每个教室恰好一组 */
+/** 四大教学楼排最前(Ⅰ→Ⅳ), 其余按教室数量降序 */
+const MAIN_TEACHING = ['I', 'II', 'III', 'IV']
+
+function mainTeachingRank(s) {
+  const t = normRoman(String(s || '').replace(/教学楼|楼/g, '')).toUpperCase()
+  const i = MAIN_TEACHING.indexOf(t)
+  return i >= 0 ? i : -1
+}
+
+function groupRank(g) {
+  const r = mainTeachingRank(g && g.label)
+  return r >= 0 ? r : mainTeachingRank(g && g.prefix)
+}
+
+/** 是否四大教学楼(Ⅰ/Ⅱ/Ⅲ/Ⅳ教学楼)分组 */
+function isMainTeaching(g) {
+  return groupRank(g) >= 0
+}
+
+/**
+ * 分组内展示用的短名: 去掉与组名重复的楼名前缀
+ * 'Ⅳ教学楼-A312' → 'A312'; '致源楼B331' → '331';
+ * 无编号的整名场馆(如 '体育中心健美操房')保持原名
+ */
+function shortRoom(room, prefix) {
+  const s = String(room || '')
+  if (prefix && s.indexOf(prefix) === 0) {
+    const rest = s.slice(prefix.length).replace(/^[-\s]+/, '')
+    if (rest) return rest
+  }
+  return s
+}
+
+/**
+ * 楼层: 房间号(短名)里的第一段数字, 首位即楼层
+ * 'A312'→3, '101'→1; 1-2 位数字(如 '7')视为底层(0); 无数字的场馆排最后(99)
+ */
+function floorRank(chip) {
+  const m = String(chip || '').match(/\d+/)
+  if (!m) return 99
+  return m[0].length >= 3 ? parseInt(m[0][0], 10) : 0
+}
+
+function byFloor(a, b) {
+  const fa = floorRank(a.chip)
+  const fb = floorRank(b.chip)
+  if (fa !== fb) return fa - fb
+  if (a.chip < b.chip) return -1
+  if (a.chip > b.chip) return 1
+  return 0
+}
+
+/** 分组: [{label, prefix, rooms:[...], chips:[...]}], 每个教室恰好一组 */
 function groupRooms(rooms, buildings) {
   const order = []
   const idx = {}
@@ -68,9 +120,23 @@ function groupRooms(rooms, buildings) {
     }
     idx[prefix].rooms.push(room)
   })
-  // 教室多的楼在前(常见目标优先), 其余按出现顺序
-  order.sort((x, y) => idx[y].rooms.length - idx[x].rooms.length)
+  Object.keys(idx).forEach(p => {
+    const pairs = idx[p].rooms.map(r => ({ room: r, chip: shortRoom(r, p) }))
+    pairs.sort(byFloor)                        // 按楼层升序, 同层按房间号
+    idx[p].rooms = pairs.map(x => x.room)
+    idx[p].chips = pairs.map(x => x.chip)
+  })
+  // 四大教学楼置顶(Ⅰ→Ⅳ), 其余按教室多的优先
+  order.sort((x, y) => {
+    const rx = groupRank(idx[x])
+    const ry = groupRank(idx[y])
+    if (rx >= 0 || ry >= 0) {
+      if (rx >= 0 && ry >= 0) return rx - ry
+      return rx >= 0 ? -1 : 1
+    }
+    return idx[y].rooms.length - idx[x].rooms.length
+  })
   return order.map(p => idx[p])
 }
 
-module.exports = { groupRooms, roomPrefix }
+module.exports = { groupRooms, roomPrefix, isMainTeaching }
