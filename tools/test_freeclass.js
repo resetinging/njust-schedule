@@ -73,6 +73,27 @@ function deferred() {
   })
 
   console.log('加载页面: ' + path.join(ROOT, 'pages/freeclass/freeclass.js') + '\n')
+  const { bigSectionIndex } = require(path.join(ROOT, 'utils', 'period-time'))
+  check('大节默认: 按当前时间取对应大节', () => {
+    assert.strictEqual(bigSectionIndex(new Date(2026, 8, 20, 7, 30)), 0)   // 08:00 前 → 第1-3节
+    assert.strictEqual(bigSectionIndex(new Date(2026, 8, 20, 9, 0)), 0)    // 第1-3节中
+    assert.strictEqual(bigSectionIndex(new Date(2026, 8, 20, 10, 50)), 1)  // 第4-5节
+    assert.strictEqual(bigSectionIndex(new Date(2026, 8, 20, 14, 30)), 2)  // 第6-7节
+    assert.strictEqual(bigSectionIndex(new Date(2026, 8, 20, 16, 0)), 3)   // 第8-10节
+    assert.strictEqual(bigSectionIndex(new Date(2026, 8, 20, 21, 0)), 4)   // 第11-13节
+  })
+  check('onLoad 默认时段按当前大节设置', () => {
+    const inst2 = Object.assign({}, pageCfg, {
+      data: JSON.parse(JSON.stringify(pageCfg.data)),
+      setData(patch) { Object.assign(this.data, patch) },
+      search() { this._searched = true }
+    })
+    inst2.onLoad()
+    const expect = bigSectionIndex()
+    assert.strictEqual(inst2.data.startIndex, expect)
+    assert.strictEqual(inst2.data.endIndex, expect)
+    assert.ok(inst2._searched, '应触发默认查询')
+  })
   check('周次列表覆盖教务借用页 1-30 周', () => {
     assert.strictEqual(inst.data.weekList.length, 31, JSON.stringify(inst.data.weekList.length))
     assert.ok(inst.data.weekList.indexOf('第30周') >= 0)

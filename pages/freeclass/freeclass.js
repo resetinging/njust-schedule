@@ -10,6 +10,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const { groupRooms, isMainTeaching } = require('../../utils/room-group')
+const { bigSectionIndex } = require('../../utils/period-time')
 
 const WEEKDAY_LIST = ['今天', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
 // 官方大节(key/展示名/起止节号); 起止时段各选一个, 发送节号范围
@@ -99,7 +100,7 @@ Page({
     campusIndex: 0,
     weekdayIndex: 0,       // 0 = 今天
     weekIndex: 0,          // 0 = 本周
-    startIndex: 2,         // 开始时段(默认 第6-7节)
+    startIndex: 2,         // 开始时段(onLoad 时按当前时间对应的大节覆盖)
     endIndex: 2,           // 结束时段
 
     campusList: CAMPUS_LIST,
@@ -118,6 +119,9 @@ Page({
       return
     }
     storage.remove(LEGACY_CACHE_KEY)    // 清理旧版数据源缓存
+    // 默认时段 = 当前时间对应的大节(08:00 前取第1-3节, 19:00 后取第11-13节)
+    const slotIdx = bigSectionIndex()
+    this.setData({ startIndex: slotIdx, endIndex: slotIdx })
     // 默认条件首查(有缓存则秒开)
     this.search()
   },

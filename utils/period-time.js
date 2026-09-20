@@ -47,4 +47,24 @@ function classClock(startPeriod, endPeriod) {
   return s + '-' + e
 }
 
-module.exports = { PERIOD_STARTS, CLASS_MIN, periodStart, periodEnd, classClock }
+// 空教室查询用的官方大节起始小节: 1-3 / 4-5 / 6-7 / 8-10 / 11-13
+const BIG_SECTION_START_PERIODS = [1, 4, 6, 8, 11]
+
+/**
+ * 当前时间对应的大节下标(0-4, 顺序同上)。
+ * 早于第一大节(08:00)取 0; 晚于第五大节(19:00)取 4。
+ */
+function bigSectionIndex(d) {
+  const now = (d instanceof Date) ? d : new Date()
+  const mins = now.getHours() * 60 + now.getMinutes()
+  let idx = 0
+  BIG_SECTION_START_PERIODS.forEach((p, i) => {
+    if (mins >= toMin(PERIOD_STARTS[p - 1])) idx = i
+  })
+  return idx
+}
+
+module.exports = {
+  PERIOD_STARTS, CLASS_MIN, periodStart, periodEnd, classClock,
+  BIG_SECTION_START_PERIODS, bigSectionIndex
+}
