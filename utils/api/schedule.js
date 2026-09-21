@@ -2,6 +2,7 @@
  * API ???: schedule (Phase 3 ? utils/api.js ??)
  */
 const { request } = require('./core')
+const storage = require('../storage')
 
 function getCourses(semester) {
   return request('GET', '/api/courses', { semester: semester || storage.getSemester() })

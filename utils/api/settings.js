@@ -2,6 +2,7 @@
  * API ???: settings (Phase 3 ? utils/api.js ??)
  */
 const { request } = require('./core')
+const storage = require('../storage')
 
 function getStatus() {
   return request('GET', '/api/status')

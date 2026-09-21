@@ -2,6 +2,7 @@
  * API ???: refresh (Phase 3 ? utils/api.js ??)
  */
 const { request } = require('./core')
+const storage = require('../storage')
 
 function refreshAll() {
   return request('POST', '/api/refresh-all').then(res => {

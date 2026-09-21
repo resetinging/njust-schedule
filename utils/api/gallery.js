@@ -2,6 +2,7 @@
  * API ???: gallery (Phase 3 ? utils/api.js ??)
  */
 const { request } = require('./core')
+const config = require('../config')
 
 function getGalleryImageUrl(name) {
   return config.API_BASE + '/static/gallery/' + encodeURIComponent(name)
