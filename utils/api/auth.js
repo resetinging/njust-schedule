@@ -1,7 +1,7 @@
 /**
  * API ???: auth (Phase 3 ? utils/api.js ??)
  */
-const { request } = require('./core')
+const { request, TOKEN_KEY } = require('./core')
 const storage = require('../storage')
 
 function getCaptcha() {

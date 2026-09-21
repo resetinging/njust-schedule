@@ -13,5 +13,7 @@ const freeclass = require('./api/freeclass')
 const gallery = require('./api/gallery')
 const refresh = require('./api/refresh')
 
-module.exports = Object.assign({}, core, auth, schedule, exams, grades, evalApi,
+const api = Object.assign({}, core, auth, schedule, exams, grades, evalApi,
   feedback, settings, freeclass, gallery, refresh)
+delete api.TOKEN_KEY   // 内部常量不对外暴露(保持旧版 40 个接口)
+module.exports = api

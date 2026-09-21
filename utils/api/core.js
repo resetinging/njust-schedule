@@ -154,4 +154,4 @@ function clearSessionAndToast() {
 
 /** 获取验证码图片 (base64) */
 
-module.exports = { request, autoRelogin, clearSessionAndToast }
+module.exports = { TOKEN_KEY, request, autoRelogin, clearSessionAndToast }
