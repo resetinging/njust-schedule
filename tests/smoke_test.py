@@ -470,6 +470,20 @@ views._prune_captcha_locked()
 assert cid not in views._captcha_clients, "过期验证码会话未清理"
 print("  [PASS] 验证码临时会话 TTL 清理")
 
+print("== jwc 拆分完整性(mixin 可访问 common 全部下划线符号) ==")
+import importlib as _importlib  # noqa: E402
+import wxcloudrun.jwc.common as _common_mod  # noqa: E402
+
+# 只取模块级下划线符号(类方法等类属性不在模块命名空间, 不需要导入)
+_syms = sorted(n for n in vars(_common_mod)
+               if n.startswith("_") and not n.startswith("__"))
+for _m in ("base", "login", "core", "schedule", "exams", "utils",
+           "eval", "grades", "cet", "freeclass"):
+    _mod = _importlib.import_module("wxcloudrun.jwc." + _m)
+    _missing = [n for n in _syms if not hasattr(_mod, n)]
+    assert not _missing, "jwc.%s 缺符号: %s" % (_m, _missing)
+print("  [PASS] 10 个 mixin 均可访问 common 全部下划线符号(%d 个)" % len(_syms))
+
 print()
 print(f"结果: {PASS} 通过, {FAIL} 失败")
 if FAIL:

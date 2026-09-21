@@ -2,7 +2,7 @@
 """CoreMixin(Phase 2 从 jwc_client.py 拆出)。"""
 from wxcloudrun.jwc.common import *  # noqa: F401,F403
 from wxcloudrun.jwc.common import (  # noqa: F401
-    _DedupCookieJar, _encrypt_sso_password, _dedupe_schedule_courses)
+    _DedupCookieJar, _encrypt_sso_password, _dedupe_schedule_courses, _HAS_CRYPTO)
 
 
 class CoreMixin:
