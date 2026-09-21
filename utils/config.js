@@ -14,7 +14,7 @@ const API_BASE = 'https://flask-5da7-276116-7-1448570339.sh.run.tcloudbase.com'
 const REQUEST_TIMEOUT = 30000
 
 // 构建标识（git 短 hash）— 设置页显示, 用于确认线上版本
-const BUILD = '5195f45'
+const BUILD = '2c00fa0'
 
 // ============================================================
 // 本地联调开关（仅开发调试用！）
