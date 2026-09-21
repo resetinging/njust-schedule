@@ -160,11 +160,16 @@ def api_get_webvpn_captcha():
 
     if error:
         _pop_captcha_client(cid)
+        # SSO/账号层面的失败(如"SSO 验证码不正确"/"账号或密码错误")属于
+        # 用户可修正的问题, 返回 400 让前端展示具体原因而不是"服务器错误 500";
+        # 真正未知异常仍由全局 500 处理。
+        app.logger.info("[login] rid=%s 智慧理工登录失败(可重试) sid=%s: %s",
+                        _rid(), student_id, error)
         return jsonify({
             "success": False,
             "message": error,
             "debug_log": client.debug_log[-20:],
-        }), 500
+        }), 400
 
     # Step 1.5: 服务端自动识别教务验证码(与直连模式同款能力) → 直接完成登录。
     # 识别失败则回退原流程: 返回验证码图, 由用户在第二步手动输入。
