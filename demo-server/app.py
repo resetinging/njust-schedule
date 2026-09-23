@@ -26,8 +26,37 @@ from wxcloudrun import app, dao  # noqa: E402  (导入即建表)
 from wxcloudrun import views  # noqa: E402
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 
+# 登录成功后的公共处理: 重构后位于 api/auth.py(旧版在 views)
+try:
+    from wxcloudrun.api.auth import _on_login_success
+except ImportError:  # pragma: no cover
+    from wxcloudrun.views import _on_login_success
+
 DEMO_SID = "20260001"
 DEMO_NAME = "南理工同学"
+
+
+def _view_key(name):
+    """实际 view_functions 键名。
+
+    兼容两种情况: 蓝图命名空间(如 auth_api.api_login)与旧版 plain 名(api_login)。
+    """
+    if name in app.view_functions:
+        return name
+    for k in app.view_functions:
+        if k.endswith("." + name):
+            return k
+    return None
+
+
+def _get_view(name):
+    k = _view_key(name)
+    return app.view_functions.get(k) if k else None
+
+
+def _set_view(name, fn):
+    """替换视图实现(跟随蓝图命名空间键, 找不到时回退旧名)"""
+    app.view_functions[_view_key(name) or name] = fn
 
 
 def _current_semester() -> str:
@@ -197,7 +226,7 @@ def _demo_sid_from_request():
 
 def _wrap_login(name, login_method="demo"):
     """登录类接口: 演示学号 → 直接签发会话(不联网); 其它学号走原逻辑"""
-    orig = app.view_functions.get(name)
+    orig = _get_view(name)
     if orig is None:
         return
 
@@ -206,9 +235,9 @@ def _wrap_login(name, login_method="demo"):
             return orig()
         client = _demo_client(DEMO_SID, login_method)
         token = views._register_session(client)
-        return views._on_login_success(client, token)
+        return _on_login_success(client, token)
 
-    app.view_functions[name] = wrapper
+    _set_view(name, wrapper)
 
 
 # 教务直连(自动 OCR / 手动验证码) + 智慧理工(自动 / 手动验证码) 全部支持演示账号
@@ -219,7 +248,7 @@ _wrap_login("api_login_webvpn_manual", "webvpn")
 
 # 智慧理工第一步: 演示账号直接返回"验证码已自动识别, 登录成功"
 # (与线上新流程一致: SSO 通过后自动识别教务验证码, 一次点击即登录)
-_orig_webvpn_captcha = app.view_functions.get("api_get_webvpn_captcha")
+_orig_webvpn_captcha = _get_view("api_get_webvpn_captcha")
 
 
 def _demo_webvpn_captcha():
@@ -228,7 +257,7 @@ def _demo_webvpn_captcha():
         return _orig_webvpn_captcha()
     client = _demo_client(DEMO_SID, "webvpn")
     token = views._register_session(client)
-    views._on_login_success(client, token)   # 初始化用户学期设置(不重复返回 JSON)
+    _on_login_success(client, token)   # 初始化用户学期设置(不重复返回 JSON)
     return jsonify({
         "success": True,
         "already_logged_in": True,
@@ -241,12 +270,12 @@ def _demo_webvpn_captcha():
 
 
 if _orig_webvpn_captcha:
-    app.view_functions["api_get_webvpn_captcha"] = _demo_webvpn_captcha
+    _set_view("api_get_webvpn_captcha", _demo_webvpn_captcha)
 
 # 刷新类接口: 演示账号直接返回成功(不清不写, 种子数据永不丢失)
 for _name in ("api_refresh_schedule", "api_refresh_exams", "api_refresh_all",
               "api_refresh_grades", "api_refresh_cet", "api_refresh_evaluations"):
-    _orig = app.view_functions.get(_name)
+    _orig = _get_view(_name)
     if _orig is None:
         continue
 
@@ -258,12 +287,12 @@ for _name in ("api_refresh_schedule", "api_refresh_exams", "api_refresh_all",
             return orig()
         return wrapper
 
-    app.view_functions[_name] = _make_refresh(_orig)
+    _set_view(_name, _make_refresh(_orig))
 
 # 评教: 课程列表 / 表单 / 提交 → 演示数据
-_orig_eval_courses = app.view_functions.get("api_eval_courses")
-_orig_eval_form = app.view_functions.get("api_eval_form")
-_orig_submit_eval = app.view_functions.get("api_submit_eval")
+_orig_eval_courses = _get_view("api_eval_courses")
+_orig_eval_form = _get_view("api_eval_form")
+_orig_submit_eval = _get_view("api_submit_eval")
 
 
 def _demo_eval_courses():
@@ -305,12 +334,12 @@ def _demo_submit_eval():
     return jsonify({"success": True, "message": "评教提交成功(演示)"})
 
 
-app.view_functions["api_eval_courses"] = _demo_eval_courses
-app.view_functions["api_eval_form"] = _demo_eval_form
-app.view_functions["api_submit_eval"] = _demo_submit_eval
+_set_view("api_eval_courses", _demo_eval_courses)
+_set_view("api_eval_form", _demo_eval_form)
+_set_view("api_submit_eval", _demo_submit_eval)
 
 # 清除缓存: 演示账号不清(避免误清种子数据)
-_orig_clear = app.view_functions.get("api_clear_data")
+_orig_clear = _get_view("api_clear_data")
 
 
 def _demo_clear_data():
@@ -321,7 +350,7 @@ def _demo_clear_data():
 
 
 if _orig_clear:
-    app.view_functions["api_clear_data"] = _demo_clear_data
+    _set_view("api_clear_data", _demo_clear_data)
 
 
 if __name__ == "__main__":
