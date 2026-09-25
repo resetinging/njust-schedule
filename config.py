@@ -40,7 +40,9 @@ JW_LOGON_BASES = ([b.strip().rstrip("/") for b in J_LOGON_BASES_ENV.split(",") i
 #   indexsso.jsp → ids/authserver/login?service=…indexsso.jsp
 #   → indexsso.jsp?ticket=ST-… → xk/LoginToXk?method=ptdl → framework/main.jsp）
 # 会话 cookie 落在 bkjw.njust.edu.cn 域上，因此 SSO 模式下教务请求统一走该入口。
-JW_SSO_BASE = os.environ.get("JW_SSO_BASE", "http://bkjw.njust.edu.cn")
+# 必须用 https: 该入口对 http 一律 302 到 https, 而 SSO 直达模式会把请求统一改写回
+# 本 base, 用 http 会造成 "改写 → 302 → 再改写" 的无限重定向(实测 30 次后报错)。
+JW_SSO_BASE = os.environ.get("JW_SSO_BASE", "https://bkjw.njust.edu.cn")
 JW_PATH_PREFIX = "/njlgdx"
 JW_SSO_ENTRY = f"{JW_SSO_BASE}{JW_PATH_PREFIX}/indexsso.jsp"
 JW_SCHEDULE_URL = f"{JW_BASE_9080}{JW_PATH_PREFIX}/xskb/xskb_list.do?Ves632DSdyV=NEW_XSD_PYGL"

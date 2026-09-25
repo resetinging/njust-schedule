@@ -132,7 +132,12 @@ def remap_jw_url(url: str, target_base: str, path_prefix: str = JW_PATH_PREFIX) 
     if path_prefix and not path.startswith(path_prefix):
         path = path_prefix + path
     query = f"?{p.query}" if p.query else ""
-    return f"{target_base.rstrip('/')}{path}{query}"
+    base = target_base.rstrip("/")
+    # 教务入口对 http 会 302 到 https, 若这里再把 https 降级成 http, 就会出现
+    # "改写 → 302 → 再改写" 的无限重定向。故 https 源址保持 https 目标。
+    if p.scheme == "https" and base.startswith("http://"):
+        base = "https://" + base[len("http://"):]
+    return f"{base}{path}{query}"
 
 
 class WebVPNTransport:

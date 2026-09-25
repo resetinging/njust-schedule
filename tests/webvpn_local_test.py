@@ -88,6 +88,10 @@ check("SSO 直连: 根路径补 /njlgdx",
       remap_jw_url("http://202.119.81.113:8080/verifycode.servlet",
                    "http://bkjw.njust.edu.cn"),
       "http://bkjw.njust.edu.cn/njlgdx/verifycode.servlet")
+check("SSO 直连: https 源址不被降级回 http",
+      remap_jw_url("https://bkjw.njust.edu.cn/njlgdx/kscj/cjcx_query?a=1",
+                   "http://bkjw.njust.edu.cn"),
+      "https://bkjw.njust.edu.cn/njlgdx/kscj/cjcx_query?a=1")
 
 check("is_jw_url(教务)", is_jw_url("http://202.119.81.112:9080/njlgdx/x.do"), True)
 check("is_jw_url(非教务)", is_jw_url("https://ids.njust.edu.cn/authserver/login"), False)
@@ -115,7 +119,7 @@ else:
 
     check("SSO 直连登录成功", ok, True)
     check("登录方式为 sso（未用到教务密码/验证码）", c.login_method, "sso")
-    check("教务请求已统一改写到 SSO 入口", c.webvpn.remap_to, "http://bkjw.njust.edu.cn")
+    check("教务请求已统一改写到 SSO 入口", c.webvpn.remap_to, "https://bkjw.njust.edu.cn")
 
     courses = []
     if ok:
