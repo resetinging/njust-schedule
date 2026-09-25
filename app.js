@@ -138,15 +138,16 @@ App({
           this.globalData.studentName = storage.getStudentName()
           this.globalData.semester = storage.getSemester()
         } else {
-          storage.clearAll()
+          // 会话失效: 保留本地缓存数据 → 离线模式继续展示; 仅失效凭证
+          storage.remove('token')
+          storage.remove('saved_password')
+          storage.setOffline(true)
           this.globalData.isLoggedIn = false
-          this.globalData.studentName = ''
-          this.globalData.semester = ''
           wx.showModal({
             title: '登录已过期',
-            content: '后端会话已失效且自动重登失败，请手动登录',
+            content: '已切换为离线模式，可继续查看本地缓存数据；需要更新数据请手动登录',
             showCancel: false,
-            confirmText: '去登录'
+            confirmText: '知道了'
           })
         }
       })

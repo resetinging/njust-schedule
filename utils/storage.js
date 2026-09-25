@@ -13,7 +13,8 @@ const STORAGE_KEYS = {
   EVALUATIONS: 'cached_evaluations',
   GRADES: 'cached_grades',
   CET_SCORES: 'cached_cet_scores',
-  CACHE_TIME: 'cache_timestamps'
+  CACHE_TIME: 'cache_timestamps',
+  OFFLINE: 'offline_mode'   // 会话失效但保留本地缓存只读展示
 }
 
 /** 获取存储值 */
@@ -55,6 +56,9 @@ function setStudentName(n) { set(STORAGE_KEYS.STUDENT_NAME, n) }
 function getSemester() { return get(STORAGE_KEYS.SEMESTER, '') }
 function setSemester(s) { set(STORAGE_KEYS.SEMESTER, s) }
 function isLoggedIn() { return !!getStudentId() }
+/** 离线模式: 登录失效后仍展示本地缓存(不打网络, 登录接口除外) */
+function isOffline() { return !!get(STORAGE_KEYS.OFFLINE, false) }
+function setOffline(v) { set(STORAGE_KEYS.OFFLINE, !!v) }
 
 // ============================================================
 // 数据缓存
@@ -113,6 +117,7 @@ module.exports = {
   isLoggedIn,
   getStudentId, setStudentId, getStudentName, setStudentName,
   getSemester, setSemester,
+  isOffline, setOffline,
   getCached, setCached, getCacheAge,
   clearAll
 }

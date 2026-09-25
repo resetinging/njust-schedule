@@ -64,6 +64,38 @@ async function check(name, fn) {
     await api.loginWebvpnManual('10001', 'pwd', 'abcd', 'cid-1')
   })
 
+  // ── 离线模式: 登录失效后保留本地缓存继续展示 ──
+  const storage = require(path.join(ROOT, 'utils', 'storage'))
+  await check('401 过期: 保留本地缓存并切离线模式', async () => {
+    storage.setStudentId('10001')
+    storage.set('token', 'tok-old')
+    storage.setCached('cached_courses_demo', [{ name: '缓存课程' }])
+    global.wx.cloud.callContainer = (o) => o.success({
+      statusCode: 401, data: { success: false, message: '尚未登录' }
+    })
+    const r = await api.getCourses('demo')
+    assert.ok(r && r.success === false, '应返回失败')
+    assert.ok(storage.isOffline(), '应切到离线模式')
+    assert.ok((storage.getCached('cached_courses_demo') || []).length === 1, '缓存数据必须保留')
+    assert.ok(storage.isLoggedIn(), '学号保留(用于离线展示)')
+  })
+  await check('离线模式: 非登录接口短路(不打网络)', async () => {
+    let called = 0
+    global.wx.cloud.callContainer = () => { called++; return null }
+    const r = await api.getExams('demo')
+    assert.ok(r && r.offline === true, '应返回 offline 标记')
+    assert.strictEqual(called, 0, '离线模式不应发起请求')
+  })
+  await check('离线模式: 登录接口仍可请求(可重新登录)', async () => {
+    let called = 0
+    global.wx.cloud.callContainer = (o) => {
+      called++
+      return o.success({ statusCode: 200, data: { success: true, token: 'tok-new' } })
+    }
+    await api.getCaptcha()
+    assert.strictEqual(called, 1, '登录类接口应正常请求')
+  })
+
   console.log('\n' + '='.repeat(52))
   console.log('通过 ' + pass + ' / ' + (pass + failures.length))
   if (failures.length) console.log('失败: ' + failures.join(' | '))

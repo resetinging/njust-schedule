@@ -32,6 +32,13 @@ function request(method, path, data = {}, opts) {
   const isLoginPath = /\/api\/(login|logout|get-webvpn-captcha|get-captcha)/.test(path)
   let attempt = 0   // 401 自动重登只尝试一次, 避免循环
 
+  // 离线模式: 会话失效后保留本地缓存只读展示, 不再打网络(登录类接口除外)
+  if (!isLoginPath && storage.isOffline()) {
+    return Promise.resolve({
+      success: false, offline: true, message: '离线模式：显示本地缓存'
+    })
+  }
+
   const handleFail = (statusCode, payload) => {
     // 会话失效且非登录接口: 尝试自动重登(记住密码), 成功则重试
     if (statusCode === 401 && !isLoginPath && attempt === 0) {
@@ -143,8 +150,14 @@ function autoRelogin() {
 
 function clearSessionAndToast() {
   if (storage.get(TOKEN_KEY, '')) {
-    storage.clearAll()
-    wx.showToast({ title: '登录已过期，请重新登录', icon: 'none', duration: 2500 })
+    // 只失效登录凭证, 保留本地缓存数据 → 切离线模式继续展示已保存数据
+    storage.remove(TOKEN_KEY)
+    storage.remove('saved_password')
+    storage.setOffline(true)
+    wx.showToast({
+      title: '登录已过期，已切换离线模式(显示本地缓存)',
+      icon: 'none', duration: 2500
+    })
   }
 }
 
