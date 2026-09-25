@@ -3,6 +3,7 @@
 from wxcloudrun.jwc.common import *  # noqa: F401,F403
 from wxcloudrun.jwc.common import (  # noqa: F401
     _DedupCookieJar, _encrypt_sso_password, _dedupe_schedule_courses, _HAS_CRYPTO)
+import os  # noqa: E402  (SSO_CAPTCHA_RETRY 读取)
 
 
 class LoginMixin:
@@ -299,7 +300,7 @@ class LoginMixin:
 
         try:
             # Step 1: 直连 SSO 登录
-            if not self._direct_sso_login(student_id, password):
+            if not self._direct_sso_login_with_retry(student_id, password):
                 return False
 
             # Step 2: 需要代理时建立 WebVPN 会话（网关登录入口即统一身份认证 CAS）
@@ -355,6 +356,31 @@ class LoginMixin:
             self.last_error = f"登录异常: {e}"
             logger.debug("[SSO] 异常: %s", e, exc_info=True)
             return False
+
+    def _direct_sso_login_with_retry(self, student_id: str, password: str,
+                                     attempts: int = None) -> bool:
+        """SSO 验证码 OCR 偶发失败: 换一张验证码重试。
+
+        重试次数可用环境变量 SSO_CAPTCHA_RETRY 覆盖(默认 5);
+        每次重试重建会话/取登录页, 保证 execution/lt/salt 与验证码配套;
+        非验证码类失败(账号密码错误等)不重试。
+        """
+        if attempts is None:
+            try:
+                attempts = max(1, int(os.environ.get("SSO_CAPTCHA_RETRY", "5")))
+            except (TypeError, ValueError):
+                attempts = 5
+        for i in range(1, attempts + 1):
+            if self._direct_sso_login(student_id, password):
+                return True
+            err = self.last_error or ""
+            if "验证码" not in err:
+                return False
+            self._log(f"[SSO-Direct] 第 {i}/{attempts} 次验证码未通过, 换一张重试")
+            self._setup_session()
+            if i < attempts:
+                time.sleep(0.8)   # 稍作间隔, 避免连续请求触发风控
+        return False
 
     def _direct_sso_login(self, student_id: str, password: str) -> bool:
         """直连 SSO 登录（ids.njust.edu.cn，不走 WebVPN 代理）"""
@@ -422,7 +448,7 @@ class LoginMixin:
                         captcha_url, timeout=TIMEOUT, headers={"Referer": resp.url})
                     if cap_resp.status_code == 200 and len(cap_resp.content) > 100:
                         ocr = ddddocr.DdddOcr(show_ad=False)
-                        sso_captcha_text = ocr.classification(cap_resp.content).strip()
+                        sso_captcha_text = self._ocr_with_preprocess(ocr, cap_resp.content)
                         self._log(f"[SSO-Direct]   SSO OCR: '{sso_captcha_text}'")
                     else:
                         self._log(f"[SSO-Direct]   验证码获取失败 status={cap_resp.status_code}")
@@ -634,7 +660,7 @@ class LoginMixin:
         try:
             # Step 1: 直连 SSO 登录
             self._log("[SSO-Captcha] Step 1: 直连 SSO 登录...")
-            if not self._direct_sso_login(student_id, password):
+            if not self._direct_sso_login_with_retry(student_id, password):
                 return "", self.last_error
 
             # Step 2: SSO 直连教务（首选：indexsso.jsp，免教务密码/验证码）
@@ -772,4 +798,3 @@ class LoginMixin:
             ("username" in t and "password" in t and "randomcode" in t),
         ]
         return any(indicators)
-
