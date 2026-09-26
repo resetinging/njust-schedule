@@ -44,8 +44,8 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 35 个接口(教务直连与第二步登录已下线)', () => {
-    assert.strictEqual(Object.keys(api).length, 35, Object.keys(api).join(','))
+  await check('导出 38 个接口(含微信扫码登录 3 个)', () => {
+    assert.strictEqual(Object.keys(api).length, 38, Object.keys(api).join(','))
   })
   await check('loginWebvpn 成功路径(存 token/学号)', async () => {
     const res = await api.loginWebvpn('10001', 'pwd')

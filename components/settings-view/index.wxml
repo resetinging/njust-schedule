@@ -143,11 +143,27 @@
               disabled="{{loggingIn}}">
         {{loggingIn ? '登录中…' : '登录'}}
       </button>
+
+      <!-- 微信扫码登录(免密码): 长按二维码 → 识别图中二维码 → 确认登录 -->
+      <view wx:if="{{!qrMode}}" class="qr-entry">
+        <button class="qr-entry-btn" bindtap="onStartQr">🟢 微信扫码登录（免密码）</button>
+      </view>
+      <view wx:else class="qr-panel">
+        <view class="qr-panel-title">长按二维码 → 识别图中二维码 → 确认登录</view>
+        <image class="qr-img" src="{{qrSrc}}" mode="widthFix"
+               show-menu-by-longpress="{{true}}"></image>
+        <view class="qr-panel-hint">{{qrHint}}</view>
+        <button class="qr-confirm-btn" bindtap="onQrConfirmTap">✅ 我已确认，立即登录</button>
+        <view class="qr-panel-actions">
+          <text class="qr-link" bindtap="onStartQr">刷新二维码</text>
+          <text class="qr-link" bindtap="onCloseQr">返回密码登录</text>
+        </view>
+      </view>
     </view>
 
     <!-- 提示 -->
     <view class="login-tip">
-      <text>只填学号和智慧理工密码，一步直连教务，无需教务密码和验证码</text>
+      <text>密码登录只填学号和智慧理工密码；也可用微信扫码登录，免密码</text>
     </view>
   </view>
 

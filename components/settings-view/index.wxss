@@ -1,5 +1,71 @@
 /* 设置/登录页面样式 */
 
+/* 微信扫码登录 */
+.qr-entry {
+  margin-top: 20rpx;
+}
+
+.qr-entry-btn {
+  background: #fff;
+  color: #7C6BE8;
+  border: 1rpx solid #D9D4F7;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  line-height: 88rpx;
+  height: 88rpx;
+  padding: 0;
+}
+
+.qr-panel {
+  margin-top: 20rpx;
+  padding: 24rpx;
+  background: #FAF9FF;
+  border: 1rpx solid #E6E2FA;
+  border-radius: 20rpx;
+  text-align: center;
+}
+
+.qr-panel-title {
+  font-size: 26rpx;
+  color: #5A5A66;
+  margin-bottom: 16rpx;
+}
+
+.qr-img {
+  width: 420rpx;
+  background: #fff;
+  border-radius: 12rpx;
+}
+
+.qr-panel-hint {
+  font-size: 24rpx;
+  color: #8A8A96;
+  margin-top: 14rpx;
+  min-height: 34rpx;
+}
+
+.qr-panel-actions {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 18rpx;
+}
+
+.qr-confirm-btn {
+  margin-top: 18rpx;
+  background: #7C6BE8;
+  color: #fff;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  line-height: 84rpx;
+  height: 84rpx;
+  padding: 0;
+}
+
+.qr-link {
+  font-size: 26rpx;
+  color: #7C6BE8;
+}
+
 .container {
   padding-bottom: 40rpx;
 }

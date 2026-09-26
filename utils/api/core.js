@@ -29,7 +29,7 @@ const TOKEN_KEY = 'token'
 function request(method, path, data = {}, opts) {
   const timeout = (opts && opts.timeout) || config.REQUEST_TIMEOUT
   // 登录/验证码/登出接口不触发 401 自动重登(登出 401 时重登会白跑一轮 OCR)
-  const isLoginPath = /\/api\/(login|logout|get-webvpn-captcha|get-captcha)/.test(path)
+  const isLoginPath = /\/api\/(login|logout|sso-qr|get-webvpn-captcha|get-captcha)/.test(path)
   let attempt = 0   // 401 自动重登只尝试一次, 避免循环
 
   // 离线模式: 会话失效后保留本地缓存只读展示, 不再打网络(登录类接口除外)

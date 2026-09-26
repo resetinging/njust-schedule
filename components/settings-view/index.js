@@ -42,6 +42,11 @@ Component({
     password: '',
     loggingIn: false,
     canLogin: false,
+    // 微信扫码登录
+    qrMode: false,
+    qrSrc: '',
+    qrId: '',
+    qrHint: '',
     rememberPwd: true,     // 记住学号与密码（保存在本机）
     showPassword: false,   // 密码明文显示开关
 
@@ -86,6 +91,9 @@ Component({
       if (rp !== this.data.rememberPwd) this.setData({ rememberPwd: rp })
       this.loadSettings()
       this._loadAnnouncement()
+    },
+    detached() {
+      this._stopQrPoll()      // 组件销毁时停止扫码轮询
     }
   },
 
@@ -191,6 +199,121 @@ Component({
     _updateCanLogin() {
       const { studentId, password } = this.data
       this.setData({ canLogin: !!(studentId && password) })
+    },
+
+    // ============================================================
+    // 微信扫码登录（免密码, 单设备：长按二维码 → 识别图中二维码 → 确认）
+    // ============================================================
+
+    /** 申请/刷新二维码 */
+    async onStartQr() {
+      this._stopQrPoll()
+      wx.showLoading({ title: '获取二维码…' })
+      try {
+        const res = await api.startSsoQr()
+        wx.hideLoading()
+        if (!res || !res.success || !res.qr_b64) {
+          wx.showToast({ title: (res && res.message) || '获取二维码失败', icon: 'none' })
+          return
+        }
+        this.setData({
+          qrMode: true,
+          qrId: res.qr_id || '',
+          qrSrc: 'data:image/png;base64,' + res.qr_b64,
+          qrHint: res.message || '长按二维码 → 识别图中二维码 → 确认登录'
+        })
+        this._startQrPoll()
+      } catch (e) {
+        wx.hideLoading()
+        wx.showToast({ title: '获取二维码失败', icon: 'none' })
+      }
+    },
+
+    /** 关闭扫码面板, 回密码登录 */
+    async onCloseQr() {
+      this._stopQrPoll()
+      const qrId = this.data.qrId
+      this.setData({ qrMode: false, qrSrc: '', qrId: '', qrHint: '' })
+      if (qrId) {
+        try { await api.cancelSsoQr(qrId) } catch (e) { /* 忽略 */ }
+      }
+    },
+
+    _startQrPoll() {
+      this._stopQrPoll()
+      // 每 2 秒问一次后端; 二维码约 3 分钟有效, 失效后提示刷新
+      this._qrTimer = setInterval(() => this._pollQr(), 2000)
+    },
+
+    _stopQrPoll() {
+      if (this._qrTimer) {
+        clearInterval(this._qrTimer)
+        this._qrTimer = null
+      }
+    },
+
+    async _pollQr() {
+      const qrId = this.data.qrId
+      if (!qrId) return
+      const res = await api.ssoQrStatus(qrId)
+      if (!res) return
+      if (res.success && res.status === 'ok') {
+        this._onQrSuccess(res)
+        return
+      }
+      if (res.status === 'expired') {
+        this._stopQrPoll()
+        this.setData({ qrHint: '二维码已失效，请点「刷新二维码」' })
+      } else if (res.status === 'scanned') {
+        this.setData({ qrHint: '已扫码，请在手机上点「确认登录」' })
+      }
+    },
+
+    /** 用户点「我已确认」: 立即查一次, 不必等下一次轮询 */
+    async onQrConfirmTap() {
+      const qrId = this.data.qrId
+      if (!qrId) return
+      wx.showLoading({ title: '正在确认…' })
+      let res = null
+      try {
+        res = await api.ssoQrStatus(qrId)
+      } catch (e) {
+        wx.hideLoading()
+        wx.showToast({ title: '网络异常，请重试', icon: 'none' })
+        return
+      }
+      wx.hideLoading()
+      if (res && res.success && res.status === 'ok') {
+        this._onQrSuccess(res)
+        return
+      }
+      if (res && res.status === 'expired') {
+        this._stopQrPoll()
+        this.setData({ qrHint: '二维码已失效，请点「刷新二维码」' })
+        wx.showToast({ title: '二维码已失效', icon: 'none' })
+        return
+      }
+      if (res && res.status === 'scanned') {
+        this.setData({ qrHint: '已扫码，请在手机上点「确认登录」' })
+        wx.showToast({ title: '还没确认，请在手机上点确认', icon: 'none' })
+        return
+      }
+      wx.showToast({ title: '还没检测到确认，请稍后再试', icon: 'none' })
+    },
+
+    /** 扫码登录成功: 统一处理(轮询命中与手动确认共用) */
+    _onQrSuccess(res) {
+      this._stopQrPoll()
+      this.setData({ qrMode: false, qrSrc: '', qrId: '', qrHint: '' })
+      wx.showToast({ title: '登录成功，正在同步数据…', icon: 'success' })
+      this.refreshState()
+      getApp().setLoginState(true, res.student_name || res.student_id || '',
+                              res.semester || '')
+      this.loadSettings()
+      this._loadMyFeedback(false)
+      dataLoader.fetchAllData().then((ok) => {
+        if (ok > 0) wx.showToast({ title: '数据已更新', icon: 'success' })
+      })
     },
 
     /** 记住密码开关(状态持久化) */
