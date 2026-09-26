@@ -3,6 +3,7 @@
  */
 const { request, TOKEN_KEY } = require('./core')
 const storage = require('../storage')
+const config = require('../config')
 
 // 注: 教务直连（原 /api/get-captcha、/api/login-manual、/api/login）已于教务改版后
 // 下线, 前端不再暴露入口, 只保留智慧理工 SSO 登录（见下方 loginWebvpn*）。
@@ -10,7 +11,8 @@ const storage = require('../storage')
 /** 微信扫码登录 Step 1: 申请一张智慧理工登录二维码（约 3 分钟有效） */
 
 function startSsoQr() {
-  return request('POST', '/api/sso-qr/start')
+  // 带上本地学号: 素材服务器据此判断"演示账号"并返回演示二维码(不连真实智慧理工)
+  return request('POST', '/api/sso-qr/start', { student_id: storage.getStudentId() })
 }
 
 /** 微信扫码登录 Step 2: 轮询状态; 确认后后端直接返回 token */
@@ -31,6 +33,13 @@ function ssoQrStatus(qrId) {
       }
       return res
     })
+}
+
+/** 二维码图片直链(真机上必须用 URL: base64 图片不会触发长按识别菜单) */
+
+function ssoQrImageUrl(qrId) {
+  const base = config.USE_LOCAL ? config.LOCAL_BASE : config.API_BASE
+  return base + '/api/sso-qr/image?qr_id=' + encodeURIComponent(qrId || '')
 }
 
 /** 放弃本次扫码（释放后端临时会话） */
@@ -81,4 +90,4 @@ function loginWebvpn(studentId, password) {
 
 /** 保存设置（first_week_date 等） */
 
-module.exports = { logout, loginWebvpn, startSsoQr, ssoQrStatus, cancelSsoQr }
+module.exports = { logout, loginWebvpn, startSsoQr, ssoQrStatus, ssoQrImageUrl, cancelSsoQr }

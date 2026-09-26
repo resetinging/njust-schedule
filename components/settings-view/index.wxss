@@ -32,7 +32,7 @@
 }
 
 .qr-img {
-  width: 420rpx;
+  width: 560rpx;   /* 放大到约 280px: 二维码过小会导致真机长按无法识别 */
   background: #fff;
   border-radius: 12rpx;
 }

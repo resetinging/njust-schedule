@@ -20,6 +20,12 @@ global.wx = {
   showLoading: () => {},
   showModal: (o) => { if (o && o.success) o.success({ confirm: false }) },
   getWindowInfo: () => ({ windowWidth: 375, windowHeight: 667, safeArea: { bottom: 667 } }),
+  // USE_LOCAL=true(本地/素材服务器联调)时请求走 wx.request, 这里同样给桩,
+  // 让冒烟测试不依赖当前的路由开关
+  request: (o) => o.success({
+    statusCode: 200,
+    data: { success: true, token: 'tok-1', student_id: '10001', student_name: '测试', semester: '2026-2027-1' }
+  }),
   cloud: {
     callContainer: (o) => o.success({
       statusCode: 200,
@@ -44,8 +50,8 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 38 个接口(含微信扫码登录 3 个)', () => {
-    assert.strictEqual(Object.keys(api).length, 38, Object.keys(api).join(','))
+  await check('导出 39 个接口(含微信扫码登录 4 个)', () => {
+    assert.strictEqual(Object.keys(api).length, 39, Object.keys(api).join(','))
   })
   await check('loginWebvpn 成功路径(存 token/学号)', async () => {
     const res = await api.loginWebvpn('10001', 'pwd')
@@ -68,13 +74,17 @@ async function check(name, fn) {
 
   // ── 离线模式: 登录失效后保留本地缓存继续展示 ──
   const storage = require(path.join(ROOT, 'utils', 'storage'))
+  // 请求走 wx.request(USE_LOCAL) 还是 callContainer(云端) 取决于路由开关,
+  // 因此每次都要同时替换两个桩, 让离线模式相关断言与开关无关
+  const stubBoth = (fn) => { global.wx.request = fn; global.wx.cloud.callContainer = fn }
+
   await check('401 过期: 保留本地缓存并切离线模式', async () => {
     storage.setStudentId('10001')
     storage.set('token', 'tok-old')
     storage.setCached('cached_courses_demo', [{ name: '缓存课程' }])
-    global.wx.cloud.callContainer = (o) => o.success({
+    stubBoth((o) => o.success({
       statusCode: 401, data: { success: false, message: '尚未登录' }
-    })
+    }))
     const r = await api.getCourses('demo')
     assert.ok(r && r.success === false, '应返回失败')
     assert.ok(storage.isOffline(), '应切到离线模式')
@@ -83,17 +93,17 @@ async function check(name, fn) {
   })
   await check('离线模式: 非登录接口短路(不打网络)', async () => {
     let called = 0
-    global.wx.cloud.callContainer = () => { called++; return null }
+    stubBoth(() => { called++; return null })
     const r = await api.getExams('demo')
     assert.ok(r && r.offline === true, '应返回 offline 标记')
     assert.strictEqual(called, 0, '离线模式不应发起请求')
   })
   await check('离线模式: 登录接口仍可请求(可重新登录)', async () => {
     let called = 0
-    global.wx.cloud.callContainer = (o) => {
+    stubBoth((o) => {
       called++
       return o.success({ statusCode: 200, data: { success: true, token: 'tok-new' } })
-    }
+    })
     await api.loginWebvpn('10001', 'pwd')
     assert.strictEqual(called, 1, '登录类接口应正常请求')
   })

@@ -45,6 +45,7 @@ Component({
     // 微信扫码登录
     qrMode: false,
     qrSrc: '',
+    qrFallback: '',
     qrId: '',
     qrHint: '',
     rememberPwd: true,     // 记住学号与密码（保存在本机）
@@ -219,7 +220,9 @@ Component({
         this.setData({
           qrMode: true,
           qrId: res.qr_id || '',
-          qrSrc: 'data:image/png;base64,' + res.qr_b64,
+          // 真机必须用图片 URL: base64 图片长按不会弹出「识别图中二维码」
+          qrSrc: api.ssoQrImageUrl(res.qr_id),
+          qrFallback: res.qr_b64 ? ('data:image/png;base64,' + res.qr_b64) : '',
           qrHint: res.message || '长按二维码 → 识别图中二维码 → 确认登录'
         })
         this._startQrPoll()
@@ -233,7 +236,7 @@ Component({
     async onCloseQr() {
       this._stopQrPoll()
       const qrId = this.data.qrId
-      this.setData({ qrMode: false, qrSrc: '', qrId: '', qrHint: '' })
+      this.setData({ qrMode: false, qrSrc: '', qrId: '', qrHint: '', qrFallback: '' })
       if (qrId) {
         try { await api.cancelSsoQr(qrId) } catch (e) { /* 忽略 */ }
       }
@@ -304,7 +307,7 @@ Component({
     /** 扫码登录成功: 统一处理(轮询命中与手动确认共用) */
     _onQrSuccess(res) {
       this._stopQrPoll()
-      this.setData({ qrMode: false, qrSrc: '', qrId: '', qrHint: '' })
+      this.setData({ qrMode: false, qrSrc: '', qrId: '', qrHint: '', qrFallback: '' })
       wx.showToast({ title: '登录成功，正在同步数据…', icon: 'success' })
       this.refreshState()
       getApp().setLoginState(true, res.student_name || res.student_id || '',
@@ -314,6 +317,13 @@ Component({
       dataLoader.fetchAllData().then((ok) => {
         if (ok > 0) wx.showToast({ title: '数据已更新', icon: 'success' })
       })
+    },
+
+    /** 图片 URL 加载失败时回退 base64（本地联调或域名未配置时兜底） */
+    onQrImgError() {
+      if (this.data.qrFallback && this.data.qrSrc !== this.data.qrFallback) {
+        this.setData({ qrSrc: this.data.qrFallback })
+      }
     },
 
     /** 记住密码开关(状态持久化) */
