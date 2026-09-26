@@ -272,6 +272,136 @@ def _demo_webvpn_captcha():
 if _orig_webvpn_captcha:
     _set_view("api_get_webvpn_captcha", _demo_webvpn_captcha)
 
+# ---------- 微信扫码登录: 演示账号用假二维码, 不连真实智慧理工 ----------
+# 真实二维码 3 分钟失效且需要手机确认, 录制视频时不方便;
+# 演示账号改为「假二维码 + 3 次轮询后自动登录」(约 6 秒), 也可点「我已确认」提前完成。
+_qr_poll_seen = {}      # demo qr_id -> 已轮询次数
+_qr_images = {}         # demo qr_id -> 二维码 PNG 字节(图片直链接口用)
+
+_orig_qr_start = _get_view("api_sso_qr_start")
+_orig_qr_status = _get_view("api_sso_qr_status")
+_orig_qr_cancel = _get_view("api_sso_qr_cancel")
+
+
+def _demo_qr_png_bytes() -> bytes:
+    """生成一张"看起来像二维码"的演示图(不含真实内容)。"""
+    try:
+        import random as _random
+        from io import BytesIO
+        from PIL import Image, ImageDraw
+
+        n, cell, quiet = 25, 12, 2          # 25×25 模块, 每模块 12px, 四周留白 2 模块
+        size = (n + quiet * 2) * cell
+        img = Image.new("RGB", (size, size), "white")
+        d = ImageDraw.Draw(img)
+        rnd = _random.Random(20260926)      # 固定种子: 每次生成一致
+
+        def finder(ox, oy):
+            """画定位角(7×7 同心方框)"""
+            x0, y0 = (ox + quiet) * cell, (oy + quiet) * cell
+            d.rectangle([x0, y0, x0 + 7 * cell - 1, y0 + 7 * cell - 1], fill="black")
+            d.rectangle([x0 + cell, y0 + cell, x0 + 6 * cell - 1, y0 + 6 * cell - 1],
+                        fill="white")
+            d.rectangle([x0 + 2 * cell, y0 + 2 * cell, x0 + 5 * cell - 1,
+                         y0 + 5 * cell - 1], fill="black")
+
+        finder(0, 0)
+        finder(n - 7, 0)
+        finder(0, n - 7)
+        for y in range(n):
+            for x in range(n):
+                if (x < 8 and y < 8) or (x >= n - 8 and y < 8) or (x < 8 and y >= n - 8):
+                    continue                # 定位角区域跳过
+                if rnd.random() < 0.45:
+                    x0, y0 = (x + quiet) * cell, (y + quiet) * cell
+                    d.rectangle([x0, y0, x0 + cell - 1, y0 + cell - 1], fill="black")
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:                        # noqa: BLE001 Pillow 不可用时给空图
+        return b""
+
+
+def _demo_qr_start():
+    from flask import jsonify
+    import base64 as _b64
+    import secrets as _secrets
+    if _demo_sid_from_request() != DEMO_SID:
+        return _orig_qr_start()
+    qid = "demo-" + _secrets.token_urlsafe(12)
+    _qr_poll_seen[qid] = 0
+    png = _demo_qr_png_bytes()
+    _qr_images[qid] = png
+    return jsonify({
+        "success": True,
+        "qr_id": qid,
+        "qr_b64": _b64.b64encode(png).decode() if png else "",
+        "expires_in": 180,
+        "message": "演示二维码：约 6 秒后自动登录，也可点「我已确认」",
+    })
+
+
+def _demo_qr_status():
+    from flask import jsonify, request
+    qid = (request.args.get("qr_id") or "").strip()
+    if not qid.startswith("demo-"):
+        return _orig_qr_status()
+    # 第 1 次=未扫, 第 2 次=已扫待确认, 第 3 次起=已确认(≈6 秒)
+    n = _qr_poll_seen.get(qid, 0) + 1
+    _qr_poll_seen[qid] = n
+    if n < 2:
+        return jsonify({"success": True, "status": "pending"})
+    if n == 2:
+        return jsonify({"success": True, "status": "scanned"})
+    _qr_poll_seen.pop(qid, None)
+    _qr_images.pop(qid, None)
+    client = _demo_client(DEMO_SID, "sso-qr")
+    token = views._register_session(client)
+    _on_login_success(client, token)          # 初始化用户学期设置
+    return jsonify({
+        "success": True,
+        "status": "ok",
+        "token": token,
+        "student_id": DEMO_SID,
+        "student_name": DEMO_NAME,
+        "semester": client._current_semester(),
+        "login_method": "sso-qr",
+        "message": f"登录成功！欢迎 {DEMO_NAME}",
+    })
+
+
+def _demo_qr_cancel():
+    from flask import jsonify, request
+    data = request.get_json(silent=True) or {}
+    _qid = (data.get("qr_id") or "").strip()
+    _qr_poll_seen.pop(_qid, None)
+    _qr_images.pop(_qid, None)
+    return jsonify({"success": True})
+
+
+_orig_qr_image = _get_view("api_sso_qr_image")
+
+
+def _demo_qr_image():
+    """演示二维码图片直链(小程序 <image src> 用 URL 才能在真机长按识别)。"""
+    from flask import Response, jsonify, request
+    qid = (request.args.get("qr_id") or "").strip()
+    data = _qr_images.get(qid)
+    if not data:
+        return _orig_qr_image()
+    return Response(data, mimetype="image/png",
+                    headers={"Cache-Control": "no-store"})
+
+
+if _orig_qr_start:
+    _set_view("api_sso_qr_start", _demo_qr_start)
+if _orig_qr_status:
+    _set_view("api_sso_qr_status", _demo_qr_status)
+if _orig_qr_cancel:
+    _set_view("api_sso_qr_cancel", _demo_qr_cancel)
+if _orig_qr_image:
+    _set_view("api_sso_qr_image", _demo_qr_image)
+
 # 刷新类接口: 演示账号直接返回成功(不清不写, 种子数据永不丢失)
 for _name in ("api_refresh_schedule", "api_refresh_exams", "api_refresh_all",
               "api_refresh_grades", "api_refresh_cet", "api_refresh_evaluations"):
@@ -314,11 +444,16 @@ def _demo_eval_form():
     from flask import jsonify
     if _demo_sid() != DEMO_SID:
         return _orig_eval_form()
+    # 素材规格: 10 个指标, 每个指标 0~10 分 → 满分 100
+    labels = ["教学态度", "教学内容", "教学方法", "课堂组织", "语言表达",
+              "作业批改", "答疑辅导", "教学效果", "教材选用", "总体评价"]
     indicators = []
-    for i in range(1, 7):
+    for i in range(1, 11):
         options = [{"value": v, "name": f"pj0601fz_{i}_{j}"}
-                   for j, v in enumerate(("100", "90", "80", "70", "60"))]
-        indicators.append({"seq": str(i), "options": options})
+                   for j, v in enumerate(("10", "9", "8", "7", "6", "5",
+                                          "4", "3", "2", "1", "0"))]
+        indicators.append({"seq": str(i), "label": labels[i - 1],
+                           "options": options})
     return jsonify({
         "success": True,
         "action": "/demo/submit",
