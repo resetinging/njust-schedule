@@ -58,8 +58,26 @@ def _current_teaching_week(first_week_date: str, on=None) -> int:
 # 实例锁串行保证同一账号 Cookie 一致, 会话失效时自动重登。
 _classroom_service_lock = threading.Lock()
 _classroom_service_client = JWCClient()
-_service_sid = config.FREE_CLASSROOM_SID.strip()
-_service_pwd = config.FREE_CLASSROOM_PWD.strip()
+
+
+def _service_credentials():
+    """服务账号凭据(学号, 密码)。
+
+    密码存在 settings 表 `free_classroom_pwd`, 由管理面板录入 —— 仓库里不留明文,
+    云端也无需环境变量。学号默认取 config, 可用 `free_classroom_sid` 覆盖。
+    """
+    sid = (dao.get_setting("free_classroom_sid", "")
+           or config.FREE_CLASSROOM_SID).strip()
+    pwd = (dao.get_setting("free_classroom_pwd", "")
+           or config.FREE_CLASSROOM_PWD).strip()
+    return sid, pwd
+
+
+def _reset_service_client():
+    """凭据变更后丢弃旧会话, 下次查询用新账号重新登录。"""
+    global _classroom_service_client
+    with _classroom_service_lock:
+        _classroom_service_client = JWCClient()
 
 
 def _service_free_classrooms(campus, weekday, jc1, jc2, week, semester, building):
@@ -67,13 +85,16 @@ def _service_free_classrooms(campus, weekday, jc1, jc2, week, semester, building
 
     返回 (result_dict, None) 成功 / (None, 错误信息) 失败。
     """
-    if not _service_sid:
+    sid, pwd = _service_credentials()
+    if not sid:
         return None, "未配置空教室服务账号"
-    pwd = _service_pwd or f"{_service_sid}@Njust"
+    if not pwd:
+        return None, "未配置空教室服务账号密码(请在管理面板「系统」中设置)"
     with _classroom_service_lock:
         for _attempt in range(2):
             if not _classroom_service_client.logged_in:
-                ok = _classroom_service_client.login(_service_sid, pwd)
+                # 教务直连已下线: 服务账号改走智慧理工 SSO(含持久化会话复用)
+                ok = _classroom_service_client.login_webvpn(sid, pwd)
                 if not ok:
                     return None, _classroom_service_client.last_error or "服务账号登录失败"
             res = _classroom_service_client.get_free_classrooms(
@@ -182,6 +203,27 @@ def _next_freeclass_refresh(now=None):
     return _dt.combine(now.date(), t0) + timedelta(days=1), freeclass_refresh_plan(now)[0][1]
 
 
+def _current_slot_key(now=None) -> str:
+    """当前所处的大节 key(按本地时间取 plan 中最后一个已到时刻)。
+
+    用于容器启动时补齐缓存: 09:30 启动 → 当前大节是 08:00 对应的 "1-3";
+    早于当天第一个上课时刻(如 07:30)则取第一个大节, 补的是即将开始的那一节。
+    """
+    from datetime import datetime as _dt
+    now = now or _dt.now()
+    cur = FREE_CLASSROOM_REFRESH_PLAN[0][1]
+    for hm, slot in FREE_CLASSROOM_REFRESH_PLAN:
+        try:
+            h, m = (int(x) for x in hm.split(":"))
+        except (ValueError, TypeError):
+            continue
+        if (h, m) <= (now.hour, now.minute):
+            cur = slot
+        else:
+            break
+    return cur
+
+
 def _freeclass_ttl(now=None) -> float:
     """空教室缓存有效期: 到下一个大节上课时刻 + 120s 缓冲。
 
@@ -242,7 +284,16 @@ def _prewarm_free_classrooms(slots=None):
 
 
 def _prewarm_loop():
-    """后台守护线程: 每到上下课时刻预热对应大节"""
+    """后台守护线程: 启动先补当前大节, 之后每到上课时刻预热对应大节"""
+    # 容器重启后缓存为空: 由后端立即补齐"当前大节", 而不是等用户请求触发抓取
+    try:
+        from wxcloudrun import app as _app
+        slot = _current_slot_key()
+        with _app.app_context():
+            app.logger.info("[freeclass][prewarm] 启动补缓存: 当前大节 %s", slot)
+            _prewarm_free_classrooms([slot])
+    except Exception as e:  # noqa: BLE001 补缓存失败不影响定时循环
+        app.logger.warning("[freeclass][prewarm] 启动补缓存失败: %s", e)
     while True:
         try:
             from datetime import datetime as _dt
@@ -258,13 +309,17 @@ def _prewarm_loop():
 
 
 def _start_freeclass_prewarm():
-    """按环境变量开关启动预热线程(测试/本地默认关闭)"""
-    if os.environ.get("FREE_CLASSROOM_PREWARM", "0") != "1":
+    """启动预热线程: 默认开启(空教室数据由后端负责更新)。
+
+    关闭方式: 环境变量 FREE_CLASSROOM_PREWARM=0(本地联调时可临时关掉)。
+    """
+    if os.environ.get("FREE_CLASSROOM_PREWARM", "1").strip() == "0":
+        app.logger.info("[freeclass] 定时预热已关闭(FREE_CLASSROOM_PREWARM=0)")
         return
     try:
         threading.Thread(target=_prewarm_loop, daemon=True,
                          name="freeclass-prewarm").start()
-        app.logger.info("[freeclass] 定时预热已启用(上下课时刻刷新当天缓存)")
+        app.logger.info("[freeclass] 定时预热已启用(启动补当前大节 + 各大节上课时刻刷新)")
     except Exception as e:
         app.logger.warning("[freeclass] 预热线程启动失败: %s", e)
 
@@ -375,5 +430,3 @@ def api_free_classrooms():
                     f"/{resp['building']}" if resp["building"] else "",
                     week, weekday, jc1, jc2, resp["count"])
     return jsonify(resp)
-
-

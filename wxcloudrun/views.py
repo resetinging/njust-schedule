@@ -189,5 +189,5 @@ def server_error(e):
     return jsonify({"error": "服务器内部错误"}), 500
 
 
-# 空教室定时预热(默认关闭, 云托管环境变量 FREE_CLASSROOM_PREWARM=1 开启)
-_start_freeclass_prewarm()
+# 空教室定时预热: 由服务入口 run.py 启动(默认开启, FREE_CLASSROOM_PREWARM=0 关闭)。
+# 不在这里启动: 导入应用即起线程会让测试/工具进程也拉起预热并占住数据库连接。

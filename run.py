@@ -17,6 +17,12 @@ logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 from wxcloudrun import app
 
+# 空教室定时预热: 由后端在每天各大节上课时刻刷新缓存(前端只读接口结果)。
+# 放在服务入口启动: gunicorn run:app / python run.py 都会执行; 测试只导入
+# wxcloudrun 包, 不会拉起该线程。设 FREE_CLASSROOM_PREWARM=0 可关闭。
+from wxcloudrun.api.freeclass import _start_freeclass_prewarm  # noqa: E402
+_start_freeclass_prewarm()
+
 # 启动摘要日志: 确认部署版本与关键配置(云托管控制台日志可见)
 logger = logging.getLogger("startup")
 logger.info("========================================")
