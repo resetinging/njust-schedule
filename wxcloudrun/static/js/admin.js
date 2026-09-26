@@ -484,6 +484,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (t === 'users' && !tabLoaded.users) { tabLoaded.users = true; loadUsers(); }
     if (t === 'grades' && !tabLoaded.grades) { tabLoaded.grades = true; loadGradeStats(); }
     if (t === 'feedback' && !tabLoaded.feedback) { tabLoaded.feedback = true; loadFeedback(); }
+    if (t === 'system' && !tabLoaded.system) { tabLoaded.system = true; loadFreeclassAccount(); }
   });
 });
 
@@ -522,6 +523,40 @@ $('annSave').addEventListener('click', async () => {
 // ============================================================
 // 问题反馈管理
 // ============================================================
+async function loadFreeclassAccount() {
+  try {
+    const r = await api('/api/admin/freeclass-account');
+    if (!r.success) return;
+    $('fcSid').value = r.sid || '';
+    if (r.has_password) {
+      $('fcStatus').textContent = '密码已配置' + (r.updated ? '（更新于 ' + r.updated + '）' : '');
+      $('fcStatus').style.color = '';
+    } else {
+      $('fcStatus').textContent = '⚠️ 尚未配置密码：空教室查询会失败，请填写智慧理工密码后保存';
+      $('fcStatus').style.color = '#e67e22';
+    }
+  } catch (e) {}
+}
+$('fcSave').addEventListener('click', async () => {
+  const sid = $('fcSid').value.trim();
+  const password = $('fcPwd').value.trim();
+  if (!sid && !password) {
+    alert('请填写学号或密码');
+    return;
+  }
+  const r = await api('/api/admin/freeclass-account', {
+    method: 'POST',
+    body: JSON.stringify({ sid, password })
+  });
+  if (r.success) {
+    $('fcPwd').value = '';
+    loadFreeclassAccount();
+    alert('已保存。空教室缓存会在下次大节刷新时生效。');
+  } else {
+    alert('保存失败: ' + (r.message || '未知错误'));
+  }
+});
+
 const FEEDBACK_TYPES = { suggest: '功能建议', bug: '问题/Bug', other: '其他' };
 async function loadFeedback() {
   try {

@@ -46,6 +46,7 @@
       <button class="tab" data-tab="grades">成绩统计</button>
       <button class="tab" data-tab="announce">📢 公告</button>
       <button class="tab" data-tab="feedback">✉️ 反馈</button>
+      <button class="tab" data-tab="system">⚙️ 系统</button>
     </nav>
 
     <section id="panel-requests" class="panel active">
@@ -151,6 +152,26 @@
         <div class="ann-actions">
           <span id="annCount" class="dim">0 / 500</span>
           <button id="annSave" class="primary ann-save">保存公告</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-system" class="panel">
+      <div class="card">
+        <h3>🏫 空教室服务账号</h3>
+        <p class="dim" style="margin-bottom:12px">空教室数据由后端用该账号（智慧理工统一身份认证）在各大节上课时刻定时抓取，所有用户共享缓存；前端只读取后端结果。密码保存在数据库，<strong>不写进代码仓库</strong>；密码留空表示不修改。</p>
+        <div class="form-group">
+          <label for="fcSid">学号</label>
+          <input type="text" id="fcSid" class="ann-input" placeholder="服务账号学号" maxlength="20">
+        </div>
+        <div class="form-group">
+          <label for="fcPwd">智慧理工密码</label>
+          <input type="password" id="fcPwd" class="ann-input" placeholder="留空则不修改"
+                 maxlength="64" autocomplete="new-password">
+        </div>
+        <p class="dim" id="fcStatus" style="margin-top:8px"></p>
+        <div class="ann-actions">
+          <button id="fcSave" class="primary ann-save">保存</button>
         </div>
       </div>
     </section>

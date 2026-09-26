@@ -533,6 +533,52 @@ def admin_set_announcement():
 
 
 # ============================================================
+# 空教室服务账号(智慧理工): 密码存数据库, 不写进公开仓库
+# ============================================================
+@app.route("/api/admin/freeclass-account", methods=["GET"])
+@admin_required
+def admin_get_freeclass_account():
+    """空教室服务账号信息(只回是否已配置, 不回传密码明文)"""
+    sid = (dao.get_setting("free_classroom_sid", "")
+           or config.FREE_CLASSROOM_SID)
+    pwd = (dao.get_setting("free_classroom_pwd", "")
+           or config.FREE_CLASSROOM_PWD)
+    return jsonify({
+        "success": True,
+        "sid": sid,
+        "has_password": bool((pwd or "").strip()),
+        "updated": dao.get_setting("free_classroom_pwd_updated", ""),
+    })
+
+
+@app.route("/api/admin/freeclass-account", methods=["POST"])
+@admin_required
+def admin_set_freeclass_account():
+    """设置空教室服务账号(智慧理工学号 + 密码)
+
+    密码存 settings 表(不入仓库): 公开仓库 + 云端环境变量不可用的情况下,
+    管理员在这里录入一次即可; 密码留空表示不修改。
+    """
+    data = request.get_json(silent=True) or {}
+    sid = str(data.get("sid", "")).strip()
+    pwd = str(data.get("password", "")).strip()
+    if sid:
+        dao.set_setting("free_classroom_sid", sid)
+    if pwd:
+        dao.set_setting("free_classroom_pwd", pwd)
+        dao.set_setting("free_classroom_pwd_updated",
+                        time.strftime("%Y-%m-%d %H:%M:%S"))
+        try:
+            from wxcloudrun.api.freeclass import _reset_service_client
+            _reset_service_client()      # 凭据变了, 丢弃旧会话
+        except Exception:                # noqa: BLE001 重置失败不影响保存
+            pass
+    app.logger.info("[admin] rid=%s 更新空教室服务账号 sid=%s 密码已更新=%s",
+                    _rid(), sid or "-", bool(pwd))
+    return admin_get_freeclass_account()
+
+
+# ============================================================
 # 缺失姓名补齐: 用教务处默认密码(学号+@Njust)自动尝试登录
 # ============================================================
 @app.route("/api/admin/fetch-names", methods=["POST"])
@@ -543,7 +589,15 @@ def admin_fetch_names():
     轻量化: 每批最多 5 人 + 60s 硬超时(串行在请求线程内执行,
     数量过多会长时间阻塞服务线程, 故分批; 前端可多次点击)。
     串行 + 间隔 2 秒, 避免批量登录触发教务风控。
+
+    注意: 依赖教务直连(默认密码), 该通道在教务改版后已下线, 故本工具停用。
     """
+    return jsonify({
+        "success": False, "tried": 0, "ok": [], "fail": [],
+        "message": "教务直连已下线，无法批量补姓名（需学生自行用智慧理工登录一次）",
+    }), 400
+
+    # ---- 以下为教务直连时代的旧实现, 保留供将来教务恢复表单登录时参考 ----
     from wxcloudrun.jwc_client import JWCClient
     FETCH_BATCH_MAX = 5        # 每批最多人数
     FETCH_DEADLINE_SEC = 60    # 单请求硬超时(到点停止剩余尝试)

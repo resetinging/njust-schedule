@@ -59,9 +59,12 @@ JW_BORROW_LIST = f"{JW_BASE_9080}{JW_PATH_PREFIX}/kbxx/jsjy_query2"
 
 # 空教室"服务账号"(共享抓取): 教室数据全校一致, 由该账号统一查询 + 服务端
 # 缓存, 小程序所有用户共享结果(无需每个用户各自用教务会话抓取)。
-# 未配置 FREE_CLASSROOM_PWD 时按教务默认密码规则(学号+@Njust)尝试。
-FREE_CLASSROOM_SID = os.environ.get("FREE_CLASSROOM_SID", "924101960123")
-FREE_CLASSROOM_PWD = os.environ.get("FREE_CLASSROOM_PWD", "")
+# 教务直连已下线 → 该账号改用智慧理工 SSO 登录。
+# **密码不写进仓库**(公开仓库, 环境变量在云端又不可用): 存 settings 表
+# free_classroom_pwd, 由管理面板 /admin → ⚙️ 系统 录入; 学号默认如下,
+# 也可用 settings 表 free_classroom_sid 覆盖。
+FREE_CLASSROOM_SID = "924101960123"
+FREE_CLASSROOM_PWD = ""      # 仅作兜底, 实际从数据库读取
 JW_CAPTCHA_URLS = [
     f"{JW_BASE_8080}/CheckCode?date=",
     f"{JW_BASE_8080}/verifycode.servlet",
@@ -103,6 +106,17 @@ SSO_LOGIN_URL = (
     f"{SSO_BASE}/authserver/login"
     "?service=https%3A%2F%2Fehall2.njust.edu.cn%2Flogin"
 )
+# 会话复用与认证节流（频繁提交密码会被智慧理工风控冻结）
+# 持久化的是会话 cookie（非密码）；CAS 票据实测有效期 30 天（登录带 rememberMe），
+# 上限与之对齐，避免无谓地重新认证；复用前仍会探测有效性，退出登录会主动删除。
+SSO_SESSION_SETTING_KEY = "jwc_session"
+SSO_SESSION_MAX_AGE = int(os.environ.get("SSO_SESSION_MAX_AGE", str(30 * 24 * 3600)))
+# 同一学号认证失败后的冷却秒数（冷却期内不再打智慧理工）
+SSO_LOGIN_COOLDOWN = int(os.environ.get("SSO_LOGIN_COOLDOWN", "60"))
+# 验证码换图重试次数：一次用户登录最多产生 attempts 次密码提交
+SSO_CAPTCHA_RETRY = int(os.environ.get("SSO_CAPTCHA_RETRY", "1"))
+# 8080 表单登录（原「教务直连」）已于改版后失效，默认关闭；临时启用设 1
+JW_ALLOW_FORM_FALLBACK = os.environ.get("JW_ALLOW_FORM_FALLBACK", "0") == "1"
 
 # ============================================================
 # WebVPN（网瑞达 wengine）代理直连
