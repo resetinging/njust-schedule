@@ -6,7 +6,7 @@
 """
 import time
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 import config
 from wxcloudrun import app, dao
@@ -174,6 +174,22 @@ def api_sso_qr_start():
         "expires_in": 180,
         "message": "长按二维码 → 识别图中二维码 → 确认登录",
     })
+
+
+@auth_bp.route('/api/sso-qr/image')
+def api_sso_qr_image():
+    """二维码图片直链。
+
+    小程序真机上 base64 图片不会触发长按识别菜单, 必须用 URL 引用,
+    因此这里直接返回 PNG 字节(与 start 返回的 base64 内容一致)。
+    """
+    qid = (request.args.get("qr_id") or "").strip()
+    client = _get_qr_client(qid)
+    data = getattr(client, "_qr_image", b"") if client else b""
+    if not data:
+        return jsonify({"success": False, "message": "二维码不存在或已过期"}), 404
+    return Response(data, mimetype="image/png",
+                    headers={"Cache-Control": "no-store"})
 
 
 @auth_bp.route('/api/sso-qr/status')

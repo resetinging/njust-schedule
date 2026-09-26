@@ -26,6 +26,7 @@ class QrLoginMixin:
         self._qr_lt = ""
         self._qr_execution = "e1s1"
         self._qr_login_url = SSO_LOGIN_URL
+        self._qr_image = b""      # 二维码原始 PNG, 供图片 URL 接口直接返回
 
     # ---------- 1) 申请二维码 ----------
     def start_qr_login(self):
@@ -59,6 +60,7 @@ class QrLoginMixin:
             ctype = (img.headers.get("Content-Type") or "").lower()
             if not ctype.startswith("image/") or len(img.content) < 200:
                 return "", "获取二维码图片失败"
+            self._qr_image = img.content
             return base64.b64encode(img.content).decode(), ""
         except requests.exceptions.ConnectionError:
             return "", "无法连接智慧理工（请检查网络）"

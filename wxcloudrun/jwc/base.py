@@ -33,6 +33,7 @@ class BaseMixin:
         self._qr_lt = ""
         self._qr_execution = ""
         self._qr_login_url = ""
+        self._qr_image = b""
         self._webvpn_post_url = ""
         self._webvpn_login_page_url = ""
         # 会话有效性探测缓存（避免每个请求都访问教务主页探测）
