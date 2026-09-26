@@ -37,16 +37,11 @@ Component({
     gradeCount: 0,
 
     // 登录模式
-    loginMode: 'direct',   // 'direct' | 'webvpn'
 
     // 登录表单
     password: '',
-    captcha: '',
-    captchaId: '',         // 当前验证码会话 ID（多用户：登录时回传绑定）
-    captchaSrc: '',
     loggingIn: false,
     canLogin: false,
-    ssoStepDone: false,    // 智慧理工模式: SSO 已通过, 显示教务验证码
     rememberPwd: true,     // 记住学号与密码（保存在本机）
     showPassword: false,   // 密码明文显示开关
 
@@ -174,22 +169,6 @@ Component({
     },
 
     // ============================================================
-    // 登录模式切换
-    // ============================================================
-
-    switchLoginMode(e) {
-      const mode = e.currentTarget.dataset.mode
-      if (mode === this.data.loginMode) return
-      this.setData({
-        loginMode: mode,
-        captcha: '',
-        captchaSrc: '',
-        ssoStepDone: false
-      })
-      this._updateCanLogin()
-    },
-
-    // ============================================================
     // 登录
     // ============================================================
 
@@ -208,12 +187,7 @@ Component({
       this.setData({ showPassword: !this.data.showPassword })
     },
 
-    onCaptchaInput(e) {
-      this.setData({ captcha: e.detail.value })
-      this._updateCanLogin()
-    },
-
-    /** 计算登录按钮是否可用（学号+密码即可；验证码可选，自动识别时无需输入） */
+    /** 计算登录按钮是否可用（学号 + 智慧理工密码即可） */
     _updateCanLogin() {
       const { studentId, password } = this.data
       this.setData({ canLogin: !!(studentId && password) })
@@ -239,95 +213,19 @@ Component({
       }
     },
 
-    /** 获取验证码（按登录模式选择端点） */
-    async onRefreshCaptcha() {
-      const { loginMode, studentId, password } = this.data
-
-      if (loginMode === 'webvpn') {
-        if (!studentId || !password) {
-          wx.showToast({ title: '请先输入学号和智慧理工密码', icon: 'none' })
-          return
-        }
-        wx.showLoading({ title: '智慧理工登录中…' })
-        try {
-          const res = await api.getWebvpnCaptcha(studentId, password)
-          wx.hideLoading()
-          if (res.success && res.captcha_b64) {
-            this.setData({
-              captchaId: res.captcha_id || '',
-              captchaSrc: 'data:' + (res.captcha_mime || 'image/png') + ';base64,' + res.captcha_b64,
-              captcha: '',
-              ssoStepDone: true
-            })
-            wx.showToast({ title: res.message || '✅ 智慧理工已通过，请输入验证码', icon: 'none' })
-          } else if (res.success && res.already_logged_in) {
-            this.setData({ captchaId: '' })
-            this.refreshState()
-            wx.showToast({ title: res.message || '✅ 已有教务会话，无需重复登录', icon: 'success' })
-          } else {
-            this.setData({ captchaId: '' })
-            wx.showToast({ title: res.message || '智慧理工登录失败', icon: 'none' })
-          }
-        } catch (e) {
-          wx.hideLoading()
-          wx.showToast({ title: '获取验证码失败', icon: 'none' })
-        }
-        return
-      }
-
-      // 教务直连模式
-      try {
-        const res = await api.getCaptcha()
-        if (res.success && res.captcha_b64) {
-          this.setData({
-            captchaId: res.captcha_id || '',
-            captchaSrc: 'data:' + (res.captcha_mime || 'image/png') + ';base64,' + res.captcha_b64,
-            captcha: ''
-          })
-          this._updateCanLogin()
-        } else {
-          this.setData({ captchaId: '' })
-          wx.showToast({ title: res.message || '获取验证码失败', icon: 'none' })
-        }
-      } catch (e) {
-        wx.showToast({ title: '获取验证码失败', icon: 'none' })
-      }
-    },
-
-    /** 登录（无验证码时走服务端自动 OCR，失败自动切换手动验证码） */
+    /** 登录：智慧理工 SSO 一步直连教务（免教务密码/验证码） */
     async onLogin() {
-      const { loginMode, studentId, password, captcha, rememberPwd } = this.data
+      const { studentId, password, rememberPwd } = this.data
       if (!studentId || !password) {
-        wx.showToast({ title: '请填写学号和密码', icon: 'none' })
+        wx.showToast({ title: '请填写学号和智慧理工密码', icon: 'none' })
         return
       }
 
       let res
       this.setData({ loggingIn: true })
       try {
-        if (loginMode === 'webvpn') {
-          // 智慧理工：SSO 已完成且有验证码 → 手动两步；否则全自动（SSO 直连教务）
-          if (captcha && this.data.ssoStepDone) {
-            wx.showLoading({ title: '登录中…' })
-            res = await api.loginWebvpnManual(studentId, password, captcha, this.data.captchaId)
-          } else if (!this.data.ssoStepDone) {
-            wx.showLoading({ title: '智慧理工自动登录中…' })
-            res = await api.loginWebvpn(studentId, password)
-          } else {
-            wx.showToast({ title: '请先输入验证码', icon: 'none' })
-            this.setData({ loggingIn: false })
-            return
-          }
-        } else {
-          // 教务直连：有验证码 → 手动；无验证码 → 服务端自动 OCR
-          if (captcha) {
-            wx.showLoading({ title: '登录中…' })
-            res = await api.login(studentId, password, captcha, this.data.captchaId)
-          } else {
-            wx.showLoading({ title: '自动识别验证码登录中…' })
-            res = await api.loginAuto(studentId, password)
-          }
-        }
+        wx.showLoading({ title: '智慧理工登录中…' })
+        res = await api.loginWebvpn(studentId, password)
         wx.hideLoading()
         this.setData({ loggingIn: false })
 
@@ -346,7 +244,7 @@ Component({
           // 通知全局
           getApp().setLoginState(true, res.student_name || studentId, res.semester || '')
           this.setData({
-            password: '', captcha: '', captchaId: '', captchaSrc: '', ssoStepDone: false
+            password: ''
           })
           this.loadSettings()
           // 登录后立即刷新「我的反馈」未读回复(小红点)
@@ -359,10 +257,7 @@ Component({
           })
         } else {
           wx.showToast({ title: res.message || '登录失败', icon: 'none' })
-          // 自动识别失败 → 显示验证码图片，切换为手动输入
-          this.setData({ captcha: '', captchaId: '', ssoStepDone: false })
           this._updateCanLogin()
-          this.onRefreshCaptcha()
         }
       } catch (e) {
         wx.hideLoading()
@@ -623,11 +518,7 @@ Component({
             await getApp().doLogout()   // 等待后端登出 + 本地清理完成, 避免状态未清导致要点两次
             this.refreshState()
             this.setData({
-              password: '',
-              captcha: '',
-              captchaId: '',
-              captchaSrc: '',
-              ssoStepDone: false
+              password: ''
             })
           }
         }

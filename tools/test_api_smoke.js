@@ -44,8 +44,8 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 40 个接口', () => {
-    assert.strictEqual(Object.keys(api).length, 40, Object.keys(api).join(','))
+  await check('导出 35 个接口(教务直连与第二步登录已下线)', () => {
+    assert.strictEqual(Object.keys(api).length, 35, Object.keys(api).join(','))
   })
   await check('loginWebvpn 成功路径(存 token/学号)', async () => {
     const res = await api.loginWebvpn('10001', 'pwd')
@@ -57,11 +57,13 @@ async function check(name, fn) {
     await api.logout()
     assert.ok(!store.get('token'), 'token 应被清除')
   })
-  await check('直连登录/loginAuto 不抛依赖错误', async () => {
-    await api.loginAuto('10001', 'pwd')
-    await api.login('10001', 'pwd', 'abcd', 'cid-1')
-    await api.getWebvpnCaptcha('10001', 'pwd')
-    await api.loginWebvpnManual('10001', 'pwd', 'abcd', 'cid-1')
+  await check('教务直连/第二步登录接口已移除, 智慧理工一步登录可用', async () => {
+    assert.strictEqual(typeof api.login, 'undefined', 'login 应已移除')
+    assert.strictEqual(typeof api.loginAuto, 'undefined', 'loginAuto 应已移除')
+    assert.strictEqual(typeof api.getCaptcha, 'undefined', 'getCaptcha 应已移除')
+    assert.strictEqual(typeof api.getWebvpnCaptcha, 'undefined', 'getWebvpnCaptcha 应已移除')
+    assert.strictEqual(typeof api.loginWebvpnManual, 'undefined', 'loginWebvpnManual 应已移除')
+    await api.loginWebvpn('10001', 'pwd')
   })
 
   // ── 离线模式: 登录失效后保留本地缓存继续展示 ──
@@ -92,7 +94,7 @@ async function check(name, fn) {
       called++
       return o.success({ statusCode: 200, data: { success: true, token: 'tok-new' } })
     }
-    await api.getCaptcha()
+    await api.loginWebvpn('10001', 'pwd')
     assert.strictEqual(called, 1, '登录类接口应正常请求')
   })
 

@@ -116,9 +116,12 @@ function request(method, path, data = {}, opts) {
 
 // 会话失效时自动重登（记住密码的防并发重入）
 let _autoReloginPromise = null
+// 自动重登冷却: 智慧理工侧短时间内频繁登录会触发风控冻结, 失败后先冷静一段时间
+const RELOGIN_COOLDOWN_MS = 60 * 1000
 
 /**
- * 用记住的学号和密码自动重新登录（服务端 OCR 识别验证码, 无需用户操作）
+ * 用记住的学号和密码自动重新登录（智慧理工 SSO, 服务端自动处理验证码）
+ * 走后端会话复用的快路径: 会话仍有效时不会向智慧理工提交密码
  * @returns {Promise<string|null>} 新 token 或 null(失败/未记住密码)
  */
 
@@ -127,20 +130,27 @@ function autoRelogin() {
   const pwd = storage.get('saved_password', '')
   if (!sid || !pwd) return Promise.resolve(null)
   if (_autoReloginPromise) return _autoReloginPromise
-  _autoReloginPromise = request('POST', '/api/login', {
+  const lastFail = parseInt(storage.get('relogin_fail_ts', '0'), 10) || 0
+  if (lastFail && Date.now() - lastFail < RELOGIN_COOLDOWN_MS) {
+    return Promise.resolve(null)
+  }
+  _autoReloginPromise = request('POST', '/api/login-webvpn', {
     student_id: sid,
     password: pwd
   }).then((res) => {
     _autoReloginPromise = null
     if (res && res.success && res.token) {
       // 关键: 新 token 必须持久化, 否则后续请求仍携带旧 token → 401 循环
+      storage.remove('relogin_fail_ts')
       storage.set(TOKEN_KEY, res.token)
       if (res.semester) storage.setSemester(res.semester)
       return res.token
     }
+    storage.set('relogin_fail_ts', String(Date.now()))
     return null
   }).catch(() => {
     _autoReloginPromise = null
+    storage.set('relogin_fail_ts', String(Date.now()))
     return null
   })
   return _autoReloginPromise
