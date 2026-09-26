@@ -3,7 +3,6 @@
 from wxcloudrun.jwc.common import *  # noqa: F401,F403
 from wxcloudrun.jwc.common import (  # noqa: F401
     _DedupCookieJar, _encrypt_sso_password, _dedupe_schedule_courses, _HAS_CRYPTO)
-import os  # noqa: E402  (SSO_CAPTCHA_RETRY 读取)
 
 
 class LoginMixin:
@@ -210,50 +209,6 @@ class LoginMixin:
             self.last_error = str(e)
             return False
 
-    # ================================================================
-    # 手动验证码流程
-    # ================================================================
-
-    def get_captcha_base64(self) -> Tuple[str, str]:
-        self._captcha_ready = False
-        self._setup_session()
-        try:
-            self._init_logon_session()
-            img = self._fetch_captcha()
-            if not img:
-                return "", "获取验证码失败"
-            self._captcha_ready = True
-            return base64.b64encode(img).decode(), ""
-        except Exception as e:
-            return "", str(e)
-
-    def login_with_manual_captcha(self, sid: str, pw: str, captcha: str) -> bool:
-        self.student_id = sid
-        self.last_error = ""
-        self.logged_in = False
-        self.token = None
-
-        if not self._captcha_ready:
-            self.last_error = "会话过期，请重新获取验证码"
-            return False
-
-        if self._try_simple_login(sid, pw, captcha.strip()):
-            self.logged_in = True
-            self.login_method = "web-manual"
-            self._captcha_ready = False
-            return True
-
-        # 保留 _try_simple_login 检测到的真实原因(如密码错误);
-        # 仅当原因未知时兜底为验证码提示
-        if not self.last_error or "登录失败" in self.last_error:
-            self.last_error = "验证码不正确或已过期，请刷新验证码后重试"
-        self._captcha_ready = False
-        return False
-
-    # ================================================================
-    # 智慧理工 SSO 登录（校外/备用登录方式）
-    # ================================================================
-
     def _log(self, msg: str):
         """记录调试日志（登录失败时可通过接口返回诊断信息）"""
         self.debug_log.append(msg)
@@ -267,6 +222,59 @@ class LoginMixin:
             "无法连接", "连接超时", "超时", "timed out", "Timeout",
             "Connection", "Max retries", "unreachable", "拒绝",
         ))
+
+    # ================================================================
+    # SSO 会话复用（减少智慧理工认证次数, 避免账号被风控冻结）
+    # ================================================================
+
+    @staticmethod
+    def _session_store():
+        """core 层的会话持久化/节流仓储（延迟导入, 避免包初始化循环）。"""
+        from wxcloudrun.core import session_store
+        return session_store
+
+    def _persist_sso_session(self) -> None:
+        """登录成功后把会话 cookie 交给 core 持久化, 供下次免密码复用。"""
+        if not self.student_id:
+            return
+        try:
+            saved = self._session_store().save_session(self.student_id,
+                                                       self.session.cookies)
+            if saved:
+                self._log(f"[SSO-Reuse] 会话已持久化({saved} cookies)")
+        except Exception as e:  # noqa: BLE001 持久化失败不应影响登录结果
+            self._log(f"[SSO-Reuse] 持久化失败: {type(e).__name__}: {e}")
+
+    def _try_resume_sso_session(self) -> bool:
+        """用持久化的 cookie 直接恢复教务会话; 成功则完全不提交密码。"""
+        if not self.student_id:
+            return False
+        try:
+            cookies = self._session_store().load_session(self.student_id)
+            if not cookies:
+                return False
+            for c in cookies:
+                try:
+                    self.session.cookies.set(c["name"], c["value"],
+                                             domain=c.get("domain"),
+                                             path=c.get("path") or "/")
+                except Exception:  # noqa: BLE001 单个 cookie 异常直接跳过
+                    continue
+            self._log(f"[SSO-Reuse] 载入 {len(cookies)} 个持久化 cookie, 试探教务入口...")
+            resp = self.session.get(JW_SSO_ENTRY, timeout=TIMEOUT, allow_redirects=True)
+            self._dedupe_cookies()
+            if not self._check_success(resp):
+                self._log("[SSO-Reuse] 会话已失效, 需要重新认证")
+                return False
+            self._extract_name(resp.text)
+            self.webvpn.enable_sso_direct(JW_SSO_BASE)
+            self.logged_in = True
+            self.login_method = "sso-cached"
+            self._log("[SSO-Reuse] [OK] 复用持久化会话成功(未提交密码)")
+            return True
+        except Exception as e:  # noqa: BLE001 复用失败就走正常登录流程
+            self._log(f"[SSO-Reuse] 复用异常: {type(e).__name__}: {e}")
+            return False
 
     def login_webvpn(self, student_id: str, password: str,
                      jwc_password: str = "", use_webvpn: bool = False) -> bool:
@@ -299,9 +307,21 @@ class LoginMixin:
             return False
 
         try:
+            # Step 0: 复用持久化会话（不提交密码, 大幅减少智慧理工认证次数）
+            if self._try_resume_sso_session():
+                return True
+
+            left = self._session_store().cooldown_left(student_id)
+            if left > 0:
+                self.last_error = f"为避免账号被冻结，请 {left} 秒后再试"
+                return False
+
             # Step 1: 直连 SSO 登录
             if not self._direct_sso_login_with_retry(student_id, password):
+                self._session_store().mark_failure(student_id)
                 return False
+            self._session_store().clear_failure(student_id)
+            self._persist_sso_session()
 
             # Step 2: 需要代理时建立 WebVPN 会话（网关登录入口即统一身份认证 CAS）
             # 注意: auto 模式不在这里建会话 —— 每个账号的 WebVPN 会话可能互踢，
@@ -320,18 +340,24 @@ class LoginMixin:
 
             # Step 3: SSO 直连教务（首选：免教务密码、免验证码）
             if self._try_indexsso_login():
+                self._persist_sso_session()
                 return True
 
             # Step 4: 尝试 CAS 自动登录教务（旧的 service 猜测，保留兜底）
             if self._try_direct_jw_access():
+                self._persist_sso_session()
                 return True
 
-            # Step 5: 标准 8080 Logon.do 流程（含初始密码规则兜底）
-            self._log("[SSO-JW] 教务需要表单登录，走 8080 Logon.do 标准流程...")
-            if self._try_web_auto_candidates(student_id, jwc_pwd):
-                self.logged_in = True
-                self.login_method = "webvpn"
-                return True
+            # Step 5: 标准 8080 Logon.do 流程（教务直连已下线, 默认跳过）
+            if JW_ALLOW_FORM_FALLBACK:
+                self._log("[SSO-JW] 教务需要表单登录，走 8080 Logon.do 标准流程...")
+                if self._try_web_auto_candidates(student_id, jwc_pwd):
+                    self.logged_in = True
+                    self.login_method = "webvpn"
+                    self._persist_sso_session()
+                    return True
+            else:
+                self._log("[SSO-JW] 8080 表单登录已下线（教务直连）, 跳过表单兜底")
 
             # Step 6: 直连被网络阻断时改走 WebVPN 代理重试
             if not self.webvpn.active and WEBVPN_ENABLED == "auto" and self._is_network_error():
@@ -340,10 +366,12 @@ class LoginMixin:
                     self.webvpn.verify()
                     self.webvpn.activate()
                     self.last_error = ""
-                    if self._try_web_auto_candidates(student_id, jwc_pwd):
-                        self.logged_in = True
-                        self.login_method = "webvpn-proxy"
-                        return True
+                    if JW_ALLOW_FORM_FALLBACK:
+                        if self._try_web_auto_candidates(student_id, jwc_pwd):
+                            self.logged_in = True
+                            self.login_method = "webvpn-proxy"
+                            self._persist_sso_session()
+                            return True
 
             if not self.last_error:
                 self.last_error = "教务系统登录失败，请尝试手动输入验证码"
@@ -361,15 +389,15 @@ class LoginMixin:
                                      attempts: int = None) -> bool:
         """SSO 验证码 OCR 偶发失败: 换一张验证码重试。
 
-        重试次数可用环境变量 SSO_CAPTCHA_RETRY 覆盖(默认 5);
+        重试次数可用环境变量 SSO_CAPTCHA_RETRY 覆盖(默认 1, 防止频繁认证触发风控冻结);
         每次重试重建会话/取登录页, 保证 execution/lt/salt 与验证码配套;
         非验证码类失败(账号密码错误等)不重试。
         """
         if attempts is None:
             try:
-                attempts = max(1, int(os.environ.get("SSO_CAPTCHA_RETRY", "5")))
+                attempts = max(1, int(SSO_CAPTCHA_RETRY))
             except (TypeError, ValueError):
-                attempts = 5
+                attempts = 1
         for i in range(1, attempts + 1):
             if self._direct_sso_login(student_id, password):
                 return True
@@ -638,149 +666,6 @@ class LoginMixin:
         except Exception as e:
             self._log(f"[SSO-JW]   直连异常: {e}")
 
-        return False
-
-    def get_webvpn_captcha_base64(self, student_id: str, password: str):
-        """SSO 登录后获取教务 8080 登录验证码（base64）
-
-        返回 (b64, error)；SSO 后已有教务会话时返回 ("__ALREADY_LOGGED_IN__", "")。
-        """
-        self.student_id = student_id
-        self.student_name = None
-        self.last_error = ""
-        self._webvpn_manual_ready = False
-        self._webvpn_post_url = ""
-        self._webvpn_login_page_url = ""
-        self.debug_log = []
-        self._setup_session()
-
-        if not _HAS_CRYPTO:
-            return "", "SSO 登录需要 pycryptodome 模块，请重新部署服务"
-
-        try:
-            # Step 1: 直连 SSO 登录
-            self._log("[SSO-Captcha] Step 1: 直连 SSO 登录...")
-            if not self._direct_sso_login_with_retry(student_id, password):
-                return "", self.last_error
-
-            # Step 2: SSO 直连教务（首选：indexsso.jsp，免教务密码/验证码）
-            self._log("[SSO-Captcha] Step 2: 尝试 SSO 直连教务...")
-            if self._try_indexsso_login():
-                self._webvpn_manual_ready = True
-                return "__ALREADY_LOGGED_IN__", ""
-
-            # Step 2b: 旧的 CAS service 猜测（兜底）
-            if self._try_direct_jw_access():
-                self._webvpn_manual_ready = True
-                return "__ALREADY_LOGGED_IN__", ""
-
-            # Step 3: 从 Logon.do 获取验证码（不清除 SSO cookie）
-            self._log(f"[SSO-Captcha] Step 3: 从 {self.logon_base} 获取验证码...")
-            self.session.get(self.logon_page, timeout=TIMEOUT)
-            self.session.headers.update({"Referer": self.logon_page})
-            self._dedupe_cookies()
-            self._detect_captcha_url_from_page()
-            try:
-                self.session.get(self.logon_sess, timeout=TIMEOUT)
-                self._dedupe_cookies()
-            except Exception:
-                pass
-
-            img = self._fetch_captcha()
-            if not img:
-                return "", "获取验证码失败：无法从教务服务器获取验证码图片"
-
-            self._webvpn_manual_ready = True
-            self._webvpn_login_page_url = self.logon_page
-            self._webvpn_post_url = self.logon_page
-            self._log(f"[SSO-Captcha] [OK] 验证码就绪 ({len(img)} bytes)")
-            return base64.b64encode(img).decode(), ""
-
-        except requests.exceptions.ConnectionError:
-            return "", "无法连接教务服务器（请检查网络连接）"
-        except Exception as e:
-            logger.debug("[SSO] 异常: %s", e, exc_info=True)
-            return "", str(e)
-
-    def complete_webvpn_login(self, student_id: str, password: str,
-                              captcha: str) -> bool:
-        """使用手动输入的验证码完成教务登录（标准 8080 Logon.do 流程）"""
-        if not self._webvpn_manual_ready:
-            self.last_error = "会话已过期，请重新获取验证码"
-            return False
-
-        self.student_id = student_id
-        self.student_name = None
-        self.last_error = ""
-        self.logged_in = False
-        self.login_method = ""
-
-        try:
-            self._log("[SSO-Login] 使用手动验证码完成 8080 标准登录...")
-            if self._try_simple_login(student_id, password, captcha.strip()):
-                self.logged_in = True
-                self.login_method = "webvpn"
-                self._log("[SSO-Login] [OK] 登录成功!")
-                return True
-
-            if not self.last_error:
-                self.last_error = "教务系统登录失败，请重新获取验证码重试"
-            return False
-        except Exception as e:
-            self._log(f"[SSO-Login] 异常: {e}")
-            logger.debug("[SSO] 异常: %s", e, exc_info=True)
-            self.last_error = f"登录异常: {e}"
-            return False
-
-    def auto_complete_webvpn_login(self, student_id: str, password: str,
-                                   attempts: int = 3) -> bool:
-        """在智慧理工已建立的教务会话上自动 OCR 教务验证码并完成登录。
-
-        与 complete_webvpn_login 的区别: 验证码由服务端识别(最多 attempts 次,
-        每次换一张), 无需用户手动输入。复用 Step 1 的 8080 会话, 不重建。
-
-        失败时保持会话可用(_webvpn_manual_ready 不变), 调用方可回退到
-        "返回验证码图让用户手动输入"的原流程。
-        """
-        if not self._webvpn_manual_ready:
-            self.last_error = "会话已过期，请重新获取验证码"
-            return False
-        try:
-            import ddddocr
-        except ImportError:
-            self.last_error = "自动识别需要 ddddocr 模块"
-            return False
-
-        ocr = ddddocr.DdddOcr(show_ad=False)
-        for i in range(max(1, attempts)):
-            try:
-                img = self._fetch_captcha()
-            except Exception as e:
-                self._log(f"[SSO-OCR] 取验证码异常: {e}")
-                img = b""
-            if not img:
-                self.last_error = "获取验证码失败"
-                return False
-
-            code = self._ocr_with_preprocess(ocr, img)
-            self._log(f"[SSO-OCR] #{i + 1} 教务验证码识别: '{code}'")
-            if not code:
-                continue
-
-            if self._try_simple_login(student_id, password, code):
-                self.logged_in = True
-                self.login_method = "webvpn"
-                self._log(f"[SSO-OCR] [OK] 自动识别登录成功 (#{i + 1})")
-                return True
-
-            # 非验证码问题(如密码错误)重试无意义, 立即返回(避免连续错密码被风控)
-            if self.last_error and "验证码" not in self.last_error:
-                self._log(f"[SSO-OCR] [FAIL] {self.last_error}")
-                return False
-
-        if not self.last_error or "验证码" in self.last_error:
-            self.last_error = "验证码自动识别失败，请手动输入"
-        self._log(f"[SSO-OCR] [FAIL] {self.last_error}")
         return False
 
     def _is_jw_login_page(self, resp) -> bool:

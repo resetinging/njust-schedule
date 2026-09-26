@@ -101,6 +101,13 @@ def _register_session(client: JWCClient) -> str:
             dao.set_user_setting(client.student_id, "name", client.student_name)
         except Exception:
             pass
+    # 持久化会话 cookie: 下次登录优先复用, 避免反复向智慧理工提交密码
+    try:
+        from wxcloudrun.core import session_store
+        if client.student_id:
+            session_store.save_session(client.student_id, client.session.cookies)
+    except Exception:
+        pass
     return token
 
 

@@ -106,6 +106,7 @@ from config import (
     HTTP_TIMEOUT, HTTP_HEADERS,
     SSO_BASE, SSO_LOGIN_URL, DEBUG_WEBVPN,
     JW_BORROW_QUERY, JW_BORROW_LIST,
+    SSO_CAPTCHA_RETRY, JW_ALLOW_FORM_FALLBACK,
 )
 
 # 教室名前缀 → 楼名映射(345→东区平房 等, 见模块内来源说明)
@@ -224,5 +225,4 @@ def _encrypt_sso_password(password: str, salt: str) -> str:
     encrypted = cipher.encrypt(padded)
 
     return base64.b64encode(encrypted).decode()
-
 

@@ -10,7 +10,7 @@
 
 | 层 | 内容 |
 |---|---|
-| `wxcloudrun/core/` | `cache`（进程内 TTL 缓存）、`sessions`（会话池/验证码临时会话）、`pool`（教务访问池/信号量）、`web`（请求日志/rid）、`auth`（登录守卫/重登封装）、`stats`（数据统计缓存）、`timeutil`（北京时间）、`media`（图片类型嗅探） |
+| `wxcloudrun/core/` | `cache`（进程内 TTL 缓存）、`sessions`（会话池/验证码临时会话）、`session_store`（SSO 会话持久化 + 认证节流）、`pool`（教务访问池/信号量）、`web`（请求日志/rid）、`auth`（登录守卫/重登封装）、`stats`（数据统计缓存）、`timeutil`（北京时间）、`media`（图片类型嗅探） |
 | `wxcloudrun/api/` | `auth` / `schedule` / `exams(并入 schedule)` / `grades` / `eval` / `freeclass` / `feedback` / `settings` / `status` / `proxy` / `gallery` 蓝图层 |
 | `wxcloudrun/jwc/` | `common`（常量/工具/CookieJar/SSO 加密）+ `base/login/core/schedule/exams/utils/eval/grades/cet/freeclass` 分域 mixin |
 | `wxcloudrun/jwc_client.py` | 门面：组合各 mixin，re-export 旧符号，调用方零改动 |

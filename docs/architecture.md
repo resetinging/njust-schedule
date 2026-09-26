@@ -38,8 +38,8 @@
 | 职责 | 说明 |
 |---|---|
 | 会话与 Cookie 管理 | 自定义 `_DedupCookieJar` 解决教务返回重复 `JSESSIONID` 导致的崩溃;按 (domain, path) 去重,保留跨服务器 Cookie |
-| 登录(3 种方式) | ① 教务直连自动 OCR(`ddddocr`,5 次重试 + 图片预处理);② 教务直连手动验证码;③ 智慧理工 SSO 两步(直连 SSO 表单 + AES-128-CBC 密码加密 + CAS ticket 尝试 + 8080 标准流程兜底) |
-| 会话保活 | **多用户**:每个登录用户持有独立 `JWCClient` 实例(独立教务会话/Cookie),登录签发随机 token,请求经 `X-Auth-Token` 头识别;`is_session_valid()` 轻量探测;仅支持手动登录,会话过期/容器重启后需重新登录 |
+| 登录(唯一方式: 智慧理工 SSO) | 直连 SSO 表单 + AES-128-CBC 密码加密 + CAS ticket 换取教务会话。教务直连(8080/9080 表单)因教务改版后会话不再被接受,已下线 |
+| 会话保活 | **多用户**:每个登录用户持有独立 `JWCClient` 实例(独立教务会话/Cookie),登录签发随机 token,请求经 `X-Auth-Token` 头识别;`is_session_valid()` 轻量探测。会话 cookie 由 `core/session_store.py` 按学号持久化(上限 30 天,与 CAS 票据对齐),下次登录先复用、失效才重新认证;退出登录调用 CAS logout 吊销票据并删除副本 |
 | 课表抓取 | API(`app.do?method=getKbcxAzc`)优先,降级 HTML:`#kbtable`(周次/教室/教师,从 `font[title]` 提取)与 `#dataList`(精确小节/学分)双表合并 |
 | 考试抓取 | 查询页表单提交 → `#dataList` 解析,含 3 个降级策略(表单 POST / 直接 POST / GET) |
 | 评教抓取 | 批次列表(`.Nsb_r_list`)、课程列表(`#dataList` + `openWindow` 链接)、评价表单(`#table1` 指标 + `pj0601fz_*` 分值 + radio 选项) |
@@ -54,15 +54,14 @@
 | 分组 | 接口 | 说明 |
 |---|---|---|
 | 状态 | `GET /api/status` | 登录态、学号/姓名、学期、数据统计、第一周日期 |
-| 登录 | `POST /api/login` | 教务直连自动 OCR |
-| | `POST /api/login-manual` | 教务直连手动验证码 |
-| | `GET /api/get-captcha` | 验证码图片(base64 + mime) |
-| | `POST /api/get-webvpn-captcha` | 智慧理工 Step 1:SSO 登录 → 教务验证码 |
-| | `POST /api/login-webvpn-manual` | 智慧理工 Step 2:验证码完成教务登录 |
-| | `POST /api/login-webvpn` | 智慧理工全自动(含教务 OCR) |
+| 登录 | `POST /api/login` / `login-manual`、`GET /api/get-captcha` | **已下线**:保留路由并返回「教务直连已下线」,用于兼容未升级的旧版小程序 |
+| | `POST /api/login-webvpn` | **智慧理工 SSO 一步登录**(直连换取教务会话, 免教务密码/验证码) |
+| | `POST /api/get-webvpn-captcha` | 旧名保留兼容: 与上面同一实现, 额外回传 `already_logged_in`(旧版小程序直接取 token) |
+| | `POST /api/login-webvpn-manual` | **已废弃**: 第二步教务登录不再需要, 返回明确提示 |
 | 数据刷新 | `POST /api/refresh-schedule` / `refresh-exams` / `refresh-all` | 从教务拉取课表/考试/全部 |
 | | `POST /api/refresh-grades` / `refresh-cet` / `refresh-evaluations` | 拉取成绩/四六级/评教批次 |
 | 数据查询 | `GET /api/courses` / `exams` / `grades` / `cet-scores` / `evaluations` | 读 MySQL 缓存的数据;**只返回原始数据,不做业务计算**(GPA/折算由前端算) |
+| 空教室 | `GET /api/free-classrooms` | **数据由后端负责更新**: 服务账号(智慧理工 SSO)在每天各大节上课时刻(08:00/10:10/14:00/16:10/19:00)预热当天+次日、两校区缓存, 容器启动时先补当前大节; 前端只读接口结果(命中缓存约 10ms), 不触发教务抓取。服务账号密码存 `settings.free_classroom_pwd`(管理面板 `/admin → ⚙️ 系统` 录入), 仓库内不留明文 |
 | 评教操作 | `GET /api/eval-courses` / `eval-form` | 解析批次课程列表 / 单课评价表单(解析属网关层,评分由前端算) |
 | | `POST /api/submit-eval` | 单门保存/提交中转(参数按浏览器原生顺序重建) |
 | 网关 | `POST /api/jw-proxy` | 通用教务网关:用已登录会话转发任意 9080 GET/POST,返回原始内容 |
@@ -79,8 +78,10 @@
 | `grades` / `cet_scores` | 成绩(按学年学期)、四六级(全量替换,查询时取最高,**按 student_id 隔离**) |
 | `settings` | 全局键值(校历日期/自动刷新等);用户级设置以 `{student_id}:{key}` 前缀存储(如学期切换) |
 
-- **密码安全**:登录密码**不落库**——仅用于当次登录流程;无任何自动登录机制,数据库不保存明文/加密密码。历史版本遗留的 `password_enc` / `secret_key` 数据无读取入口,可忽略
-- 小程序本地**不保存密码**
+- **密码安全**:登录密码**不落库**——仅用于当次登录流程,数据库不保存明文/加密密码(历史遗留的 `password_enc` / `secret_key` 无读取入口,可忽略)
+- **会话凭据**:持久化的是 SSO 会话 cookie(等价凭据,**非密码**),存于 `settings` 表 `{student_id}:jwc_session`,上限 30 天;复用前必探测教务入口有效性,失效即回退密码认证;退出登录调用 CAS logout 吊销票据并删除副本
+- **认证节流**(防智慧理工风控冻结):登录优先复用持久化会话(0 次密码提交);验证码换图重试默认 1 次;同一学号认证失败后 60 秒冷却;小程序启动不再无条件登录,仅会话失效时自动重登一次
+- 小程序本地按「记住学号和密码」开关保存密码(仅本机),退出登录时清除
 
 ### 4. 业务计算(方案 A:全部在前端)
 
@@ -107,7 +108,7 @@
 | `exams` 考试 | 倒计时卡片(最近 3 场,按紧迫度着色);按日期分组列表;下拉刷新 |
 | `eval` 评教 | 批次列表(倒计时/紧迫度);批次 → 课程列表;评价表单(radio 勾选、实时总分、**前端自动评分算法**);保存/提交;**一键批量评教由前端顺序循环执行**(实时更新进度弹窗,非轮询) |
 | `grades` 成绩 | GPA 大卡片 + 统计(**全部由前端 `utils/gpa.js` 计算**);各学期绩点列表(点击切换学期);成绩明细;保研模式切换;四六级折叠展示与刷新 |
-| `settings` 我的 | 登录(模式切换:教务直连 / 智慧理工两步);第一周周一日期设置;校历入口;一键刷新;清缓存;退出登录 |
+| `settings` 我的 | 登录(仅智慧理工 SSO,含手动验证码兜底);第一周周一日期设置;校历入口;一键刷新;清缓存;退出登录 |
 | `gallery` 校历 | 校历/地图图片列表(base64 加载),点击全屏预览(`wx.previewImage`) |
 
 ### 2. 组件(`components/`)

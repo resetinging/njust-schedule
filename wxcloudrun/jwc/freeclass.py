@@ -191,8 +191,21 @@ class FreeClassMixin:
         return rooms
 
     def logout(self):
+        sid = self.student_id
+        # 吊销智慧理工票据: 只清本地状态的话, CASTGC 在有效期内仍可复用(实测 30 天)
+        try:
+            self.session.get(f"{SSO_BASE}/authserver/logout", timeout=5,
+                             allow_redirects=False)
+        except Exception:
+            pass
         try:
             self.session.get(f"{BASE_9080}/njlgdx/xk/LoginToXk?method=exit", timeout=5)
+        except Exception:
+            pass
+        # 删除持久化的会话副本(否则退出登录后仍能免密码复用)
+        try:
+            from wxcloudrun.core import session_store
+            session_store.clear_session(sid)
         except Exception:
             pass
         self.logged_in = False

@@ -85,15 +85,14 @@ python run.py 127.0.0.1 5000
 | 端点 | 说明 |
 |---|---|
 | `GET /api/status` | 登录状态、学期、数据统计 |
-| `POST /api/login` / `POST /api/login-manual` | 自动 OCR / 手动验证码登录 |
-| `GET /api/get-captcha` | 获取验证码图片(Base64) |
+| `POST /api/login` / `POST /api/login-manual` / `GET /api/get-captcha` | **已下线**(教务直连),返回「教务直连已下线」 |
 | `POST /api/refresh-schedule` / `refresh-exams` / `refresh-all` | 从教务刷新课表/考试/全部 |
 | `POST /api/refresh-grades` / `refresh-cet` / `refresh-evaluations` | 刷新成绩/四六级/评价列表 |
 | `GET /api/courses` / `exams` / `grades` / `cet-scores` / `evaluations` | 查询已存储数据(**原始数据**,GPA/折算等计算在前端完成) |
 | `GET /api/eval-courses` / `eval-form` | 解析评教课程列表 / 评价表单 |
 | `POST /api/submit-eval` | 单门评教提交中转(批量循环由前端执行) |
 | `POST /api/jw-proxy` | 通用教务网关:转发任意 9080 GET/POST 并返回原始内容 |
-| `POST /api/get-webvpn-captcha` / `login-webvpn-manual` / `login-webvpn` | 智慧理工 SSO 两步/全自动登录 |
+| `POST /api/login-webvpn` | 智慧理工 SSO 一步登录(免教务密码/验证码);`get-webvpn-captcha` 为其旧名别名 |
 | `GET/POST /api/settings`, `POST /api/semester` | 设置与学期切换 |
 | `POST /api/clear-data` | 清除当前学期数据 |
 | `GET /api/connect-test` | 教务连通性测试 |
