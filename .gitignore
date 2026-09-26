@@ -67,6 +67,8 @@ tests/_borrow_page_*.html
 tests/_borrow_result_*.html
 tests/_borrow_jxl.json
 tests/_borrow_rooms.json
+tests/_sso_*
+tests/_jw_*
 
 
 # 本地研究/协作文件(不提交、不推送; 完整快照见本地分支 local/apk-research)
