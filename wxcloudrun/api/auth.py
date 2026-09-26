@@ -15,6 +15,7 @@ from wxcloudrun.core.cache import invalidate_user_cache
 from wxcloudrun.core.pool import _jwc_request_priority
 from wxcloudrun.core.sessions import (
     _register_session, _logout_session, _get_session_client,
+    _new_qr_client, _get_qr_client, _pop_qr_client,
     TOKEN_HEADER, _sessions, _sessions_lock)
 from wxcloudrun.core.stats import _invalidate_stats
 from wxcloudrun.core.timeutil import _beijing_now, _beijing_date
@@ -150,6 +151,76 @@ def api_login_webvpn():
         "message": client.last_error or "智慧理工登录失败",
         "debug_log": client.debug_log[-20:],
     }), 401
+
+
+# ============================================================
+# API — 微信扫码登录（后端代跑扫码流程, 免密码 / 单设备可用）
+# ============================================================
+@auth_bp.route('/api/sso-qr/start', methods=['POST'])
+def api_sso_qr_start():
+    """申请一张智慧理工登录二维码（约 3 分钟有效, 前端可随时刷新）。"""
+    qid, client = _new_qr_client()
+    with _jwc_request_priority(client):
+        b64, err = client.start_qr_login()
+    if err or not b64:
+        _pop_qr_client(qid)
+        app.logger.info("[sso-qr] rid=%s 申请二维码失败: %s", _rid(), err)
+        return jsonify({"success": False, "message": err or "申请二维码失败"}), 400
+    app.logger.info("[sso-qr] rid=%s 已生成二维码 qr_id=%s…", _rid(), qid[:6])
+    return jsonify({
+        "success": True,
+        "qr_id": qid,
+        "qr_b64": b64,
+        "expires_in": 180,
+        "message": "长按二维码 → 识别图中二维码 → 确认登录",
+    })
+
+
+@auth_bp.route('/api/sso-qr/status')
+def api_sso_qr_status():
+    """轮询扫码状态; 确认后由后端换取票据并注册会话。"""
+    qid = (request.args.get("qr_id") or "").strip()
+    client = _get_qr_client(qid)
+    if client is None:
+        return jsonify({"success": False, "status": "expired",
+                        "message": "二维码已过期，请刷新"}), 400
+    with _jwc_request_priority(client):
+        st = client.poll_qr_login()
+        if st == "1":
+            if not client.finish_qr_login():
+                _pop_qr_client(qid)
+                app.logger.info("[sso-qr] rid=%s 确认后登录失败: %s",
+                                _rid(), client.last_error)
+                return jsonify({"success": False, "status": "error",
+                                "message": client.last_error or "扫码登录失败"}), 400
+            _pop_qr_client(qid)
+            token = _register_session(client)
+            _on_login_success(client, token)   # 副作用: 初始化学期设置
+            app.logger.info("[sso-qr] rid=%s 扫码登录成功 sid=%s",
+                            _rid(), client.student_id)
+            return jsonify({
+                "success": True,
+                "status": "ok",
+                "token": token,
+                "student_id": client.student_id,
+                "student_name": client.student_name or client.student_id,
+                "semester": client._current_semester(),
+                "login_method": client.login_method,
+                "message": f"登录成功！欢迎 {client.student_name or client.student_id}",
+            })
+    if st == "3":
+        _pop_qr_client(qid)
+        return jsonify({"success": False, "status": "expired",
+                        "message": "二维码已失效，请刷新"}), 400
+    return jsonify({"success": True,
+                    "status": "scanned" if st == "2" else "pending"})
+
+
+@auth_bp.route('/api/sso-qr/cancel', methods=['POST'])
+def api_sso_qr_cancel():
+    data = request.get_json(silent=True) or {}
+    _pop_qr_client((data.get("qr_id") or "").strip())
+    return jsonify({"success": True})
 
 
 @auth_bp.route('/api/logout', methods=['POST'])

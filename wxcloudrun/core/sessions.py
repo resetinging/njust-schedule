@@ -72,6 +72,45 @@ def _pop_captcha_client(captcha_id: str) -> Optional[JWCClient]:
     return item[0] if item else None
 
 
+# ============================================================
+# 微信扫码登录临时会话（qr_id → 生成二维码的那个 JWCClient）
+# 二维码有效期约 3 分钟, 过期后前端重新申请即可
+# ============================================================
+_qr_clients = {}        # qr_id -> [JWCClient, created_ts]
+QR_TTL = 300            # 5 分钟(留出扫描+确认的时间余量)
+
+
+def _prune_qr_locked():
+    now = time.time()
+    for qid in [k for k, (_c, ts) in _qr_clients.items() if now - ts > QR_TTL]:
+        _qr_clients.pop(qid, None)
+
+
+def _new_qr_client() -> Tuple[str, JWCClient]:
+    """创建扫码登录临时会话，返回 (qr_id, client)。"""
+    qid = secrets.token_urlsafe(16)
+    client = JWCClient()
+    with _sessions_lock:
+        _prune_qr_locked()
+        _qr_clients[qid] = [client, time.time()]
+    return qid, client
+
+
+def _get_qr_client(qr_id: str) -> Optional[JWCClient]:
+    """按 qr_id 取回扫码会话(轮询期间保持不变, 确认后才清理)。"""
+    with _sessions_lock:
+        _prune_qr_locked()
+        item = _qr_clients.get(qr_id or "")
+    return item[0] if item else None
+
+
+def _pop_qr_client(qr_id: str) -> Optional[JWCClient]:
+    """取出并删除扫码会话(登录完成/取消/失效时调用)。"""
+    with _sessions_lock:
+        item = _qr_clients.pop(qr_id or "", None)
+    return item[0] if item else None
+
+
 def _register_session(client: JWCClient) -> str:
     """登录成功后注册用户会话，返回 token。
 

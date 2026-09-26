@@ -59,6 +59,8 @@ check("/api/gallery-image?name=南京理工大学26-27年校历.png",
 check("/api/gallery-image 路径穿越防护",
       client.get("/api/gallery-image?name=..%2Fconfig.py"), 400)
 check("/api/connect-test", client.get("/api/connect-test"), 200)
+check("/api/sso-qr/status 未知 qr_id", client.get("/api/sso-qr/status?qr_id=x"), 400)
+check("/api/sso-qr/cancel", client.post("/api/sso-qr/cancel", json={}), 200)
 
 # 公告公开接口: 返回 enabled/text/updated(小程序端按 updated 判断新公告)
 ann = client.get("/api/announcement").get_json()
@@ -477,12 +479,14 @@ import wxcloudrun.jwc.common as _common_mod  # noqa: E402
 # 只取模块级下划线符号(类方法等类属性不在模块命名空间, 不需要导入)
 _syms = sorted(n for n in vars(_common_mod)
                if n.startswith("_") and not n.startswith("__"))
-for _m in ("base", "login", "core", "schedule", "exams", "utils",
-           "eval", "grades", "cet", "freeclass"):
+_MIXINS = ("base", "login", "core", "schedule", "exams", "utils",
+           "eval", "grades", "cet", "freeclass", "qrlogin")
+for _m in _MIXINS:
     _mod = _importlib.import_module("wxcloudrun.jwc." + _m)
     _missing = [n for n in _syms if not hasattr(_mod, n)]
     assert not _missing, "jwc.%s 缺符号: %s" % (_m, _missing)
-print("  [PASS] 10 个 mixin 均可访问 common 全部下划线符号(%d 个)" % len(_syms))
+print("  [PASS] %d 个 mixin 均可访问 common 全部下划线符号(%d 个)"
+      % (len(_MIXINS), len(_syms)))
 
 print()
 print(f"结果: {PASS} 通过, {FAIL} 失败")

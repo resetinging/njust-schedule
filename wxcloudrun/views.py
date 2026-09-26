@@ -31,6 +31,7 @@ from wxcloudrun.core.sessions import (  # noqa: E402
     TOKEN_HEADER, JW_MAX_CONCURRENT, SESSION_TTL, MAX_SESSIONS, CAPTCHA_TTL,
     _sessions, _captcha_clients, _sessions_lock, _prune_captcha_locked,
     _prune_sessions_locked, _new_captcha_client, _pop_captcha_client,
+    QR_TTL, _qr_clients, _new_qr_client, _get_qr_client, _pop_qr_client,
     _register_session, _get_session_client, _logout_session, _sid_by_token)
 from wxcloudrun.core.pool import (  # noqa: E402
     _jw_semaphore, _jwc_request, _jwc_request_priority)

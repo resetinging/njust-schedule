@@ -58,6 +58,7 @@
 | | `POST /api/login-webvpn` | **智慧理工 SSO 一步登录**(直连换取教务会话, 免教务密码/验证码) |
 | | `POST /api/get-webvpn-captcha` | 旧名保留兼容: 与上面同一实现, 额外回传 `already_logged_in`(旧版小程序直接取 token) |
 | | `POST /api/login-webvpn-manual` | **已废弃**: 第二步教务登录不再需要, 返回明确提示 |
+| | `POST /api/sso-qr/start` / `GET /api/sso-qr/status` / `POST /api/sso-qr/cancel` | **微信扫码登录**(免密码, 单设备可用): 后端代跑智慧理工二维码流程 —— 长按二维码→识别图中二维码→确认; 确认后后端换取 CASTGC 并建立教务会话, 学号从教务页面自动提取。二维码约 3 分钟有效, 会话存 `core/sessions.py` 的 `_qr_clients`(TTL 300s) |
 | 数据刷新 | `POST /api/refresh-schedule` / `refresh-exams` / `refresh-all` | 从教务拉取课表/考试/全部 |
 | | `POST /api/refresh-grades` / `refresh-cet` / `refresh-evaluations` | 拉取成绩/四六级/评教批次 |
 | 数据查询 | `GET /api/courses` / `exams` / `grades` / `cet-scores` / `evaluations` | 读 MySQL 缓存的数据;**只返回原始数据,不做业务计算**(GPA/折算由前端算) |

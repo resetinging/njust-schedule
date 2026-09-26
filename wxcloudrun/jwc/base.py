@@ -27,6 +27,12 @@ class BaseMixin:
         self._active_captcha_url = URL_CAPTCHA_CANDIDATES[0]
         # 智慧理工手动验证码中间状态
         self._webvpn_manual_ready = False
+
+        # 微信扫码登录中间状态（token/lt/execution 由 start_qr_login 填充）
+        self._qr_token = ""
+        self._qr_lt = ""
+        self._qr_execution = ""
+        self._qr_login_url = ""
         self._webvpn_post_url = ""
         self._webvpn_login_page_url = ""
         # 会话有效性探测缓存（避免每个请求都访问教务主页探测）
@@ -51,4 +57,3 @@ class BaseMixin:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
         return self.session
-

@@ -93,6 +93,7 @@ python run.py 127.0.0.1 5000
 | `POST /api/submit-eval` | 单门评教提交中转(批量循环由前端执行) |
 | `POST /api/jw-proxy` | 通用教务网关:转发任意 9080 GET/POST 并返回原始内容 |
 | `POST /api/login-webvpn` | 智慧理工 SSO 一步登录(免教务密码/验证码);`get-webvpn-captcha` 为其旧名别名 |
+| `POST /api/sso-qr/start` / `GET /api/sso-qr/status` / `POST /api/sso-qr/cancel` | 微信扫码登录(免密码): 长按二维码→识别图中二维码→确认 |
 | `GET/POST /api/settings`, `POST /api/semester` | 设置与学期切换 |
 | `POST /api/clear-data` | 清除当前学期数据 |
 | `GET /api/connect-test` | 教务连通性测试 |

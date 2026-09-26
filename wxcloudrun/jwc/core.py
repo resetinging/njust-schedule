@@ -163,3 +163,17 @@ class CoreMixin:
                 self.student_name = m.group(1)
                 return
 
+    def _extract_sid(self, html: str) -> str:
+        """从教务页面提取学号（扫码登录时没有外部传入的学号）。
+
+        主框架页(main.jsp)含学号明文；依次尝试常见标签与 12 位学号形态，
+        命中后写入 self.student_id。
+        """
+        text = html or ""
+        for pat in (r'学号[：:]\s*(\d{8,14})', r'\bxh\b["\']?\s*[:=]\s*["\']?(\d{8,14})',
+                    r'\b(9\d{11})\b', r'\b(\d{12})\b'):
+            m = re.search(pat, text)
+            if m:
+                self.student_id = m.group(1)
+                return self.student_id
+        return ""

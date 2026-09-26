@@ -150,6 +150,28 @@ check("pop 仅删除对应用户的验证码会话",
 views._pop_captcha_client(cid2)
 check("两个验证码会话均已消费删除", len(views._captcha_clients) == 0)
 
+print("== 扫码登录会话隔离验证 ==")
+# 两个用户可同时各持一张二维码, 互不干扰(每张码 = 独立 JWCClient)
+qid1, qc1 = views._new_qr_client()
+qid2, qc2 = views._new_qr_client()
+check("两个扫码会话 ID 不同", qid1 != qid2, (qid1[:8], qid2[:8]))
+check("两个扫码客户端实例独立", qc1 is not qc2)
+check("两个扫码客户端 Cookie 罐相互独立", qc1.session.cookies is not qc2.session.cookies)
+qc1._qr_token, qc2._qr_token = "QR-A", "QR-B"
+qc1._qr_lt, qc2._qr_lt = "ltA", "ltB"
+check("二维码 token 互不影响",
+      qc1._qr_token == "QR-A" and qc2._qr_token == "QR-B")
+check("二维码表单字段互不影响", qc1._qr_lt != qc2._qr_lt)
+# 轮询状态查询: 未知 qr_id 视为过期, 不影响他人会话
+check("未知 qr_id 查询返回过期",
+      client.get("/api/sso-qr/status?qr_id=not-exist").status_code, 400)
+views._pop_qr_client(qid1)
+check("pop 仅删除对应用户的扫码会话",
+      qid1 not in views._qr_clients and qid2 in views._qr_clients)
+check("取消接口仅清理指定会话",
+      client.post("/api/sso-qr/cancel", json={"qr_id": qid2}).status_code, 200)
+check("两个扫码会话均已清理", len(views._qr_clients) == 0)
+
 print("== 空考试数据场景 ==")
 # 模拟"本学期暂无考试": 考试接口返回空且无错误信息
 C = make_user("10003", "丙")
