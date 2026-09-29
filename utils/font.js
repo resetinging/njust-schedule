@@ -58,13 +58,16 @@ function postSubset(chars) {
       timeout: 30000,
       success: (res) => {
         const body = res && res.data
+        // 202 = 后端正在后台生成子集(不阻塞请求), 这次先不换字体
+        // 注意: 这不算失败, 不能走失败退避, 否则一次"正在生成"会锁死 6 小时
+        if (body && body.pending) return resolve('pending')
         if (!body || !body.data) return resolve(false)
         try {
           wx.getFileSystemManager().writeFile({
             filePath: FILE_PATH,
             data: body.data,
             encoding: 'base64',
-            success: () => resolve(true),
+            success: () => resolve(body.partial ? 'partial' : true),
             fail: () => resolve(false)
           })
         } catch (e) {
@@ -104,11 +107,14 @@ function loadForText(text) {
 
   return postSubset(chars)
     .then((ok) => {
+      if (ok === 'pending') return false        // 后端正在生成: 不记账、不退避, 下次再来
       if (!ok) {
         storage.set(FAIL_KEY, String(Date.now()))
         return fileReady() ? loadFace(`url("${FILE_PATH}")`) : false
       }
-      storage.set(CHARS_KEY, chars)
+      // 'partial' = 后端用的是近似子集(精确的那份还在后台生成), 先加载但不记账,
+      // 下次进来会再请求一次, 拿到精确子集后才记住字符集
+      if (ok !== 'partial') storage.set(CHARS_KEY, chars)
       storage.remove(FAIL_KEY)
       return loadFace(`url("${FILE_PATH}")`)
     })

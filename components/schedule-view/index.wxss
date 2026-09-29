@@ -6,7 +6,9 @@
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* 用 100% 而不是 100vh: 外层(.main-body)已经扣掉了 tabBar 与安全区,
+     写 100vh 会比可用高度高出约 100rpx, 导致滚到底时最后一截被底部栏盖住 */
+  height: 100%;
   background: var(--bg-page);
 }
 
@@ -200,8 +202,11 @@
    ============================================================ */
 
 .grid-wrapper {
-  flex: 1;
-  margin: 8rpx 16rpx 0;
+  /* 不要用 flex:1: 父级一旦被当作 flex 容器, 这里会被压成固定高度,
+     再叠加 overflow:hidden 就会裁掉最下面的节次行(表现为"看不到第 14 行")。
+     高度交给内容决定, 底部留余量, 保证最后一行能完整滚进视野。 */
+  flex: none;
+  margin: 8rpx 16rpx 20rpx;
   background: var(--bg-card);
   border: var(--bw-card) solid var(--line);
   border-radius: var(--radius-card);

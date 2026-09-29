@@ -6,10 +6,15 @@
 .main-body {
   width: 100%;
   overflow: hidden;
+  /* 作为弹性列容器: 让每个 Tab 视图正好铺满"可用高度"，
+     不再依赖 100%/100vh 这类百分比链, 避免被裁掉一半 */
+  display: flex;
+  flex-direction: column;
 }
 
 .tab-wrap {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }

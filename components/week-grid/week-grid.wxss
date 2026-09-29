@@ -18,8 +18,9 @@
 }
 
 .head-time {
-  flex: 0 0 110rpx;
-  min-width: 110rpx;
+  /* 必须与 .time-col 的宽度一致, 否则表头星期与下面的列错位 */
+  flex: 0 0 76rpx;
+  min-width: 76rpx;
 }
 
 .head-day {
@@ -68,29 +69,12 @@
 
 /* 节次时间列 */
 .time-col {
-  flex: 0 0 110rpx;
-  min-width: 110rpx;
+  /* 去掉上午/下午/晚上分组列后收窄, 省出的宽度全部给课程块(教室要显示完整) */
+  flex: 0 0 76rpx;
+  min-width: 76rpx;
   display: flex;
   /* 时间轴: 清透主题是浅→深的渐变, 另两套主题三色相同即纯色 */
   background: linear-gradient(180deg, var(--tcol-start) 0%, var(--tcol-mid) 45%, var(--tcol-end) 100%);
-}
-
-/* 上午/下午/晚上: 窄分组列 */
-.grp-col {
-  flex: 0 0 40rpx;
-  display: flex;
-  flex-direction: column;
-}
-
-.grp-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16rpx;
-  color: var(--text-hint);
-  letter-spacing: 1rpx;
-  border-right: 1rpx solid var(--line-soft);
-  border-bottom: 1rpx solid var(--line-soft);
 }
 
 .sec-col {
@@ -191,8 +175,8 @@
   flex-shrink: 0;
   font-size: 15rpx;
   line-height: 1.15;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* 教室必须显示完整: 允许换行, 不做省略号截断 */
+  white-space: normal;
+  word-break: break-all;
 }
 

@@ -12,13 +12,8 @@
 
   <!-- 网格体: 时间列 + 7 天列(课程块绝对定位) -->
   <view class="grid-body">
-    <!-- 节次时间列: 左侧分组(上午/下午/晚上) + 节号/上课时间 -->
+    <!-- 节次时间列: 节号 + 上课时间(不再显示上午/下午/晚上分组, 把宽度让给课程块) -->
     <view class="time-col">
-      <view class="grp-col">
-        <view class="grp-cell" style="height: 400rpx">上午</view>
-        <view class="grp-cell" style="height: 400rpx">下午</view>
-        <view class="grp-cell" style="height: 320rpx">晚上</view>
-      </view>
       <view class="sec-col">
         <view class="time-cell" wx:for="{{timeRows}}" wx:key="index">
           <text class="t-num">{{item.index}}</text>
