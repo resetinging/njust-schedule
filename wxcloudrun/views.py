@@ -8,6 +8,10 @@ import hashlib
 import os
 import re
 import secrets
+import shutil
+import subprocess
+import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -58,19 +62,44 @@ _network_cache = {"ts": 0.0, "ok": False}
 NETWORK_CACHE_TTL = 30
 
 
+# 教务连通性探测的后台刷新状态(必须在 _check_network 之前定义:
+# 否则万一在模块导入期就被调用, 会 NameError)
+_network_refreshing = {"on": False}
+_network_lock = threading.Lock()
+
+
 def _check_network() -> Tuple[bool, str]:
+    """教务连通性: 只读缓存, 过期交给后台线程刷新 —— 绝不在请求路径里阻塞。
+
+    之前是同步探测(timeout=5, TTL=30s), 探测失败时每个请求都要等 5~10s,
+    表现为 /api/status 偶发 10s; 现在请求永远毫秒返回上次结果。
+    """
     now = time.time()
-    if now - _network_cache["ts"] < NETWORK_CACHE_TTL:
-        return _network_cache["ok"], ""
-    probe = JWCClient()
+    age = now - _network_cache["ts"]
+    if age >= NETWORK_CACHE_TTL and not _network_refreshing["on"]:
+        with _network_lock:
+            if not _network_refreshing["on"]:
+                _network_refreshing["on"] = True
+                threading.Thread(target=_refresh_network_cache, daemon=True).start()
+    if _network_cache["ts"] <= 0:
+        # 首次启动还没探测过: 返回"暂不可知", 由前端容错(不阻塞)
+        return False, ""
+    return _network_cache["ok"], ""
+
+
+def _refresh_network_cache():
+    """后台探测教务连通性(短超时), 结果写入缓存供请求直接读取"""
     try:
-        # 短超时探测: 教务无响应时快速判离线, 不让 /api/status 被拖慢
-        ok, msg = probe.test_connection(timeout=5)
-    except Exception:
-        ok, msg = False, ""
-    _network_cache["ts"] = now
-    _network_cache["ok"] = ok
-    return ok, msg
+        try:
+            probe = JWCClient()
+            ok, _msg = probe.test_connection(timeout=3)
+        except Exception:
+            ok = False
+        _network_cache["ok"] = ok
+        _network_cache["ts"] = time.time()
+    finally:
+        # 必须放 finally: 中途抛异常也要把标记放掉, 否则后台刷新会被永久禁用
+        _network_refreshing["on"] = False
 
 
 def _current_semester() -> str:
@@ -157,15 +186,13 @@ def font_pixel_json():
 
 # 按需子集: 字体里大部分字用不到, 只把"该用户课程文本"涉及的字发给前端,
 # 体积从 966KB 降到几十 KB, 也不用配 downloadFile 白名单(callContainer 能直接收 JSON)。
-_SUBSET_CACHE = {}
-_SUBSET_CACHE_MAX = 40
+_SUBSET_CACHE = {}        # key -> (chars_set, base64)
+_SUBSET_BUILDING = set()  # 正在后台生成的 key
+_SUBSET_LOCK = threading.Lock()
+_SUBSET_CACHE_MAX = 6
 
 
-def _subset_font_b64(chars: str) -> str:
-    key = hashlib.md5(chars.encode('utf-8')).hexdigest()
-    cached = _SUBSET_CACHE.get(key)
-    if cached:
-        return cached
+def _build_subset_now(chars: str) -> str:
     from fontTools import subset as ft_subset
     from fontTools.ttLib import TTFont
 
@@ -178,11 +205,67 @@ def _subset_font_b64(chars: str) -> str:
     subsetter.subset(font)
     buf = BytesIO()
     font.save(buf)
-    b64 = base64.b64encode(buf.getvalue()).decode('ascii')
-    if len(_SUBSET_CACHE) >= _SUBSET_CACHE_MAX:
-        _SUBSET_CACHE.clear()
-    _SUBSET_CACHE[key] = b64
-    return b64
+    return base64.b64encode(buf.getvalue()).decode('ascii')
+
+
+_SUBSET_MAX_BUILDING = 2      # 同时最多两个生成任务, 避免请求量大时堆一堆子进程
+_SUBSET_TOOL = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'font_subset_tool.py')
+
+
+def _start_subset_build(key: str, chars: str):
+    """后台生成子集。
+
+    生成器放在**独立子进程**里跑: 子集生成是纯 CPU 活, 放在 Flask 进程里会持有 GIL,
+    把 /api/status 这类轻接口一起拖慢(这正是之前 10s 的来源之一)。
+    """
+    with _SUBSET_LOCK:
+        if key in _SUBSET_BUILDING or key in _SUBSET_CACHE:
+            return
+        if len(_SUBSET_BUILDING) >= _SUBSET_MAX_BUILDING:
+            return                                    # 闸门: 超出就等下次请求再排
+        _SUBSET_BUILDING.add(key)
+
+    def _work():
+        tmp_dir = tempfile.mkdtemp(prefix='fontsubset-')
+        chars_file = os.path.join(tmp_dir, 'chars.txt')
+        out_file = os.path.join(tmp_dir, 'subset.woff')
+        try:
+            with open(chars_file, 'w', encoding='utf-8') as f:
+                f.write(chars)
+            proc = subprocess.run(
+                # 直接当脚本执行: 用 -m 会先导入 wxcloudrun 包, 触发数据库初始化
+                [sys.executable, _SUBSET_TOOL, chars_file, out_file],
+                capture_output=True, timeout=120)
+            if proc.returncode != 0:
+                raise RuntimeError((proc.stderr or b'').decode('utf-8', 'replace')[:200])
+            with open(out_file + '.b64', encoding='ascii') as f:
+                data = f.read()
+            with _SUBSET_LOCK:
+                if len(_SUBSET_CACHE) >= _SUBSET_CACHE_MAX:
+                    _SUBSET_CACHE.clear()
+                _SUBSET_CACHE[key] = (set(chars), data)
+        except Exception as exc:                      # 字体/依赖/超时都不该影响接口可用性
+            app.logger.warning("[font] 子集生成失败: %s", exc)
+        finally:
+            with _SUBSET_LOCK:
+                _SUBSET_BUILDING.discard(key)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    threading.Thread(target=_work, daemon=True).start()
+
+
+def _pick_subset(need: set):
+    """返回 (base64, 是否只是近似结果)"""
+    with _SUBSET_LOCK:
+        items = list(_SUBSET_CACHE.items())
+    best = None
+    for _key, (chars_set, data) in items:
+        if need <= chars_set:
+            return data, False
+        score = len(need & chars_set)
+        if best is None or score > best[0]:
+            best = (score, data)
+    return (best[1], True) if best else (None, True)
 
 
 @app.route('/api/font/subset', methods=['POST'])
@@ -195,11 +278,18 @@ def font_subset():
     if not isinstance(text, str) or not text.strip():
         return jsonify({'error': 'no text'}), 400
     chars = ''.join(sorted(set(text)))[:3000]
-    try:
-        data = _subset_font_b64(chars)
-    except Exception as exc:                      # 字体缺失/依赖缺失都不能影响接口可用性
-        return jsonify({'error': f'subset failed: {exc}'}), 500
-    resp = jsonify({'format': 'woff', 'encoding': 'base64', 'chars': len(chars), 'data': data})
+    key = hashlib.md5(chars.encode('utf-8')).hexdigest()
+    data, partial = _pick_subset(set(chars))
+    if not partial:
+        body = {'format': 'woff', 'encoding': 'base64', 'chars': len(chars), 'data': data}
+    else:
+        # 还没有覆盖这份文本的子集: 后台去生成, 本次先给上一份可用的(前端会自行重试)
+        _start_subset_build(key, chars)
+        if data is None:
+            return jsonify({'pending': True, 'message': 'subset building'}), 202
+        body = {'format': 'woff', 'encoding': 'base64', 'chars': len(chars),
+                'partial': True, 'data': data}
+    resp = jsonify(body)
     resp.headers['Access-Control-Allow-Origin'] = '*'
     return resp
 
