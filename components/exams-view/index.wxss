@@ -15,7 +15,7 @@
   padding: 16rpx 28rpx;
   font-size: 24rpx;
   color: var(--text-hint);
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .refresh-btn {
@@ -44,20 +44,20 @@
   align-items: center;
   min-width: 180rpx;
   padding: 20rpx 16rpx;
-  border-radius: 16rpx;
-  background: #fff;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-ctrl);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
   white-space: normal;
 }
 
 .countdown-card.urgent {
-  background: linear-gradient(135deg, #FFF5F5, #FFEBEE);
-  border: 2rpx solid #EF5350;
+  background: linear-gradient(135deg, var(--danger-soft), var(--danger-soft));
+  border: 2rpx solid var(--danger);
 }
 
 .countdown-card.warning {
-  background: linear-gradient(135deg, #FFFDE7, #FFF9C4);
-  border: 2rpx solid #FFA726;
+  background: linear-gradient(135deg, var(--warning-soft), var(--warning-soft));
+  border: 2rpx solid var(--warning);
 }
 
 .countdown-card.done {
@@ -70,23 +70,23 @@
   line-height: 1;
 }
 
-.countdown-card.urgent .cd-bignum { color: #D32F2F; }
-.countdown-card.warning .cd-bignum { color: #E65100; }
-.countdown-card.done .cd-bignum { color: #999; }
+.countdown-card.urgent .cd-bignum { color: var(--danger); }
+.countdown-card.warning .cd-bignum { color: var(--signal); }
+.countdown-card.done .cd-bignum { color: var(--text-hint); }
 
 .cd-label {
   font-size: 22rpx;
-  color: #999;
+  color: var(--text-hint);
   margin-top: 4rpx;
 }
 
-.countdown-card.urgent .cd-label { color: #D32F2F; }
-.countdown-card.warning .cd-label { color: #E65100; }
+.countdown-card.urgent .cd-label { color: var(--danger); }
+.countdown-card.warning .cd-label { color: var(--signal); }
 
 .cd-course {
   font-size: 24rpx;
   font-weight: 500;
-  color: #333;
+  color: var(--text-secondary);
   margin-top: 12rpx;
   text-align: center;
   max-width: 200rpx;
@@ -96,7 +96,7 @@
 
 .cd-date {
   font-size: 20rpx;
-  color: #999;
+  color: var(--text-hint);
   margin-top: 4rpx;
 }
 
@@ -119,54 +119,54 @@
 .date-title {
   font-size: 28rpx;
   font-weight: bold;
-  color: #333;
+  color: var(--text-secondary);
 }
 
 .date-urgency {
   font-size: 22rpx;
   padding: 4rpx 12rpx;
-  border-radius: 20rpx;
+  border-radius: var(--radius-card);
   font-weight: bold;
 }
 
 .date-urgency.urgent {
-  background: #FFEBEE;
-  color: #D32F2F;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .date-urgency.warning {
-  background: #FFF8E1;
-  color: #E65100;
+  background: var(--warning-soft);
+  color: var(--signal);
 }
 
 .date-urgency.done {
-  background: #F5F5F5;
-  color: #999;
+  background: var(--bg-page);
+  color: var(--text-hint);
 }
 
 /* 考试卡片 */
 .exam-card {
-  background: #fff;
-  border-radius: 12rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-ctrl);
   padding: 20rpx 24rpx;
   margin-bottom: 12rpx;
-  box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-card);
 }
 
 .exam-card.exam-urgent {
   border-top-width: 8rpx;
-  border-top-color: #E05A5A;
+  border-top-color: var(--danger);
 }
 
 .exam-card.exam-warning {
   border-top-width: 8rpx;
-  border-top-color: #F5A623;
+  border-top-color: var(--warning);
 }
 
 .exam-course {
   font-size: 30rpx;
   font-weight: 600;
-  color: #222;
+  color: var(--text-primary);
   margin-bottom: 12rpx;
 }
 
@@ -178,7 +178,7 @@
 
 .meta-item {
   font-size: 24rpx;
-  color: #666;
+  color: var(--text-muted);
 }
 
 /* ==============================
@@ -208,10 +208,10 @@
   width: 70%;
   margin: 0 auto;
   padding: 20rpx;
-  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%);
-  color: #fff;
-  border-radius: 999rpx;
-  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28);
+  background: var(--primary);
+  color: var(--bg-card);
+  border-radius: var(--radius-ctrl);
+  box-shadow: var(--shadow-card);
   font-size: 28rpx;
   text-align: center;
   border: none;
@@ -228,7 +228,7 @@
   color: var(--text-hint);
   padding: 4rpx 8rpx;
   border: 1rpx solid var(--border);
-  border-radius: 8rpx;
+  border-radius: var(--radius-chip);
 }
 .exam-done {
   opacity: 0.55;
@@ -238,53 +238,53 @@
    V2 视觉升级 — 考试页
    ============================================================ */
 .top-bar {
-  background: #fff;
-  border-radius: 0 0 24rpx 24rpx;
-  box-shadow: 0 6rpx 20rpx rgba(26, 82, 118, 0.10);
+  background: var(--bg-card);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  box-shadow: var(--shadow-card);
   margin-bottom: 8rpx;
 }
 .refresh-btn {
-  background: #EFEBFC;
-  border-radius: 24rpx;
+  background: var(--primary-soft);
+  border-radius: var(--radius-card);
   padding: 8rpx 24rpx;
 }
 
-/* 倒计时卡质感: 常态淡紫, 紧急/临近渐变 */
+/* 倒计时卡质感: 常态浅底细线, 紧急/临近用顶部色条 */
 .countdown-card {
-  border-radius: 20rpx;
-  box-shadow: 0 6rpx 18rpx rgba(0, 0, 0, 0.07);
-  background: linear-gradient(160deg, #fbfdff 0%, #eef5fb 100%);
-  border: 1rpx solid rgba(26, 82, 118, 0.10);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  background: var(--bg-sunken);
+  border: var(--bw-card) solid var(--line);
 }
 .countdown-card.urgent {
-  background: linear-gradient(135deg, #FF5A5A 0%, #FF8A65 100%);
+  background: linear-gradient(135deg, var(--danger) 0%, var(--signal) 100%);
   border: none;
-  color: #fff;
+  color: var(--bg-card);
 }
-.countdown-card.urgent .cd-bignum { color: #fff; }
+.countdown-card.urgent .cd-bignum { color: var(--bg-card); }
 .countdown-card.urgent .cd-label { color: rgba(255, 255, 255, 0.9); }
-.countdown-card.urgent .cd-course { color: #fff; }
+.countdown-card.urgent .cd-course { color: var(--bg-card); }
 .countdown-card.warning {
-  background: linear-gradient(135deg, #FFB300 0%, #FFD54F 100%);
+  background: linear-gradient(135deg, var(--warning) 0%, var(--warning-light) 100%);
   border: none;
-  color: #fff;
+  color: var(--bg-card);
 }
-.countdown-card.warning .cd-bignum { color: #fff; }
+.countdown-card.warning .cd-bignum { color: var(--bg-card); }
 .countdown-card.warning .cd-label { color: rgba(255, 255, 255, 0.9); }
-.countdown-card.warning .cd-course { color: #fff; }
+.countdown-card.warning .cd-course { color: var(--bg-card); }
 
 /* 日期头卡片化 */
 .date-header {
-  background: #fff;
-  border-radius: 16rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-ctrl);
   margin: 16rpx 20rpx 4rpx;
   padding: 16rpx 24rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-card);
 }
 .exam-scroll { padding-bottom: 20rpx; }
 .exam-card {
-  border-radius: 16rpx;
-  box-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-ctrl);
+  box-shadow: var(--shadow-card);
   margin: 8rpx 20rpx 0;
 }
 
@@ -293,14 +293,14 @@
    V3 视觉升级 — 考试页头部 Hero
    ============================================================ */
 .top-bar {
-  background: linear-gradient(135deg, #7C6BE8 0%, #8B79EC 60%, #3498db 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 60%, var(--primary) 100%);
+  color: var(--bg-card);
   padding: 24rpx 28rpx;
 }
 .refresh-btn {
-  background: #fff;
+  background: var(--bg-card);
   color: var(--primary);
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-card);
 }
 
 
@@ -308,44 +308,44 @@
    V4 简约风格 — 考试页
    ============================================================ */
 .top-bar {
-  background: #fff;
-  box-shadow: none;
-  border-bottom: 1rpx solid #E9EDF2;
-  color: #333;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  border-bottom: 1rpx solid var(--line);
+  color: var(--text-secondary);
 }
 .refresh-btn {
-  background: #EFEBFC;
+  background: var(--primary-soft);
   color: var(--primary);
-  box-shadow: none;
+  box-shadow: var(--shadow-card);
 }
 
 /* 倒计时卡: 白底 + 色条, 去渐变 */
 .countdown-card {
-  background: #fff;
-  border: 1rpx solid #E9EDF2;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  background: var(--bg-card);
+  border: var(--bw-card) solid var(--line);
+  box-shadow: var(--shadow-card);
 }
 .countdown-card.urgent {
-  background: #FFF7F5;
-  border: 1rpx solid #FFD8CC;
+  background: var(--signal-soft);
+  border: 1rpx solid var(--signal-line);
 }
-.countdown-card.urgent .cd-bignum { color: #E53935; }
-.countdown-card.urgent .cd-label { color: #E53935; }
-.countdown-card.urgent .cd-course { color: #333; }
+.countdown-card.urgent .cd-bignum { color: var(--danger); }
+.countdown-card.urgent .cd-label { color: var(--danger); }
+.countdown-card.urgent .cd-course { color: var(--text-secondary); }
 .countdown-card.warning {
-  background: #FFFDF3;
-  border: 1rpx solid #FFE9B8;
+  background: var(--warning-soft);
+  border: 1rpx solid var(--warning-line);
 }
-.countdown-card.warning .cd-bignum { color: #F57C00; }
-.countdown-card.warning .cd-label { color: #F57C00; }
-.countdown-card.warning .cd-course { color: #333; }
+.countdown-card.warning .cd-bignum { color: var(--signal); }
+.countdown-card.warning .cd-label { color: var(--signal); }
+.countdown-card.warning .cd-course { color: var(--text-secondary); }
 
 .date-header {
-  background: #fff;
-  box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.03);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
 }
 .exam-card {
-  box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-card);
 }
 
 
@@ -354,27 +354,27 @@
    ============================================================ */
 /* 倒计时卡: 桌面 白卡 + 顶边状态色 + 状态淡底 */
 .countdown-card {
-  background: #fff;
+  background: var(--bg-card);
   border: none;
   border-top: 8rpx solid transparent;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   padding: 32rpx;
 }
 .countdown-card.urgent {
-  background: #fdedec;
-  border-top-color: #e74c3c;
+  background: var(--danger-soft);
+  border-top-color: var(--danger);
 }
-.countdown-card.urgent .cd-bignum { color: #E05A5A; }
-.countdown-card.urgent .cd-label { color: #E05A5A; }
-.countdown-card.urgent .cd-course { color: #33304F; }
+.countdown-card.urgent .cd-bignum { color: var(--danger); }
+.countdown-card.urgent .cd-label { color: var(--danger); }
+.countdown-card.urgent .cd-course { color: var(--text-primary); }
 .countdown-card.warning {
-  background: #fef9e7;
-  border-top-color: #f39c12;
+  background: var(--warning-soft);
+  border-top-color: var(--warning);
 }
-.countdown-card.warning .cd-bignum { color: #F5A623; }
-.countdown-card.warning .cd-label { color: #F5A623; }
-.countdown-card.warning .cd-course { color: #33304F; }
+.countdown-card.warning .cd-bignum { color: var(--warning); }
+.countdown-card.warning .cd-label { color: var(--warning); }
+.countdown-card.warning .cd-course { color: var(--text-primary); }
 .countdown-card.done { opacity: 0.6; }
 .cd-bignum { font-size: 80rpx; }
 .cd-label { font-size: 26rpx; }
@@ -384,58 +384,58 @@
 .date-header {
   background: none;
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: var(--shadow-card);
   margin: 20rpx 24rpx 10rpx;
   padding: 0;
   gap: 12rpx;
 }
-.date-title { font-weight: 700; color: #33304F; }
+.date-title { font-weight: 700; color: var(--text-primary); }
 
 /* 考试卡: 桌面 .exam-card radius 8px / padding 14px 18px / mb 8px */
 .exam-card {
-  background: #fff;
-  border-radius: 16rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-ctrl);
   padding: 28rpx 36rpx;
   margin: 0 24rpx 16rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card);
 }
-.exam-course { font-weight: 700; font-size: 32rpx; color: #33304F; margin-bottom: 12rpx; }
-.meta-item { color: #8A87A8; }
+.exam-course { font-weight: 700; font-size: 32rpx; color: var(--text-primary); margin-bottom: 12rpx; }
+.meta-item { color: var(--text-hint); }
 
 /* 刷新按钮 → 桌面 btn-primary 亮蓝 */
 .refresh-btn {
-  background: #8B79EC;
-  color: #fff;
-  border-radius: 16rpx;
+  background: var(--primary);
+  color: var(--bg-card);
+  border-radius: var(--radius-ctrl);
   padding: 10rpx 24rpx;
 }
 
 
 /* ============================================================
-   风格统一 — 对齐课表(白底圆角小方框 + 细边框 + 紫轻阴影 + 统一字体色)
+   风格统一 — 对齐课表(白底圆角小方框 + 细边框 + 统一字体色)
    ============================================================ */
 .exam-card, .countdown-card {
-  border-radius: 20rpx;
-  border: 2rpx solid #EFEBFC;
-  box-shadow: 0 4rpx 16rpx rgba(87, 74, 160, 0.06);
+  border-radius: var(--radius-card);
+  border: var(--bw-card) solid var(--line);
+  box-shadow: var(--shadow-card);
 }
-.exam-course { color: #33304F; }
-.meta-item { color: #8A87A8; }
-.date-title { color: #33304F; }
-.cd-label, .cd-date { color: #8A87A8; }
-.cd-course { color: #33304F; }
-.date-urgency.done { background: #F2F0FA; color: #8A87A8; }
+.exam-course { color: var(--text-primary); }
+.meta-item { color: var(--text-hint); }
+.date-title { color: var(--text-primary); }
+.cd-label, .cd-date { color: var(--text-hint); }
+.cd-course { color: var(--text-primary); }
+.date-urgency.done { background: var(--primary-soft); color: var(--text-hint); }
 
 /* 倒计时卡统一白底, 状态仅用顶部色条区分 */
 .countdown-card.urgent {
-  background: #fff;
+  background: var(--bg-card);
   border-top-width: 8rpx;
-  border-top-color: #E05A5A;
+  border-top-color: var(--danger);
 }
 .countdown-card.warning {
-  background: #fff;
+  background: var(--bg-card);
   border-top-width: 8rpx;
-  border-top-color: #F5A623;
+  border-top-color: var(--warning);
 }
 .countdown-card.done { opacity: 0.6; }
 
@@ -456,15 +456,15 @@
 }
 /* ============ 研究生: 考试信息表 ============ */
 .yjs-tr {
-  display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #F2F0F7;
+  display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line-soft);
 }
 .yjs-tr:last-child { border-bottom: none; }
-.yjs-td { font-size: 12px; color: #33304F; flex: 1; word-break: break-all; }
+.yjs-td { font-size: 12px; color: var(--text-primary); flex: 1; word-break: break-all; }
 .yjs-td:first-child { flex: 1.6; }
-.yjs-hint { font-size: 12px; color: #8A87A8; text-align: center; padding: 18px 0; }
+.yjs-hint { font-size: 12px; color: var(--text-hint); text-align: center; padding: 18px 0; }
 .yjs-refresh {
-  margin-top: 12px; height: 40px; border-radius: 20px; background: #7C6BE8;
-  color: #fff; font-size: 14px; display: flex; align-items: center;
+  margin-top: 12px; height: 40px; border-radius: 20px; background: var(--primary);
+  color: var(--bg-card); font-size: 14px; display: flex; align-items: center;
   justify-content: center;
 }
-.yjs-note { font-size: 11px; color: #A9A5C0; text-align: center; margin-top: 10px; }
+.yjs-note { font-size: 11px; color: var(--text-hint); text-align: center; margin-top: 10px; }

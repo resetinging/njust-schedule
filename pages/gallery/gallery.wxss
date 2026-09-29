@@ -1,8 +1,8 @@
-/* 校园工具样式 — 复刻目标 UI: 淡紫底 + 白色大圆角卡片 */
+/* 校园工具样式 · 清透课堂: 白卡 + 细描边 */
 
 .container {
   padding-bottom: 40rpx;
-  background: #F7F6FB;
+  background: var(--bg-page);
   min-height: 100vh;
 }
 
@@ -11,25 +11,26 @@
 }
 
 .tool-card {
-  background: #fff;
-  border-radius: 28rpx;
+  background: var(--bg-card);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
   padding: 24rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 6rpx 24rpx rgba(87, 74, 160, 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 .tool-title {
   font-size: 32rpx;
   font-weight: 700;
-  color: #33304F;
+  color: var(--text-primary);
   margin-bottom: 16rpx;
 }
 
 .tool-img {
   width: 100%;
   display: block;
-  border-radius: 16rpx;
-  background: #F7F6FB;
+  border-radius: var(--radius-ctrl);
+  background: var(--bg-page);
 }
 
 .empty-state {
@@ -40,7 +41,7 @@
 .empty-state .icon { font-size: 100rpx; }
 .empty-state .text {
   font-size: 28rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
   margin: 20rpx 0 32rpx;
 }
 
@@ -49,8 +50,8 @@
   margin: 16rpx 24rpx;
   padding: 16rpx 20rpx;
   font-size: 22rpx;
-  color: #B06A3C;
-  background: #FDF3E9;
-  border-radius: 16rpx;
+  color: var(--signal-deep);
+  background: var(--signal-soft);
+  border-radius: var(--radius-ctrl);
   word-break: break-all;
 }

@@ -9,13 +9,16 @@
  */
 const storage = require('../utils/storage')
 
-// key 必须与 main 页面的 Tab 序号一致(0课表 1考试 2评教 3成绩 4我的)
+// 线性图标: PNG 资源由 poster/make_icons.py + make_icons.ps1 生成
+// (这里路径写在 data 里, 用绝对路径指向项目根)
+const _icon = (name, tone) => `/static/icons/${name}-${tone}.png`
+
+// key 必须与 main 页面的底栏序号一致: 0=功能 1=课表 2=我的
+// (考试/评教/成绩 已移到"功能"页, 评教的可见性由功能页入口控制)
 const ALL_TABS = [
-  { key: 0, name: '课表', emoji: '📅' },
-  { key: 1, name: '考试', emoji: '📝' },
-  { key: 2, name: '评教', emoji: '📋' },
-  { key: 3, name: '成绩', emoji: '🎓' },
-  { key: 4, name: '我的', emoji: '👤' }
+  { key: 0, name: '功能', icon: _icon('grid', 'grey'), iconOn: _icon('grid', 'indigo') },
+  { key: 1, name: '课表', icon: _icon('calendar', 'grey'), iconOn: _icon('calendar', 'indigo') },
+  { key: 2, name: '我的', icon: _icon('user', 'grey'), iconOn: _icon('user', 'indigo') }
 ]
 
 Component({
@@ -25,31 +28,31 @@ Component({
   },
 
   attached() {
-    this._refreshList()
-  },
-
-  pageLifetimes: {
-    // 登录/切换账号后(页面重新显示)再算一次, 研究生隐藏评教
-    show() {
-      this._refreshList()
+    // 三个 tab 恒定显示(考试/评教/成绩 已移入"功能"页, 不再随账号变化)
+    if (this.data.list.length !== ALL_TABS.length) {
+      this.setData({ list: ALL_TABS })
     }
   },
 
   methods: {
     /** 研究生账号没有评教(研究生系统不提供), 隐藏该项 */
     _refreshList() {
-      const isGrad = storage.get('account_type', '') === 'graduate'
-      const list = ALL_TABS.filter(t => !(isGrad && t.key === 2))
+      // 三个 tab 恒定显示: 评教的隐藏已改由"功能"页入口判断
+      const list = ALL_TABS
       if (list.length !== (this.data.list || []).length) {
         this.setData({ list })
       }
-      // 老会话可能还没记录账号类型: 向后台补一次, 拿到后立刻刷新列表
-      if (!storage.get('account_type', '')) {
+      // 兜底校验(30 秒节流): app 启动时页面还没创建, 拿不到 tabBar 实例,
+      // 所以由 tabBar 自己在显示时向后台核对一次账号类型
+      const now = Date.now()
+      if (!this._lastCheck || now - this._lastCheck > 30000) {
+        this._lastCheck = now
         const api = require('../utils/api')
         api.getStatus().then((res) => {
           if (res && res.account_type) {
+            const changed = storage.get('account_type', '') !== res.account_type
             storage.set('account_type', res.account_type)
-            this._refreshList()
+            if (changed) this._refreshList()
           }
         }).catch(() => {})
       }

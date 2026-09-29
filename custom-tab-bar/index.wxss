@@ -1,56 +1,53 @@
-/* 自定义 tabBar — 纯图标模式(无文字) */
+/* 自定义 tabBar — 图标 + 文字(主流校园/课程表 App 与微信原生 tabBar 的做法)
+   选中项: 主色图标 + 主色文字; 未选中: 灰图标 + 灰文字 */
+
 .tab-bar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   display: flex;
-  background: #FFFFFF;
-  border-top: 1rpx solid #EFECF5;
+  background: var(--bg-card);
+  border-top: 1rpx solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 999;
 }
+
 .tab-bar-item {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 10rpx 0 8rpx;
+  padding: 8rpx 0 10rpx;
 }
-/* 图标容器: 选中时浅紫圆形背景 */
+
+.tab-bar-item:active { opacity: 0.7; }
+
+/* 图标容器: 只负责对齐, 不再画圆形底 */
 .tab-emoji-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  transition: background 0.2s ease, transform 0.2s ease;
+  width: 48rpx;
+  height: 48rpx;
 }
-/* 未选中: 置灰 + 半透明; 选中: 彩色 + 放大 + 浅紫底 */
-.tab-emoji {
-  font-size: 44rpx;
-  line-height: 1;
-  filter: grayscale(100%) opacity(0.55);
-  transform: scale(0.92);
-  transition: filter 0.2s ease, transform 0.2s ease;
+
+.tab-ico {
+  width: 44rpx;
+  height: 44rpx;
 }
-.tab-bar-item.on .tab-emoji-wrap {
-  background: #EFEBFC;
-}
-.tab-bar-item.on .tab-emoji {
-  filter: none;
-  transform: scale(1.08);
-}
-/* 选中指示小圆点(未选中透明占位, 避免高度跳动) */
-.tab-dot {
-  width: 8rpx;
-  height: 8rpx;
-  border-radius: 50%;
-  background: transparent;
+
+/* 文字标签: 选中变主色加粗 */
+.tab-text {
   margin-top: 4rpx;
+  font-size: 24rpx;
+  line-height: 1.3;
+  color: var(--text-hint);
+  font-family: var(--font-display);
 }
-.tab-dot.on {
-  background: #7C6BE8;
+
+.tab-bar-item.on .tab-text {
+  color: var(--primary);
+  font-weight: 600;
 }

@@ -4,40 +4,41 @@
   <!-- 滚动内容区(scroll-view 内滚; 刷新走右上角手动按钮) -->
   <scroll-view class="view-scroll" scroll-y>
 
-    <!-- 顶部紫渐变信息卡(紧凑: 学期 + 视图切换 + 周次) -->
-    <view class="top-card">
+    <!-- 顶栏第一行: 学期(可点切换) + 今天日期 -->
+    <view class="topbar">
       <picker mode="selector" range="{{semesters}}" bindchange="onSemesterChange">
-        <view class="tc-sem">{{semester || '选择学期'}}</view>
+        <view class="tb-sem">{{semester || '选择学期'}}<text class="tb-caret">▾</text></view>
       </picker>
-      <view class="tc-right">
-        <view class="view-toggle">
-          <text class="toggle-btn {{viewMode === 'grid' ? 'active' : ''}}"
-                data-mode="grid" bindtap="switchView">▦</text>
-          <text class="toggle-btn {{viewMode === 'list' ? 'active' : ''}}"
-                data-mode="list" bindtap="switchView">☰</text>
-        </view>
-        <picker mode="selector" range="{{weekPickerRange}}" bindchange="onJumpWeek">
-          <view class="tc-week">第 {{currentWeek || 1}} 周 ▼</view>
-        </picker>
-      </view>
+      <text class="tb-today" wx:if="{{todayText}}">{{todayText}}</text>
     </view>
 
-    <!-- 工具栏: 上下周 + 刷新 + 加号 -->
-    <view class="toolbar">
-      <view class="week-nav">
-        <text class="week-btn" bindtap="prevWeek">◀</text>
+    <!-- 顶栏第二行: 周次导航 + 工具(切换/刷新/加号) -->
+    <view class="weekbar">
+      <view class="week-btn" bindtap="prevWeek">
+        <icon name="prev" size="26" color="#64748B" />
+      </view>
+      <!-- 点周次可快速跳周 -->
+      <picker mode="selector" range="{{weekPickerRange}}" bindchange="onJumpWeek">
         <view class="week-label">
-          <text class="week-main">
-            {{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周（本周）' : '第 ' + (currentWeek || 1) + ' 周'}}
-          </text>
+          <text class="week-main">{{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周 · 本周' : '第 ' + (currentWeek || 1) + ' 周'}}</text>
           <text class="week-range" wx:if="{{weekRange}}">{{weekRange}}</text>
         </view>
-        <text class="week-btn" bindtap="nextWeek">▶</text>
+      </picker>
+      <view class="week-btn" bindtap="nextWeek">
+        <icon name="next" size="26" color="#64748B" />
       </view>
-      <!-- 右侧工具: 刷新 + 加号(靠右成组) -->
-      <view class="tool-actions">
-        <text class="refresh-btn {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
-        <text class="u-ico-btn" style="font-size:34rpx;" bindtap="onAddCustom">＋</text>
+
+      <!-- 工具: 视图切换(图标显示"切过去的形态") / 刷新 / 加号 -->
+      <view class="tb-acts">
+        <view class="tb-toggle" data-mode="{{viewMode === 'grid' ? 'list' : 'grid'}}" bindtap="switchView">
+          <icon name="{{viewMode === 'grid' ? 'list' : 'grid'}}" size="34" color="#64748B" />
+        </view>
+        <view class="refresh-btn {{loading ? 'spin' : ''}}" bindtap="onRefresh">
+          <icon name="refresh" size="34" color="#64748B" />
+        </view>
+        <view class="u-ico-btn" bindtap="onAddCustom">
+          <icon name="plus" size="36" color="#2563EB" />
+        </view>
       </view>
     </view>
 
@@ -49,6 +50,7 @@
       <week-grid
         courses="{{filteredCourses}}"
         currentWeek="{{currentWeek}}"
+        actualWeek="{{actualWeek}}"
         firstWeekDate="{{firstWeekDate}}"
         todayDay="{{todayDay}}"
         bind:coursetap="onCourseTap"
@@ -65,7 +67,7 @@
             wx:key="index"
             wx:for-item="c"
             class="course-card"
-            style="background: {{c._bg || '#FCF0D9'}}; border-left: 10rpx solid {{c._bar || '#F5D9A0'}};"
+            style="background: {{c._bg || '#E8F1FF'}}; border-left: 10rpx solid {{c._bar || '#2563EB'}};"
             bindtap="onCourseTap"
             data-course="{{c}}"
           >

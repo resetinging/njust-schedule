@@ -5,6 +5,7 @@
     "eval-view": "/components/eval-view/index",
     "grades-view": "/components/grades-view/index",
     "settings-view": "/components/settings-view/index",
-    "custom-tab-bar": "/custom-tab-bar/index"
+    "custom-tab-bar": "/custom-tab-bar/index",
+    "icon": "/components/icon/index"
   }
 }

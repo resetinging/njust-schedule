@@ -1,9 +1,16 @@
 /**
  * 卡片式空状态组件 (设计规范 §3.8)
- * 白卡 + 紫色图标圆底 + 加粗标题 + 灰色副文案 + 可选操作按钮
- * 用法: <empty-state icon="📝" title="暂无考试安排" desc="2026-2027-1 暂时没有考试安排"
+ * 白卡 + 淡蓝图标圆底 + 加粗标题 + 灰色副文案 + 可选操作按钮
+ * 用法: <empty-state icon="doc" title="暂无考试安排" desc="2026-2027-1 暂时没有考试安排"
  *                    action-text="获取考试安排" bind:action="onRefresh" />
+ * (旧调用传 emoji 时会自动映射成线性图标, 见 EMOJI_MAP)
  */
+const EMOJI_MAP = {
+  '📝': 'doc', '📋': 'clipboard', '⏳': 'hourglass', '🖼️': 'image', '🖼': 'image',
+  '🏫': 'building', '🔐': 'lock', '🎓': 'award', '📢': 'megaphone',
+  '✏️': 'edit', '✏': 'edit', '👤': 'user', '⏰': 'clock', '📅': 'calendar'
+}
+
 Component({
   options: {
     styleIsolation: 'apply-shared'
@@ -15,6 +22,14 @@ Component({
     desc: { type: String, value: '' },
     actionText: { type: String, value: '' },
     showAction: { type: Boolean, value: true }
+  },
+
+  data: { iconName: 'more' },
+
+  observers: {
+    icon(v) {
+      this.setData({ iconName: EMOJI_MAP[v] || v || 'more' })
+    }
   },
 
   methods: {

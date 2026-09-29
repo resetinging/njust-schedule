@@ -4,7 +4,7 @@
 
   <!-- 顶部公告条: 有新公告(updated 未读)时展示, 查看后隐藏 -->
   <view class="ann-bar" wx:if="{{ann.visible}}" bindtap="onAnnTap">
-    <text class="ann-icon">📢</text>
+    <view class="ann-icon"><icon name="megaphone" size="30" color="#2563EB" /></view>
     <text class="ann-tag">公告</text>
     <text class="ann-text">{{ann.text}}</text>
     <text class="ann-more" wx:if="{{ann.long}}">查看 ›</text>
@@ -19,19 +19,78 @@
         style="height: {{swiperHeight}}px"
         bindtouchstart="onSwipeTouchStart"
         bindtouchend="onSwipeTouchEnd">
-    <view class="tab-wrap" hidden="{{current !== 0}}">
-      <schedule-view wx:if="{{visited[0]}}" id="tabview0" />
+    <!-- ① 功能页(一级): 考试/评教/成绩 + 空教室/校历 -->
+    <view class="tab-wrap" hidden="{{!(current === 0 && !sub)}}">
+      <view class="feat-page">
+        <view class="feat-card">
+          <view class="feat-row" data-sub="exams" bindtap="onOpenFeature">
+            <view class="feat-ico"><icon name="doc" size="34" color="#2563EB" /></view>
+            <view class="feat-main">
+              <text class="feat-name">考试安排</text>
+              <text class="feat-desc">考试时间、考场与倒计时</text>
+            </view>
+            <text class="feat-arrow">›</text>
+          </view>
+          <view class="feat-row" wx:if="{{!isGraduate}}" data-sub="eval" bindtap="onOpenFeature">
+            <view class="feat-ico"><icon name="clipboard" size="34" color="#2563EB" /></view>
+            <view class="feat-main">
+              <text class="feat-name">教学评价</text>
+              <text class="feat-desc">批量评教与进度跟踪</text>
+            </view>
+            <text class="feat-arrow">›</text>
+          </view>
+          <view class="feat-row" data-sub="grades" bindtap="onOpenFeature">
+            <view class="feat-ico"><icon name="chart" size="34" color="#2563EB" /></view>
+            <view class="feat-main">
+              <text class="feat-name">成绩查询</text>
+              <text class="feat-desc">绩点、分数与四六级</text>
+            </view>
+            <text class="feat-arrow">›</text>
+          </view>
+        </view>
+
+        <view class="feat-card">
+          <view class="feat-row" data-url="/pages/freeclass/freeclass" bindtap="onOpenNavPage">
+            <view class="feat-ico"><icon name="building" size="34" color="#2563EB" /></view>
+            <view class="feat-main">
+              <text class="feat-name">空教室查询</text>
+              <text class="feat-desc">按教学楼与时段找空闲教室</text>
+            </view>
+            <text class="feat-arrow">›</text>
+          </view>
+          <view class="feat-row" data-url="/pages/gallery/gallery" bindtap="onOpenNavPage">
+            <view class="feat-ico"><icon name="image" size="34" color="#2563EB" /></view>
+            <view class="feat-main">
+              <text class="feat-name">校历 &amp; 照片墙</text>
+              <text class="feat-desc">学期校历与校园照片</text>
+            </view>
+            <text class="feat-arrow">›</text>
+          </view>
+        </view>
+      </view>
     </view>
-    <view class="tab-wrap" hidden="{{current !== 1}}">
+
+    <!-- ② 功能页(二级): 考试 / 评教 / 成绩, 顶部带返回 -->
+    <view class="tab-wrap" hidden="{{!(current === 0 && sub === 'exams')}}">
+      <view class="sub-back" bindtap="onBackFeature"><text class="sub-back-ico">‹</text>返回功能</view>
       <exams-view wx:if="{{visited[1]}}" id="tabview1" />
     </view>
-    <view class="tab-wrap" hidden="{{current !== 2}}">
+    <view class="tab-wrap" hidden="{{!(current === 0 && sub === 'eval')}}">
+      <view class="sub-back" bindtap="onBackFeature"><text class="sub-back-ico">‹</text>返回功能</view>
       <eval-view wx:if="{{visited[2]}}" id="tabview2" />
     </view>
-    <view class="tab-wrap" hidden="{{current !== 3}}">
+    <view class="tab-wrap" hidden="{{!(current === 0 && sub === 'grades')}}">
+      <view class="sub-back" bindtap="onBackFeature"><text class="sub-back-ico">‹</text>返回功能</view>
       <grades-view wx:if="{{visited[3]}}" id="tabview3" />
     </view>
-    <view class="tab-wrap" hidden="{{current !== 4}}">
+
+    <!-- ③ 课表 -->
+    <view class="tab-wrap" hidden="{{current !== 1}}">
+      <schedule-view wx:if="{{visited[0]}}" id="tabview0" />
+    </view>
+
+    <!-- ④ 我的 -->
+    <view class="tab-wrap" hidden="{{current !== 2}}">
       <settings-view wx:if="{{visited[4]}}" id="tabview4" />
     </view>
   </view>

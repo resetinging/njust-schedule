@@ -1,8 +1,8 @@
-<!-- 卡片式空状态: 紫色图标圆底 + 标题 + 副文案 + 操作按钮 -->
+<!-- 卡片式空状态: 淡蓝图标圆底 + 标题 + 副文案 + 操作按钮 -->
 <view class="es-wrap">
   <view class="es-card">
     <view class="es-icon-wrap">
-      <text class="es-icon">{{icon}}</text>
+    <icon name="{{iconName}}" size="76" color="#2563EB" />
     </view>
     <view class="es-title">{{title}}</view>
     <text class="es-desc" wx:if="{{desc}}">{{desc}}</text>

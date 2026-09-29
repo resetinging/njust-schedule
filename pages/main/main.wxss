@@ -1,7 +1,7 @@
 /* 主页面 */
 .main-page {
   height: 100vh;
-  background: #F7F6FB;
+  background: var(--bg-page);
 }
 .main-body {
   width: 100%;
@@ -10,18 +10,116 @@
 
 .tab-wrap {
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
+
+/* 组件/页面在包裹层里撑满剩余高度(二级视图顶部有返回条) */
+.tab-wrap > .sub-back { flex-shrink: 0; }
+.tab-wrap > schedule-view,
+.tab-wrap > exams-view,
+.tab-wrap > eval-view,
+.tab-wrap > grades-view,
+.tab-wrap > settings-view,
+.tab-wrap > .feat-page {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ============================================================
+   功能页(底栏第 1 项): 二级入口列表
+   ============================================================ */
+.feat-page {
+  height: 100%;
+  padding: 20rpx 24rpx 40rpx;
+  box-sizing: border-box;
+  overflow-y: auto;
+  background: var(--bg-page);
+}
+
+.feat-card {
+  background: var(--bg-card);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 20rpx;
+  overflow: hidden;
+}
+
+.feat-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 26rpx 24rpx;
+  border-bottom: 1rpx solid var(--line-soft);
+}
+
+.feat-row:last-child { border-bottom: none; }
+.feat-row:active { background: var(--bg-hover); }
+
+.feat-ico {
+  width: 72rpx;
+  height: 72rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-ctrl);
+  background: var(--primary-soft);
+}
+
+.feat-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.feat-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.feat-desc {
+  font-size: 23rpx;
+  color: var(--text-hint);
+}
+
+.feat-arrow {
+  flex-shrink: 0;
+  font-size: 34rpx;
+  color: var(--icon-faint);
+}
+
+/* 二级视图顶部返回条 */
+.sub-back {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 16rpx 24rpx;
+  font-size: 27rpx;
+  color: var(--primary);
+  background: var(--bg-card);
+  border-bottom: 1rpx solid var(--line-soft);
+}
+
+.sub-back:active { background: var(--bg-hover); }
+
+.sub-back-ico { font-size: 34rpx; }
 
 /* ============================================================
 顶部公告条 — 新公告横幅(查看后隐藏, 高度由 JS 计入 swiperHeight)
 ============================================================ */
 .ann-bar {
+  font-family: var(--font-plain);
   display: flex;
   align-items: center;
   height: 88rpx;
   padding: 0 28rpx;
-  background: linear-gradient(90deg, #7C6BE8, #9B8CF5);
-  color: #fff;
+  background: var(--primary);
+  color: var(--bg-card);
   font-size: 26rpx;
   box-sizing: border-box;
 }
@@ -35,7 +133,7 @@
   flex-shrink: 0;
   margin-right: 12rpx;
   padding: 2rpx 12rpx;
-  border-radius: 20rpx;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.24);
   font-size: 22rpx;
   line-height: 1.6;

@@ -1,4 +1,8 @@
 {
   "component": true,
-  "usingComponents": {}
+  "usingComponents": {
+    "icon": "/components/icon/index",
+    "van-cell": "/components/vant-weapp/cell/index",
+    "van-cell-group": "/components/vant-weapp/cell-group/index"
+  }
 }

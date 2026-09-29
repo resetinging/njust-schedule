@@ -1,5 +1,12 @@
 /* 设置/登录页面样式 */
 
+/* ---- Vant cell: 圆角卡片 + 清透课堂配色 ---- */
+.action-cells { margin-bottom: 20rpx; }
+.action-cells .van-cell-group--inset { border-radius: var(--radius-card); }
+.action-cells .van-cell__title { color: var(--text-primary); }
+.action-cells .van-cell__right-icon { color: var(--text-hint); }
+.action-cells .van-cell__value { color: var(--signal); font-weight: 600; }
+
 /* 微信扫码登录 */
 .qr-entry {
   margin-top: 24rpx;
@@ -8,7 +15,7 @@
 
 .qr-entry-link {
   font-size: 28rpx;
-  color: #7C6BE8;
+  color: var(--primary);
 }
 
 .qr-panel {
@@ -18,24 +25,24 @@
 
 .qr-img {
   width: 520rpx;
-  background: #fff;
+  background: var(--bg-card);
   border: 1rpx solid var(--border);
-  border-radius: 16rpx;
+  border-radius: var(--radius-ctrl);
   padding: 16rpx;
 }
 
 .qr-panel-hint {
   font-size: 24rpx;
-  color: #8A8A96;
+  color: var(--text-hint);
   margin-top: 16rpx;
   min-height: 34rpx;
 }
 
 .qr-save-btn {
   margin-top: 20rpx;
-  background: #7C6BE8;
-  color: #fff;
-  border-radius: 16rpx;
+  background: var(--primary);
+  color: var(--bg-card);
+  border-radius: var(--radius-ctrl);
   font-size: 30rpx;
   line-height: 84rpx;
   height: 84rpx;
@@ -44,7 +51,7 @@
 
 .qr-save-tip {
   font-size: 22rpx;
-  color: #9A9AA6;
+  color: var(--text-hint);
   line-height: 1.6;
   margin-top: 12rpx;
 }
@@ -57,7 +64,7 @@
 
 .qr-link {
   font-size: 25rpx;
-  color: #7C6BE8;
+  color: var(--primary);
 }
 
 .container {
@@ -66,12 +73,13 @@
 
 /* 公告栏(我的页常驻; 展开即视为已读) */
 .announce-card {
+  font-family: var(--font-plain);
   margin: 20rpx 24rpx 0;
   padding: 24rpx;
-  background: #fff;
-  border-radius: 24rpx;
-  border: 2rpx solid #EFEBFC;
-  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.06);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  border: var(--bw-card) solid var(--line);
+  box-shadow: var(--shadow-card);
 }
 
 .announce-head {
@@ -96,9 +104,9 @@
   flex-shrink: 0;
   margin-right: 12rpx;
   padding: 1rpx 12rpx;
-  border-radius: 20rpx;
-  background: #FF4D4F;
-  color: #fff;
+  border-radius: var(--radius-card);
+  background: var(--danger);
+  color: var(--bg-card);
   font-size: 20rpx;
   line-height: 1.7;
   font-weight: normal;
@@ -111,7 +119,7 @@
 
 .announce-body {
   font-size: 26rpx;
-  color: #555;
+  color: var(--text-secondary);
   line-height: 1.6;
   word-break: break-all;
   white-space: pre-line;
@@ -163,10 +171,10 @@
 /* 操作列表 */
 .action-list {
   margin: 20rpx 24rpx 0;
-  background: #fff;
-  border-radius: 24rpx;
-  border: 2rpx solid #EFEBFC;
-  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.06);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  border: var(--bw-card) solid var(--line);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -238,8 +246,8 @@
 /* 登录模式切换 */
 .mode-tabs {
   display: flex;
-  background: #f0f0f0;
-  border-radius: 12rpx;
+  background: var(--line-soft);
+  border-radius: var(--radius-ctrl);
   overflow: hidden;
   margin-bottom: 12rpx;
 }
@@ -254,7 +262,7 @@
 
 .mode-tab.active {
   background: var(--primary);
-  color: #fff;
+  color: var(--bg-card);
   font-weight: bold;
 }
 
@@ -281,10 +289,10 @@
   height: 80rpx;
   padding: 0 20rpx;
   border: 2rpx solid var(--border);
-  border-radius: 12rpx;
+  border-radius: var(--radius-ctrl);
   font-size: 28rpx;
   box-sizing: border-box;
-  background: #FAFAFA;
+  background: var(--bg-sunken);
 }
 
 .login-btn {
@@ -293,7 +301,7 @@
   height: 104rpx;          /* 加高: 长文案"登录(自动识别验证码)"显示完整 */
   font-size: 30rpx;
   line-height: 104rpx;     /* 行高与高度一致, 文字垂直居中不裁切 */
-  border-radius: 14rpx;
+  border-radius: var(--radius-ctrl);
   padding: 0;
 }
 
@@ -348,7 +356,7 @@
 .pwd-hint {
   margin-top: 8rpx;
   font-size: 22rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
   line-height: 1.5;
 }
 
@@ -364,31 +372,31 @@
    ============================================================ */
 /* 用户卡渐变头部 */
 .user-card {
-  background: linear-gradient(135deg, #7C6BE8 0%, #8B79EC 100%);
-  border-radius: 24rpx;
-  box-shadow: 0 10rpx 30rpx rgba(26, 82, 118, 0.30);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 100%);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
-.user-card .user-name { color: #fff; }
+.user-card .user-name { color: var(--bg-card); }
 .user-card .user-id { color: rgba(255, 255, 255, 0.85); }
 .user-card .user-semester { color: rgba(255, 255, 255, 0.95); }
 
 /* 操作项按压反馈 */
 .action-item {
-  border-radius: 12rpx;
+  border-radius: var(--radius-ctrl);
   margin: 0 12rpx;
 }
-.action-item:active { background: #EFEBFC; }
+.action-item:active { background: var(--primary-soft); }
 
 /* 登录模式胶囊 */
-.mode-tabs { border-radius: 36rpx; }
-.mode-tab { border-radius: 28rpx; }
+.mode-tabs { border-radius: var(--radius-card); }
+.mode-tab { border-radius: var(--radius-card); }
 .mode-tab.active {
   font-weight: 700;
-  box-shadow: 0 4rpx 12rpx rgba(26, 82, 118, 0.25);
+  box-shadow: var(--shadow-card);
 }
 
 /* 校历设置卡装饰 */
-.setting-card { border-left: 8rpx solid #8B79EC; }
+.setting-card { border-left: 8rpx solid var(--primary); }
 
 
 /* ============================================================
@@ -404,32 +412,32 @@
   font-size: 60rpx;
 }
 .setting-card .setting-value {
-  background: #EFEBFC;
-  border-radius: 12rpx;
+  background: var(--primary-soft);
+  border-radius: var(--radius-ctrl);
   padding: 18rpx 20rpx;
 }
 .login-card {
-  border-radius: 24rpx;
-  box-shadow: 0 10rpx 32rpx rgba(26, 82, 118, 0.12);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 /* ============================================================
    V4 简约风格 — 设置页
    ============================================================ */
 .user-card {
-  background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(31, 25, 72, 0.05);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
 }
 .user-card .user-name { color: var(--primary-dark); }
 .user-card .user-id { color: var(--text-secondary); }
 .user-card .user-semester { color: var(--primary); }
 .user-card .avatar {
-  background: #EFEBFC;
+  background: var(--primary-soft);
   color: var(--primary);
 }
-.mode-tabs { background: #eaf1f8; }
-.mode-tab.active { box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.06); }
-.setting-card { border-left: 6rpx solid #8B79EC; }
+.mode-tabs { background: var(--primary-soft); }
+.mode-tab.active { box-shadow: var(--shadow-card); }
+.setting-card { border-left: 6rpx solid var(--primary); }
 
 
 /* ============================================================
@@ -437,19 +445,19 @@
    ============================================================ */
 /* 用户卡 → 桌面信息卡: 白底 + 主色头像 */
 .user-card {
-  background: #fff;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
-.user-card .user-name { color: #33304F; }
-.user-card .user-id { color: #8A87A8; }
-.user-card .user-semester { color: #7C6BE8; }
+.user-card .user-name { color: var(--text-primary); }
+.user-card .user-id { color: var(--text-hint); }
+.user-card .user-semester { color: var(--primary); }
 .user-card .avatar {
-  background: #EFEBFC;
-  color: #7C6BE8;
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 /* 操作项 → 桌面卡片行 */
-.action-item { border-radius: 12rpx; }
+.action-item { border-radius: var(--radius-ctrl); }
 /* 登录模式 → 桌面 .gpa-mode-bar 同款 */
 .mode-tabs {
   display: flex;
@@ -458,56 +466,56 @@
   gap: 12rpx;
 }
 .mode-tab {
-  background: #fff;
-  border: 2rpx solid #E3DFF5;
-  color: #33304F;
-  border-radius: 16rpx;
+  background: var(--bg-card);
+  border: var(--bw-ctrl) solid var(--line-strong);
+  color: var(--text-primary);
+  border-radius: var(--radius-ctrl);
 }
 .mode-tab.active {
-  background: #8B79EC;
-  border-color: #8B79EC;
-  color: #fff;
-  box-shadow: none;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--bg-card);
+  box-shadow: var(--shadow-card);
 }
 
 
 /* ============================================================
-   风格统一 — 对齐课表(白底圆角小方框 + 细边框 + 紫轻阴影)
+   风格统一 — 对齐课表(白底圆角小方框 + 细边框)
    ============================================================ */
 .user-card, .login-card, .setting-card {
-  border-radius: 20rpx;
-  border: 2rpx solid #EFEBFC;
-  box-shadow: 0 4rpx 16rpx rgba(87, 74, 160, 0.06);
+  border-radius: var(--radius-card);
+  border: var(--bw-card) solid var(--line);
+  box-shadow: var(--shadow-card);
 }
-.login-card { box-shadow: 0 8rpx 28rpx rgba(87, 74, 160, 0.12); }
+.login-card { box-shadow: var(--shadow-card); }
 
 /* ============================================================
-   风格统一 — 已登录用户卡改紫渐变(课表 top-card 同款)
+   已登录用户卡: 浅蓝软底 + 细描边
    ============================================================ */
 .user-card {
-  background: linear-gradient(135deg, #8F7DF0 0%, #A99BF5 55%, #BBAFF8 100%);
-  border: none;
-  border-radius: 28rpx;
-  box-shadow: 0 10rpx 30rpx rgba(120, 100, 220, 0.35);
+  background: var(--primary-soft);
+  border: 1rpx solid var(--primary-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
-.user-card .user-name { color: #fff; }
-.user-card .user-id { color: rgba(255, 255, 255, 0.9); }
-.user-card .user-semester { color: rgba(255, 255, 255, 0.95); }
+.user-card .user-name { color: var(--text-primary); }
+.user-card .user-id { color: var(--text-muted); }
+.user-card .user-semester { color: var(--primary-dark); }
 .user-card .avatar {
-  background: rgba(255, 255, 255, 0.25) !important;
-  color: #fff;
+  background: var(--bg-card) !important;
+  color: var(--primary) !important;
 }
 
 /* ============================================================
-   信息行(设计规范 §3.6): 灰底 #F3F1FA 圆角 16rpx 行
+   信息行(设计规范 §3.6): 灰底 var(--primary-soft) 圆角 16rpx 行
    标签左灰字 / 值右深色字
    ============================================================ */
 .info-card {
   margin: 16rpx 24rpx 0;
-  background: #fff;
-  border: 2rpx solid #EFEBFC;
-  border-radius: 24rpx;
-  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.06);
+  background: var(--bg-card);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   padding: 20rpx;
   display: flex;
   flex-direction: column;
@@ -518,19 +526,19 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #F3F1FA;
-  border-radius: 16rpx;
+  background: var(--primary-soft);
+  border-radius: var(--radius-ctrl);
   padding: 18rpx 24rpx;
 }
 
 .info-label {
   font-size: 26rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
 }
 
 .info-value {
   font-size: 26rpx;
-  color: #3A3560;
+  color: var(--text-strong);
   font-weight: 500;
 }
 
@@ -550,7 +558,7 @@
   padding: 0;
   margin: 0;
   font-size: 27rpx;
-  border-radius: 999rpx !important;
+  border-radius: var(--radius-pill) !important;
   box-sizing: border-box;
 }
 
@@ -562,10 +570,10 @@
   line-height: 92rpx;
   padding: 0;
   margin: 0;
-  background: #fff !important;
-  color: #E05A5A !important;
-  border: 2rpx solid #E05A5A !important;
-  border-radius: 999rpx !important;
+  background: var(--bg-card) !important;
+  color: var(--danger) !important;
+  border: 2rpx solid var(--danger) !important;
+  border-radius: var(--radius-pill) !important;
   font-size: 28rpx;
   font-weight: 600;
   box-sizing: border-box;
@@ -599,15 +607,15 @@
   gap: 12rpx;
   margin: 8rpx 24rpx 0;
   padding: 16rpx 20rpx;
-  background: linear-gradient(135deg, #FFF7E0, #FFEFC2);
-  border: 2rpx solid #F5D87A;
-  border-radius: 20rpx;
+  background: var(--signal-soft);
+  border: 1rpx solid var(--signal-line);
+  border-radius: var(--radius-card);
 }
 .ann-ico { font-size: 30rpx; flex-shrink: 0; line-height: 1.5; }
 .ann-text {
   flex: 1;
   font-size: 26rpx;
-  color: #7A5B12;
+  color: var(--signal-deep);
   line-height: 1.6;
   word-break: break-all;
 }
@@ -630,8 +638,8 @@
   max-width: 640rpx;
   max-height: 82vh;
   overflow-y: auto;
-  background: #fff;
-  border-radius: 28rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
   padding: 32rpx 28rpx 28rpx;
   box-sizing: border-box;
 }
@@ -646,19 +654,19 @@
 .fb-title {
   font-size: 32rpx;
   font-weight: 700;
-  color: #3A3560;
+  color: var(--text-strong);
 }
 
 .fb-close {
   font-size: 32rpx;
-  color: #9B96B8;
+  color: var(--text-hint);
   padding: 8rpx;
 }
 
 .fb-label {
   font-size: 26rpx;
   font-weight: 600;
-  color: #3A3560;
+  color: var(--text-strong);
   margin-bottom: 14rpx;
 }
 
@@ -674,14 +682,14 @@
   text-align: center;
   padding: 14rpx 0;
   font-size: 25rpx;
-  color: #8A87A8;
-  background: #F3F1FA;
-  border-radius: 999rpx;
+  color: var(--text-hint);
+  background: var(--primary-soft);
+  border-radius: var(--radius-pill);
 }
 
 .type-tab.on {
-  background: #7C6BE8;
-  color: #fff;
+  background: var(--primary);
+  color: var(--bg-card);
   font-weight: 600;
 }
 
@@ -689,24 +697,24 @@
 .fb-textarea {
   width: 100%;
   height: 240rpx;
-  background: #F7F6FB;
-  border: 2rpx solid #EFEBFC;
-  border-radius: 20rpx;
+  background: var(--bg-page);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
   padding: 20rpx;
   font-size: 27rpx;
   line-height: 1.6;
-  color: #3A3560;
+  color: var(--text-strong);
   box-sizing: border-box;
 }
 
 .fb-count {
   text-align: right;
   font-size: 22rpx;
-  color: #9B96B8;
+  color: var(--text-hint);
   margin-top: 8rpx;
 }
 
-/* 提交按钮(V9: 紫色渐变胶囊, 全局规范) */
+/* 提交按钮: 纯色主色 + 小圆角 */
 .fb-submit {
   margin-top: 32rpx;
   width: 100%;
@@ -714,10 +722,10 @@
   line-height: 88rpx;
   padding: 0;
   font-size: 29rpx;
-  border-radius: 999rpx !important;
-  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%) !important;
-  color: #fff !important;
-  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28) !important;
+  border-radius: var(--radius-ctrl) !important;
+  background: var(--primary) !important;
+  color: var(--bg-card) !important;
+  box-shadow: var(--shadow-card) !important;
 }
 
 /* ============================================================ */
@@ -734,9 +742,9 @@
   min-width: 34rpx;
   height: 34rpx;
   padding: 0 10rpx;
-  border-radius: 17rpx;
-  background: #FF4D4F;
-  color: #fff;
+  border-radius: var(--radius-ctrl);
+  background: var(--danger);
+  color: var(--bg-card);
   font-size: 20rpx;
   line-height: 34rpx;
   text-align: center;
@@ -749,7 +757,7 @@
 
 .myfb-item {
   padding: 22rpx 0;
-  border-bottom: 1rpx solid #EFEBFB;
+  border-bottom: 1rpx solid var(--primary-soft);
 }
 
 .myfb-item:last-child {
@@ -765,37 +773,37 @@
 
 .myfb-type {
   font-size: 22rpx;
-  color: #7C6BE8;
-  background: #F1EDFD;
-  border-radius: 8rpx;
+  color: var(--primary);
+  background: var(--line-soft);
+  border-radius: var(--radius-chip);
   padding: 2rpx 12rpx;
 }
 
 .myfb-time {
   flex: 1;
   font-size: 22rpx;
-  color: #9A96B8;
+  color: var(--text-hint);
 }
 
 .myfb-status {
   font-size: 22rpx;
-  border-radius: 20rpx;
+  border-radius: var(--radius-card);
   padding: 2rpx 14rpx;
 }
 
 .myfb-status.replied {
-  background: #E8F7EE;
-  color: #2E9E5B;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .myfb-status.pending {
-  background: #F2F1F7;
-  color: #9A96B8;
+  background: var(--line-soft);
+  color: var(--text-hint);
 }
 
 .myfb-content {
   font-size: 26rpx;
-  color: #3A3752;
+  color: var(--text-secondary);
   line-height: 1.6;
   word-break: break-all;
 }
@@ -803,9 +811,9 @@
 .myfb-reply {
   margin-top: 14rpx;
   padding: 14rpx 18rpx;
-  background: #F7F5FE;
-  border-left: 6rpx solid #7C6BE8;
-  border-radius: 10rpx;
+  background: var(--primary-soft);
+  border-left: 6rpx solid var(--primary);
+  border-radius: var(--radius-chip);
 }
 
 .myfb-reply-head {
@@ -817,18 +825,18 @@
 
 .myfb-reply-tag {
   font-size: 22rpx;
-  color: #7C6BE8;
+  color: var(--primary);
   font-weight: 600;
 }
 
 .myfb-reply-time {
   font-size: 20rpx;
-  color: #9A96B8;
+  color: var(--text-hint);
 }
 
 .myfb-reply-text {
   font-size: 25rpx;
-  color: #45415E;
+  color: var(--text-secondary);
   line-height: 1.65;
   word-break: break-all;
 }
@@ -836,14 +844,14 @@
 .myfb-noreply {
   margin-top: 10rpx;
   font-size: 22rpx;
-  color: #B3AFC6;
+  color: var(--icon-faint);
 }
 
 .myfb-empty {
   padding: 60rpx 0;
   text-align: center;
   font-size: 26rpx;
-  color: #9A96B8;
+  color: var(--text-hint);
 }
 
 /* ============================================================
@@ -851,7 +859,7 @@
    ============================================================ */
 .link-tip {
   font-size: 21rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
   line-height: 1.6;
   margin-bottom: 12rpx;
 }
@@ -862,7 +870,7 @@
 .link-group-title {
   font-size: 25rpx;
   font-weight: 700;
-  color: #33304F;
+  color: var(--text-primary);
   margin: 14rpx 0 8rpx;
 }
 
@@ -871,13 +879,13 @@
   align-items: center;
   gap: 16rpx;
   padding: 16rpx 18rpx;
-  background: #F7F6FB;
-  border-radius: 18rpx;
+  background: var(--bg-page);
+  border-radius: var(--radius-ctrl);
   margin-bottom: 12rpx;
 }
 
 .link-row:active {
-  background: #F4F1FD;
+  background: var(--line-soft);
 }
 
 .link-main {
@@ -891,13 +899,13 @@
 .link-name {
   font-size: 27rpx;
   font-weight: 600;
-  color: #33304F;
+  color: var(--text-primary);
   line-height: 1.35;
 }
 
 .link-url {
   font-size: 21rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
   word-break: break-all;
   line-height: 1.4;
 }
@@ -906,19 +914,19 @@
   flex-shrink: 0;
   font-size: 25rpx;
   font-weight: 600;
-  color: #7C6BE8;
+  color: var(--primary);
 }
 
 .link-empty {
   text-align: center;
   font-size: 25rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
   padding: 60rpx 0;
 }
 
 .link-foot {
   text-align: center;
   font-size: 21rpx;
-  color: #A9A5C0;
+  color: var(--text-hint);
   margin-top: 12rpx;
 }

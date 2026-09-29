@@ -15,7 +15,7 @@
   padding: 16rpx 28rpx;
   font-size: 24rpx;
   color: var(--text-hint);
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .refresh-btn {
@@ -30,7 +30,7 @@
   padding: 16rpx 28rpx;
   font-size: 24rpx;
   color: var(--text-hint);
-  background: #fff;
+  background: var(--bg-card);
   border-bottom: 1rpx solid var(--border);
   position: sticky;
   top: 0;
@@ -52,12 +52,12 @@
 
 .batch-card.batch-urgent {
   border-top-width: 8rpx;
-  border-top-color: #E05A5A;
+  border-top-color: var(--danger);
 }
 
 .batch-card.batch-warning {
   border-top-width: 8rpx;
-  border-top-color: #F5A623;
+  border-top-color: var(--warning);
 }
 
 .batch-card.batch-done {
@@ -74,7 +74,7 @@
 .batch-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #3A3560;
+  color: var(--text-strong);
 }
 
 .batch-info {
@@ -82,20 +82,20 @@
   align-items: center;
   gap: 12rpx;
   font-size: 24rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
 }
 
 .tag {
   font-size: 22rpx;
   padding: 4rpx 14rpx;
-  border-radius: 20rpx;
+  border-radius: var(--radius-card);
   font-weight: bold;
 }
 
-.tag-done { background: #F2F0FA; color: #8A87A8; }
-.tag-pending { background: #F5F5F5; color: #666; }
-.tag-urgent { background: #FFEBEE; color: #D32F2F; }
-.tag-warning { background: #FFF8E1; color: #E65100; }
+.tag-done { background: var(--primary-soft); color: var(--text-hint); }
+.tag-pending { background: var(--bg-page); color: var(--text-muted); }
+.tag-urgent { background: var(--danger-soft); color: var(--danger); }
+.tag-warning { background: var(--warning-soft); color: var(--signal); }
 
 /* ==============================
    课程列表卡片
@@ -116,7 +116,7 @@
 
 .course-card.course-saved {
   border-top-width: 8rpx;
-  border-top-color: #F5A623;
+  border-top-color: var(--warning);
 }
 
 .course-header {
@@ -132,7 +132,7 @@
 .course-name {
   font-size: 28rpx;
   font-weight: 500;
-  color: #3A3560;
+  color: var(--text-strong);
 }
 
 .course-meta {
@@ -147,24 +147,24 @@
 .course-status {
   font-size: 22rpx;
   padding: 4rpx 12rpx;
-  border-radius: 20rpx;
+  border-radius: var(--radius-card);
   font-weight: bold;
   flex-shrink: 0;
 }
 
 .course-status.done {
-  background: #F2F0FA;
-  color: #8A87A8;
+  background: var(--primary-soft);
+  color: var(--text-hint);
 }
 
 .course-status.saved {
-  background: #FFF8E1;
-  color: #E65100;
+  background: var(--warning-soft);
+  color: var(--signal);
 }
 
 .course-status.pending {
-  background: #F3E5F5;
-  color: #7B1FA2;
+  background: #EFE9FF;
+  color: #6D28D9;
 }
 
 .course-actions {
@@ -204,10 +204,10 @@
 .readonly-banner {
   margin: 12rpx 24rpx;
   padding: 14rpx 20rpx;
-  background: #E3F2FD;
-  border-radius: 10rpx;
+  background: var(--primary-soft);
+  border-radius: var(--radius-chip);
   font-size: 24rpx;
-  color: #1565C0;
+  color: var(--primary-dark);
   text-align: center;
 }
 
@@ -218,14 +218,14 @@
   gap: 8rpx;
   margin: 8rpx 24rpx 4rpx;
   padding: 14rpx 16rpx;
-  background: #F5F5F5;
-  border-radius: 10rpx;
+  background: var(--bg-page);
+  border-radius: var(--radius-chip);
   flex-wrap: wrap;
 }
 
 .autofill-label {
   font-size: 24rpx;
-  color: #333;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -233,16 +233,16 @@
   width: 100rpx;
   height: 52rpx;
   border: 2rpx solid var(--border);
-  border-radius: 8rpx;
+  border-radius: var(--radius-chip);
   padding: 0 8rpx;
   font-size: 26rpx;
   text-align: center;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .autofill-hint {
   font-size: 20rpx;
-  color: #999;
+  color: var(--text-hint);
 }
 
 .autofill-btn {
@@ -253,7 +253,7 @@
 
 .live-score {
   font-size: 24rpx;
-  color: #666;
+  color: var(--text-muted);
   margin-left: auto;
 }
 
@@ -283,7 +283,7 @@
 .option-item {
   padding: 10rpx 24rpx;
   border: 2rpx solid var(--border);
-  border-radius: 8rpx;
+  border-radius: var(--radius-chip);
   font-size: 24rpx;
   color: var(--text-secondary);
   display: flex;
@@ -293,7 +293,7 @@
 
 .option-item.option-checked {
   border-color: var(--primary);
-  background: #EFEBFC;
+  background: var(--primary-soft);
   color: var(--primary);
   font-weight: 500;
 }
@@ -304,7 +304,7 @@
 
 .option-score {
   font-size: 20rpx;
-  color: #999;
+  color: var(--text-hint);
 }
 
 .option-checked .option-score {
@@ -317,7 +317,7 @@
   display: flex;
   gap: 16rpx;
   padding: 16rpx 20rpx;
-  background: #fff;
+  background: var(--bg-card);
   border-top: 1rpx solid var(--border);
   z-index: 10;
 }
@@ -343,8 +343,8 @@
 }
 
 .modal-card {
-  background: #fff;
-  border-radius: 16rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-ctrl);
   padding: 32rpx;
   width: 80vw;
   max-width: 560rpx;
@@ -443,10 +443,10 @@
 .btn-primary {
   display: block;
   padding: 20rpx;
-  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%);
-  color: #fff;
-  border-radius: 999rpx;
-  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28);
+  background: var(--primary);
+  color: var(--bg-card);
+  border-radius: var(--radius-ctrl);
+  box-shadow: var(--shadow-card);
   font-size: 28rpx;
   text-align: center;
   border: none;
@@ -455,10 +455,10 @@
 .btn-outline {
   display: block;
   padding: 20rpx;
-  background: #fff;
-  color: #7C6BE8;
-  border: 2rpx solid #D8CEF8;
-  border-radius: 999rpx;
+  background: var(--bg-card);
+  color: var(--primary);
+  border: 2rpx solid var(--primary-line);
+  border-radius: var(--radius-pill);
   font-size: 28rpx;
   text-align: center;
 }
@@ -467,48 +467,48 @@
    V2 视觉升级 — 评教页
    ============================================================ */
 .batch-card, .course-card, .indicator-card {
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 /* 选项胶囊选中渐变 */
 .option-item {
-  border-radius: 28rpx;
+  border-radius: var(--radius-card);
   transition: all 0.12s;
 }
 .option-item.option-checked {
-  background: linear-gradient(135deg, #7C6BE8, #8B79EC);
-  color: #fff;
+  background: var(--primary);
+  color: var(--bg-card);
   border-color: transparent;
-  box-shadow: 0 4rpx 12rpx rgba(26, 82, 118, 0.30);
+  box-shadow: var(--shadow-card);
 }
-.option-checked .option-score { color: #fff; }
+.option-checked .option-score { color: var(--bg-card); }
 
 
 /* ============================================================
    V3 视觉升级 — 评教页头部 Hero
    ============================================================ */
 .top-bar {
-  background: linear-gradient(135deg, #7C6BE8 0%, #8B79EC 60%, #3498db 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 60%, var(--primary) 100%);
+  color: var(--bg-card);
 }
 .top-bar .refresh-btn {
-  background: #fff;
+  background: var(--bg-card);
   color: var(--primary);
-  border-radius: 24rpx;
+  border-radius: var(--radius-card);
   padding: 8rpx 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-card);
 }
 .summary-bar {
-  background: #fff;
-  border-radius: 0 0 20rpx 20rpx;
-  box-shadow: 0 4rpx 14rpx rgba(26, 82, 118, 0.10);
+  background: var(--bg-card);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  box-shadow: var(--shadow-card);
   z-index: 10;
 }
 .summary-bar .batch-btn {
   color: var(--primary);
-  background: #EFEBFC;
-  border-radius: 24rpx;
+  background: var(--primary-soft);
+  border-radius: var(--radius-card);
   padding: 6rpx 20rpx;
 }
 
@@ -517,30 +517,30 @@
    V4 简约风格 — 评教页
    ============================================================ */
 .top-bar {
-  background: #fff;
-  color: #333;
-  border-bottom: 1rpx solid #E9EDF2;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border-bottom: 1rpx solid var(--line);
 }
 .top-bar .refresh-btn, .summary-bar .batch-btn {
-  background: #EFEBFC;
+  background: var(--primary-soft);
   color: var(--primary);
-  box-shadow: none;
+  box-shadow: var(--shadow-card);
 }
 .summary-bar {
-  box-shadow: none;
-  border-bottom: 1rpx solid #E9EDF2;
+  box-shadow: var(--shadow-card);
+  border-bottom: 1rpx solid var(--line);
 }
 
 .batch-card, .course-card, .indicator-card {
-  box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-card);
 }
 
-/* 选中选项: 浅紫底 + 主色字, 去渐变 */
+/* 选中选项: 浅蓝底 + 主色字 */
 .option-item.option-checked {
-  background: #EFEBFC;
+  background: var(--primary-soft);
   color: var(--primary);
-  border-color: #8B79EC;
-  box-shadow: none;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-card);
 }
 .option-checked .option-score { color: var(--primary); }
 
@@ -549,40 +549,40 @@
    V6 桌面端同款 — 评教页
    ============================================================ */
 .batch-card, .course-card, .indicator-card {
-  background: #fff;
-  border-radius: 16rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  background: var(--bg-card);
+  border-radius: var(--radius-ctrl);
+  box-shadow: var(--shadow-card);
 }
 /* 选项胶囊 → 桌面 .option-item: 白底描边圆角 */
 .option-item {
-  background: #fff;
-  border: 2rpx solid #E3DFF5;
-  color: #33304F;
-  border-radius: 28rpx;
+  background: var(--bg-card);
+  border: var(--bw-ctrl) solid var(--line-strong);
+  color: var(--text-primary);
+  border-radius: var(--radius-card);
 }
 .option-item.option-checked {
-  background: #8B79EC;
-  border-color: #8B79EC;
-  color: #fff;
-  box-shadow: none;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--bg-card);
+  box-shadow: var(--shadow-card);
 }
-.option-checked .option-score { color: #fff; }
+.option-checked .option-score { color: var(--bg-card); }
 
 /* ============================================================
-   V7 风格统一 — 评教页对齐全局紫色系(卡片圆角/紫阴影)
+   V7 风格统一 — 评教页对齐全局卡片规范(白底细描边)
    ============================================================ */
 .batch-card, .course-card, .indicator-card {
-  border-radius: 28rpx;
-  box-shadow: 0 6rpx 20rpx rgba(87, 74, 160, 0.08);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 /* 批次学期标签 */
 .sem-tag {
   display: inline-block;
   font-size: 20rpx;
-  color: #6C5CE0;
-  background: #F2F0FA;
-  border-radius: 10rpx;
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+  border-radius: var(--radius-chip);
   padding: 2rpx 12rpx;
   margin-right: 8rpx;
 }
@@ -591,13 +591,13 @@
    风格统一 — 对齐课表(卡片加细边框)
    ============================================================ */
 .batch-card, .course-card, .indicator-card {
-  border: 2rpx solid #EFEBFC;
+  border: var(--bw-card) solid var(--line);
 }
 
 /* 批次信息: 学期标签 + 日期一行 */
 .bi-dates {
   font-size: 23rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
 }
 
 /* 组件根/滚动区 */

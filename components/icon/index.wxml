@@ -1,0 +1,14 @@
+<!-- 相对路径(组件内绝对路径不可靠); 路径直接拼, 不用 observer -->
+<!-- 色调按传入色值就近取档: 图标是 PNG, 只有 4 档描边色 -->
+<wxs module="ico">
+module.exports.tone = function (c) {
+  if (c === '#FFFFFF' || c === '#ffffff' || c === '#fff') return 'white'
+  if (c === '#2563EB' || c === '#3B82F6' || c === '#60A5FA' ||
+      c === '#2B4C7E' || c === '#3E6CB8') return 'indigo'
+  if (c === '#64748B' || c === '#475569') return 'slate'
+  return 'grey'
+}
+</wxs>
+<image class="icon"
+  src="../../static/icons/{{name}}-{{ico.tone(color)}}.png"
+  style="width: {{size}}rpx; height: {{size}}rpx;" mode="aspectFit" />

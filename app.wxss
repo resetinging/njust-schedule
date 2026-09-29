@@ -1,24 +1,120 @@
+@import "./styles/font-pixel.wxss";
+
 /* ============================================================
    课表助手 — 全局样式
-   NJUST 主题色: 紫色 #7C6BE8
+   清透课堂: 白底 + 明快蓝(交互) + 信号橙(今天/待办) + 粉彩课程块。
+   颜色/圆角/描边/投影/字体全部走下面的语义变量, 方便整体调色与换字体。
    ============================================================ */
 
 page {
-  --primary: #7C6BE8;
-  --primary-light: #8B79EC;
-  --primary-dark: #5A4AC8;
-  --success: #27ae60;
-  --danger: #e74c3c;
-  --warning: #f39c12;
-  --text-primary: #33304F;
-  --text-secondary: #8A87A8;
-  --text-hint: #8A87A8;
-  --bg-page: #F7F6FB;
-  --bg-card: #FFFFFF;
-  --border: #E3DFF5;
-  --overlay: rgba(0, 0, 0, 0.5);
+  /* --- 主色: 交互(按钮 / 链接 / 选中态) --- */
+  --primary: #3B82F6;
+  --primary-light: #60A5FA;
+  --primary-dark: #2563EB;
+  --primary-soft: #EFF6FF;
+  --primary-line: #DBEAFE;
 
-  font-family: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  /* --- 信号色: 今天 / 待办 --- */
+  --signal: #F97316;
+  --signal-soft: #FFF7ED;
+  --signal-line: #FED7AA;
+  --signal-deep: #B45309;
+
+  /* --- 状态色 --- */
+  --success: #16A34A;
+  --success-soft: #ECFDF5;
+  --success-deep: #15803D;
+  --warning: #F59E0B;
+  --warning-light: #FBBF24;
+  --warning-soft: #FFFBEB;
+  --warning-line: #FDE68A;
+  --danger: #DC2626;
+  --danger-soft: #FEF2F2;
+  --danger-deep: #B91C1C;
+
+  /* --- 文字: 墨 → 正文 → 次要 → 弱 --- */
+  --text-primary: #0F172A;
+  --text-strong: #1E293B;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --text-hint: #94A3B8;
+  --icon-faint: #CBD5E1;
+  --ink: #0F172A;
+
+  /* --- 背景与描边 --- */
+  --bg-page: #F7F9FC;
+  --bg-card: #FFFFFF;
+  --bg-sunken: #F8FAFC;
+  --bg-hover: #F8FAFF;
+  --line: #EEF2F8;
+  --line-soft: #F1F5F9;
+  --line-strong: #E2E8F0;
+  --border: #EEF2F8;
+  --overlay: rgba(15, 23, 42, 0.45);
+
+  /* --- 今天 --- */
+  --today-chip-bg: #F97316;
+  --today-chip-fg: #FFFFFF;
+  --today-col-bg: #FFFDFA;
+  --today-ring: #FFEDD9;
+
+  /* --- 时间轴(浅→深表示一天的推进) --- */
+  /* 左侧时间列: 统一的极浅蓝, 不做"上浅下深"的渐变 */
+  --tcol-start: #F4F8FF;
+  --tcol-mid: #F4F8FF;
+  --tcol-end: #F4F8FF;
+  --grid-line: rgba(15, 23, 42, 0.07);
+
+  /* --- 页面头部 --- */
+  --hero-bg: #EFF6FF;
+  --hero-border: #DBEAFE;
+  --hero-title: #2563EB;
+  --hero-sub: #64748B;
+
+  /* 绩点大数字: 浅底用语义色, 渐变底(初版)用白色 */
+  --gpa-high: #15803D;
+  --gpa-mid: #B45309;
+  --gpa-low: #B91C1C;
+
+  /* --- 形状 / 描边 / 投影 --- */
+  --radius-chip: 10rpx;
+  --radius-ctrl: 16rpx;
+  --radius-card: 20rpx;
+  --radius-pill: 999rpx;
+  --bw-card: 1rpx;
+  --bw-ctrl: 2rpx;
+  --shadow-card: none;
+  --shadow-btn: none;
+  --shadow-pop: 0 16rpx 44rpx rgba(15, 23, 42, 0.18);
+  --shadow-sheet: 0 -8rpx 32rpx rgba(15, 23, 42, 0.12);
+
+  /* --- 课程块 --- */
+  --co-radius: 10rpx;
+  --co-bar-w: 6rpx;
+  --co-border-w: 0rpx;
+
+  /* --- 字体: 像素主题只把"标题/数字"换成点阵字 --- */
+  /* 全站字体: 像素点阵字(ZpixPixel, 子集内联); 字体里没有的字自动回退系统字 */
+  /* ZpixFull = 后端按需拉取的完整字库(冷僻字也能像素化); ZpixPixel = 内联子集兜底 */
+  --font-body: "ZpixFull", "ZpixPixel", "PingFang SC", "Microsoft YaHei", monospace;
+  --font-num: "ZpixFull", "ZpixPixel", "DIN Alternate", "PingFang SC", monospace;
+  --font-display: "ZpixFull", "ZpixPixel", "PingFang SC", "Microsoft YaHei", monospace;
+  /* 公告等长文本用系统字: 点阵字读长句较累 */
+  --font-plain: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* --- 课程色板(10 组: 粉彩底 / 深色字 / 明快左边条) --- */
+  --c1-bg: #E8F1FF;  --c1-fg: #2563EB;  --c1-bar: #3B82F6;
+  --c2-bg: #E6F7F1;  --c2-fg: #0F766E;  --c2-bar: #14B8A6;
+  --c3-bg: #FFF4E5;  --c3-fg: #B45309;  --c3-bar: #F59E0B;
+  --c4-bg: #FDE8F1;  --c4-fg: #BE185D;  --c4-bar: #EC4899;
+  --c5-bg: #EFE9FF;  --c5-fg: #6D28D9;  --c5-bar: #8B5CF6;
+  --c6-bg: #E7F6FB;  --c6-fg: #0E7490;  --c6-bar: #06B6D4;
+  --c7-bg: #E8ECFF;  --c7-fg: #4338CA;  --c7-bar: #6366F1;
+  --c8-bg: #F0F7DE;  --c8-fg: #4D7C0F;  --c8-bar: #84CC16;
+  --c9-bg: #FFE9EC;  --c9-fg: #BE123C;  --c9-bar: #F43F5E;
+  --c10-bg: #EEF2F7; --c10-fg: #475569; --c10-bar: #64748B;
+
+  font-family: var(--font-body);
   font-size: 28rpx;
   color: var(--text-primary);
   background: var(--bg-page);
@@ -26,41 +122,71 @@ page {
 }
 
 /* ============================================================
-   通用组件样式
+   通用: 卡片 / 分隔线 / 标题 / 徽标 / 空态
    ============================================================ */
 
-/* 卡片 */
 .card {
   margin: 20rpx;
   padding: 24rpx;
   background: var(--bg-card);
-  border-radius: 16rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
-/* 按钮(V9 统一: 胶囊形; 组件有本地定义处以本地为准, 已对齐同规范) */
-.btn-primary {
-  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%) !important;
-  color: #fff !important;
-  border-radius: 999rpx !important;
-  font-size: 30rpx !important;
-  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28) !important;
+.divider {
+  height: 1rpx;
+  background: var(--line-soft);
+  margin: 16rpx 0;
 }
 
-.btn-outline {
-  background: #fff !important;
-  color: var(--primary) !important;
-  border: 2rpx solid #D8CEF8 !important;
-  border-radius: 999rpx !important;
+/* 分区标题: 墨色 + 左侧主色短线(代替整块底色) */
+.section-title {
+  position: relative;
+  padding-left: 20rpx;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5rpx;
+  font-family: var(--font-display);
 }
 
-.btn-danger {
-  background: var(--danger) !important;
-  color: #fff !important;
-  border-radius: 999rpx !important;
+.section-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6rpx;
+  height: 30rpx;
+  border-radius: var(--radius-chip);
+  background: var(--primary);
 }
 
-/* 空状态 */
+/* 学期/状态徽标: 浅蓝底 + 主色字 */
+.semester-badge {
+  display: inline-block;
+  padding: 8rpx 24rpx;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.tag {
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  border-radius: var(--radius-chip);
+  font-size: 22rpx;
+}
+
+.tag-warning {
+  background: var(--signal-soft);
+  color: var(--signal);
+}
+
+/* 空状态(无内容时的极简提示) */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -70,7 +196,12 @@ page {
 }
 
 .empty-state .icon {
-  font-size: 120rpx;
+  width: auto;
+  height: auto;
+  line-height: normal;
+  border-radius: 0;
+  background: none;
+  font-size: 100rpx;
   color: var(--text-hint);
   margin-bottom: 24rpx;
 }
@@ -80,46 +211,169 @@ page {
   color: var(--text-hint);
 }
 
-/* 分隔线 */
-.divider {
-  height: 1rpx;
-  background: var(--border);
-  margin: 16rpx 0;
-}
-
-/* 标签 */
-.tag {
-  display: inline-block;
-  padding: 4rpx 12rpx;
-  border-radius: 6rpx;
-  font-size: 22rpx;
-}
-
-.tag-primary {
-  background: #EFEBFC;
-  color: var(--primary);
-}
-
-.tag-success {
-  background: #E8F5E9;
-  color: var(--success);
-}
-
-.tag-warning {
-  background: #FFF3E0;
-  color: var(--warning);
-}
-
-/* 加载更多 */
-.loading-more {
-  text-align: center;
-  padding: 20rpx;
-  color: var(--text-hint);
-  font-size: 24rpx;
+/* 数字字体(成绩/绩点/倒计时) */
+.stat-num, .gpa-bignum, .cd-bignum, .grade-score {
+  font-family: var(--font-display);
+  font-weight: 800;
 }
 
 /* ============================================================
-   弹窗通用样式
+   按钮: 纯色 + 小圆角, 无投影
+   ============================================================ */
+
+.btn-primary {
+  background: var(--primary) !important;
+  color: var(--bg-card) !important;
+  border: none !important;
+  border-radius: var(--radius-ctrl) !important;
+  font-size: 30rpx !important;
+  box-shadow: var(--shadow-btn) !important;
+}
+
+.btn-outline {
+  background: var(--bg-card) !important;
+  color: var(--primary) !important;
+  border: 2rpx solid var(--primary-line) !important;
+  border-radius: var(--radius-ctrl) !important;
+}
+
+.btn-danger {
+  background: var(--danger) !important;
+  color: var(--bg-card) !important;
+  border: none !important;
+  border-radius: var(--radius-ctrl) !important;
+}
+
+.btn-primary:active, .btn-outline:active, .btn-danger:active {
+  opacity: 0.85;
+}
+
+/* ---- 胶囊按钮族 ---- */
+.u-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 80rpx;
+  padding: 0 40rpx;
+  border-radius: var(--radius-ctrl);
+  font-size: 29rpx;
+  font-weight: 600;
+  border: none;
+  background: none;
+  box-shadow: var(--shadow-btn);
+}
+
+.u-btn::after { border: none; }
+
+.u-btn-primary {
+  background: var(--primary);
+  color: var(--bg-card);
+}
+
+.u-btn-outline {
+  background: var(--bg-card);
+  color: var(--primary);
+  border: 2rpx solid var(--primary-line);
+}
+
+.u-btn-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.u-btn-ghost {
+  background: var(--line-soft);
+  color: var(--text-muted);
+}
+
+.u-btn-sm {
+  height: 64rpx;
+  padding: 0 28rpx;
+  font-size: 26rpx;
+}
+
+.u-btn-primary:active, .u-btn-outline:active,
+.u-btn-danger:active, .u-btn-ghost:active {
+  opacity: 0.82;
+}
+
+/* ---- 图标钮: 无底色, 按下才有反馈(热区 ≥ 88rpx) ---- */
+.u-ico-btn {
+  width: 88rpx;
+  height: 88rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--primary);
+  border-radius: 50%;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.u-ico-btn:active {
+  background: rgba(59, 130, 246, 0.10);
+}
+
+.u-ico-btn-soft {
+  width: 64rpx;
+  height: 64rpx;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 32rpx;
+}
+
+/* ============================================================
+   页面头部: 浅蓝软底 + 细描边(替代旧紫渐变卡)
+   ============================================================ */
+
+.page-hero {
+  margin: 16rpx 24rpx 20rpx;
+  padding: 26rpx 28rpx;
+  border-radius: var(--radius-card);
+  background: var(--hero-bg);
+  border: var(--bw-card) solid var(--hero-border);
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ph-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.ph-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--hero-title);
+  text-shadow: none;
+}
+
+.ph-sub {
+  font-size: 24rpx;
+  color: var(--hero-sub);
+}
+
+.ph-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+}
+
+.ph-refresh:active { background: var(--bg-card); }
+
+/* ============================================================
+   弹窗
    ============================================================ */
 
 .modal-mask {
@@ -138,15 +392,17 @@ page {
 .modal-card {
   width: 600rpx;
   max-height: 80vh;
-  background: #fff;
-  border-radius: 24rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
   padding: 40rpx;
   overflow-y: auto;
+  box-shadow: var(--shadow-pop);
 }
 
 .modal-title {
   font-size: 34rpx;
-  font-weight: bold;
+  font-weight: 700;
+  color: var(--text-primary);
   margin-bottom: 16rpx;
 }
 
@@ -160,211 +416,20 @@ page {
   flex: 1;
 }
 
-/* ==== 优化: 底部安全区 + 通用滚动提示 ==== */
-.page-safe-bottom {
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+/* ============================================================
+   卡片族统一: 白底 + 细描边(各页细节样式见各自 wxss)
+   ============================================================ */
+
+.batch-card, .course-card, .indicator-card, .sem-card,
+.sc-cet, .sem-gpa-card, .exam-card, .countdown-card,
+.setting-card, .login-card, .tool-card, .modal-card {
+  background: var(--bg-card);
 }
 
 /* ============================================================
-   V2 视觉升级 — 全局主题质感
+   加载动画
    ============================================================ */
-page {
-  background: linear-gradient(180deg, #F7F6FB 0%, #F5F5F5 55%, #f0f4f8 100%);
-}
 
-/* 卡片质感(未被页面重定义的 .card) */
-.card {
-  border-radius: 20rpx;
-  box-shadow: 0 6rpx 24rpx rgba(26, 82, 118, 0.08);
-  border: 1rpx solid rgba(26, 82, 118, 0.06);
-}
-
-/* 主按钮渐变 + 按压反馈 */
-.btn-primary {
-  background: linear-gradient(135deg, #7C6BE8 0%, #8B79EC 100%) !important;
-  box-shadow: 0 8rpx 20rpx rgba(26, 82, 118, 0.30) !important;
-  border-radius: 44rpx !important;
-}
-.btn-primary:active { opacity: 0.85; }
-.btn-outline:active, .btn-danger:active { opacity: 0.85; }
-
-/* 数字字体(tabular) */
-.stat-num, .gpa-bignum, .cd-bignum, .grade-score {
-  font-family: "DIN Alternate", "Avenir Next", "Helvetica Neue", sans-serif;
-  font-weight: 800;
-}
-
-/* 统一分区标题 */
-.section-title {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #33304F;
-  letter-spacing: 0.5rpx;
-}
-
-/* 空状态图标: 渐变圆底 */
-.empty-state .icon {
-  width: 160rpx;
-  height: 160rpx;
-  line-height: 160rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #EFEBFC 0%, #F3E8FF 100%);
-  font-size: 72rpx;
-  margin-bottom: 28rpx;
-}
-
-
-/* ============================================================
-   V4 简约风格 — 白色为主, 克制的紫色点缀
-   ============================================================ */
-page {
-  background: #F7F6FB;
-}
-
-/* 卡片: 白底 + 轻阴影 */
-.card {
-  border-radius: 16rpx;
-  box-shadow: 0 2rpx 10rpx rgba(31, 25, 72, 0.05);
-  border: 1rpx solid rgba(0, 0, 0, 0.03);
-}
-
-/* 按钮: 纯色主紫, 去渐变去投影 */
-.btn-primary {
-  background: #7C6BE8 !important;
-  box-shadow: none !important;
-  border-radius: 16rpx !important;
-}
-.btn-primary:active { opacity: 0.88; }
-
-/* 主色文字 */
-.primary-text { color: var(--primary); }
-
-/* 空状态: 大图标, 去掉渐变圆底 */
-.empty-state .icon {
-  width: auto;
-  height: auto;
-  line-height: normal;
-  border-radius: 0;
-  background: none;
-  font-size: 100rpx;
-  margin-bottom: 24rpx;
-  filter: none;
-}
-
-
-/* ============================================================
-   V6 桌面端同款布局 — 全局
-   ============================================================ */
-/* 卡片: 桌面 --radius 10px / --shadow 0 2px 8px rgba(0,0,0,0.08) */
-.card {
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
-  border: none;
-}
-
-/* 按钮: 桌面 .btn padding 8px 16px / radius 8px; 主按钮 #8B79EC */
-.btn-primary {
-  background: #8B79EC !important;
-  box-shadow: none !important;
-  border-radius: 16rpx !important;
-}
-.btn-outline, .btn-secondary {
-  background: #fff !important;
-  color: #33304F !important;
-  border: 2rpx solid #E3DFF5 !important;
-  border-radius: 16rpx !important;
-}
-
-/* 分区标题: 深色加粗, 全站统一 */
-.section-title {
-  color: #3A3560;
-  font-size: 32rpx;
-  font-weight: 700;
-}
-
-/* 学期徽标(桌面 .semester-badge): 淡蓝底主色字胶囊 */
-.semester-badge {
-  background: #EFEBFC;
-  color: #7C6BE8;
-  padding: 8rpx 24rpx;
-  border-radius: 40rpx;
-  font-size: 26rpx;
-  font-weight: 600;
-}
-
-/* 空状态: 桌面 .empty-icon 4rem / h3 1.2rem */
-.empty-state .icon { font-size: 112rpx; }
-.empty-state .text { font-size: 28rpx; color: #8A87A8; }
-
-
-/* ============================================================
-   全站统一页面头部 — 紫渐变卡片(课表 top-card 同款)
-   ============================================================ */
-.page-hero {
-  margin: 16rpx 24rpx 20rpx;
-  padding: 30rpx 30rpx 26rpx;
-  border-radius: 28rpx;
-  background: linear-gradient(135deg, #8F7DF0 0%, #A99BF5 55%, #BBAFF8 100%);
-  color: #fff;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 10rpx 30rpx rgba(120, 100, 220, 0.35);
-}
-
-.ph-main {
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-  min-width: 0;
-}
-
-.ph-title {
-  font-size: 36rpx;
-  font-weight: 700;
-  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.15);
-}
-
-.ph-sub {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* 紫色渐变卡上的刷新按钮: 白色半透明圆形图标 */
-.ph-refresh {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
-  font-size: 30rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.ph-refresh:active { background: rgba(255, 255, 255, 0.38); }
-
-/* ============================================================
-   全站统一刷新图标 — 白底工具栏用(浅紫圆形), 加载时旋转
-   ============================================================ */
-.ico-refresh {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60rpx;
-  height: 60rpx;
-  font-size: 30rpx;
-  color: #7C6BE8;
-  background: #EFEBFC;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.ico-refresh:active { background: #E3DDF6; }
-
-/* 旋转动画(刷新中) */
 .spin {
   animation: ico-spin 1s linear infinite;
 }
@@ -374,196 +439,7 @@ page {
   to { transform: rotate(360deg); }
 }
 
-/* ============================================================
-   全站卡片统一白底紫描边(设计规范 §1: 卡片 #FFFFFF + 边框 #EFEBFC)
-   ============================================================ */
-.batch-card, .course-card, .indicator-card, .sem-card,
-.sc-cet, .sem-gpa-card, .exam-card, .countdown-card,
-.setting-card, .login-card, .tool-card, .modal-card {
-  background: #fff;
-}
-
-/* ============================================================
-   Tab 滑动切换动画
-   ============================================================ */
-.anim-slide-in-right {
-  animation: slideInRight 0.24s ease-out;
-}
-.anim-slide-in-left {
-  animation: slideInLeft 0.24s ease-out;
-}
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-@keyframes slideInLeft {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-/* 滑动回弹/滑出过渡 */
-.swipe-rebound {
-  transition: transform 0.2s ease-out;
-}
-
-/* ============================================================
-   V9 设计系统 — 全局统一按钮/图标钮/卡片/弹窗/行/徽章
-   (u-* 为统一命名, 组件内可直接复用; 主题色 #7C6BE8)
-   ============================================================ */
-
-/* ---- 胶囊按钮族 ---- */
-.u-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  height: 80rpx;
-  padding: 0 40rpx;
-  border-radius: 999rpx;
-  font-size: 29rpx;
-  font-weight: 600;
-  border: none;
-  background: none;
-}
-
-.u-btn::after { border: none; }
-
-.u-btn-primary {
-  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%);
-  color: #fff;
-  box-shadow: 0 8rpx 20rpx rgba(124, 107, 232, 0.28);
-}
-
-.u-btn-outline {
-  background: #fff;
-  color: #7C6BE8;
-  border: 2rpx solid #D8CEF8;
-}
-
-.u-btn-danger {
-  background: #FDEEEC;
-  color: #D9534F;
-}
-
-.u-btn-ghost {
-  background: #F4F1FC;
-  color: #6C68A0;
-}
-
-.u-btn-sm {
-  height: 64rpx;
-  padding: 0 28rpx;
-  font-size: 26rpx;
-}
-
-.u-btn-primary:active, .u-btn-outline:active,
-.u-btn-danger:active, .u-btn-ghost:active {
-  opacity: 0.82;
-}
-
-/* ---- 圆形图标按钮(工具栏: 刷新/加号/上下周等) ---- */
-.u-ico-btn {
-  width: 56rpx;
-  height: 56rpx;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #EFEAFC;
-  color: #7C6BE8;
-  border-radius: 50%;
-  font-size: 30rpx;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.u-ico-btn:active {
-  background: #E3DBFA;
-}
-
-.u-ico-btn-soft {
-  width: 64rpx;
-  height: 64rpx;
-  background: rgba(124, 107, 232, 0.10);
-  color: #7C6BE8;
-  font-size: 32rpx;
-}
-
-/* ---- 统一卡片 ---- */
-.u-card {
-  background: #fff;
-  border: 2rpx solid #EFEBFC;
-  border-radius: 26rpx;
-  box-shadow: 0 8rpx 26rpx rgba(87, 74, 160, 0.07);
-}
-
-/* ---- 统一弹窗卡片 ---- */
-.u-modal-card {
-  background: #fff;
-  border-radius: 28rpx;
-  box-shadow: 0 16rpx 44rpx rgba(60, 50, 120, 0.22);
-  padding: 30rpx 28rpx 26rpx;
-  box-sizing: border-box;
-}
-
-/* ---- 选择行(label + 值 + 箭头) ---- */
-.u-row {
-  display: flex;
-  align-items: center;
-  padding: 26rpx 0;
-  border-bottom: 1rpx solid #F4F2FB;
-}
-
-.u-row:last-child { border-bottom: none; }
-
-.u-row:active { background: #FAF8FF; }
-
-.u-row-label {
-  width: 150rpx;
-  font-size: 27rpx;
-  color: #8A87A8;
-  flex-shrink: 0;
-}
-
-.u-row-value {
-  flex: 1;
-  text-align: right;
-  font-size: 29rpx;
-  font-weight: 600;
-  color: #33304F;
-}
-
-.u-row-arrow {
-  margin-left: 14rpx;
-  color: #C6C2DD;
-  font-size: 32rpx;
-}
-
-/* ---- 徽章(统计/状态) ---- */
-.u-badge {
-  padding: 6rpx 20rpx;
-  border-radius: 999rpx;
-  background: #F0ECFF;
-  color: #7C6BE8;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-/* ---- 激活态开关按钮(视图切换/标签) ---- */
-.u-tab {
-  flex: 1;
-  height: 76rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #F7F5FD;
-  color: #9B96B8;
-  border-radius: 18rpx;
-  font-size: 27rpx;
-  font-weight: 600;
-}
-
-.u-tab.on {
-  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 100%);
-  color: #fff;
-  box-shadow: 0 6rpx 16rpx rgba(124, 107, 232, 0.26);
+/* 底部安全区 */
+.page-safe-bottom {
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
 }

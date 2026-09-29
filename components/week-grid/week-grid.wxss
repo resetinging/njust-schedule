@@ -1,8 +1,9 @@
-/* 周课表网格组件 — 小节行布局(复刻目标 UI) */
+/* 周课表网格组件 — 小节行布局
+   颜色/圆角/描边全部走主题变量, 三套主题共用同一份结构 */
 
 .week-grid {
   margin: 0;
-  background: #fff;
+  background: var(--bg-card);
   overflow: hidden;
 }
 
@@ -12,8 +13,8 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #F7F6FB;
-  border-bottom: 1rpx solid #EEEBF6;
+  background: var(--bg-card);
+  border-bottom: 1rpx solid var(--line);
 }
 
 .head-time {
@@ -24,11 +25,40 @@
 .head-day {
   flex: 1;
   text-align: center;
-  padding: 14rpx 0;
+  padding: 8rpx 0 6rpx;
   font-size: 24rpx;
   font-weight: 600;
-  color: #4A4670;
-  border-left: 1rpx solid #F1EFF8;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  border-left: 1rpx solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rpx;
+  line-height: 1.1;
+}
+
+/* 表头日期 */
+.head-day .hd-date {
+  font-size: 19rpx;
+  font-weight: 500;
+  opacity: .65;
+}
+
+/* 今天: 整个表头格填充暖色(主流做法, 比描边更容易一眼定位) */
+.head-day.today {
+  margin: 4rpx 5rpx;
+  padding: 6rpx 0;
+  border-left: none;
+  border-radius: var(--radius-chip);
+  background: var(--today-chip-bg);
+  color: var(--today-chip-fg);
+}
+
+.head-day.today .hd-date {
+  opacity: 1;
+  font-weight: 700;
+  color: var(--today-chip-fg);
 }
 
 /* 网格体(外层 scroll-view 统一滚动, 这里不再独立滚动) */
@@ -40,13 +70,39 @@
 .time-col {
   flex: 0 0 110rpx;
   min-width: 110rpx;
+  display: flex;
+  /* 时间轴: 清透主题是浅→深的渐变, 另两套主题三色相同即纯色 */
+  background: linear-gradient(180deg, var(--tcol-start) 0%, var(--tcol-mid) 45%, var(--tcol-end) 100%);
+}
+
+/* 上午/下午/晚上: 窄分组列 */
+.grp-col {
+  flex: 0 0 40rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.grp-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16rpx;
+  color: var(--text-hint);
+  letter-spacing: 1rpx;
+  border-right: 1rpx solid var(--line-soft);
+  border-bottom: 1rpx solid var(--line-soft);
+}
+
+.sec-col {
+  flex: 1;
+  min-width: 0;
 }
 
 .time-cell {
   height: 80rpx;
   box-sizing: border-box;
-  border-bottom: 1rpx solid #F1EFF8;
-  border-right: 1rpx solid #F1EFF8;
+  border-bottom: 1rpx solid var(--line-soft);
+  border-right: 1rpx solid var(--line-soft);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -55,18 +111,20 @@
   line-height: 1;
 }
 
-/* 节号: 浅灰小字 */
+/* 节号: 深一点的数字(扫视时先看节次) */
 .t-num {
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 600;
-  color: #C0BBD9;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
 }
 
-/* 上课时间: 深紫黑, 重点 */
+/* 上课时间: 浅灰小字 */
 .t-time {
   font-size: 17rpx;
-  font-weight: 600;
-  color: #44406B;
+  font-weight: 500;
+  color: var(--text-hint);
+  font-family: var(--font-display);
 }
 
 /* 每天列: 纯白底, 行线只画在 5 个大节边界(高透明浅线), 大节内部不细分 */
@@ -74,15 +132,15 @@
   flex: 1;
   min-width: 0;
   position: relative;
-  border-left: 1rpx solid #F1EFF8;
+  border-left: 1rpx solid var(--line-soft);
   height: 1120rpx; /* 14 * 80 */
   background-color: transparent;
   background-image:
-    linear-gradient(180deg, rgba(155, 145, 205, 0.35), rgba(155, 145, 205, 0.35)),
-    linear-gradient(180deg, rgba(155, 145, 205, 0.35), rgba(155, 145, 205, 0.35)),
-    linear-gradient(180deg, rgba(155, 145, 205, 0.35), rgba(155, 145, 205, 0.35)),
-    linear-gradient(180deg, rgba(155, 145, 205, 0.35), rgba(155, 145, 205, 0.35)),
-    linear-gradient(180deg, rgba(155, 145, 205, 0.35), rgba(155, 145, 205, 0.35));
+    linear-gradient(180deg, var(--grid-line), var(--grid-line)),
+    linear-gradient(180deg, var(--grid-line), var(--grid-line)),
+    linear-gradient(180deg, var(--grid-line), var(--grid-line)),
+    linear-gradient(180deg, var(--grid-line), var(--grid-line)),
+    linear-gradient(180deg, var(--grid-line), var(--grid-line));
   background-size: 100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx, 100% 2rpx;
   background-repeat: no-repeat;
   background-position:
@@ -93,45 +151,48 @@
     0 1039rpx;  /* 第14小节前(第五大节 11-13 结束) */
 }
 
+/* 今天整列: 细描边圈出(极淡暖底 + 2rpx 暖圈), 不抢课程块的颜色 */
+.day-col.today {
+  background-color: var(--today-col-bg);
+  box-shadow: inset 0 0 0 2rpx var(--today-ring);
+  border-radius: var(--radius-chip);
+}
+
 /* 课程块: 绝对定位 + 圆角 + 左侧深色条 */
 .course-block {
   position: absolute;
   left: 4rpx;
   right: 4rpx;
   box-sizing: border-box;
-  border-left: 5rpx solid;
-  border-radius: 10rpx;
-  padding: 6rpx 8rpx 4rpx;
+  /* 左色条宽度与整块描边宽度都来自主题(像素主题: 四周 2rpx 墨线) */
+  border: var(--co-border-w) solid currentColor;
+  border-left-width: var(--co-bar-w);
+  border-radius: var(--co-radius);
+  padding: 3rpx 6rpx 3rpx 8rpx;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 2rpx;
-  box-shadow: 0 2rpx 8rpx rgba(76, 70, 122, 0.10);
+  box-shadow: none;
 }
 
 /* 课程名: 占满剩余空间、按块高自然换行 */
 .cb-name {
   flex: 1;
   min-height: 0;
-  font-size: 20rpx;
+  font-size: 19rpx;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   overflow: hidden;
   word-break: break-all;
 }
 
 .cb-code {
   flex-shrink: 0;
-  font-size: 16rpx;
-  line-height: 1.2;
+  font-size: 15rpx;
+  line-height: 1.15;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.cb-range {
-  flex-shrink: 0;
-  font-size: 15rpx;
-  font-weight: 600;
-  line-height: 1.25;
-}

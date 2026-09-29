@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "空教室查询",
   "usingComponents": {
-    "empty-state": "/components/empty-state/index"
+    "empty-state": "/components/empty-state/index",
+    "icon": "/components/icon/index"
   }
 }

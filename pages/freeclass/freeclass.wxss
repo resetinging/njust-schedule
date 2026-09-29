@@ -1,13 +1,13 @@
-/* 空教室查询页 UI v2 — 紫系渐变 + 白色圆角卡片 */
+/* 空教室查询页 · 清透课堂: 白卡 + 细描边 + 浅蓝软底 */
 
 .container {
   min-height: 100vh;
-  background: #F7F6FB;
+  background: var(--bg-page);
   padding-bottom: 60rpx;
 }
 
 /* ============================================================
-顶部渐变头卡
+顶部头卡: 浅蓝软底 + 细描边
 ============================================================ */
 .hero {
   display: flex;
@@ -15,9 +15,10 @@
   gap: 20rpx;
   margin: 20rpx 24rpx 0;
   padding: 30rpx 28rpx;
-  border-radius: 28rpx;
-  background: linear-gradient(135deg, #7C6BE8 0%, #9B8CF5 70%, #B7A9FA 100%);
-  box-shadow: 0 10rpx 28rpx rgba(124, 107, 232, 0.28);
+  border-radius: var(--radius-card);
+  background: var(--hero-bg);
+  border: var(--bw-card) solid var(--hero-border);
+  box-shadow: var(--shadow-card);
 }
 
 .hero-icon {
@@ -26,8 +27,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.22);
-  border-radius: 26rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
   font-size: 48rpx;
 }
 
@@ -36,7 +37,7 @@
 }
 
 .hero-title {
-  color: #fff;
+  color: var(--hero-title);
   font-size: 34rpx;
   font-weight: 700;
   letter-spacing: 2rpx;
@@ -44,7 +45,7 @@
 
 .hero-desc {
   margin-top: 6rpx;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--hero-sub);
   font-size: 23rpx;
 }
 
@@ -54,17 +55,17 @@
 .filter-card {
   margin: 20rpx 24rpx 0;
   padding: 6rpx 26rpx;
-  background: #fff;
-  border-radius: 26rpx;
-  border: 2rpx solid #EFEBFC;
-  box-shadow: 0 8rpx 26rpx rgba(87, 74, 160, 0.07);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  border: var(--bw-card) solid var(--line);
+  box-shadow: var(--shadow-card);
 }
 
 .filter-row {
   display: flex;
   align-items: center;
   padding: 27rpx 0;
-  border-bottom: 1rpx solid #F4F2FB;
+  border-bottom: 1rpx solid var(--line-soft);
 }
 
 .filter-row:last-child {
@@ -72,7 +73,7 @@
 }
 
 .filter-row:active {
-  background: #FAF8FF;
+  background: var(--bg-hover);
 }
 
 .filter-icon {
@@ -83,7 +84,7 @@
 .filter-label {
   width: 150rpx;
   font-size: 27rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
 }
 
 .filter-value {
@@ -91,32 +92,33 @@
   text-align: right;
   font-size: 29rpx;
   font-weight: 600;
-  color: #33304F;
+  color: var(--text-primary);
 }
 
 .filter-row .arrow {
   margin-left: 14rpx;
-  color: #C6C2DD;
+  color: var(--icon-faint);
   font-size: 32rpx;
 }
 
 /* ============================================================
-结果摘要(渐变条)
+结果摘要: 浅蓝软底 + 细描边
 ============================================================ */
 .result-bar {
   display: flex;
   align-items: center;
   margin: 20rpx 24rpx 0;
   padding: 20rpx 26rpx;
-  border-radius: 24rpx;
-  background: linear-gradient(90deg, #7C6BE8 0%, #9B8CF5 100%);
-  box-shadow: 0 8rpx 22rpx rgba(124, 107, 232, 0.24);
+  border-radius: var(--radius-card);
+  background: var(--hero-bg);
+  border: var(--bw-card) solid var(--hero-border);
+  box-shadow: var(--shadow-card);
 }
 
 .result-summary {
   flex: 1;
   margin-right: 16rpx;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-muted);
   font-size: 23rpx;
   line-height: 1.5;
 }
@@ -127,7 +129,7 @@
 }
 
 .result-count-num {
-  color: #fff;
+  color: var(--hero-title);
   font-size: 46rpx;
   font-weight: 800;
   line-height: 1;
@@ -135,7 +137,7 @@
 
 .result-count-unit {
   margin-left: 6rpx;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
@@ -144,7 +146,7 @@
   margin: 10rpx 30rpx 0;
   text-align: right;
   font-size: 22rpx;
-  color: #B06A3C;
+  color: var(--signal-deep);
 }
 
 /* ============================================================
@@ -157,10 +159,10 @@
 .group-card {
   margin-top: 20rpx;
   padding: 24rpx 24rpx 8rpx;
-  background: #fff;
-  border-radius: 26rpx;
-  border: 2rpx solid #EFEBFC;
-  box-shadow: 0 8rpx 26rpx rgba(87, 74, 160, 0.07);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  border: var(--bw-card) solid var(--line);
+  box-shadow: var(--shadow-card);
 }
 
 .group-head {
@@ -183,14 +185,14 @@
 .group-name {
   font-size: 30rpx;
   font-weight: 700;
-  color: #33304F;
+  color: var(--text-primary);
 }
 
 .group-badge {
   padding: 6rpx 20rpx;
-  border-radius: 999rpx;
-  background: #F0ECFF;
-  color: #7C6BE8;
+  border-radius: var(--radius-pill);
+  background: var(--primary-line);
+  color: var(--primary);
   font-size: 22rpx;
   font-weight: 600;
 }
@@ -213,12 +215,12 @@
 .room-chip {
   margin: 10rpx 12rpx 10rpx 0;
   padding: 12rpx 24rpx;
-  background: #FAF9FE;
-  border: 2rpx solid #E9E4FA;
-  border-radius: 999rpx;
+  background: var(--bg-sunken);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-pill);
   font-size: 24rpx;
   line-height: 30rpx;
-  color: #4A4670;
+  color: var(--text-secondary);
 }
 
 .group-toggle {
@@ -227,7 +229,7 @@
   text-align: center;
   font-size: 24rpx;
   font-weight: 600;
-  color: #7C6BE8;
+  color: var(--primary);
 }
 
 .group-toggle:active {
@@ -251,8 +253,8 @@
 .spinner {
   width: 56rpx;
   height: 56rpx;
-  border: 6rpx solid #E5DEFB;
-  border-top-color: #7C6BE8;
+  border: 6rpx solid var(--line-strong);
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
 }
@@ -264,15 +266,15 @@
 .loading-text {
   margin-top: 24rpx;
   font-size: 26rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
 }
 
 .err-tip {
   margin: 24rpx;
   padding: 20rpx 24rpx;
-  background: #FDEEEE;
-  color: #C05252;
-  border-radius: 16rpx;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: var(--radius-ctrl);
   font-size: 26rpx;
   text-align: center;
 }

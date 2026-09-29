@@ -32,13 +32,15 @@
 
     <!-- 有数据 -->
     <block wx:if="{{exams.length > 0 && !isGraduate}}">
-      <!-- 顶部紫渐变卡片头(课表同款) -->
+      <!-- 顶部卡片头(浅蓝软底) -->
       <view class="page-hero">
         <view class="ph-main">
           <text class="ph-title">考试安排</text>
           <text class="ph-sub">共 {{exams.length}} 场考试</text>
         </view>
-        <text class="ph-refresh {{loading ? 'spin' : ''}}" bindtap="onRefresh">🔄</text>
+        <view class="ph-refresh {{loading ? 'spin' : ''}}" bindtap="onRefresh">
+          <icon name="refresh" size="32" color="#64748B" />
+        </view>
       </view>
 
       <!-- 倒计时卡片 -->

@@ -1,4 +1,4 @@
-/* 卡片式空状态 (设计规范 §3.8): 白卡 28rpx 圆角 + 淡紫描边 + 紫色图标圆底 */
+/* 卡片式空状态: 白卡 + 细描边 + 淡蓝图标圆底 */
 
 .es-wrap {
   display: flex;
@@ -9,11 +9,11 @@
 
 .es-card {
   width: 100%;
-  background: #fff;
-  border: 2rpx solid #EFEBFC;
-  border-radius: 28rpx;
+  background: var(--bg-card);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
   padding: 56rpx 36rpx 48rpx;
-  box-shadow: 0 6rpx 24rpx rgba(87, 74, 160, 0.06);
+  box-shadow: 0 6rpx 24rpx rgba(15, 23, 42, 0.06);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #EFEBFC 0%, #F3E8FF 100%);
+  background: linear-gradient(135deg, var(--primary-soft) 0%, var(--primary-line) 100%);
   border-radius: 50%;
 }
 
@@ -38,18 +38,18 @@
   margin-top: 24rpx;
   font-size: 32rpx;
   font-weight: 700;
-  color: #3A3560;
+  color: var(--text-strong);
 }
 
 .es-desc {
   margin-top: 12rpx;
   font-size: 24rpx;
-  color: #8A87A8;
+  color: var(--text-hint);
   text-align: center;
   line-height: 1.5;
 }
 
-/* 操作按钮: 紫色胶囊 */
+/* 操作按钮: 纯色主色 */
 .es-btn {
   margin-top: 32rpx;
   width: auto;
@@ -57,11 +57,11 @@
   height: 80rpx;
   line-height: 80rpx;
   padding: 0 48rpx;
-  background: #7C6BE8;
-  color: #fff;
+  background: var(--primary);
+  color: var(--bg-card);
   font-size: 28rpx;
   font-weight: 600;
-  border-radius: 999rpx;
+  border-radius: var(--radius-ctrl);
   border: none;
   box-sizing: border-box;
 }

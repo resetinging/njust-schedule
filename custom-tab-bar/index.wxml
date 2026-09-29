@@ -1,11 +1,11 @@
-<!-- 自定义 tabBar(纯图标, 无文字) -->
+<!-- 自定义 tabBar(图标 + 文字, 与微信原生 tabBar 一致) -->
 <view class="tab-bar">
   <view class="tab-bar-item {{selected === item.key ? 'on' : ''}}"
         wx:for="{{list}}" wx:key="name"
         data-index="{{item.key}}" bindtap="onTap">
     <view class="tab-emoji-wrap">
-      <text class="tab-emoji">{{item.emoji}}</text>
+      <image class="tab-ico" src="{{item.key === selected ? item.iconOn : item.icon}}" mode="aspectFit" />
     </view>
-    <view class="tab-dot {{selected === item.key ? 'on' : ''}}"></view>
+    <text class="tab-text">{{item.name}}</text>
   </view>
 </view>

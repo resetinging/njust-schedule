@@ -45,7 +45,7 @@
 
     <block wx:if="{{!loading && !empty && !isGraduate}}">
 
-      <!-- ============ 绩点大卡（紫色渐变, 与课表页顶卡同风格） ============ -->
+      <!-- ============ 绩点大卡（浅蓝软底 + 细描边） ============ -->
       <view class="gpa-hero">
         <view class="hero-top">
           <view class="hero-gpa-wrap">
@@ -62,7 +62,7 @@
         </view>
       </view>
 
-      <!-- ============ 统计胶囊行（灰底紫字, 一行三胶囊） ============ -->
+      <!-- ============ 统计胶囊行（浅蓝底主色字, 一行三胶囊） ============ -->
       <view class="stat-pills">
         <view class="pill">
           <text class="pill-label">总学分</text>

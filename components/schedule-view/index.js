@@ -8,6 +8,7 @@ const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const config = require('../../utils/config')
 const { courseColors } = require('../../utils/course-color')
+const font = require('../../utils/font')
 const { periodStart } = require('../../utils/period-time')
 const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
@@ -46,6 +47,7 @@ Component({
     detailCourse: {},
     firstWeekDate: '',       // 学期第一周周一日期
     weekRange: '',           // 当前周日期范围(如 "9/1-9/7")
+    todayText: '',           // 顶栏右侧"今天"文案(如 "9月30日 周三")
     weekAnim: '',            // 周次切换动画方向: '' | from-left | from-right
 
     searchText: '',          // (搜索栏已移除, 字段保留兼容旧缓存路径)
@@ -78,6 +80,12 @@ Component({
     attached() {
       // 缓存优先：打开只渲染本地缓存，网络仅在下拉刷新/学期切换时发生
       this._customs = this._readCustoms()
+      // 顶栏"今天"文案: 不依赖网络, 直接本地计算
+      {
+        const now = new Date()
+        const wd = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()]
+        this.setData({ todayText: `今天 ${now.getMonth() + 1}月${now.getDate()}日 周${wd}` })
+      }
       this.loadCachedData()
       this.loadFirstWeekDate()
       this.setData({
@@ -182,6 +190,9 @@ Component({
     _applyFirstWeek(firstWeekDate, showHint) {
       const actualWeek = calcCurrentWeek(firstWeekDate)
       const todayDay = calcTodayDay()
+      const now = new Date()
+      const weekday = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()]
+      const todayText = `今天 ${now.getMonth() + 1}月${now.getDate()}日 周${weekday}`
       // 仅首次设置或日期变化时定位本周; 否则保留用户当前查看的周次
       const firstTime = !this.data.firstWeekDate || this.data.firstWeekDate !== firstWeekDate
       const keepWeek = firstTime ? actualWeek : this.data.currentWeek
@@ -189,6 +200,7 @@ Component({
         firstWeekDate,
         actualWeek,
         todayDay,
+        todayText,
         currentWeek: keepWeek
       })
       // 如果已加载课程，重新过滤(用保留后的周次, 不覆盖用户跳转)
@@ -369,7 +381,7 @@ Component({
       wx.showModal({
         title: '删除自定义课程',
         content: '确认删除这门自定义课程？',
-        confirmColor: '#D9534F',
+        confirmColor: '#DC2626',
         success: (r) => {
           if (!r.confirm) return
           this._customs = (this._customs || []).filter(c => String(c._cid) !== cid)
@@ -477,6 +489,13 @@ Component({
       const listDayGroups = this._buildListGroups(filtered)
 
       this.setData({ filteredCourses: filtered, currentWeek: w, listDayGroups, weekRange })
+      // 像素字体按需子集: 把课程文本交给后端生成子集(字符没变时内部直接返回, 不重复请求)
+      try {
+        const text = (this.data.courses || [])
+          .map((c) => `${c.name || ''}${c.teacher || ''}${c.classroom || ''}`)
+          .join('')
+        if (text) font.loadForText(text)
+      } catch (e) { /* 字体只是观感, 失败不影响功能 */ }
     },
 
     /**

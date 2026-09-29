@@ -9,7 +9,7 @@
   <!-- ============================================================ -->
   <view class="announce-card" wx:if="{{announcement}}" bindtap="onToggleAnnounce">
     <view class="announce-head">
-      <text class="announce-icon">📢</text>
+      <view class="announce-icon"><icon name="megaphone" size="28" color="#2563EB" /></view>
       <text class="announce-title">公告</text>
       <text class="announce-new" wx:if="{{annIsNew}}">新</text>
       <text class="announce-state" wx:if="{{annLong}}">{{annExpanded ? '收起' : '查看全文'}}</text>
@@ -22,9 +22,9 @@
   <!-- ============================================================ -->
   <view wx:if="{{isLoggedIn}}">
 
-    <!-- 用户信息卡片(紫渐变) -->
+    <!-- 用户信息卡片(浅蓝软底) -->
     <view class="user-card card">
-      <view class="avatar">👤</view>
+      <view class="avatar"><icon name="user" size="40" color="#2563EB" /></view>
       <view class="user-info">
         <text class="user-name">{{studentName || '未设置'}}</text>
         <text class="user-id">{{studentId}}</text>
@@ -51,36 +51,16 @@
       </view>
     </view>
 
-    <!-- 快捷操作(简洁文字) -->
-    <view class="action-list">
-      <view class="action-item" bindtap="onGoFreeClass">
-        <text>空教室查询</text>
-        <text class="arrow">›</text>
-      </view>
-      <view class="action-item" bindtap="onGoGallery">
-        <text>校历 & 照片墙</text>
-        <text class="arrow">›</text>
-      </view>
-      <view class="action-item" bindtap="onOpenLinks">
-        <text>常用链接</text>
-        <text class="arrow">›</text>
-      </view>
-      <view class="action-item" bindtap="onOpenFeedback">
-        <text>问题反馈</text>
-        <text class="arrow">›</text>
-      </view>
-      <view class="action-item" bindtap="onOpenMyFeedback">
-        <view class="action-label">
-          <text>我的反馈</text>
-          <text class="fb-dot" wx:if="{{fbUnread > 0}}">{{fbUnread > 99 ? '99+' : fbUnread}}</text>
-        </view>
-        <text class="arrow">›</text>
-      </view>
-      <view class="action-item" bindtap="onClearData">
-        <text>清除缓存数据</text>
-        <text class="arrow">›</text>
-      </view>
-    </view>
+    <!-- 快捷操作(Vant cell) -->
+    <van-cell-group inset class="action-cells">
+      <van-cell title="空教室查询" is-link bind:click="onGoFreeClass" />
+      <van-cell title="校历 & 照片墙" is-link bind:click="onGoGallery" />
+      <van-cell title="常用链接" is-link bind:click="onOpenLinks" />
+      <van-cell title="问题反馈" is-link bind:click="onOpenFeedback" />
+      <van-cell title="我的反馈" is-link bind:click="onOpenMyFeedback"
+                value="{{fbUnread > 0 ? (fbUnread > 99 ? '99+' : fbUnread) : ''}}" />
+      <van-cell title="清除缓存数据" is-link bind:click="onClearData" />
+    </van-cell-group>
 
     <!-- 校历设置 -->
     <view class="setting-card card">
@@ -136,7 +116,7 @@
 
       <!-- 记住学号密码 -->
       <view class="remember-row">
-        <switch checked="{{rememberPwd}}" bindchange="onToggleRemember" color="#7C6BE8" style="transform:scale(0.8);" />
+        <switch checked="{{rememberPwd}}" bindchange="onToggleRemember" color="#2563EB" style="transform:scale(0.8);" />
         <text class="remember-label" bindtap="onTapRemember">记住学号和密码</text>
       </view>
 

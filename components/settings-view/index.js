@@ -85,7 +85,7 @@ Component({
   },
 
   lifetimes: {
-    attached() {
+  attached() {
       this.refreshState()
       // 回读记住密码开关状态
       const rp = storage.get('remember_pwd', '1') !== '0'

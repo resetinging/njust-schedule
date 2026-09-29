@@ -14,7 +14,7 @@ const ROW_H = 80
 const PERIOD_COUNT = 14
 
 // 课程块配色: 按课程名分配(不同课不同色, 同一课跨周/多时段同色)
-const COURSE_COLOR = { bg: '#FCF0D9', bar: '#F5D9A0', text: '#8A6116' }   // 兜底
+const COURSE_COLOR = { bg: 'var(--c1-bg)', bar: 'var(--c1-bar)', text: 'var(--c1-fg)' }   // 兜底
 // 表头简洁日期名(参考目标 UI: 一 二 三 四 五 六 日)
 const GRID_WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 
@@ -37,11 +37,16 @@ Component({
     todayDay: {
       type: Number,
       value: 0
+    },
+    actualWeek: {
+      type: Number,
+      value: 0        // 实际教学周: 只有显示的是本周时才高亮"今天"
     }
   },
 
   data: {
-    weekdays: GRID_WEEKDAYS, // 一~日(目标 UI 简洁表头)
+    // 表头: 星期 + 本周日期(今天高亮)
+    weekdays: GRID_WEEKDAYS.map(n => ({ name: n, date: '', today: false })),
     timeRows: [],
     dayCols: []
   },
@@ -57,6 +62,7 @@ Component({
     _buildLayout() {
       const courses = this.properties.courses || []
       const week = this.properties.currentWeek
+      this._buildHeader(week)
 
       // 1. 过滤当前周课程(单双周 + 周次范围)
       const visible = courses.filter(c => {
@@ -123,10 +129,34 @@ Component({
           })
         }
         blocks.sort((a, b) => a._top - b._top)
-        dayCols.push({ day: d, blocks })
+        // 翻到别的周不该有"今天"高亮
+        const isThisWeek = !this.properties.actualWeek || (week || 0) === this.properties.actualWeek
+        dayCols.push({ day: d, blocks, today: isThisWeek && d === (this.properties.todayDay || 0) })
       }
 
       this.setData({ timeRows, dayCols })
+    },
+
+    /** 表头: 星期 + 本周日期(由 firstWeekDate 推算, 今天高亮) */
+    _buildHeader(week) {
+      const fwd = (this.properties.firstWeekDate || '').trim()
+      // 同上: 只有当前显示的周 == 实际教学周时才高亮
+      const isThisWeek = !this.properties.actualWeek || (week || 0) === this.properties.actualWeek
+      const today = isThisWeek ? (this.properties.todayDay || 0) : 0
+      const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(fwd)
+      const baseMs = m
+        ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime()
+        : 0
+      const heads = []
+      for (let d = 1; d <= 7; d++) {
+        let date = ''
+        if (baseMs) {
+          const dt = new Date(baseMs + ((((week || 1) - 1) * 7) + (d - 1)) * 86400000)
+          date = String(dt.getDate())
+        }
+        heads.push({ name: GRID_WEEKDAYS[d - 1], date, today: d === today })
+      }
+      this.setData({ weekdays: heads })
     },
 
     /** 点击课程块 */
