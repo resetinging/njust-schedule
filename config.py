@@ -113,8 +113,10 @@ SSO_SESSION_SETTING_KEY = "jwc_session"
 SSO_SESSION_MAX_AGE = int(os.environ.get("SSO_SESSION_MAX_AGE", str(30 * 24 * 3600)))
 # 同一学号认证失败后的冷却秒数（冷却期内不再打智慧理工；只防连点，不长时间拦人）
 SSO_LOGIN_COOLDOWN = int(os.environ.get("SSO_LOGIN_COOLDOWN", "2"))
-# 验证码换图重试次数：一次用户登录最多产生 attempts 次密码提交
-SSO_CAPTCHA_RETRY = int(os.environ.get("SSO_CAPTCHA_RETRY", "1"))
+# 登录密码提交次数上限：验证码识别偶发失败时换图重试的兜底。
+# 实测(2026-09)智慧理工 SSO 的 checkNeedCaptcha 恒为 false、登录不需要验证码，
+# 这里只是异常场景保险。1 表示不重试，2 表示最多两次提交。
+SSO_CAPTCHA_RETRY = int(os.environ.get("SSO_CAPTCHA_RETRY", "2"))
 # 8080 表单登录（原「教务直连」）已于改版后失效，默认关闭；临时启用设 1
 JW_ALLOW_FORM_FALLBACK = os.environ.get("JW_ALLOW_FORM_FALLBACK", "0") == "1"
 

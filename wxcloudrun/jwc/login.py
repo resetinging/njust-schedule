@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """LoginMixin(Phase 2 从 jwc_client.py 拆出)。"""
+import re
+
 from wxcloudrun.jwc.common import *  # noqa: F401,F403
 from wxcloudrun.jwc.common import (  # noqa: F401
     _DedupCookieJar, _encrypt_sso_password, _dedupe_schedule_courses, _HAS_CRYPTO)
@@ -399,9 +401,13 @@ class LoginMixin:
                                      attempts: int = None) -> bool:
         """SSO 验证码 OCR 偶发失败: 换一张验证码重试。
 
-        重试次数可用环境变量 SSO_CAPTCHA_RETRY 覆盖(默认 1, 防止频繁认证触发风控冻结);
+        提交次数可用环境变量 SSO_CAPTCHA_RETRY 覆盖(默认 2, 防止频繁认证触发风控冻结);
         每次重试重建会话/取登录页, 保证 execution/lt/salt 与验证码配套;
         非验证码类失败(账号密码错误等)不重试。
+
+        实测(2026-09)智慧理工 SSO 默认不需要验证码(checkNeedCaptcha 恒为 false,
+        页面上的"验证码"字样来自模板与滑块组件), 因此正常登录不会触发重试;
+        重试仅用于真的出现验证码错误时, 且会强制带上重新识别的验证码。
         """
         if attempts is None:
             try:
@@ -409,7 +415,7 @@ class LoginMixin:
             except (TypeError, ValueError):
                 attempts = 1
         for i in range(1, attempts + 1):
-            if self._direct_sso_login(student_id, password):
+            if self._direct_sso_login(student_id, password, force_captcha=(i > 1)):
                 return True
             err = self.last_error or ""
             if "验证码" not in err:
@@ -420,7 +426,8 @@ class LoginMixin:
                 time.sleep(0.8)   # 稍作间隔, 避免连续请求触发风控
         return False
 
-    def _direct_sso_login(self, student_id: str, password: str) -> bool:
+    def _direct_sso_login(self, student_id: str, password: str,
+                          force_captcha: bool = False) -> bool:
         """直连 SSO 登录（ids.njust.edu.cn，不走 WebVPN 代理）"""
         from urllib.parse import urljoin, urlparse
 
@@ -477,8 +484,8 @@ class LoginMixin:
             except Exception as e:
                 self._log(f"[SSO-Direct]   checkNeedCaptcha 失败: {e}")
 
-            # Step D3: OCR SSO 验证码（如需要）
-            if need_captcha:
+            # Step D3: OCR SSO 验证码（首次按接口判断; 上次因验证码失败则强制获取）
+            if need_captcha or force_captcha:
                 try:
                     import ddddocr
                     captcha_url = f"{SSO_BASE}/authserver/getCaptcha.htl"
@@ -526,7 +533,7 @@ class LoginMixin:
                 "username": student_id,
                 "passwordText": password,
                 "password": encrypted_pwd,
-                "captcha": sso_captcha_text if need_captcha else "",
+                "captcha": sso_captcha_text if (need_captcha or force_captcha) else "",
                 "rememberMe": "true",
                 "_eventId": "submit",
                 "cllt": "userNameLogin",
@@ -544,15 +551,30 @@ class LoginMixin:
                       f"标题={self._page_title(login_resp)}")
 
             # Step D6: 检测登录结果
-            t = login_resp.text.lower()
-            if "密码错误" in t or "用户名或密码错误" in t or "账号或密码错误" in t:
+            # 优先读页面里的真实错误提示元素(任何失败都会渲染它):
+            #   <span id="showErrorTip"><span>账号或密码有误；账号未激活或被禁用</span></span>
+            # 注意: 不能整页匹配"验证码"——验证码图片的占位 alt="验证码错误" 与
+            # "验证码登录"等模板文案在页面里始终存在, 曾把密码错误误报成验证码错误。
+            m_err = re.search(r'id="showErrorTip"[^>]*>\s*<span>([^<]*)</span>',
+                              login_resp.text)
+            err_tip = (m_err.group(1).strip() if m_err else "")
+            if err_tip:
+                if "验证码" in err_tip:
+                    self.last_error = "SSO 验证码不正确"
+                elif "密码" in err_tip:
+                    self.last_error = "智慧理工账号或密码错误"
+                else:
+                    self.last_error = f"SSO 登录失败：{err_tip}"
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+                return False
+
+            # CAS 对凭证无效的响应是 HTTP 401(没有错误元素时的兜底)
+            if login_resp.status_code == 401:
                 self.last_error = "智慧理工账号或密码错误"
-                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
+                self._log(f"[SSO-Direct] [FAIL] {self.last_error} (HTTP 401)")
                 return False
-            if "验证码" in t and ("错误" in t or "不正确" in t):
-                self.last_error = "SSO 验证码不正确"
-                self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
-                return False
+
+            t = login_resp.text.lower()
             if "用户名或密码不能为空" in t:
                 self.last_error = "用户名或密码不能为空"
                 self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
