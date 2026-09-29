@@ -8,7 +8,7 @@ const { courseColors } = require('../../utils/course-color')
 const { PERIOD_STARTS, periodStart, periodEnd } = require('../../utils/period-time')
 
 // 每小节行高(rpx); 第14节显示"网课"
-// 节次开始时间与桌面端 BIG_PERIODS 一致(南理工官方作息:
+// 节次开始时间与桌面端 BIG_PERIODS 一致(学校官方作息:
 // 第四大节 15:50-18:15 → 8节15:50/9节16:40/10节17:30; 每节45分钟)
 const ROW_H = 80
 const PERIOD_COUNT = 14

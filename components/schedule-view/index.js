@@ -97,7 +97,7 @@ Component({
      * 避免顶栏一直"选择学期"、切换列表为空(清缓存/首次登录等场景)
      */
     _ensureSemesterData() {
-      if (!storage.isLoggedIn()) return
+      if (!storage.isLoggedIn() || !storage.get('token', '')) return
       const hasCourses = (storage.getCached(this._coursesCacheKey()) || []).length > 0
       const hasSemester = !!this.data.semester
       const hasSemesters = this.data.semesters.length > 0

@@ -14,6 +14,8 @@ function _sem() {
 
 /** 并行查询全部数据并写入缓存, 返回成功项数 */
 async function _queryAll() {
+  // 无 token 时后端只会返回 401: 直接跳过, 避免每次启动一串无效请求
+  if (!storage.get('token', '')) return 0
   const sem = storage.getSemester()
   const results = await Promise.all([
     api.getCourses(sem).then(r => {
@@ -73,6 +75,7 @@ async function _queryAll() {
  * @returns {Promise<number>} 最终成功载入的数据项数
  */
 async function fetchAllData() {
+  if (!storage.get('token', '')) return 0
   // 1) 立即载入现有数据
   try { await _queryAll() } catch (e) { /* 静默 */ }
 

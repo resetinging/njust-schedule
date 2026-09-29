@@ -2,56 +2,37 @@
 
 /* 微信扫码登录 */
 .qr-entry {
-  margin-top: 20rpx;
+  margin-top: 24rpx;
+  text-align: center;
 }
 
-.qr-entry-btn {
-  background: #fff;
+.qr-entry-link {
+  font-size: 28rpx;
   color: #7C6BE8;
-  border: 1rpx solid #D9D4F7;
-  border-radius: 16rpx;
-  font-size: 30rpx;
-  line-height: 88rpx;
-  height: 88rpx;
-  padding: 0;
 }
 
 .qr-panel {
   margin-top: 20rpx;
-  padding: 24rpx;
-  background: #FAF9FF;
-  border: 1rpx solid #E6E2FA;
-  border-radius: 20rpx;
   text-align: center;
 }
 
-.qr-panel-title {
-  font-size: 26rpx;
-  color: #5A5A66;
-  margin-bottom: 16rpx;
-}
-
 .qr-img {
-  width: 560rpx;   /* 放大到约 280px: 二维码过小会导致真机长按无法识别 */
+  width: 520rpx;
   background: #fff;
-  border-radius: 12rpx;
+  border: 1rpx solid var(--border);
+  border-radius: 16rpx;
+  padding: 16rpx;
 }
 
 .qr-panel-hint {
   font-size: 24rpx;
   color: #8A8A96;
-  margin-top: 14rpx;
+  margin-top: 16rpx;
   min-height: 34rpx;
 }
 
-.qr-panel-actions {
-  display: flex;
-  justify-content: space-around;
-  margin-top: 18rpx;
-}
-
-.qr-confirm-btn {
-  margin-top: 18rpx;
+.qr-save-btn {
+  margin-top: 20rpx;
   background: #7C6BE8;
   color: #fff;
   border-radius: 16rpx;
@@ -61,8 +42,21 @@
   padding: 0;
 }
 
+.qr-save-tip {
+  font-size: 22rpx;
+  color: #9A9AA6;
+  line-height: 1.6;
+  margin-top: 12rpx;
+}
+
+.qr-panel-actions {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 22rpx;
+}
+
 .qr-link {
-  font-size: 26rpx;
+  font-size: 25rpx;
   color: #7C6BE8;
 }
 
@@ -317,25 +311,38 @@
 
 /* 密码输入行: 输入框 + 明文切换按钮 */
 .pwd-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
+  position: relative;
+  display: block;
 }
 
 .pwd-input {
-  flex: 1;
+  padding-right: 112rpx;   /* 给右侧的眼睛图标留位, 避免文字重叠 */
 }
 
 .pwd-toggle {
-  flex-shrink: 0;
-  width: 64rpx;
-  height: 64rpx;
+  position: absolute;
+  right: 4rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 88rpx;    /* 44px 热区: 移动端推荐的最小点击区域 */
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 34rpx;
-  border-radius: 12rpx;
-  background: #F2F0FA;
+}
+
+/* 眼睛图标: 内联 SVG(矢量, 透明底) — 默认"睁眼"(点开查看), 显示中为"闭眼"(点击隐藏) */
+.pwd-eye {
+  width: 40rpx;
+  height: 40rpx;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 40rpx 40rpx;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOEE4QTk2IiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMSAxMnM0LTggMTEtOCAxMSA4IDExIDgtNCA4LTExIDgtMTEtOC0xMS04eiIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiLz48L3N2Zz4=");
+}
+
+.pwd-eye-on {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOEE4QTk2IiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTcuOTQgMTcuOTRBMTAuMDcgMTAuMDcgMCAwIDEgMTIgMjBjLTcgMC0xMS04LTExLThhMTguNDUgMTguNDUgMCAwIDEgNS4wNi01Ljk0TTkuOSA0LjI0QTkuMTIgOS4xMiAwIDAgMSAxMiA0YzcgMCAxMSA4IDExIDhhMTguNSAxOC41IDAgMCAxLTIuMTYgMy4xOW0tNi43Mi0xLjA3YTMgMyAwIDEgMS00LjI0LTQuMjQiLz48bGluZSB4MT0iMSIgeTE9IjEiIHgyPSIyMyIgeTI9IjIzIi8+PC9zdmc+");
 }
 
 .pwd-hint {

@@ -1,4 +1,4 @@
-# 南理工课表 — 微信小程序
+# 课表助手 — 微信小程序
 
 基于 [njust-schedule](../njust-schedule/) Flask 后端 API 的微信小程序客户端。
 

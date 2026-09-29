@@ -42,7 +42,8 @@ App({
    */
   _prefetchAll() {
     const sid = storage.getStudentId()
-    if (!sid) return
+    // 有学号但无 token(会话已失效/已退出)时不预取, 否则后端只会返回一串 401
+    if (!sid || !storage.get('token', '')) return
     const sem = storage.getSemester()
     const ttl = config.CACHE_TTL
     const tasks = []

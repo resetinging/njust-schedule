@@ -112,7 +112,7 @@
       <view class="login-title">登录教务系统</view>
 
       <!-- 教务改版后仅保留智慧理工统一认证登录（教务直连已下线） -->
-      <view class="mode-desc">智慧理工统一认证登录（校外可用）</view>
+      <view class="mode-desc">智慧理工统一认证</view>
 
       <!-- 学号 -->
       <view class="form-group">
@@ -128,7 +128,9 @@
           <input class="form-input pwd-input" placeholder="请输入智慧理工密码"
                  password="{{!showPassword}}" value="{{password}}"
                  bindinput="onPasswordInput" />
-          <text class="pwd-toggle" bindtap="onTogglePassword">{{showPassword ? '🙈' : '👁'}}</text>
+          <view class="pwd-toggle" bindtap="onTogglePassword">
+            <view class="pwd-eye {{showPassword ? 'pwd-eye-on' : ''}}"></view>
+          </view>
         </view>
       </view>
 
@@ -146,24 +148,26 @@
 
       <!-- 微信扫码登录(免密码): 长按二维码 → 识别图中二维码 → 确认登录 -->
       <view wx:if="{{!qrMode}}" class="qr-entry">
-        <button class="qr-entry-btn" bindtap="onStartQr">🟢 微信扫码登录（免密码）</button>
+        <text class="qr-entry-link" bindtap="onStartQr">扫码登录</text>
       </view>
       <view wx:else class="qr-panel">
-        <view class="qr-panel-title">长按二维码 → 识别图中二维码 → 确认登录</view>
         <image class="qr-img" src="{{qrSrc}}" mode="widthFix"
-               show-menu-by-longpress="{{true}}" binderror="onQrImgError"></image>
+               show-menu-by-longpress="{{true}}" binderror="onQrImgError"
+               bindtap="onQrPreview"></image>
         <view class="qr-panel-hint">{{qrHint}}</view>
-        <button class="qr-confirm-btn" bindtap="onQrConfirmTap">✅ 我已确认，立即登录</button>
+        <button class="qr-save-btn" bindtap="onQrSave">保存到相册</button>
+        <view class="qr-save-tip">用微信「扫一扫」→ 相册，选择刚保存的二维码</view>
         <view class="qr-panel-actions">
-          <text class="qr-link" bindtap="onStartQr">刷新二维码</text>
-          <text class="qr-link" bindtap="onCloseQr">返回密码登录</text>
+          <text class="qr-link" bindtap="onStartQr">刷新</text>
+          <text class="qr-link" bindtap="onQrConfirmTap">我已确认</text>
+          <text class="qr-link" bindtap="onCloseQr">返回</text>
         </view>
       </view>
     </view>
 
     <!-- 提示 -->
     <view class="login-tip">
-      <text>密码登录只填学号和智慧理工密码；也可用微信扫码登录，免密码</text>
+      <text>使用智慧理工统一认证账号，无需教务密码</text>
     </view>
   </view>
 

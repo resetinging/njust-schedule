@@ -264,9 +264,10 @@ Component({
         this._onQrSuccess(res)
         return
       }
-      if (res.status === 'expired') {
+      if (res.status === 'expired' || res.success === false) {
+        // 后端对失效 qr_id 返回 400(带 status=expired)；失败也必须停止轮询
         this._stopQrPoll()
-        this.setData({ qrHint: '二维码已失效，请点「刷新二维码」' })
+        this.setData({ qrHint: res.message || '二维码已失效，请点「刷新二维码」' })
       } else if (res.status === 'scanned') {
         this.setData({ qrHint: '已扫码，请在手机上点「确认登录」' })
       }
@@ -290,7 +291,7 @@ Component({
         this._onQrSuccess(res)
         return
       }
-      if (res && res.status === 'expired') {
+      if (res && (res.status === 'expired' || res.success === false)) {
         this._stopQrPoll()
         this.setData({ qrHint: '二维码已失效，请点「刷新二维码」' })
         wx.showToast({ title: '二维码已失效', icon: 'none' })
@@ -324,6 +325,122 @@ Component({
       if (this.data.qrFallback && this.data.qrSrc !== this.data.qrFallback) {
         this.setData({ qrSrc: this.data.qrFallback })
       }
+    },
+
+    /**
+     * 保存二维码到相册。
+     *
+     * 小程序内只能识别「小程序码」(太阳码), 普通二维码长按只有翻译/保存
+     * (社区实测结论), 因此普通二维码只能走「保存到相册 → 微信扫一扫 → 相册」。
+     */
+    onQrSave() {
+      const url = this.data.qrSrc
+      if (!url) return
+      const save = (path) => {
+        wx.saveImageToPhotosAlbum({
+          filePath: path,
+          success: () => {
+            wx.hideLoading()
+            wx.showModal({
+              title: '已保存到相册',
+              content: '打开微信「扫一扫」→ 右下角相册 → 选择刚保存的二维码 → 点「确认登录」，回到小程序即自动完成登录。',
+              showCancel: false,
+              confirmText: '我知道了'
+            })
+          },
+          fail: (err) => {
+            wx.hideLoading()
+            const msg = (err && err.errMsg) || ''
+            if (msg.indexOf('auth') >= 0 || msg.indexOf('deny') >= 0) {
+              wx.showModal({
+                title: '需要相册权限',
+                content: '请在设置里允许「保存到相册」，再回来点一次。',
+                confirmText: '去设置',
+                success: (r) => { if (r.confirm) wx.openSetting() }
+              })
+            } else {
+              wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+            }
+          }
+        })
+      }
+
+      wx.showLoading({ title: '正在保存…' })
+      if (url.indexOf('data:') === 0) {
+        const b64 = url.split(',')[1] || ''
+        const path = `${wx.env.USER_DATA_PATH}/sso-qr-save.png`
+        wx.getFileSystemManager().writeFile({
+          filePath: path, data: b64, encoding: 'base64',
+          success: () => save(path),
+          fail: () => {
+            wx.hideLoading()
+            wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+          }
+        })
+        return
+      }
+      wx.downloadFile({
+        url,
+        timeout: 20000,
+        success: (res) => {
+          if (res.statusCode === 200 && res.tempFilePath) save(res.tempFilePath)
+          else { wx.hideLoading(); wx.showToast({ title: '保存失败，请重试', icon: 'none' }) }
+        },
+        fail: () => {
+          wx.hideLoading()
+          wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+        }
+      })
+    },
+
+    /**
+     * 点二维码 → 放大预览(WX 原生预览器) → 在预览页长按识别。
+     *
+     * image 组件的 show-menu-by-longpress 在真机上对第三方链接二维码经常不生效
+     * (社区实测: 开发者工具可以、真机不行), 而「预览态长按识别」是微信原生预览器
+     * 的能力, 与在聊天里长按图片识别是同一套逻辑 —— 本项目图鉴页也是这条路径。
+     */
+    onQrPreview() {
+      const url = this.data.qrSrc
+      if (!url) return
+      const open = (path) => {
+        wx.hideLoading()
+        wx.previewImage({
+          urls: [path],
+          current: path,
+          fail: () => wx.showToast({ title: '打开预览失败，请重试', icon: 'none' })
+        })
+      }
+      if (url.indexOf('data:') === 0) {
+        // base64 兜底: 预览器对 data URL 支持有限 → 先写成本地文件再预览
+        const b64 = url.split(',')[1] || ''
+        if (!b64) {
+          wx.showToast({ title: '二维码图片异常，请刷新', icon: 'none' })
+          return
+        }
+        wx.showLoading({ title: '打开预览…' })
+        wx.getFileSystemManager().writeFile({
+          filePath: `${wx.env.USER_DATA_PATH}/sso-qr-preview.png`,
+          data: b64,
+          encoding: 'base64',
+          success: () => open(`${wx.env.USER_DATA_PATH}/sso-qr-preview.png`),
+          fail: () => {
+            wx.hideLoading()
+            wx.showToast({ title: '打开预览失败，请重试', icon: 'none' })
+          }
+        })
+        return
+      }
+      wx.showLoading({ title: '打开预览…' })
+      wx.downloadFile({
+        url,
+        timeout: 20000,
+        success: (res) => {
+          if (res.statusCode === 200 && res.tempFilePath) open(res.tempFilePath)
+          else open(url)          // 下载失败也尝试直接用网络地址预览
+        },
+        fail: () => open(url)
+      })
     },
 
     /** 记住密码开关(状态持久化) */
@@ -562,7 +679,7 @@ Component({
 
     /** 拉取我的反馈; markRead=true 时把回复标记为已读(清小红点) */
     async _loadMyFeedback(markRead) {
-      if (!storage.isLoggedIn()) {
+      if (!storage.isLoggedIn() || !storage.get('token', '')) {
         this.setData({ myFeedback: [], fbUnread: 0, fbLoading: false })
         return
       }

@@ -98,7 +98,7 @@ Component({
 
     /** 加载评教批次（silent 为后台静默模式: 不显示 loading, 失败不弹提示） */
     async loadFromServer(silent) {
-      if (!storage.isLoggedIn()) return
+      if (!storage.isLoggedIn() || !storage.get('token', '')) return
       if (!silent) this.setData({ loading: true })
       try {
         const res = await api.getEvalBatches()
