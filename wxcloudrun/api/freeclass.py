@@ -94,7 +94,7 @@ def _service_free_classrooms(campus, weekday, jc1, jc2, week, semester, building
         for _attempt in range(2):
             if not _classroom_service_client.logged_in:
                 # 教务直连已下线: 服务账号改走智慧理工 SSO(含持久化会话复用)
-                ok = _classroom_service_client.login_webvpn(sid, pwd)
+                ok = _classroom_service_client.login_webvpn(sid, pwd, allow_resume=True)
                 if not ok:
                     return None, _classroom_service_client.last_error or "服务账号登录失败"
             res = _classroom_service_client.get_free_classrooms(
@@ -147,7 +147,7 @@ def _freeclass_resp(campus, weekday, jc1, jc2, week, semester, result, updated_a
 # 基本全部命中 120s 全局缓存, 教务请求降到每天十几次。
 # 开关: 环境变量 FREE_CLASSROOM_PREWARM=1(容器 envParams 已默认开启)
 # ============================================================
-# (本地时钟 HH:MM → 官方大节): 南京理工两校区上下课时刻(各校以教务为准,
+# (本地时钟 HH:MM → 官方大节): 两校区上下课时刻(各校以教务为准,
 # 此处取大节开始点); 支持环境变量 FREE_CLASSROOM_PREWARM_TIMES 覆盖,
 # 如 "08:00,10:10,14:00,16:10,19:00"(依次对应 5 个官方大节)
 def _build_refresh_plan():

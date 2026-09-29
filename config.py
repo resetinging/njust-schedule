@@ -1,7 +1,7 @@
 """
-南理工课表管理系统 — 集中配置
+课表助手 — 集中配置
 ==============================
-合并：微信云托管模板 MySQL 配置 + NJUST 教务系统配置
+合并：微信云托管模板 MySQL 配置 + 教务系统配置
 """
 import os
 
@@ -20,7 +20,7 @@ MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "root")
 MYSQL_ADDRESS = os.environ.get("MYSQL_ADDRESS", "127.0.0.1:3306")
 
 # ============================================================
-# 教务系统配置（南京理工大学 强智教务）
+# 教务系统配置（强智教务）
 # ============================================================
 JW_BASE_8080 = "http://202.119.81.113:8080"
 JW_BASE_9080 = "http://202.119.81.112:9080"
@@ -87,7 +87,7 @@ HTTP_HEADERS = {
 }
 
 # ============================================================
-# NJUST 大节定义
+# 大节定义
 # ============================================================
 BIG_PERIOD_MAP = {
     "第一": (1, 3),
@@ -111,8 +111,8 @@ SSO_LOGIN_URL = (
 # 上限与之对齐，避免无谓地重新认证；复用前仍会探测有效性，退出登录会主动删除。
 SSO_SESSION_SETTING_KEY = "jwc_session"
 SSO_SESSION_MAX_AGE = int(os.environ.get("SSO_SESSION_MAX_AGE", str(30 * 24 * 3600)))
-# 同一学号认证失败后的冷却秒数（冷却期内不再打智慧理工）
-SSO_LOGIN_COOLDOWN = int(os.environ.get("SSO_LOGIN_COOLDOWN", "60"))
+# 同一学号认证失败后的冷却秒数（冷却期内不再打智慧理工；只防连点，不长时间拦人）
+SSO_LOGIN_COOLDOWN = int(os.environ.get("SSO_LOGIN_COOLDOWN", "2"))
 # 验证码换图重试次数：一次用户登录最多产生 attempts 次密码提交
 SSO_CAPTCHA_RETRY = int(os.environ.get("SSO_CAPTCHA_RETRY", "1"))
 # 8080 表单登录（原「教务直连」）已于改版后失效，默认关闭；临时启用设 1

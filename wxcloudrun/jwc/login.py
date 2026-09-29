@@ -30,7 +30,7 @@ class LoginMixin:
 
     def _try_simple_login(self, student_id: str, password: str, captcha: str) -> bool:
         """
-        NJUST 真实登录：
+        教务真实登录：
         1. POST /Logon.do?method=logon（8080）
         2. 服务器返回 302 → 9080/LoginToXk?method=jwxt&secret=...
         3. 跟随重定向链完成认证
@@ -246,7 +246,12 @@ class LoginMixin:
             self._log(f"[SSO-Reuse] 持久化失败: {type(e).__name__}: {e}")
 
     def _try_resume_sso_session(self) -> bool:
-        """用持久化的 cookie 直接恢复教务会话; 成功则完全不提交密码。"""
+        """用持久化的 cookie 直接恢复教务会话; 成功则完全不提交密码。
+
+        注意: 登录入口(login_webvpn)已不再调用本方法——复用会掩盖用户提交的
+        错误密码(服务端还有会话时任意密码都会"登录成功")。保留它是为了将来在
+        "明确不需要验证密码"的静默恢复场景中复用。
+        """
         if not self.student_id:
             return False
         try:
@@ -277,7 +282,8 @@ class LoginMixin:
             return False
 
     def login_webvpn(self, student_id: str, password: str,
-                     jwc_password: str = "", use_webvpn: bool = False) -> bool:
+                     jwc_password: str = "", use_webvpn: bool = False,
+                     allow_resume: bool = False) -> bool:
         """通过智慧理工 SSO 登录 + 直连教务（可选 WebVPN 代理）
 
         流程：
@@ -290,6 +296,8 @@ class LoginMixin:
         password = 智慧理工密码; jwc_password = 教务密码(可与前者不同,
         未提供时回退为智慧理工密码)。SSO 用前者, 教务登录用后者。
         use_webvpn=True 时强制教务请求走 WebVPN 代理。
+        allow_resume=True 时允许复用持久化会话(仅供无人工密码输入的后台服务账号使用;
+        用户登录入口必须真实验证密码, 否则有会话时任意错误密码都会"登录成功")。
         """
         jwc_pwd = jwc_password or password
         self.student_id = student_id
@@ -307,8 +315,10 @@ class LoginMixin:
             return False
 
         try:
-            # Step 0: 复用持久化会话（不提交密码, 大幅减少智慧理工认证次数）
-            if self._try_resume_sso_session():
+            # Step 0: 后台服务账号可复用持久化会话(减少智慧理工认证次数);
+            # 用户登录入口必须真实验证密码——前置复用会让"服务端还有会话时,
+            # 输入任何错误密码都登录成功"。
+            if allow_resume and self._try_resume_sso_session():
                 return True
 
             left = self._session_store().cooldown_left(student_id)
@@ -555,7 +565,7 @@ class LoginMixin:
                 self._log(f"[SSO-Direct] [FAIL] {self.last_error}")
                 return False
 
-            # ★ NJUST 出错页(出错啦)不是登录成功: 未带 service 参数 POST 时会跳到这里
+            # ★ 教务出错页(出错啦)不是登录成功: 未带 service 参数 POST 时会跳到这里
             if "error.njust.edu.cn" in login_resp.url or "errorTips" in login_resp.url:
                 self.last_error = "智慧理工登录未被接受（被跳转到出错页，请稍后重试）"
                 self._log(f"[SSO-Direct] [FAIL] {self.last_error} url={login_resp.url[:80]}")

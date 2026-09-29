@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """智慧理工 SSO 会话复用 / 认证节流 验证脚本。
 
-验证目标(对应「减少智慧理工认证次数, 避免账号被冻结」):
+验证目标:
   1. 首次登录 → 正常做一次 SSO 认证, 并把会话 cookie 持久化;
-  2. 再次登录(即使密码填错) → 走持久化会话, 不再向智慧理工提交密码;
-  3. 认证失败后进入冷却期 → 冷却期内第二次请求被直接拦截, 不打服务器。
+  2. 再次登录(密码填错) → 必须真实验证并失败(复用会话不得掩盖错误密码);
+  2b. 后台服务账号(allow_resume=True) → 仍可复用持久化会话, 减少认证次数;
+  3. 认证失败后进入冷却期 → 短期内第二次请求被直接拦截, 不打服务器。
 
 用法:
     $env:NJUST_SID="924101960123"; $env:NJUST_SSO_PWD="<智慧理工密码>"
@@ -51,13 +52,22 @@ def main() -> int:
     print(f"         方式={c1.login_method!r} 错误={c1.last_error!r}")
 
     print("=" * 66)
-    print("[2] 二次登录(密码故意填错) → 必须命中持久化会话")
+    print("[2] 二次登录(密码故意填错) → 必须验证失败, 不能用会话掩盖")
     print("=" * 66)
     c2 = JWCClient()
     ok2 = c2.login_webvpn(SID, "definitely-not-the-password")
-    check("复用会话登录成功(未提交密码)", ok2, True)
-    check("登录方式为 sso-cached", c2.login_method, "sso-cached")
-    courses = c2.get_schedule() if ok2 else []
+    check("错误密码登录失败", ok2, False)
+    check("未标记为已登录", bool(c2.logged_in), False)
+    print(f"         提示: {c2.last_error!r}")
+
+    print("=" * 66)
+    print("[2b] 后台服务账号(allow_resume=True) → 仍可复用持久化会话")
+    print("=" * 66)
+    c2b = JWCClient()
+    ok2b = c2b.login_webvpn(SID, "unused-password", allow_resume=True)
+    check("复用会话登录成功(未提交密码)", ok2b, True)
+    check("登录方式为 sso-cached", c2b.login_method, "sso-cached")
+    courses = c2b.get_schedule() if ok2b else []
     print(f"         复用后取到课表 {len(courses)} 条")
     check("复用会话可直接取数据", len(courses) > 0, True)
 
@@ -69,8 +79,7 @@ def main() -> int:
     check("假账号首次登录失败", ok3, False)
     c4 = JWCClient()
     ok4 = c4.login_webvpn("90000000000", "bad-password")
-    check("冷却期内被拦截", ok4, False)
-    check("提示为防冻结文案", "冻结" in (c4.last_error or ""), True)
+    check("假账号再次登录仍失败", ok4, False)
     print(f"         提示: {c4.last_error!r}")
 
     print("=" * 66)
