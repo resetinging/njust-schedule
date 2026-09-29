@@ -51,16 +51,29 @@
       </view>
     </view>
 
-    <!-- 快捷操作(Vant cell) -->
-    <van-cell-group inset class="action-cells">
-      <van-cell title="空教室查询" is-link bind:click="onGoFreeClass" />
-      <van-cell title="校历 & 照片墙" is-link bind:click="onGoGallery" />
-      <van-cell title="常用链接" is-link bind:click="onOpenLinks" />
-      <van-cell title="问题反馈" is-link bind:click="onOpenFeedback" />
-      <van-cell title="我的反馈" is-link bind:click="onOpenMyFeedback"
-                value="{{fbUnread > 0 ? (fbUnread > 99 ? '99+' : fbUnread) : ''}}" />
-      <van-cell title="清除缓存数据" is-link bind:click="onClearData" />
-    </van-cell-group>
+    <!-- 快捷操作(自有实现, 不再依赖组件库) -->
+    <view class="act-card">
+      <view class="act-row" bindtap="onGoFreeClass">
+        <text class="act-title">空教室查询</text><text class="act-arrow">›</text>
+      </view>
+      <view class="act-row" bindtap="onGoGallery">
+        <text class="act-title">校历 &amp; 照片墙</text><text class="act-arrow">›</text>
+      </view>
+      <view class="act-row" bindtap="onOpenLinks">
+        <text class="act-title">常用链接</text><text class="act-arrow">›</text>
+      </view>
+      <view class="act-row" bindtap="onOpenFeedback">
+        <text class="act-title">问题反馈</text><text class="act-arrow">›</text>
+      </view>
+      <view class="act-row" bindtap="onOpenMyFeedback">
+        <text class="act-title">我的反馈</text>
+        <text class="act-badge" wx:if="{{fbUnread > 0}}">{{fbUnread > 99 ? '99+' : fbUnread}}</text>
+        <text class="act-arrow">›</text>
+      </view>
+      <view class="act-row" bindtap="onClearData">
+        <text class="act-title">清除缓存数据</text><text class="act-arrow">›</text>
+      </view>
+    </view>
 
     <!-- 校历设置 -->
     <view class="setting-card card">

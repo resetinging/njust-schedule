@@ -1,11 +1,45 @@
 /* 设置/登录页面样式 */
 
-/* ---- Vant cell: 圆角卡片 + 清透课堂配色 ---- */
-.action-cells { margin-bottom: 20rpx; }
-.action-cells .van-cell-group--inset { border-radius: var(--radius-card); }
-.action-cells .van-cell__title { color: var(--text-primary); }
-.action-cells .van-cell__right-icon { color: var(--text-hint); }
-.action-cells .van-cell__value { color: var(--signal); font-weight: 600; }
+/* ---- 快捷操作卡片(自有实现) ---- */
+.act-card {
+  margin: 20rpx 24rpx 0;
+  background: var(--bg-card);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.act-row {
+  display: flex;
+  align-items: center;
+  padding: 26rpx 24rpx;
+  border-bottom: 1rpx solid var(--line-soft);
+}
+
+.act-row:last-child { border-bottom: none; }
+.act-row:active { background: var(--bg-hover); }
+
+.act-title {
+  flex: 1;
+  font-size: 29rpx;
+  color: var(--text-primary);
+}
+
+.act-badge {
+  margin-right: 14rpx;
+  padding: 2rpx 14rpx;
+  border-radius: var(--radius-pill);
+  background: var(--signal);
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
+.act-arrow {
+  font-size: 32rpx;
+  color: var(--icon-faint);
+}
 
 /* 微信扫码登录 */
 .qr-entry {
