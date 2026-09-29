@@ -26,7 +26,7 @@ _start_freeclass_prewarm()
 # 启动摘要日志: 确认部署版本与关键配置(云托管控制台日志可见)
 logger = logging.getLogger("startup")
 logger.info("========================================")
-logger.info("NJUST 课表后端启动")
+logger.info("课表助手后端启动")
 logger.info("LOG_LEVEL=%s", os.environ.get("LOG_LEVEL", "INFO"))
 logger.info("JW_MAX_CONCURRENT=%s SESSION_TTL=%ss MAX_SESSIONS=%s",
             os.environ.get("JW_MAX_CONCURRENT", "4"),

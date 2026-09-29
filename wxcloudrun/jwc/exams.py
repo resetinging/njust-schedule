@@ -18,7 +18,7 @@ class ExamsMixin:
         result = self._exams_api(semester)
         if result:
             return result
-        # API 失败是预期的（NJUST 可能不支持），清除错误信息
+        # API 失败是预期的（教务可能不支持），清除错误信息
         self.last_error = ""
         return self._exams_html(semester)
 

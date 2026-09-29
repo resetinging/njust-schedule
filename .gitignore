@@ -54,6 +54,9 @@ debug_*.json
 # 本地验证工具(uv 与托管 Python)
 .uvbin/
 
+# VSCode 微信云托管插件生成的本地状态(实时开发用)
+.cloudbase/
+
 
 # 小程序分支 worktree(独立 git 仓库, 勿纳入 server 提交)
 .miniapp/
@@ -77,3 +80,7 @@ base.apk
 linshi
 AGENTS.md
 CLAUDE.md
+
+# 本地协作配置与审计草稿
+.claude/settings.local.json
+docs/gpa-audit.md

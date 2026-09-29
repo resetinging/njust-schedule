@@ -314,7 +314,7 @@ NON_GRADE_STATUS = ('缓考', '缺考', '免修', '作弊', '违纪', '取消', 
 
 
 def score_to_gp(score):
-    """等级制/百分制成绩 → 绩点(NJUST 4.0 量表); 非正式成绩返回 -1(不参与)"""
+    """等级制/百分制成绩 → 绩点(4.0 量表); 非正式成绩返回 -1(不参与)"""
     s = (score or "").strip()
     if s in LEVEL_MAP:
         return LEVEL_MAP[s]

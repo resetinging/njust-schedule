@@ -1,4 +1,4 @@
-/* 南理工课表管理 — Service Worker（PWA 离线支持）
+/* 课表助手 — Service Worker（PWA 离线支持）
  *
  * 策略：
  *  - /api/* 请求直连网络，绝不缓存（保证接口响应实时）

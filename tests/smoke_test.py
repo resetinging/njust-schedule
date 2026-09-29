@@ -54,8 +54,8 @@ check("/api/status", client.get("/api/status"), 200)
 check("/api/settings", client.get("/api/settings"), 200)
 check("/api/semesters", client.get("/api/semesters"), 200)
 check("/api/gallery-images", client.get("/api/gallery-images"), 200)
-check("/api/gallery-image?name=南京理工大学26-27年校历.png",
-      client.get("/api/gallery-image?name=南京理工大学26-27年校历.png"), 200)
+check("/api/gallery-image?name=26-27年校历.png",
+      client.get("/api/gallery-image?name=26-27年校历.png"), 200)
 check("/api/gallery-image 路径穿越防护",
       client.get("/api/gallery-image?name=..%2Fconfig.py"), 400)
 check("/api/connect-test", client.get("/api/connect-test"), 200)

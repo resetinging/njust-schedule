@@ -97,7 +97,7 @@ class ScheduleMixin:
             return None
 
     def _schedule_html(self, semester: str) -> list[dict]:
-        """NJUST 课表 HTML 解析 — 从主页链接获取正确的 Ves632DSdyV 参数
+        """课表 HTML 解析 — 从主页链接获取正确的 Ves632DSdyV 参数
 
         指定学期时优先通过页面学期下拉提交目标学期, 避免拿到
         教务默认学期的课表(不同学期内容相同的问题)。
@@ -384,7 +384,7 @@ class ScheduleMixin:
         logger.debug("[kbtable] 列映射: %s", day_map)
 
         # 大节 → 小节映射（从 th 文本提取）
-        # NJUST 大节 → 小节映射
+        # 大节 → 小节映射
         # 上午8:00起, 下午14:00起, 晚上19:00起
         # 大节内小节间隔5min, 大节间隔15min
         period_map = BIG_PERIOD_MAP

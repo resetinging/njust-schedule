@@ -1,4 +1,4 @@
-# 南理工课表 — 微信云托管 Dockerfile
+# 课表助手 — 微信云托管 Dockerfile
 # 基于官方模板框架，更换基础镜像以兼容 ddddocr（onnxruntime）
 FROM python:3.10-slim
 

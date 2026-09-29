@@ -1,6 +1,6 @@
 # 微信小程序上线流程
 
-> 本文档是「南理工课表管理系统」微信小程序（仓库：`C:\Users\a\Documents\local\miniprogram`）
+> 本文档是「课表助手」微信小程序（仓库：`C:\Users\a\Documents\local\miniprogram`）
 > 从开发到正式发布的完整操作指引。
 >
 > 配套后端仓库 `njust-schedule`（本仓库，部署于微信云托管）。

@@ -1,7 +1,7 @@
 """
-南京理工大学强智教务系统客户端
+强智教务系统客户端
 ===================================
-NJUST 教务路径前缀: /njlgdx/（不是 /jsxsd/）
+教务路径前缀: /njlgdx/（不是 /jsxsd/）
 登录: 8080/Logon.do → POST 9080/LoginToXk?method=jwxt
 """
 
@@ -27,7 +27,7 @@ class ClassroomBorrowError(Exception):
 
 class _DedupCookieJar(RequestsCookieJar):
     """自定义 CookieJar：遇到重复 cookie 时保留最后一个，不抛异常。
-    NJUST 教务系统会返回多个同名 JSESSIONID，导致默认 jar 崩溃。"""
+    教务系统会返回多个同名 JSESSIONID，导致默认 jar 崩溃。"""
     def _find_no_duplicates(self, name, domain=None, path=None):
         """完全重写：手动查找，自动去重，永不抛 CookieConflictError"""
         matches = []

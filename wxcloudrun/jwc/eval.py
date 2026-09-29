@@ -63,7 +63,7 @@ class EvalMixin:
             return []
 
     def is_session_valid(self, cache_ttl: float = 300.0) -> bool:
-        """检测 NJUST 教务 Session 是否仍然有效（轻量级检查）。
+        """检测 教务 Session 是否仍然有效（轻量级检查）。
 
         - 结果缓存: 明确结论缓存 5 分钟; 探测无结论(网络/网关异常)
           只缓存 60 秒, 尽快重试

@@ -126,7 +126,7 @@ class CoreMixin:
         # 只拦 SSO 域名, 不影响教务自身页面(含 Logon.do 的原有判断顺序保持不变)
         if "authserver" in url_str or "ids.njust.edu.cn" in url_str:
             return False
-        # NJUST 统一出错页(e.g. error.njust.edu.cn/errorpage/errorTips500.html,
+        # 教务统一出错页(e.g. error.njust.edu.cn/errorpage/errorTips500.html,
         # 标题"出错啦")同样不是教务已登录 —— 实测会被下面的关键词/URL 兜底误判为成功
         if "error.njust.edu.cn" in url_str or "errorTips" in url_str or "出错啦" in t:
             return False

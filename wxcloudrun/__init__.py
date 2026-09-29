@@ -1,7 +1,7 @@
 """
 微信云托管 Flask 应用初始化
 ===========================
-SQLAlchemy + MySQL + NJUST 路由
+SQLAlchemy + MySQL + 教务路由
 """
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -157,7 +157,7 @@ if not config.DEBUG:
         return resp
 
 
-# 加载 NJUST 路由（必须在 db 初始化之后导入，避免循环引用）
+# 加载 教务路由（必须在 db 初始化之后导入，避免循环引用）
 from wxcloudrun import views  # noqa: E402, F401
 # 管理控制面板路由(依赖 views 的会话池, 函数内延迟访问)
 from wxcloudrun import admin  # noqa: E402, F401

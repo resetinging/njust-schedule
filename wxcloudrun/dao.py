@@ -1,7 +1,7 @@
 """
 数据访问层 — SQLAlchemy ORM
 ===========================
-NJUST 课表/考试/评教/设置/成绩/四六级
+课表助手/考试/评教/设置/成绩/四六级
 多用户：业务数据（课表/考试/评教/成绩/四六级）全部按 student_id 隔离，
 学期等用户级设置以 "{student_id}:{key}" 前缀存储。
 """
@@ -13,7 +13,7 @@ from wxcloudrun.model import (Course, Exam, Evaluation, Setting, Grade, CetScore
 
 
 # ============================================================
-# NJUST — 设置（全局 + 用户级）
+# 课表助手 — 设置（全局 + 用户级）
 # ============================================================
 def get_setting(key: str, default: str = "") -> str:
     row = Setting.query.filter(Setting.k == key).first()
@@ -40,7 +40,7 @@ def set_user_setting(student_id: str, key: str, value: str):
 
 
 # ============================================================
-# NJUST — 课表（按用户隔离）
+# 课表助手 — 课表（按用户隔离）
 # ============================================================
 def save_courses(courses: list, semester: str, student_id: str = ""):
     Course.query.filter(
@@ -82,7 +82,7 @@ def count_courses(semester: str, student_id: str = "") -> int:
 
 
 # ============================================================
-# NJUST — 考试（按用户隔离）
+# 课表助手 — 考试（按用户隔离）
 # ============================================================
 def save_exams(exams: list, semester: str, student_id: str = ""):
     Exam.query.filter(
@@ -119,7 +119,7 @@ def count_exams(semester: str, student_id: str = "") -> int:
 
 
 # ============================================================
-# NJUST — 评教（按用户隔离）
+# 课表助手 — 评教（按用户隔离）
 # ============================================================
 def save_evaluations(evaluations: list, semester: str, student_id: str = ""):
     """全量保存评教批次（评教是待办事项, 与学期切换无关:
@@ -175,7 +175,7 @@ def get_evaluations(semester: str, student_id: str = "") -> list:
 
 
 # ============================================================
-# NJUST — 清除（按用户隔离）
+# 课表助手 — 清除（按用户隔离）
 # ============================================================
 def clear_data(semester: str, student_id: str = ""):
     Course.query.filter(
@@ -190,7 +190,7 @@ def clear_data(semester: str, student_id: str = ""):
 
 
 # ============================================================
-# NJUST — 成绩（按用户隔离）
+# 课表助手 — 成绩（按用户隔离）
 # ============================================================
 def save_grades(grades: list, academic_year: str, semester: str, student_id: str = ""):
     """保存某学期成绩（先删后插）"""
@@ -246,7 +246,7 @@ def get_grade_semesters(student_id: str = "") -> list:
 
 
 # ============================================================
-# NJUST — 四六级（按用户隔离）
+# 课表助手 — 四六级（按用户隔离）
 # ============================================================
 def save_cet_scores(scores: list, student_id: str = ""):
     """全量替换当前用户的四六级成绩"""

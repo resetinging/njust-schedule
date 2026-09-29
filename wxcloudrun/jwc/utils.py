@@ -13,7 +13,7 @@ class UtilsMixin:
     def _current_semester(self) -> str:
         """计算当前学期（强制使用北京时间，不依赖容器系统时区）
 
-        NJUST 秋季学期 8 月下旬开学: 8 月 20 日起视为秋季学期,
+        秋季学期 8 月下旬开学: 8 月 20 日起视为秋季学期,
         否则按传统 9 月/2 月边界。
         """
         import datetime as _dt
