@@ -32,8 +32,9 @@ function request(method, path, data = {}, opts) {
   const isLoginPath = /\/api\/(login|logout|sso-qr|get-webvpn-captcha|get-captcha)/.test(path)
   let attempt = 0   // 401 自动重登只尝试一次, 避免循环
 
-  // 离线模式: 会话失效后保留本地缓存只读展示, 不再打网络(登录类接口除外)
-  if (!isLoginPath && storage.isOffline()) {
+  // 离线模式: 会话失效后保留本地缓存只读展示, 不再打网络(登录类接口除外);
+  // 用户手动刷新(opts.force)时跳过节流, 直接重试网络 → 触发 401 自动重登
+  if (!isLoginPath && storage.isOffline() && !(opts && opts.force)) {
     return Promise.resolve({
       success: false, offline: true, message: '离线模式：显示本地缓存'
     })
@@ -164,7 +165,8 @@ function clearSessionAndToast() {
   if (storage.get(TOKEN_KEY, '')) {
     // 只失效登录凭证, 保留本地缓存数据 → 切离线模式继续展示已保存数据
     storage.remove(TOKEN_KEY)
-    storage.remove('saved_password')
+    // 保留 saved_password: 之前这里把记忆的密码一起删了, 后端会话失效(如重启/部署)
+    // 后就再也无法自动重登, 只能卡在离线模式(用户表现为"刷新取不到数据")
     storage.setOffline(true)
     wx.showToast({
       title: '登录已过期，已切换离线模式(显示本地缓存)',

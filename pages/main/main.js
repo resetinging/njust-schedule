@@ -205,6 +205,20 @@ Page({
     this.setData({ sub: '' })
   },
 
+  /**
+   * 供其他页面调用: 切到"功能"页并直接打开某个二级视图(如成绩)。
+   * 之前设置页里"查看成绩"走的是 onTabTap(3), 而底栏重构后只有 0~2,
+   * 会把 current 设成不存在的项 → 所有视图都被隐藏, 表现为"跳转没反应/白屏"。
+   */
+  goFeature(sub) {
+    const VIEW_OF = { exams: 1, eval: 2, grades: 3 }
+    const visited = this.data.visited.slice()
+    if (VIEW_OF[sub] !== undefined) visited[VIEW_OF[sub]] = true
+    this.setData({ current: 0, sub: sub || '', visited })
+    this._route()
+    this._syncTabBar()
+  },
+
   /** 功能页: 跳转独立页面(空教室 / 校历照片墙) */
   onOpenNavPage(e) {
     const url = e.currentTarget.dataset.url

@@ -489,12 +489,16 @@ Component({
       const listDayGroups = this._buildListGroups(filtered)
 
       this.setData({ filteredCourses: filtered, currentWeek: w, listDayGroups, weekRange })
-      // 像素字体按需子集: 把课程文本交给后端生成子集(字符没变时内部直接返回, 不重复请求)
+      // 像素字体按需子集: 延后 2.5s 再发, 避免和用户刚点的"刷新数据"抢带宽/线程
+      // (字符没变时内部直接返回, 不重复请求)
       try {
         const text = (this.data.courses || [])
           .map((c) => `${c.name || ''}${c.teacher || ''}${c.classroom || ''}`)
           .join('')
-        if (text) font.loadForText(text)
+        if (text) {
+          if (this._fontTimer) clearTimeout(this._fontTimer)
+          this._fontTimer = setTimeout(() => font.loadForText(text), 2500)
+        }
       } catch (e) { /* 字体只是观感, 失败不影响功能 */ }
     },
 

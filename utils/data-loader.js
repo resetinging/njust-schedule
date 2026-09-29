@@ -115,7 +115,14 @@ async function _queryAll() {
  * @returns {Promise<number>} 最终成功载入的数据项数
  */
 async function fetchAllData() {
-  if (!storage.get('token', '')) return 0
+  if (!storage.get('token', '')) {
+    // 后端会话可能在重启/部署后失效(本地凭证已被清), 此时直接 return 会让
+    // "刷新数据"毫无反应。这里先解除离线态, 有记忆密码就静默重登一次再继续。
+    if (storage.isOffline()) storage.setOffline(false)
+    if (!storage.get('saved_password', '')) return 0
+    try { await api.getStatus() } catch (e) { /* 交给下面的请求再次触发重登 */ }
+    if (!storage.get('token', '')) return 0
+  }
   // 研究生账号: 只有课表 + 成绩两个数据源, 各拉一次写缓存(之后靠本地渲染)
   if (storage.get('account_type', '') === 'graduate') {
     let ok = 0

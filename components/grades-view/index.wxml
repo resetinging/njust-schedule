@@ -13,7 +13,9 @@
             <text class="hero-gpa">{{yjsTotal.earned || 0}}</text>
             <text class="hero-label">已修学分 · 要求 {{yjsTotal.required || '-'}} · 培养计划 {{yjsTotal.planned || '-'}}</text>
           </view>
-          <text class="hero-refresh" bindtap="onRefreshYjsGrades">{{refreshing ? '⏳' : '🔄'}}</text>
+          <view class="hero-refresh {{refreshing ? 'spin' : ''}}" bindtap="onRefreshYjsGrades">
+            <icon name="refresh" size="34" color="#2563EB" />
+          </view>
         </view>
       </view>
 
@@ -52,7 +54,9 @@
             <text class="hero-gpa {{stats.gpaClass}}">{{stats.gpa}}</text>
             <text class="hero-label">{{stats.mode === 'baoyan' ? '加权平均绩点（保研 · CET折算）' : '加权平均绩点（计内）'}} · {{stats.count}} 门</text>
           </view>
-          <text class="hero-refresh" bindtap="onRefreshGrades" disabled="{{refreshing}}">{{refreshing ? '⏳' : '🔄'}}</text>
+          <view class="hero-refresh {{refreshing ? 'spin' : ''}}" bindtap="onRefreshGrades">
+            <icon name="refresh" size="34" color="#2563EB" />
+          </view>
         </view>
 
         <!-- 绩点算法切换 -->

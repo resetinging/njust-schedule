@@ -31,7 +31,7 @@
             </view>
             <text class="feat-arrow">›</text>
           </view>
-          <view class="feat-row" wx:if="{{!isGraduate}}" data-sub="eval" bindtap="onOpenFeature">
+          <view class="feat-row" data-sub="eval" bindtap="onOpenFeature">
             <view class="feat-ico"><icon name="clipboard" size="34" color="#2563EB" /></view>
             <view class="feat-main">
               <text class="feat-name">教学评价</text>

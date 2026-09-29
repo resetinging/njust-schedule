@@ -549,9 +549,11 @@ Component({
     onGoGrades() {
       const pages = getCurrentPages()
       const page = pages[pages.length - 1]
-      // 旧版独立成绩页已删除, 只能由 main 的 swiper 承载; 兜底回到 main
-      if (page && typeof page.onTabTap === 'function') {
-        page.onTabTap(3)
+      // 成绩已移入"功能"页: 切到功能页并直接打开成绩二级视图
+      if (page && typeof page.goFeature === 'function') {
+        page.goFeature('grades')
+      } else if (page && typeof page.onTabTap === 'function') {
+        page.onTabTap(0)
       } else {
         wx.reLaunch({ url: '/pages/main/main' })
       }
