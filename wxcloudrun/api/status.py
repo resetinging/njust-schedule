@@ -37,7 +37,11 @@ def api_status():
     has_courses = False
     has_exams = False
     if logged_in and semester:
-        has_courses, has_exams = _get_data_stats(student_id, semester)
+        if getattr(client, "account_type", "") == "graduate":
+            # 研究生课表实时来自研究生系统(不走本地缓存统计)
+            has_courses = True
+        else:
+            has_courses, has_exams = _get_data_stats(student_id, semester)
 
     # 教务连通性(桌面端导航栏/设置页依赖, 30 秒缓存)
     try:
@@ -68,6 +72,7 @@ def api_status():
         "has_courses": has_courses,
         "has_exams": has_exams,
         "login_method": client.login_method if logged_in else "",
+        "account_type": getattr(client, "account_type", "undergraduate"),
         "auto_login_attempted": False,
         "auto_login_error": "",
         "server_time": _beijing_now(),

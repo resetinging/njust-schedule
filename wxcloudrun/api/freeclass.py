@@ -397,6 +397,13 @@ def api_free_classrooms():
             return jsonify({"success": False,
                             "message": "教室数据暂时获取失败，请稍后重试"}), 502
         # 服务账号不可用 → 回退到当前用户自己的教务会话(兼容兜底)
+        # 研究生账号(YJSClient)没有教务会话, 无法回退: 直接返回服务端错误
+        if not hasattr(client, "get_free_classrooms"):
+            app.logger.warning(
+                "[freeclass] rid=%s 服务账号不可用(%s)且当前为研究生会话, 无法回退",
+                _rid(), svc_err)
+            return jsonify({"success": False,
+                            "message": "教室数据暂时获取失败，请稍后重试"}), 502
         app.logger.warning("[freeclass] rid=%s 服务账号失败(%s), 回退用户会话 sid=%s",
                            _rid(), svc_err, sid)
         with _jwc_request(client):

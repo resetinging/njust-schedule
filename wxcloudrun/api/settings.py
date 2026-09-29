@@ -61,6 +61,12 @@ def api_settings():
 @settings_bp.route('/api/semesters')
 def api_get_semesters():
     """获取可用学期列表"""
+    client = _get_session_client()
+    if client is not None and getattr(client, "account_type", "") == "graduate":
+        data = client.fetch_courses()
+        sems = data.get("semesters") or []
+        return jsonify({"success": True, "semesters": sems,
+                        "current": sems[0] if sems else ""})
     try:
         semesters = jwc_client.get_semester_list()
         current = _current_semester()

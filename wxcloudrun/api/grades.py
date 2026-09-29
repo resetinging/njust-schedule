@@ -23,6 +23,38 @@ def _current_semester() -> str:
     return _impl()
 
 
+@grades_bp.route('/api/yjs/grades')
+def api_get_yjs_grades():
+    """研究生成绩: 学分进度统计 + 成绩明细(不做绩点计算)。
+
+    研究生系统的成绩表列头是数据绑定渲染的(无成绩时不出现),
+    因此这里原样返回行数据, 由前端按表格展示; 有成绩后再按列精修。
+    """
+    client, err = _require_login()
+    if err:
+        return err
+    if getattr(client, "account_type", "") != "graduate":
+        return jsonify({"success": False, "message": "该接口仅研究生账号可用"}), 400
+    sid = client.student_id or ""
+    cache_key = f"{sid}:yjs:grades"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+    data = client.fetch_grades()
+    if not client.logged_in:
+        return jsonify({"success": False,
+                        "message": client.last_error or "研究生系统会话已失效"}), 401
+    resp = {
+        "success": True,
+        "account_type": "graduate",
+        "stats": data.get("stats") or [],
+        "rows": data.get("rows") or [],
+        "semesters": data.get("semesters") or [],
+    }
+    _cache_set(cache_key, resp)
+    return jsonify(resp)
+
+
 @grades_bp.route('/api/grades')
 def api_get_grades():
     """返回当前用户已存储的成绩原始数据(方案 A: GPA 等业务计算已移至前端)

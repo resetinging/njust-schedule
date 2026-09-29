@@ -27,6 +27,19 @@ def api_refresh_schedule():
     if err:
         return err
     sid = client.student_id or ""
+    # 研究生账户: 重新抓取研究生课表并覆盖缓存
+    if getattr(client, "account_type", "") == "graduate":
+        data = client.fetch_courses()
+        if not client.logged_in:
+            return jsonify({"success": False,
+                            "message": client.last_error or "研究生系统会话已失效"}), 401
+        courses = data.get("courses") or []
+        semester = (data.get("semesters") or [""])[0]
+        _cache_set(f"{sid}:yjs:courses", {
+            "success": True, "semester": semester, "count": len(courses),
+            "courses": courses, "account_type": "graduate"})
+        return jsonify({"success": True, "count": len(courses),
+                        "semester": semester})
     semester = dao.get_user_setting(sid, "semester") or _current_semester()
     with _jwc_request(client):
         courses, retry_err = _retry_with_relogin(
@@ -147,6 +160,26 @@ def api_get_courses():
     if err:
         return err
     sid = client.student_id or ""
+    # 研究生账户: 课表来自研究生综合管理信息系统(字段已转成与教务一致)
+    if getattr(client, "account_type", "") == "graduate":
+        cache_key = f"{sid}:yjs:courses"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return jsonify(cached)
+        data = client.fetch_courses()
+        if not client.logged_in:
+            return jsonify({"success": False,
+                            "message": client.last_error or "研究生系统会话已失效"}), 401
+        courses = data.get("courses") or []
+        resp = {
+            "success": True,
+            "semester": (data.get("semesters") or [""])[0],
+            "count": len(courses),
+            "courses": courses,
+            "account_type": "graduate",
+        }
+        _cache_set(cache_key, resp)
+        return jsonify(resp)
     semester = (request.args.get("semester") or "").strip() or \
         dao.get_user_setting(sid, "semester") or _current_semester()
     cache_key = f"{sid}:courses:{semester}"
@@ -164,12 +197,61 @@ def api_get_courses():
     return jsonify(resp)
 
 
+@schedule_bp.route('/api/yjs/exams')
+def api_get_yjs_exams():
+    """研究生考试信息: 表格行原样返回(与成绩页同一处理方式)。"""
+    client, err = _require_login()
+    if err:
+        return err
+    if getattr(client, "account_type", "") != "graduate":
+        return jsonify({"success": False, "message": "该接口仅研究生账号可用"}), 400
+    sid = client.student_id or ""
+    cache_key = f"{sid}:yjs:exams"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+    data = client.fetch_exams()
+    if not client.logged_in:
+        return jsonify({"success": False,
+                        "message": client.last_error or "研究生系统会话已失效"}), 401
+    rows = data.get("rows") or []
+    resp = {
+        "success": True,
+        "account_type": "graduate",
+        "semester": (data.get("semesters") or [""])[0],
+        "count": len(rows),
+        "rows": rows,
+    }
+    _cache_set(cache_key, resp)
+    return jsonify(resp)
+
+
 @schedule_bp.route('/api/exams')
 def api_get_exams():
     client, err = _require_login()
     if err:
         return err
     sid = client.student_id or ""
+    # 研究生账户: 考试信息来自研究生系统「学期考试信息查询」(表格行原样返回)
+    if getattr(client, "account_type", "") == "graduate":
+        cache_key = f"{sid}:yjs:exams"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return jsonify(cached)
+        data = client.fetch_exams()
+        if not client.logged_in:
+            return jsonify({"success": False,
+                            "message": client.last_error or "研究生系统会话已失效"}), 401
+        rows = data.get("rows") or []
+        resp = {
+            "success": True,
+            "semester": (data.get("semesters") or [""])[0],
+            "count": len(rows),
+            "rows": rows,
+            "account_type": "graduate",
+        }
+        _cache_set(cache_key, resp)
+        return jsonify(resp)
     semester = (request.args.get("semester") or "").strip() or \
         dao.get_user_setting(sid, "semester") or _current_semester()
     cache_key = f"{sid}:exams:{semester}"
@@ -191,6 +273,3 @@ def api_get_exams():
 # 空教室路由已拆到 wxcloudrun/api/freeclass.py (Phase 1b)
 # 显式 re-export, 保持 views.<name> 旧引用(测试/探针)可用
 # ============================================================
-
-
-

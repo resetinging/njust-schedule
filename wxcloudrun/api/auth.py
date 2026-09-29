@@ -50,6 +50,8 @@ def _on_login_success(client: JWCClient, token: str):
         "student_name": client.student_name or sid,
         "semester": semester,
         "login_method": client.login_method,
+        # 研究生/本科分流: 前端可据此切换课表展示(数据结构一致, 一般无需区分)
+        "account_type": getattr(client, "account_type", "undergraduate"),
         "token": token,
     })
 
@@ -138,6 +140,20 @@ def api_login_webvpn():
     if not student_id or not password:
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
 
+    # 学号 1 开头 = 研究生账户: 走研究生综合管理信息系统(与教务是两套系统)
+    if student_id.startswith("1"):
+        from wxcloudrun.yjs_client import YJSClient
+        g_client = YJSClient()
+        # 先试持久化会话(免认证), 失败再走完整登录
+        if not g_client.try_resume(student_id) \
+                and not g_client.login(student_id, password):
+            return jsonify({
+                "success": False,
+                "message": g_client.last_error or "研究生系统登录失败",
+            }), 401
+        g_client.persist_session()
+        token = _register_session(g_client)
+        return _on_login_success(g_client, token)
 
     client = JWCClient()
     with _jwc_request_priority(client):
