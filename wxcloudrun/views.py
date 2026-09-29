@@ -15,7 +15,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from io import BytesIO
 from typing import Optional, Tuple
-from flask import render_template, request, jsonify, Response, g, send_file
+from flask import render_template, request, jsonify, Response, g, send_file, redirect
 from bs4 import BeautifulSoup
 
 from wxcloudrun import app
@@ -112,7 +112,8 @@ def _warm_eval_session(client: JWCClient):
 # ============================================================
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # 公开网页端已下线: 根路径直接进管理控制面板(管理员登录后使用)
+    return redirect('/admin')
 
 
 # ============================================================
@@ -201,34 +202,6 @@ def font_subset():
     resp = jsonify({'format': 'woff', 'encoding': 'base64', 'chars': len(chars), 'data': data})
     resp.headers['Access-Control-Allow-Origin'] = '*'
     return resp
-    # 公开网页端已下线: 根路径进入管理控制面板(管理员登录后使用)
-    return render_template('admin.html')
-
-
-@app.route('/exams')
-def exams_page():
-    # 公开页面已下线: 统一进入管理控制面板
-    return render_template('admin.html')
-
-
-@app.route('/evaluations')
-def evaluations_page():
-    return render_template('admin.html')
-
-
-@app.route('/grades')
-def grades_page():
-    return render_template('admin.html')
-
-
-@app.route('/settings')
-def settings_page():
-    return render_template('admin.html')
-
-
-@app.route('/gallery')
-def gallery_page():
-    return render_template('admin.html')
 
 
 from wxcloudrun.api.proxy import proxy_bp  # noqa: E402

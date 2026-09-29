@@ -46,8 +46,10 @@ def check(name, resp, expect_status):
 
 
 print("== 页面路由 ==")
-for path in ["/", "/exams", "/evaluations", "/grades", "/settings", "/gallery"]:
-    check(path, client.get(path), 200)
+# 公开网页端已下线: 根路径 302 跳管理面板, 旧的五个页面路由已删除
+check("/ -> /admin", client.get("/"), 302)
+for path in ["/exams", "/evaluations", "/grades", "/settings", "/gallery"]:
+    check(path + " 已下线", client.get(path), 404)
 
 print("== 公开 API (未登录) ==")
 check("/api/status", client.get("/api/status"), 200)
