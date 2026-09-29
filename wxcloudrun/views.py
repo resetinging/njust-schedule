@@ -4,6 +4,7 @@
 包含：页面路由 + 全量 API（多用户）+ 评教网关
 """
 import base64
+import hashlib
 import os
 import re
 import secrets
@@ -12,8 +13,9 @@ import time
 import uuid
 from collections import defaultdict
 from contextlib import contextmanager
+from io import BytesIO
 from typing import Optional, Tuple
-from flask import render_template, request, jsonify, Response, g
+from flask import render_template, request, jsonify, Response, g, send_file
 from bs4 import BeautifulSoup
 
 from wxcloudrun import app
@@ -110,6 +112,95 @@ def _warm_eval_session(client: JWCClient):
 # ============================================================
 @app.route('/')
 def index():
+    return render_template('index.html')
+
+
+# ============================================================
+# 像素字体: 前端按需拉取(冷僻字兜底), 微信会按 Cache-Control 缓存
+# ============================================================
+FONT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'fonts', 'pixel.woff2')
+
+# base64 结果进程内缓存: 字体是静态文件, 没必要每次请求都读盘+编码(966KB→1.29MB)
+_FONT_B64_CACHE = None
+
+
+def _font_b64() -> str:
+    global _FONT_B64_CACHE
+    if _FONT_B64_CACHE is None:
+        with open(FONT_FILE, 'rb') as f:
+            _FONT_B64_CACHE = base64.b64encode(f.read()).decode('ascii')
+    return _FONT_B64_CACHE
+
+
+@app.route('/api/font/pixel')
+def font_pixel():
+    if not os.path.exists(FONT_FILE):
+        return jsonify({'error': 'font not found'}), 404
+    resp = send_file(FONT_FILE, mimetype='font/woff2', conditional=True)
+    resp.headers['Cache-Control'] = 'public, max-age=604800'
+    # 渲染层(WebView)拉字体是跨域请求, 必须显式放行, 否则报 CORS
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
+
+@app.route('/api/font/pixel.json')
+def font_pixel_json():
+    """备用通道: 云托管 callContainer 只能收 JSON, 这里给 base64。
+    仅当前端直连字体 URL 失败(域名未加白名单等)时才走这条路。"""
+    if not os.path.exists(FONT_FILE):
+        return jsonify({'error': 'font not found'}), 404
+    resp = jsonify({'format': 'woff2', 'encoding': 'base64', 'data': _font_b64()})
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
+
+# 按需子集: 字体里大部分字用不到, 只把"该用户课程文本"涉及的字发给前端,
+# 体积从 966KB 降到几十 KB, 也不用配 downloadFile 白名单(callContainer 能直接收 JSON)。
+_SUBSET_CACHE = {}
+_SUBSET_CACHE_MAX = 40
+
+
+def _subset_font_b64(chars: str) -> str:
+    key = hashlib.md5(chars.encode('utf-8')).hexdigest()
+    cached = _SUBSET_CACHE.get(key)
+    if cached:
+        return cached
+    from fontTools import subset as ft_subset
+    from fontTools.ttLib import TTFont
+
+    font = TTFont(FONT_FILE)          # woff2 读取依赖 brotli(见 requirements.txt)
+    opts = ft_subset.Options()
+    opts.flavor = 'woff'
+    opts.layout_features = ['*']
+    subsetter = ft_subset.Subsetter(options=opts)
+    subsetter.populate(text=chars)
+    subsetter.subset(font)
+    buf = BytesIO()
+    font.save(buf)
+    b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+    if len(_SUBSET_CACHE) >= _SUBSET_CACHE_MAX:
+        _SUBSET_CACHE.clear()
+    _SUBSET_CACHE[key] = b64
+    return b64
+
+
+@app.route('/api/font/subset', methods=['POST'])
+def font_subset():
+    """body: {text: "该用户课程名/教师/教室拼接"} → 子集字体(base64)"""
+    if not os.path.exists(FONT_FILE):
+        return jsonify({'error': 'font not found'}), 404
+    payload = request.get_json(silent=True) or {}
+    text = payload.get('text') or ''
+    if not isinstance(text, str) or not text.strip():
+        return jsonify({'error': 'no text'}), 400
+    chars = ''.join(sorted(set(text)))[:3000]
+    try:
+        data = _subset_font_b64(chars)
+    except Exception as exc:                      # 字体缺失/依赖缺失都不能影响接口可用性
+        return jsonify({'error': f'subset failed: {exc}'}), 500
+    resp = jsonify({'format': 'woff', 'encoding': 'base64', 'chars': len(chars), 'data': data})
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
     # 公开网页端已下线: 根路径进入管理控制面板(管理员登录后使用)
     return render_template('admin.html')
 
