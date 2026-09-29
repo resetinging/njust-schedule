@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>课表助手 · 登录与功能演示</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:30px 24px 60px;background:#EFEEF5;color:#2B2B33;
+ font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif}
+h1{font-size:23px;margin:0 0 6px}
+.sub{color:#6B6B78;font-size:13px;margin-bottom:20px}
+.steps{background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:26px;font-size:13.5px;color:#4A4A56;line-height:1.85}
+.steps b{color:#7C6BE8}
+.flow{display:flex;flex-wrap:wrap;gap:22px}
+.item{width:375px}
+.cap{font-size:14px;font-weight:600;margin:0 0 8px 2px;color:#3A3A46}
+.cap span{font-weight:400;color:#8A8A96;font-size:12.5px}
+.phone{position:relative;width:375px;height:812px;background:#F7F6FB;border-radius:26px;overflow:hidden;
+ box-shadow:0 10px 30px rgba(60,50,120,.18);display:flex;flex-direction:column}
+.nav{height:88px;background:linear-gradient(135deg,#8B7BF0,#7C6BE8);color:#fff;flex:0 0 auto;
+ display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px;font-size:17px;font-weight:600;position:relative}
+.nav .dots{position:absolute;right:16px;bottom:14px;width:76px;height:30px;border-radius:15px;background:rgba(255,255,255,.22);
+ font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:2px}
+.nav .back{position:absolute;left:14px;bottom:12px;font-size:24px;line-height:1;opacity:.95}
+.body{flex:1;overflow:hidden;padding:14px 12px}
+.tabbar{height:58px;background:#fff;display:flex;align-items:center;justify-content:space-around;flex:0 0 auto}
+.tabbar > div{display:flex;flex-direction:column;align-items:center}
+.tabbar .ico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+ font-size:22px;filter:grayscale(100%) opacity(.55);transform:scale(.92)}
+.tabbar .on .ico{background:#EFEBFC;filter:none;transform:scale(1.08)}
+.tabbar .dot{width:4px;height:4px;border-radius:50%;background:transparent;margin-top:2px}
+.tabbar .on .dot{background:#7C6BE8}
+.card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 5px rgba(0,0,0,.04)}
+.shot{width:375px;height:812px;object-fit:cover;border-radius:26px;box-shadow:0 10px 30px rgba(60,50,120,.18);display:block}
+/* 公告 / 登录 */
+.announce{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.announce .head{display:flex;align-items:center;gap:6px;font-size:13px;color:#3A3A46}
+.announce .new{background:#7C6BE8;color:#fff;font-size:10px;border-radius:6px;padding:1px 5px}
+.announce .more{margin-left:auto;color:#7C6BE8;font-size:12px}
+.announce .txt{font-size:12.5px;color:#6B6B78;line-height:1.7;margin-top:6px}
+.announce .txt.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.login-title{font-size:18px;font-weight:600;text-align:center;margin:2px 0 4px}
+.login-sub{font-size:12px;color:#9A9AA6;text-align:center;margin-bottom:14px}
+.field{margin-bottom:12px}
+.field label{font-size:12.5px;color:#5A5A66;display:block;margin-bottom:6px}
+.inp{height:40px;border:1px solid #E4E2EE;border-radius:8px;background:#FAFAFA;display:flex;align-items:center;padding:0 12px;font-size:14px}
+.inp .eye{margin-left:auto;color:#8A8A96}
+.remember{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5A5A66;margin:4px 0 12px}
+.switch{width:34px;height:20px;border-radius:10px;background:#7C6BE8;position:relative}
+.switch:after{content:"";position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.btn{height:42px;border-radius:8px;background:#7C6BE8;color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center}
+.btn.sm{height:36px;font-size:13px}
+.link{text-align:center;color:#7C6BE8;font-size:13.5px;margin-top:14px}
+.tip{text-align:center;color:#9A9AA6;font-size:12px;margin-top:12px}
+.version{text-align:center;color:#BFBFC9;font-size:11px;margin-top:14px}
+/* 扫码面板 */
+.qr-box{background:#fff;border:1px solid #E4E2EE;border-radius:12px;padding:10px;width:268px;margin:0 auto 10px}
+.qr-box img{width:246px;height:246px;display:block}
+.qr-state{text-align:center;font-size:12.5px;color:#8A8A96;margin-bottom:12px}
+.qr-note{text-align:center;font-size:11.5px;color:#9A9AA6;margin-top:8px}
+.qr-links{display:flex;justify-content:space-around;margin-top:12px;font-size:13px;color:#7C6BE8}
+/* page-hero（考试/评教顶部紫卡） */
+.hero{background:linear-gradient(135deg,#8B7BF0,#7C6BE8);color:#fff;border-radius:14px;padding:14px 16px;
+ display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.hero .t{font-size:16px;font-weight:600;display:block}
+.hero .s{font-size:12px;opacity:.9}
+/* 考试 */
+.cd-row{display:flex;gap:8px;margin-bottom:12px}
+.cd-card{background:#fff;border-radius:12px;padding:10px;min-width:104px;text-align:center;box-shadow:0 1px 5px rgba(0,0,0,.04)}
+.cd-num{font-size:19px;font-weight:700;color:#7C6BE8}
+.cd-lb{font-size:10.5px;color:#9A9AA6}
+.cd-course{font-size:12.5px;font-weight:600;margin-top:4px}
+.cd-date{font-size:10.5px;color:#9A9AA6}
+.date-hd{display:flex;justify-content:space-between;font-size:12px;color:#8A8A96;padding:8px 4px 6px}
+.date-hd .tag{color:#E5484D}
+.exam-card{background:#fff;border-radius:12px;padding:12px;margin-bottom:8px}
+.exam-course{font-size:14px;font-weight:600}
+.exam-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:11.5px;color:#8A8A96;margin-top:6px}
+/* 评教 */
+.summary-bar{display:flex;justify-content:space-between;font-size:12.5px;color:#7C6BE8;margin-bottom:10px}
+.batch{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px}
+.batch .hd{display:flex;justify-content:space-between;align-items:center}
+.batch .tt{font-size:14.5px;font-weight:600}
+.tag{font-size:11px;padding:3px 8px;border-radius:8px;background:#EFEDFB;color:#7C6BE8}
+.batch .info{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:#9A9AA6}
+.sem-tag{background:#F1EFFC;color:#7C6BE8;border-radius:6px;padding:2px 6px}
+.course-card{background:#fff;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.course-card .nm{font-size:14px;font-weight:600}
+.course-card .mt{font-size:11.5px;color:#9A9AA6;margin-top:4px}
+.course-card .st{font-size:12px;color:#E09A3C}
+.af-bar{display:flex;align-items:center;gap:7px;background:#fff;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#6B6B78;margin-bottom:10px}
+.af-inp{width:56px;height:28px;border:1px solid #E4E2EE;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12.5px}
+.ind{background:#fff;border-radius:12px;padding:12px;margin-bottom:10px}
+.ind .nm{font-size:13px;color:#3A3A46;margin-bottom:8px}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{min-width:32px;height:28px;border-radius:8px;border:1px solid #E4E2EE;color:#6B6B78;font-size:12.5px;display:flex;align-items:center;justify-content:center;padding:0 7px}
+.opt.on{background:#7C6BE8;border-color:#7C6BE8;color:#fff}
+.form-actions{display:flex;gap:10px;margin-top:4px}
+.form-actions .o{flex:1;height:40px;border:1px solid #D9D4F7;color:#7C6BE8;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.form-actions .p{flex:1;height:40px;background:#7C6BE8;color:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+/* 成绩 */
+.gpa-hero{background:linear-gradient(135deg,#8B7BF0,#7C6BE8);color:#fff;border-radius:14px;padding:16px;margin-bottom:12px}
+.gpa-num{font-size:34px;font-weight:700;line-height:1.1}
+.gpa-lb{font-size:11.5px;opacity:.92}
+.seg-row{display:flex;gap:8px;margin-top:12px}
+.seg{font-size:11.5px;padding:5px 10px;border-radius:10px;background:rgba(255,255,255,.22)}
+.seg.on{background:#fff;color:#7C6BE8}
+.pills{display:flex;gap:8px;margin-bottom:12px}
+.pill{flex:1;background:#F1EFF8;border-radius:12px;padding:10px;text-align:center}
+.pill .l{font-size:11px;color:#8A8A96;display:block}
+.pill .v{font-size:16px;font-weight:600;color:#7C6BE8}
+.cet-bar{background:#fff;border-radius:12px;padding:12px;margin-bottom:12px}
+.cet-bar .t{font-size:13px;font-weight:600}
+.cet-bar .d{font-size:11px;color:#9A9AA6;float:right}
+.cet-line{font-size:12.5px;color:#6B6B78;margin-top:6px}
+.sem-head{display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 2px;color:#3A3A46}
+.sem-head .gpa-tag{margin-left:auto;background:#F1EFFC;color:#7C6BE8;border-radius:6px;padding:2px 6px;font-size:11px}
+.g-row{display:flex;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px solid #F3F2F8;font-size:13px}
+.g-row:last-child{border-bottom:none}
+.chk{width:16px;height:16px;border:1px solid #D9D4F7;border-radius:4px;flex:0 0 auto;font-size:11px;color:#fff;text-align:center;line-height:16px}
+.chk.on{background:#7C6BE8;border-color:#7C6BE8}
+.g-name{font-size:13px}
+.g-meta{font-size:11px;color:#9A9AA6;margin-top:2px}
+.g-score{margin-left:auto;font-weight:600;color:#7C6BE8}
+/* 我的 */
+.user-card{background:linear-gradient(135deg,#8B7BF0,#7C6BE8);color:#fff;border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.avatar{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:22px}
+.user-name{font-size:16px;font-weight:600;display:block}
+.user-id{font-size:12px;opacity:.9}
+.info-card{background:#F4F3F9;border-radius:12px;padding:4px 12px;margin-bottom:12px}
+.info-row{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;color:#5A5A66}
+.info-row .v{color:#2B2B33}
+.action-list{background:#fff;border-radius:12px;padding:2px 12px;margin-bottom:12px}
+.action-item{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid #F4F3F9;color:#2B2B33}
+.action-item:last-child{border-bottom:none}
+.action-item .ar{color:#C4C4D0}
+.fb-dot{background:#E5484D;color:#fff;font-size:10px;border-radius:9px;padding:1px 6px;line-height:1.5}
+/* 「我的」页内容较多: 单独收紧间距, 保证首屏能看到全部条目 */
+.me .announce{margin-bottom:8px;padding:10px 12px}
+.me .announce .txt{margin-top:4px}
+.me .user-card{margin-bottom:8px;padding:11px 12px}
+.me .info-card{margin-bottom:8px;padding:2px 12px}
+.me .info-row{padding:5px 0;font-size:12.5px}
+.me .action-list{margin-bottom:8px}
+.me .action-item{padding:7px 0;font-size:12.5px}
+.me .setting-card{margin-bottom:8px;padding:10px 12px}
+.me .btn-group{gap:6px;margin-bottom:8px}
+.me .version{margin-top:10px}
+/* 问题反馈弹窗 */
+.fb-mask{position:absolute;inset:0;background:rgba(30,28,45,.45);display:flex;align-items:center;justify-content:center;padding:0 18px}
+.fb-card{background:#fff;border-radius:16px;padding:16px;width:100%;box-shadow:0 12px 30px rgba(0,0,0,.2)}
+.fb-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.fb-title{font-size:16px;font-weight:600}
+.fb-close{color:#B9B9C6}
+.fb-label{font-size:12.5px;color:#5A5A66;margin:10px 0 6px}
+.type-tabs{display:flex;gap:8px}
+.type-tab{font-size:12px;padding:6px 12px;border-radius:8px;background:#F4F3F9;color:#6B6B78}
+.type-tab.on{background:#7C6BE8;color:#fff}
+.fb-textarea{border:1px solid #E4E2EE;border-radius:10px;padding:10px;font-size:12.5px;color:#8A8A96;
+ min-height:76px;background:#FAFAFA;line-height:1.6}
+.fb-count{text-align:right;font-size:11px;color:#B9B9C6;margin:6px 0 10px}
+.setting-card{background:#fff;border-radius:12px;padding:12px;margin-bottom:12px}
+.setting-title{font-size:13px;color:#3A3A46}
+.setting-value{font-size:13px;color:#7C6BE8;margin-top:6px}
+.setting-hint{font-size:11px;color:#9A9AA6;margin-top:6px}
+.btn-group{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.btn-outline{height:38px;border:1px solid #D9D4F7;color:#7C6BE8;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13.5px;background:#fff}
+.logout{border:1px solid #F5C2C4;color:#E5484D;border-radius:8px;height:38px;display:flex;align-items:center;justify-content:center;font-size:13.5px;background:#fff}
+.user-card{padding:12px}
+.call{background:#1F1F28;color:#D8D8E0;border-radius:12px;padding:16px 18px;font-size:12.5px;line-height:1.85;
+ font-family:Consolas,Menlo,monospace;white-space:pre-wrap;margin-top:26px}
+</style></head><body>
+<h1>课表助手 · 登录过程与功能演示</h1>
+<div class="sub">界面按小程序源码结构还原，数据取自素材服务器（演示账号 20260001）的真实接口返回；
+课表、空教室两屏为真机截图。绩点口径与小程序一致（4.0 量表）。</div>
+<div class="steps"><b>登录</b>：我的 → 输入学号 + 智慧理工密码（或扫码登录）→ 后端直连智慧理工统一认证 →
+CAS 票据换教务会话 → 返回 token → 课表 / 考试 / 评教 / 成绩 同时可用。<br>
+<b>演示环境</b>：http://127.0.0.1:5000（演示账号 20260001，密码任意；课表、考试、成绩、评教均为种子数据）</div>
+<div class="flow"><div class="item"><div class="cap">① 我的 · 登录 <span>输入学号 + 智慧理工密码，或点「扫码登录」</span></div><div class="phone"><div class="nav">课表助手<div class="dots">••• ⊙</div></div><div class="body"><div class="announce"><div class="head">📢 公告 <span class="new">新</span><span class="more">查看全文</span></div><div class="txt">期末考试安排已发布，可在「考试」页查看时间与考场；评教第一批已开放，记得在截止前完成～</div></div><div class="card"><div class="login-title">登录教务系统</div><div class="login-sub">智慧理工统一认证</div><div class="field"><label>学号</label><div class="inp">20260001</div></div><div class="field"><label>智慧理工密码</label><div class="inp">••••••••<svg class="eye" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8A8A96" stroke-width="1.9" stroke-linecap="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/></svg></div></div><div class="remember"><div class="switch"></div>记住学号和密码</div><div class="btn">登 录</div><div class="link">扫码登录</div><div class="tip">使用智慧理工统一认证账号，无需教务密码</div></div><div class="version">v1.1.0 · build demo</div></div><div class="tabbar"><div class=""><div class="ico">📅</div><div class="dot"></div></div><div class=""><div class="ico">📝</div><div class="dot"></div></div><div class=""><div class="ico">📋</div><div class="dot"></div></div><div class=""><div class="ico">🎓</div><div class="dot"></div></div><div class="on"><div class="ico">👤</div><div class="dot"></div></div></div></div></div><div class="item"><div class="cap">② 扫码登录 <span>二维码可保存到相册，用微信扫一扫识别</span></div><div class="phone"><div class="nav">课表助手<div class="dots">••• ⊙</div></div><div class="body"><div class="card"><div class="qr-box"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAVwAAAFcCAIAAAALdJF7AAAFv0lEQVR4nO3dwW4bRxBAQW2g//9l5pQgL4CCBTIa9iyrTvbFXNP0QwuY5lyv1+sL4C9//P0rAFEA/s2kAIQoACEKQIgCEKIAhCgAIQpAiAIQogCEKAAhCkCIAhCiAIQoACEKQIgCEKIAhCgAIQpAiAIQogDE99ci13V9fao7d2fsfH9OfJ5VfA7/P5MCEKIAhCgAIQpAiAIQogCEKAAhCkCIAhCiAIQoAL+z+zDtDPwqT90RWPVaJ+4a+Bz+N5MCEKIAhCgAIQpAiAIQogCEKAAhCkCIAhCiAIQoAO/bffjkXYNVTtw1ONH1wZ9DkwIQogCEKAAhCkCIAhCiAIQoACEKQIgCEKIAhCgAs3cfnurO+fY75+2n3dew83mm7Qg8lUkBCFEAQhSAEAUgRAEIUQBCFIAQBSBEAQhRAEIUgLD78MD9iFWvdYd7KJ7HpACEKAAhCkCIAhCiAIQoACEKQIgCEKIAhCgAIQrA7N0H3+3/vHsWdu50rPL64DsmTApAiAIQogCEKAAhCkCIAhCiAIQoACEKgCgAPzMpAO/bfZh2vn2nnbsGO19rlZ3P88mfwztMCkCIAhCiAIQoACEKQIgCEKIAhCgAIQpAiAIQogDENe0M/CdbtbOw82z/qufxOZzDpACEKAAhCkCIAhCiAIQoACEKQIgCEKIAhCgAIQrA7Hsfpp2BX7VH8NQ7HXbua0x7D69h/xarmBSAEAUgRAEIUQBCFIAQBSBEAQhRAEIUgBAFIEQBeN+9Dzv3CKadS995F8MdJ57Jf+rOwjVsv8akAIQoACEKQIgCEKIAhCgAIQpAiAIQogCEKAAhCsD7dh9WsUNx1vn/aXsf07yG/R80KQAhCkCIAhCiAIQoACEKQIgCEKIAhCgAIQpAiALwO7sP0767/o4Tz/9POyc/7Q6Fp94fcW18LZMCEKIAhCgAIQpAiAIQogCEKAAhCkCIAhCiAIQoAOff+3CiaXcfrDrbv8on75hcw/ZHTApAiAIQogCEKAAhCkCIAhCiAIQoACEKQIgCEKIAxEfvPkz7/v8Tz+1P89S7GC73PgDv4scHIEQBCFEAQhSAEAUgRAEQBeBnJgUgRAEIUQDiu7/lnXbuR0w7t3/HnefZuavyeuiOiUkBCFEAQhSAEAUgRAEIUQBCFIAQBSBEAQhRAEIUgPN3H1adpV/Fefs97+GJd3ncsfO17jApACEKQIgCEKIAhCgAIQpAiAIQogCEKAAhCkCIAhDXid9dv/N8+x0nvod3THt/pu01XA/djzApACEKQIgCEKIAhCgAIQpAiAIQogCEKAAhCkCIAnD+7sOJpu0RnPj32nnfx2vY7ozdB+Bt/PgAhCgAIQpAiAIQogCEKAAhCkCIAhCiAIQoAPH9tcjOc+nT3Dm7Pu1s/7Q9ghO9DrzT4Q6TAhCiAIQoACEKQIgCEKIAhCgAIQpAiAIQogCEKAC/s/vw1DPwq3YEdv45q3YxVj3PiXsW17B9hJ1MCkCIAhCiAIQoACEKQIgCEKIAhCgAIQpAiAIQogC8b/fhjhPPyU97rWk++c6La9jOyx0mBSBEAQhRAEIUgBAFIEQBCFEAQhSAEAUgRAEIUQBm7z4w57z9zvsjnnpfw+vAnReTAhCiAIQoACEKQIgCIArAz0wKQIgCEKIAhCgAIQpA2H14oBPP268ybYfiGraLcYdJAQhRAEIUgBAFIEQBCFEAQhSAEAUgRAEIUQBCFIDZuw/TzoGv8tSz9DufZ+d9FjufZ9Vrrfp7mRSAEAUgRAEIUQBCFIAQBSBEAQhRAEIUgBAFIEQBiOvEc+DTrNpZONG0fY1Pfp9XMSkAIQpAiAIQogCEKAAhCkCIAhCiAIQoACEKQIgC8Du7D8AzmBSAEAUgRAEIUQBCFIAQBSBEAQhRAEIUgBAFIEQBCFEAQhSAEAUgRAEIUQBCFIAQBSBEAQhRAEIUgBAFIEQB+PqnPwG++IubuFlnBAAAAABJRU5ErkJggg=="></div><div class="qr-state">等待扫码…</div><div class="btn">保存到相册</div><div class="qr-note">用微信「扫一扫」→ 相册，选择刚保存的二维码</div><div class="qr-links"><span>刷新</span><span>我已确认</span><span>返回</span></div></div></div><div class="tabbar"><div class=""><div class="ico">📅</div><div class="dot"></div></div><div class=""><div class="ico">📝</div><div class="dot"></div></div><div class=""><div class="ico">📋</div><div class="dot"></div></div><div class=""><div class="ico">🎓</div><div class="dot"></div></div><div class="on"><div class="ico">👤</div><div class="dot"></div></div></div></div></div><div class="item"><div class="cap">③ 课表 <span>登录成功后的主页（真机截图）</span></div><img class="shot" src="../assets/s1.jpg"></div><div class="item"><div class="cap">④ 空教室查询 <span>按教学楼分组的空闲教室（真机截图）</span></div><img class="shot" src="../assets/s2.jpg"></div><div class="item"><div class="cap">⑤ 考试安排 <span>共 3 场，含倒计时与日期分组</span></div><div class="phone"><div class="nav">课表助手<div class="dots">••• ⊙</div></div><div class="body"><div class="hero"><div><span class="t">考试安排</span><span class="s">共 3 场考试</span></div><span>🔄</span></div><div class="cd-row"><div class="cd-card"><div class="cd-num">105</div><div class="cd-lb">天后</div><div class="cd-course">高等数学</div><div class="cd-date">2027-01-12 09:00-11:00</div></div></div><div class="date-hd"><span>2027-01-12</span><span class="tag">即将开始</span></div><div class="exam-card"><div class="exam-course">高等数学</div><div class="exam-meta"><span>09:00-11:00</span><span>一工101</span><span>期末考试</span></div></div><div class="date-hd"><span>2027-01-14</span><span class="tag">即将开始</span></div><div class="exam-card"><div class="exam-course">大学英语</div><div class="exam-meta"><span>14:00-16:00</span><span>二工203</span><span>期末考试</span></div></div><div class="date-hd"><span>2027-01-16</span><span class="tag">即将开始</span></div><div class="exam-card"><div class="exam-course">大学物理</div><div class="exam-meta"><span>09:00-11:00</span><span>四工A301</span><span>期末考试</span></div></div></div><div class="tabbar"><div class=""><div class="ico">📅</div><div class="dot"></div></div><div class="on"><div class="ico">📝</div><div class="dot"></div></div><div class=""><div class="ico">📋</div><div class="dot"></div></div><div class=""><div class="ico">🎓</div><div class="dot"></div></div><div class=""><div class="ico">👤</div><div class="dot"></div></div></div></div></div><div class="item"><div class="cap">⑥ 评教 · 批次 <span>1 个批次，点击进入课程列表</span></div><div class="phone"><div class="nav">课表助手<div class="dots">••• ⊙</div></div><div class="body"><div class="hero"><div><span class="t">教学评价</span><span class="s">1 个批次</span></div><span>🔄</span></div><div class="batch"><div class="hd"><span class="tt">理论课</span><span class="tag">待评教</span></div><div class="info"><span class="sem-tag">2026-2027-1</span><span>2026-12-01 ~ 2026-12-31</span></div></div></div><div class="tabbar"><div class=""><div class="ico">📅</div><div class="dot"></div></div><div class=""><div class="ico">📝</div><div class="dot"></div></div><div class="on"><div class="ico">📋</div><div class="dot"></div></div><div class=""><div class="ico">🎓</div><div class="dot"></div></div><div class=""><div class="ico">👤</div><div class="dot"></div></div></div></div></div><div class="item"><div class="cap">⑦ 评教 · 表单 <span>10 项指标 × 每项 0-10 分（满分 100）</span></div><div class="phone"><div class="nav">课表助手<div class="dots">••• ⊙</div></div><div class="body"><div class="summary-bar"><span>← 返回课程</span><span>高等数学</span><span></span></div><div class="af-bar"><span>期望分数:</span><span class="af-inp">85</span><span>（满分 100）</span><span style="margin-left:auto"><span class="btn sm" style="width:76px">自动填写</span></span></div><div class="ind"><div class="nm">1. 教学态度</div><div class="opts"><div class="opt on">10</div><div class="opt">9</div><div class="opt">8</div><div class="opt">7</div><div class="opt">6</div><div class="opt">5</div><div class="opt">4</div><div class="opt">3</div><div class="opt">2</div><div class="opt">1</div><div class="opt">0</div></div></div><div class="ind"><div class="nm">2. 教学内容</div><div class="opts"><div class="opt on">10</div><div class="opt">9</div><div class="opt">8</div><div class="opt">7</div><div class="opt">6</div><div class="opt">5</div><div class="opt">4</div><div class="opt">3</div><div class="opt">2</div><div class="opt">1</div><div class="opt">0</div></div></div><div class="ind"><div class="nm">3. 教学方法</div><div class="opts"><div class="opt on">10</div><div class="opt">9</div><div class="opt">8</div><div class="opt">7</div><div class="opt">6</div><div class="opt">5</div><div class="opt">4</div><div class="opt">3</div><div class="opt">2</div><div class="opt">1</div><div class="opt">0</div></div></div><div class="ind"><div class="nm">4. 课堂组织</div><div class="opts"><div class="opt on">10</div><div class="opt">9</div><div class="opt">8</div><div class="opt">7</div><div class="opt">6</div><div class="opt">5</div><div class="opt">4</div><div class="opt">3</div><div class="opt">2</div><div class="opt">1</div><div class="opt">0</div></div></div><div class="form-actions"><div class="o">保存</div><div class="p">提交评价</div></div></div><div class="tabbar"><div class=""><div class="ico">📅</div><div class="dot"></div></div><div class=""><div class="ico">📝</div><div class="dot"></div></div><div class="on"><div class="ico">📋</div><div class="dot"></div></div><div class=""><div class="ico">🎓</div><div class="dot"></div></div><div class=""><div class="ico">👤</div><div class="dot"></div></div></div></div></div><div class="item"><div class="cap">⑧ 成绩 <span>GPA 3.61｜平均分 86.11｜总学分 37.5</span></div><div class="phone"><div class="nav">课表助手<div class="dots">••• ⊙</div></div><div class="body"><div class="gpa-hero"><div class="gpa-num">3.61</div><div class="gpa-lb">加权平均绩点（计内）· 11 门</div><div class="seg-row"><span class="seg on">📋 奖学金/综测</span><span class="seg">🎓 保研推免</span></div></div><div class="pills"><div class="pill"><span class="l">总学分</span><span class="v">37.5</span></div><div class="pill"><span class="l">平均分</span><span class="v">86.11</span></div><div class="pill"><span class="l">GPA</span><span class="v">3.61</span></div></div><div class="cet-bar"><span class="t">四六级成绩</span><span class="d">2026-06</span><div class="cet-line">CET4 550｜CET6 500</div></div><div class="card"><div class="sem-head">🎓 2026-2027-1 <span class="gpa-tag">GPA 3.61</span><span style="color:#9A9AA6;font-size:11px">11 门</span></div><div class="g-row"><div class="chk on">✓</div><div><div class="g-name">体育</div><div class="g-meta">1.0 学分｜必修</div></div><div class="g-score">良好</div></div><div class="g-row"><div class="chk on">✓</div><div><div class="g-name">大学物理</div><div class="g-meta">4.0 学分｜必修</div></div><div class="g-score">86</div></div><div class="g-row"><div class="chk on">✓</div><div><div class="g-name">大学英语</div><div class="g-meta">3.0 学分｜必修</div></div><div class="g-score">85</div></div><div class="g-row"><div class="chk on">✓</div><div><div class="g-name">形势与政策</div><div class="g-meta">2.0 学分｜必修</div></div><div class="g-score">及格</div></div><div class="g-row"><div class="chk on">✓</div><div><div class="g-name">概率论与数理统计</div><div class="g-meta">3.0 学分｜必修</div></div><div class="g-score">89</div></div></div></div><div class="tabbar"><div class=""><div class="ico">📅</div><div class="dot"></div></div><div class=""><div class="ico">📝</div><div class="dot"></div></div><div class=""><div class="ico">📋</div><div class="dot"></div></div><div class="on"><div class="ico">🎓</div><div class="dot"></div></div><div class=""><div class="ico">👤</div><div class="dot"></div></div></div></div></div><div class="item"><div class="cap">⑨ 我的 · 已登录 <span>账号信息 / 快捷入口 / 校历设置 / 同步与退出</span></div><div class="phone"><div class="nav">课表助手<div class="dots">••• ⊙</div></div><div class="body"><div class="me"><div class="announce"><div class="head">📢 公告 <span class="new">新</span><span class="more">查看全文</span></div><div class="txt clamp">期末考试安排已发布，可在「考试」页查看时间与考场；评教第一批已开放，记得在截止前完成～</div></div><div class="user-card"><div class="avatar">👤</div><div><span class="user-name">同学</span><span class="user-id">20260001</span></div></div><div class="info-card"><div class="info-row"><span>账号</span><span class="v">20260001</span></div><div class="info-row"><span>姓名</span><span class="v">同学</span></div><div class="info-row"><span>当前学期</span><span class="v">2026-2027-1</span></div><div class="info-row"><span>成绩数量</span><span class="v">11 门</span></div></div><div class="action-list"><div class="action-item"><span>空教室查询</span><span class="ar">›</span></div><div class="action-item"><span>校历 &amp; 照片墙</span><span class="ar">›</span></div><div class="action-item"><span>常用链接</span><span class="ar">›</span></div><div class="action-item"><span>问题反馈</span><span class="ar">›</span></div><div class="action-item"><span>我的反馈</span><span class="fb-dot">1</span></div><div class="action-item"><span>清除缓存数据</span><span class="ar">›</span></div></div><div class="setting-card"><div class="setting-title">学期第一周周一</div><div class="setting-value">2026-09-07</div><div class="setting-hint">设置后课表将自动定位当前教学周并高亮今天</div></div><div class="btn-group"><div class="btn">重新同步课表与成绩</div><div class="btn-outline">查看成绩</div></div><div class="logout">退出登录</div><div class="version">v1.1.0 · build demo</div></div></div><div class="tabbar"><div class=""><div class="ico">📅</div><div class="dot"></div></div><div class=""><div class="ico">📝</div><div class="dot"></div></div><div class=""><div class="ico">📋</div><div class="dot"></div></div><div class=""><div class="ico">🎓</div><div class="dot"></div></div><div class="on"><div class="ico">👤</div><div class="dot"></div></div></div></div></div><div class="item"><div class="cap">⑩ 问题反馈 <span>类型选填 + 内容 + 字数 + 提交</span></div><div class="phone"><div class="nav">课表助手<div class="dots">••• ⊙</div></div><div class="body"><div class="me"><div class="announce"><div class="head">📢 公告 <span class="new">新</span><span class="more">查看全文</span></div><div class="txt clamp">期末考试安排已发布，可在「考试」页查看时间与考场；评教第一批已开放，记得在截止前完成～</div></div><div class="user-card"><div class="avatar">👤</div><div><span class="user-name">同学</span><span class="user-id">20260001</span></div></div><div class="info-card"><div class="info-row"><span>账号</span><span class="v">20260001</span></div><div class="info-row"><span>姓名</span><span class="v">同学</span></div><div class="info-row"><span>当前学期</span><span class="v">2026-2027-1</span></div><div class="info-row"><span>成绩数量</span><span class="v">11 门</span></div></div><div class="action-list"><div class="action-item"><span>空教室查询</span><span class="ar">›</span></div><div class="action-item"><span>校历 &amp; 照片墙</span><span class="ar">›</span></div><div class="action-item"><span>常用链接</span><span class="ar">›</span></div><div class="action-item"><span>问题反馈</span><span class="ar">›</span></div><div class="action-item"><span>我的反馈</span><span class="fb-dot">1</span></div><div class="action-item"><span>清除缓存数据</span><span class="ar">›</span></div></div><div class="setting-card"><div class="setting-title">学期第一周周一</div><div class="setting-value">2026-09-07</div><div class="setting-hint">设置后课表将自动定位当前教学周并高亮今天</div></div><div class="btn-group"><div class="btn">重新同步课表与成绩</div><div class="btn-outline">查看成绩</div></div><div class="logout">退出登录</div><div class="version">v1.1.0 · build demo</div></div><div class="fb-mask"><div class="fb-card"><div class="fb-head"><span class="fb-title">问题反馈</span><span class="fb-close">✕</span></div><div class="fb-label">反馈类型</div><div class="type-tabs"><span class="type-tab on">功能建议</span><span class="type-tab">问题/Bug</span><span class="type-tab">其他</span></div><div class="fb-label">反馈内容</div><div class="fb-textarea">希望空教室能收藏常用教学楼～</div><div class="fb-count">16 / 500</div><div class="btn">提交反馈</div></div></div></div><div class="tabbar"><div class=""><div class="ico">📅</div><div class="dot"></div></div><div class=""><div class="ico">📝</div><div class="dot"></div></div><div class=""><div class="ico">📋</div><div class="dot"></div></div><div class=""><div class="ico">🎓</div><div class="dot"></div></div><div class="on"><div class="ico">👤</div><div class="dot"></div></div></div></div></div></div>
+<div class="call"># 本次演示实际调用的接口（素材服务器返回）
+POST /api/login-webvpn  {"student_id":"20260001","password":"••••"}
+  → 200  login_method=webvpn  student_name=同学  semester=2026-2027-1
+  → token=-azCyAvgQYOk…
+GET  /api/courses       → 11 门课程
+GET  /api/exams         → 3 场考试
+GET  /api/evaluations   → 1 个评教批次
+GET  /api/eval-form     → 10 项指标 × 11 档（满分 100）
+GET  /api/grades        → 11 条成绩
+GET  /api/cet-scores    → 2 条四六级
+</div>
+</body></html>

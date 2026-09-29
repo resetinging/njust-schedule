@@ -1,0 +1,34 @@
+# 微信云托管「实时开发(Live Coding)」用的 compose 配置
+# VSCode "Weixin Cloudbase" 插件会读取本文件, 把当前目录挂进容器并热重载。
+# 若删除本文件与 Dockerfile.development, 插件会按 Dockerfile 自动重新生成。
+version: '3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.development
+    volumes:
+      - .:/app                # 代码目录映射: 保存即热重载
+      - /app/__pycache__      # 隔离容器内 pyc, 避免与宿主机互相覆盖
+    ports:
+      - 27081:80              # 主机端口:容器端口(插件默认)
+    container_name: wxcloud_wxcloudrun-flask-5da7
+    labels:                   # 容器标签, 供插件识别
+      - wxPort=27082
+      - hostPort=27081
+      - wxcloud=wxcloudrun
+      - flask-5da7
+      - role=container
+    environment:
+      # 云托管「本地调试」会把云端 MySQL 代理注入这三个变量; 也可手动填云数据库
+      - MYSQL_USERNAME=${MYSQL_USERNAME:-}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-}
+      - MYSQL_ADDRESS=${MYSQL_ADDRESS:-}
+      # 本地想用 sqlite 调试时, 取消下一行注释(路径必须用容器内绝对路径)
+      # - SQLALCHEMY_DATABASE_URI=sqlite:////app/local_dev.db
+      # 本地调试默认关闭空教室定时预热, 免得每次重启都去抓教务
+      - FREE_CLASSROOM_PREWARM=0
+    networks:
+      default:
+        external:
+          name: wxcb0           # 容器网络, 插件要求, 一般不改

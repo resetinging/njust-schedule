@@ -33,7 +33,7 @@ except ImportError:  # pragma: no cover
     from wxcloudrun.views import _on_login_success
 
 DEMO_SID = "20260001"
-DEMO_NAME = "南理工同学"
+DEMO_NAME = "同学"
 
 
 def _view_key(name):

@@ -1,0 +1,37 @@
+# 微信云托管「实时开发 / Live Coding」开发模式 Dockerfile
+# ---------------------------------------------------------------
+# 用途: VSCode 安装 "Weixin Cloudbase" 插件 -> 右键云托管容器 -> Live Coding,
+#      代码保存后自动重启进程, 不必重新构建镜像与发布。
+# 与生产 Dockerfile 的差异: 引入 nodemon 套件监听文件改动并用它拉起进程。
+# 注意: Windows 下 Docker Desktop(非 Edge) 收不到宿主文件事件, 必须 --legacy-watch。
+FROM ccr.ccs.tencentyun.com/weixincloud/wxcloud-livecoding-toolkit:latest AS toolkit
+
+FROM python:3.10-slim
+
+# 实时开发套件(nodemon): 监听代码改动并自动重启
+COPY --from=toolkit nodemon /usr/bin/nodemon
+
+# 时区 + ddddocr(onnxruntime 需要 libgomp)
+RUN apt-get update && apt-get install -y \
+        tzdata ca-certificates libgomp1 \
+    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo Asia/Shanghai > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 依赖先装(镜像层缓存): 源码由 docker-compose 挂载, 改动即时生效
+COPY requirements.txt /app/requirements.txt
+RUN pip config set global.index-url http://mirrors.cloud.tencent.com/pypi/simple \
+    && pip config set global.trusted-host mirrors.cloud.tencent.com \
+    && pip install --upgrade pip \
+    && pip install -r requirements.txt
+
+COPY . /app
+
+EXPOSE 80
+
+# 与生产同款启动参数: gunicorn 单 worker + 多线程(会话在进程内存, 必须单进程)
+CMD ["nodemon", "--legacy-watch", "--delay", "1", \
+     "-w", "/app", "-e", "py,html,js,json,css", \
+     "-x", "python3 -m gunicorn run:app --workers 1 --threads 16 --timeout 60 --bind 0.0.0.0:80"]
