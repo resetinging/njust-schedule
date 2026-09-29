@@ -489,6 +489,8 @@ Component({
           storage.setStudentId(studentId)
           storage.setStudentName(res.student_name || '')
           storage.setSemester(res.semester || '')
+          // 账号类型(研究生/本科): 决定课表/成绩页走哪套数据
+          storage.set('account_type', res.account_type || 'undergraduate')
           wx.showToast({ title: '登录成功，正在同步数据…', icon: 'success' })
           this.refreshState()
           // 通知全局

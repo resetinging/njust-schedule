@@ -16,6 +16,46 @@ function _sem() {
 async function _queryAll() {
   // 无 token 时后端只会返回 401: 直接跳过, 避免每次启动一串无效请求
   if (!storage.get('token', '')) return 0
+  // 研究生账号: 课表 + 成绩(学分进度), 其余数据源不适用
+  if (storage.get('account_type', '') === 'graduate') {
+    const results = await Promise.all([
+      api.getCourses(storage.getSemester()).then(r => {
+        if (r && r.success && r.courses) {
+          const cs = r.semester || storage.getSemester() || 'default'
+          storage.setCached('cached_courses_' + cs, r.courses)
+          if (r.semester) storage.setSemester(r.semester)
+          return 1
+        }
+        return 0
+      }),
+      api.getYjsGrades().then(r => {
+        if (r && r.success) {
+          storage.setCached('cached_yjs_grades', r)
+          return 1
+        }
+        return 0
+      }),
+      api.getYjsExams().then(r => {
+        if (r && r.success) {
+          storage.setCached('cached_yjs_exams', r)
+          return 1
+        }
+        return 0
+      }),
+      api.getStatus().then(r => {
+        if (r && r.first_week_date) {
+          const sid = storage.getStudentId() || 'guest'
+          storage.setCached('cached_status_' + sid + '_' + _sem(), {
+            t: Date.now(),
+            first_week_date: r.first_week_date
+          })
+          return 1
+        }
+        return 0
+      })
+    ])
+    return results.reduce((a, b) => a + b, 0)
+  }
   const sem = storage.getSemester()
   const results = await Promise.all([
     api.getCourses(sem).then(r => {
@@ -76,6 +116,12 @@ async function _queryAll() {
  */
 async function fetchAllData() {
   if (!storage.get('token', '')) return 0
+  // 研究生账号: 只有课表 + 成绩两个数据源, 各拉一次写缓存(之后靠本地渲染)
+  if (storage.get('account_type', '') === 'graduate') {
+    let ok = 0
+    try { ok = await _queryAll() } catch (e) { /* 静默 */ }
+    return ok
+  }
   // 1) 立即载入现有数据
   try { await _queryAll() } catch (e) { /* 静默 */ }
 

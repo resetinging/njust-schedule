@@ -1,5 +1,15 @@
 /* 成绩查询页面样式 — 复刻目标 UI: 淡紫底 + 白卡 + 分数胶囊 */
 
+/* ============ 研究生成绩: 学分进度 + 明细(不算绩点) ============ */
+.yjs-tr {
+  display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #F2F0F7;
+}
+.yjs-tr:last-child { border-bottom: none; }
+.yjs-td { font-size: 12px; color: #33304F; flex: 1; word-break: break-all; }
+.yjs-td:first-child { flex: 1.6; }
+.yjs-hint { font-size: 12px; color: #8A87A8; text-align: center; padding: 14px 0; }
+.yjs-note { font-size: 11px; color: #A9A5C0; text-align: center; margin-top: 12px; }
+
 .container {
   padding-bottom: 40rpx;
   background: #F2F0FA;

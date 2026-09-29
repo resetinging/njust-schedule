@@ -4,15 +4,46 @@
   <!-- 滚动内容区(scroll-view 内滚; 刷新走按钮) -->
   <scroll-view class="view-scroll" scroll-y>
 
+    <!-- ============ 研究生成绩: 学分进度 + 明细(不算绩点) ============ -->
+    <block wx:if="{{isGraduate && !loading}}">
+      <!-- 学分进度大卡（与本科成绩页同款样式） -->
+      <view class="gpa-hero">
+        <view class="hero-top">
+          <view class="hero-gpa-wrap">
+            <text class="hero-gpa">{{yjsTotal.earned || 0}}</text>
+            <text class="hero-label">已修学分 · 要求 {{yjsTotal.required || '-'}} · 培养计划 {{yjsTotal.planned || '-'}}</text>
+          </view>
+          <text class="hero-refresh" bindtap="onRefreshYjsGrades">{{refreshing ? '⏳' : '🔄'}}</text>
+        </view>
+      </view>
+
+      <!-- 学分进度胶囊（与本科成绩页同款） -->
+      <view class="stat-pills">
+        <view class="pill" wx:for="{{yjsStats}}" wx:key="name">
+          <text class="pill-label">{{item.name}}</text>
+          <text class="pill-value">{{item.earned}}</text>
+        </view>
+      </view>
+
+      <!-- 成绩明细（列头由研究生系统在出成绩后一并返回） -->
+      <view class="card">
+        <view class="yjs-tr" wx:for="{{yjsRows}}" wx:key="i">
+          <text class="yjs-td" wx:for="{{item.cells}}" wx:for-item="cell" wx:key="*this">{{cell}}</text>
+        </view>
+        <view class="yjs-hint" wx:if="{{!yjsRows.length}}">暂无成绩记录</view>
+      </view>
+      <view class="yjs-note">研究生成绩不含绩点计算；点右上角 🔄 从研究生系统获取</view>
+    </block>
+
     <!-- 空状态（卡片式） -->
-    <empty-state wx:if="{{!loading && empty}}"
+    <empty-state wx:if="{{!loading && empty && !isGraduate}}"
                  icon="📋"
                  title="{{errorMsg || '暂无成绩数据'}}"
                  desc="{{semester || '当前学期'}} 暂时没有成绩，可从教务系统获取"
                  action-text="{{refreshing ? '刷新中…' : '从教务获取成绩'}}"
                  bind:action="onRefreshGrades" />
 
-    <block wx:if="{{!loading && !empty}}">
+    <block wx:if="{{!loading && !empty && !isGraduate}}">
 
       <!-- ============ 绩点大卡（紫色渐变, 与课表页顶卡同风格） ============ -->
       <view class="gpa-hero">

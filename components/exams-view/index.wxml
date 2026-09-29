@@ -4,12 +4,26 @@
   <!-- 滚动内容区(scroll-view 内滚; 刷新走顶部按钮) -->
   <scroll-view class="view-scroll" scroll-y>
 
+    <!-- ============ 研究生: 考试信息(本地优先, 手动刷新) ============ -->
+    <block wx:if="{{isGraduate}}">
+      <view class="card">
+        <view class="yjs-tr" wx:for="{{examRows}}" wx:key="i">
+          <text class="yjs-td" wx:for="{{item.cells}}" wx:for-item="cell" wx:key="*this">{{cell}}</text>
+        </view>
+        <view class="yjs-hint" wx:if="{{!examRows.length}}">暂无考试安排，点下方按钮获取</view>
+      </view>
+      <view class="yjs-refresh" bindtap="onRefreshYjsExams">
+        {{refreshing ? '获取中…' : '从研究生系统获取'}}
+      </view>
+      <view class="yjs-note">数据来自研究生系统「学期考试信息查询」</view>
+    </block>
+
     <!-- 加载中 -->
-    <empty-state wx:if="{{loading && exams.length === 0}}"
+    <empty-state wx:if="{{loading && exams.length === 0 && !isGraduate}}"
                  icon="⏳" title="加载中…" />
 
     <!-- 空状态 -->
-    <empty-state wx:if="{{!loading && exams.length === 0}}"
+    <empty-state wx:if="{{!loading && exams.length === 0 && !isGraduate}}"
                  icon="📝"
                  title="{{errorMsg || '暂无考试安排'}}"
                  desc="{{semester || '当前学期'}} 暂时没有考试安排"
@@ -17,7 +31,7 @@
                  bind:action="onRefresh" />
 
     <!-- 有数据 -->
-    <block wx:if="{{exams.length > 0}}">
+    <block wx:if="{{exams.length > 0 && !isGraduate}}">
       <!-- 顶部紫渐变卡片头(课表同款) -->
       <view class="page-hero">
         <view class="ph-main">

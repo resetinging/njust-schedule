@@ -1,11 +1,11 @@
 <!-- 自定义 tabBar(纯图标, 无文字) -->
 <view class="tab-bar">
-  <view class="tab-bar-item {{selected === index ? 'on' : ''}}"
+  <view class="tab-bar-item {{selected === item.key ? 'on' : ''}}"
         wx:for="{{list}}" wx:key="name"
-        data-index="{{index}}" bindtap="onTap">
+        data-index="{{item.key}}" bindtap="onTap">
     <view class="tab-emoji-wrap">
       <text class="tab-emoji">{{item.emoji}}</text>
     </view>
-    <view class="tab-dot {{selected === index ? 'on' : ''}}"></view>
+    <view class="tab-dot {{selected === item.key ? 'on' : ''}}"></view>
   </view>
 </view>

@@ -55,6 +55,12 @@ Component({
     // 学期卡片组
     semGroups: [],          // [{sem, count, avg, folded, courses:[{id,name,checked,meta,score}]}]
 
+    // 研究生: 学分进度 + 成绩明细(不做绩点计算)
+    isGraduate: false,
+    yjsStats: [],
+    yjsRows: [],
+    yjsTotal: null,
+
     active: false            // 懒渲染: main 激活时才渲染内容
   },
 
@@ -74,6 +80,14 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      // 研究生账号: 成绩走研究生系统(只有学分进度和成绩明细, 不算绩点)
+      const isGrad = storage.get('account_type', '') === 'graduate'
+      this.setData({ isGraduate: isGrad })
+      if (isGrad && storage.isLoggedIn()) {
+        // 研究生: 先渲染本地缓存(不请求), 只有用户主动刷新才打后端
+        this.loadYjsCached()
+        return
+      }
       // 退出登录后清空上一用户数据(隐私, 含折叠/模式状态)
       if (!storage.isLoggedIn()) {
         this._allGrades = []
@@ -84,6 +98,49 @@ Component({
         return
       }
       this.loadCached()                // 重新读缓存(登录后/刷新后数据自动生效)
+    },
+
+    /** 研究生成绩: 只读本地缓存渲染 */
+    loadYjsCached() {
+      const cached = storage.getCached('cached_yjs_grades')
+      if (cached && cached.success) {
+        this._applyYjs(cached)
+      } else {
+        this.setData({ loading: false, empty: true, errorMsg: '' })
+      }
+    },
+
+    /** 用户主动刷新: 才向后端请求并写入缓存 */
+    async onRefreshYjsGrades() {
+      if (this.data.refreshing) return
+      this.setData({ refreshing: true })
+      try {
+        const res = await api.getYjsGrades()
+        if (res && res.success) {
+          storage.setCached('cached_yjs_grades', res)
+          this._applyYjs(res)
+          wx.showToast({ title: '成绩已更新', icon: 'success' })
+        } else {
+          wx.showToast({ title: (res && res.message) || '刷新失败', icon: 'none' })
+        }
+      } catch (e) {
+        wx.showToast({ title: '网络异常，请稍后重试', icon: 'none' })
+      }
+      this.setData({ refreshing: false })
+    },
+
+    /** 渲染研究生成绩数据 */
+    _applyYjs(res) {
+      const stats = (res && res.stats) || []
+      const rows = (res && res.rows) || []
+      this.setData({
+        loading: false,
+        empty: !stats.length && !rows.length,
+        errorMsg: '',
+        yjsStats: stats,
+        yjsRows: rows.map((cells, i) => ({ i, cells })),
+        yjsTotal: stats.find(s => s.name === '总学分') || stats[0] || null
+      })
     },
 
     /** 从缓存渲染（不请求后端） */

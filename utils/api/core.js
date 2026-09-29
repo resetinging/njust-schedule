@@ -144,6 +144,8 @@ function autoRelogin() {
       storage.remove('relogin_fail_ts')
       storage.set(TOKEN_KEY, res.token)
       if (res.semester) storage.setSemester(res.semester)
+      // 账号类型可能变化(本科↔研究生): 重登成功后同步
+      if (res.account_type) storage.set('account_type', res.account_type)
       return res.token
     }
     storage.set('relogin_fail_ts', String(Date.now()))

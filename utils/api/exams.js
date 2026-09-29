@@ -21,4 +21,9 @@ function refreshExams() {
 
 /** 一键刷新课表+考试(刷新成功后移除学期后缀缓存, 由后续查询重新载入) */
 
-module.exports = { getExams, refreshExams }
+/** 研究生考试信息(学分/考试表格, 仅研究生账号可用) */
+function getYjsExams() {
+  return request('GET', '/api/yjs/exams')
+}
+
+module.exports = { getExams, refreshExams, getYjsExams }

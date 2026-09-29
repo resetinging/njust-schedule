@@ -22,6 +22,10 @@ Component({
     semester: '',
     collapsedDates: {}, // 已结束日期组折叠状态
 
+    // 研究生: 考试信息(表格行, 本地优先)
+    isGraduate: false,
+    examRows: [],
+
     active: false            // 懒渲染: main 激活时才渲染内容
   },
 
@@ -40,12 +44,60 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      // 研究生账号: 考试来自研究生系统, 先渲染本地缓存
+      const isGrad = storage.get('account_type', '') === 'graduate'
+      this.setData({ isGraduate: isGrad })
+      if (isGrad) {
+        if (!storage.isLoggedIn()) {
+          this.setData({ examRows: [] })
+          return
+        }
+        this.loadYjsCached()
+        return
+      }
       // 退出登录后清空上一用户数据(隐私)
       if (!storage.isLoggedIn()) {
         this.setData({ exams: [], countdowns: [], dayGroups: [] })
         return
       }
       this.loadCachedData()            // 重新读缓存(登录后/刷新后数据自动生效)
+    },
+
+    /** 研究生考试: 只读本地缓存渲染 */
+    loadYjsCached() {
+      const cached = storage.getCached('cached_yjs_exams')
+      if (cached && cached.success) {
+        this._applyYjsExams(cached)
+      } else {
+        this.setData({ loading: false, examRows: [], errorMsg: '' })
+      }
+    },
+
+    /** 用户主动刷新: 才请求后端并写缓存 */
+    async onRefreshYjsExams() {
+      if (this.data.refreshing) return
+      this.setData({ refreshing: true })
+      try {
+        const res = await api.getYjsExams()
+        if (res && res.success) {
+          storage.setCached('cached_yjs_exams', res)
+          this._applyYjsExams(res)
+          wx.showToast({ title: '考试信息已更新', icon: 'success' })
+        } else {
+          wx.showToast({ title: (res && res.message) || '刷新失败', icon: 'none' })
+        }
+      } catch (e) {
+        wx.showToast({ title: '网络异常，请稍后重试', icon: 'none' })
+      }
+      this.setData({ refreshing: false })
+    },
+
+    _applyYjsExams(res) {
+      this.setData({
+        loading: false,
+        errorMsg: '',
+        examRows: ((res && res.rows) || []).map((cells, i) => ({ i, cells }))
+      })
     },
 
     /** 考试缓存键按学期隔离 */

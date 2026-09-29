@@ -114,6 +114,20 @@ App({
       // 请求失败(网络超时/5xx)返回 {success:false}, logged_in 为 undefined:
       // 绝不能当作"未登录"清空本地登录态, 静默跳过即可
       if (!res || res.success === false || typeof res.logged_in !== 'boolean') return
+      // 账号类型兜底同步(研究生: tabBar 隐藏评教、成绩/考试走研究生数据)
+      if (res.account_type) {
+        const changed = storage.get('account_type', '') !== res.account_type
+        storage.set('account_type', res.account_type)
+        if (changed) {
+          // 类型变化时让 tabBar 立即重算(老会话首次启动时评教会闪一下)
+          try {
+            const pages = getCurrentPages()
+            const cur = pages[pages.length - 1]
+            const bar = cur && cur.selectComponent && cur.selectComponent('#tabbar')
+            if (bar && typeof bar._refreshList === 'function') bar._refreshList()
+          } catch (e) { /* 拿不到组件时忽略, 下次 show 会自然刷新 */ }
+        }
+      }
       if (res.logged_in) return
       api.autoRelogin().then((newToken) => {
         if (newToken) {

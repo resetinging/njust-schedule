@@ -454,3 +454,17 @@
   display: block;
   height: 100%;
 }
+/* ============ 研究生: 考试信息表 ============ */
+.yjs-tr {
+  display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #F2F0F7;
+}
+.yjs-tr:last-child { border-bottom: none; }
+.yjs-td { font-size: 12px; color: #33304F; flex: 1; word-break: break-all; }
+.yjs-td:first-child { flex: 1.6; }
+.yjs-hint { font-size: 12px; color: #8A87A8; text-align: center; padding: 18px 0; }
+.yjs-refresh {
+  margin-top: 12px; height: 40px; border-radius: 20px; background: #7C6BE8;
+  color: #fff; font-size: 14px; display: flex; align-items: center;
+  justify-content: center;
+}
+.yjs-note { font-size: 11px; color: #A9A5C0; text-align: center; margin-top: 10px; }

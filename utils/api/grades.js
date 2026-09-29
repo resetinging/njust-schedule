@@ -29,6 +29,11 @@ function refreshCet() {
   return request('POST', '/api/refresh-cet')
 }
 
+/** 研究生成绩(学分进度 + 明细, 不做绩点计算; 仅研究生账号可用) */
+function getYjsGrades() {
+  return request('GET', '/api/yjs/grades')
+}
+
 // ============================================================
 // 智慧理工 SSO 登录接口
 // ============================================================
@@ -36,4 +41,4 @@ function refreshCet() {
 /** Step 1: 智慧理工 SSO 登录并获取教务验证码（含 captcha_id / 直接登录 token）
  *  教务走 SSO 直连（indexsso.jsp），无需教务密码 */
 
-module.exports = { getGrades, refreshGrades, getCetScores, refreshCet }
+module.exports = { getGrades, refreshGrades, getCetScores, refreshCet, getYjsGrades }
