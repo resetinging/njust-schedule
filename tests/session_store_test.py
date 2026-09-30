@@ -11,7 +11,7 @@ os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite:///session_store_test.d
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["SESSION_KEY"] = base64.b64encode(os.urandom(32)).decode()
 
-from wxcloudrun.core import session_store as ss  # noqa: E402
+from wxcloudrun.core import cookie_crypto as ss  # noqa: E402
 
 COOKIES = [{"name": "JWX", "value": "abc123", "domain": "jw.njust.edu.cn", "path": "/"}]
 RESULTS = []
