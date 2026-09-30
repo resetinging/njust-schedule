@@ -55,6 +55,12 @@ def main():
           (store.load_session(sid) or [{}])[0].get("name") == "LEGACY")
     store.clear_session(sid)
     check("清理后读不到", store.load_session(sid) is None)
+    # 认证节流契约(登录链路依赖, 之前无人覆盖)
+    check("初始无冷却", store.cooldown_left(sid) == 0, store.cooldown_left(sid))
+    store.mark_failure(sid)
+    check("失败后进入冷却", store.cooldown_left(sid) > 0, store.cooldown_left(sid))
+    store.clear_failure(sid)
+    check("成功后冷却清零", store.cooldown_left(sid) == 0, store.cooldown_left(sid))
     os.environ["SESSION_KEY"] = ""
     # config 在 import 时就把环境变量捕获了, 必须同步清掉它, 否则测的仍是旧密钥
     import config as _cfg
