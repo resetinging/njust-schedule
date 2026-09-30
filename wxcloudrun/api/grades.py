@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 import config
 from wxcloudrun import app, dao
 from wxcloudrun.core.auth import _require_login, _retry_with_relogin
+from wxcloudrun.core.dedupe import dedupe
 from wxcloudrun.core.cache import _cache_get, _cache_set, invalidate_user_cache
 from wxcloudrun.core.pool import _jwc_request
 from wxcloudrun.core.stats import _invalidate_stats
@@ -99,6 +100,7 @@ def api_get_grades():
 
 
 @grades_bp.route('/api/refresh-grades', methods=['POST'])
+@dedupe('refresh-grades')
 def api_refresh_grades():
     """刷新当前用户成绩数据（从教务系统拉取）"""
     client, err = _require_login()
@@ -140,6 +142,7 @@ def api_refresh_grades():
 # API — 四六级（按用户隔离）
 # ============================================================
 @grades_bp.route('/api/refresh-cet', methods=['POST'])
+@dedupe('refresh-cet')
 def api_refresh_cet():
     """刷新当前用户四六级成绩（从教务系统拉取）"""
     client, err = _require_login()

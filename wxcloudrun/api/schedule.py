@@ -6,6 +6,7 @@ import config
 from wxcloudrun import app, dao
 from wxcloudrun.core.auth import _require_login, _retry_with_relogin
 from wxcloudrun.core.cache import _cache_get, _cache_set, invalidate_user_cache
+from wxcloudrun.core.dedupe import dedupe
 from wxcloudrun.core.pool import _jwc_request
 from wxcloudrun.core.stats import _invalidate_stats
 from wxcloudrun.core.web import _rid
@@ -22,6 +23,7 @@ def _current_semester() -> str:
 
 
 @schedule_bp.route('/api/refresh-schedule', methods=['POST'])
+@dedupe('refresh-schedule')
 def api_refresh_schedule():
     client, err = _require_login()
     if err:
@@ -63,6 +65,7 @@ def api_refresh_schedule():
 
 
 @schedule_bp.route('/api/refresh-exams', methods=['POST'])
+@dedupe('refresh-exams')
 def api_refresh_exams():
     client, err = _require_login()
     if err:
@@ -92,6 +95,7 @@ def api_refresh_exams():
 
 
 @schedule_bp.route('/api/refresh-all', methods=['POST'])
+@dedupe('refresh-all')
 def api_refresh_all():
     client, err = _require_login()
     if err:

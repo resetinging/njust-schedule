@@ -6,6 +6,7 @@ import re
 from flask import Blueprint, jsonify, request
 
 import config
+from wxcloudrun.core.dedupe import dedupe
 from wxcloudrun import app, dao
 from wxcloudrun.core.auth import _require_login, _retry_with_relogin
 from wxcloudrun.core.cache import _cache_get, _cache_set, invalidate_user_cache
@@ -52,6 +53,7 @@ def api_get_evaluations():
 
 
 @eval_bp.route('/api/refresh-evaluations', methods=['POST'])
+@dedupe('refresh-evaluations')
 def api_refresh_evaluations():
     client, err = _require_login()
     if err:
