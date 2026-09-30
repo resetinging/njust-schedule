@@ -72,6 +72,21 @@
       </view>
     </view>
 
+    <!-- 帮助与反馈(弹窗实现都在本组件内, 入口必须放在同一页, 否则会先跳页再弹窗) -->
+    <view class="act-card">
+      <view class="act-row" bindtap="onOpenLinks">
+        <text class="act-title">常用链接</text><text class="act-arrow">›</text>
+      </view>
+      <view class="act-row" bindtap="onOpenFeedback">
+        <text class="act-title">问题反馈</text><text class="act-arrow">›</text>
+      </view>
+      <view class="act-row" bindtap="onOpenMyFeedback">
+        <text class="act-title">我的反馈</text>
+        <text class="act-badge" wx:if="{{fbUnread > 0}}">{{fbUnread > 99 ? '99+' : fbUnread}}</text>
+        <text class="act-arrow">›</text>
+      </view>
+    </view>
+
     <!-- 底部操作: 清除缓存 / 退出登录(放在最下方, 危险操作标红) -->
     <view class="btn-group">
       <button class="btn-outline main-btn" bindtap="onClearData">清除缓存数据</button>

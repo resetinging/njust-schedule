@@ -230,20 +230,6 @@ Page({
   },
 
   /**
-   * 功能页里触发"我的"页里的弹窗(常用链接 / 问题反馈 / 我的反馈)。
-   * 弹窗的实现仍在 settings-view 内, 先切到"我的"页保证组件已挂载, 再调用它的方法。
-   */
-  openSettingsAction(e) {
-    const action = e.currentTarget.dataset.action
-    if (!action) return
-    this.onTabTap(2)
-    setTimeout(() => {
-      const view = this.selectComponent('#tabview4')
-      if (view && typeof view[action] === 'function') view[action]()
-    }, 300)
-  },
-
-  /**
    * 按 (current, sub) 决定要激活哪个视图组件。
    * 组件索引保持不变: 0 课表 / 1 考试 / 2 评教 / 3 成绩 / 4 我的
    */
