@@ -50,8 +50,15 @@ def save_session(student_id: str, cookies) -> int:
     if not rows:
         return 0
     from wxcloudrun import dao          # 延迟导入，避免包初始化循环
-    dao.set_user_setting(student_id, SSO_SESSION_SETTING_KEY,
-                         json.dumps({"ts": int(time.time()), "cookies": rows}))
+    payload = {"ts": int(time.time()), "cookies": rows}
+    raw = json.dumps(payload)
+    try:
+        from wxcloudrun.core import cookie_crypto
+        if cookie_crypto.enabled():          # 配了 SESSION_KEY 就加密落库(不存明文 cookie)
+            raw = cookie_crypto.encrypt(student_id, payload)
+    except Exception:                        # 加密不可用不能阻断登录, 退回旧行为
+        raw = json.dumps(payload)
+    dao.set_user_setting(student_id, SSO_SESSION_SETTING_KEY, raw)
     return len(rows)
 
 
@@ -63,9 +70,21 @@ def load_session(student_id: str) -> Optional[List[dict]]:
     raw = dao.get_user_setting(student_id, SSO_SESSION_SETTING_KEY, "")
     if not raw:
         return None
+    data = None
     try:
-        data = json.loads(raw)
-    except (TypeError, ValueError):
+        from wxcloudrun.core import cookie_crypto
+        if cookie_crypto.enabled():          # 先按密文解, 解不开再当旧明文读(向后兼容)
+            got = cookie_crypto.decrypt(student_id, raw)
+            if isinstance(got, dict):
+                data = got
+    except Exception:
+        data = None
+    if data is None:
+        try:
+            data = json.loads(raw)
+        except (TypeError, ValueError):
+            return None
+    if not isinstance(data, dict):
         return None
     if time.time() - int(data.get("ts") or 0) > SSO_SESSION_MAX_AGE:
         return None

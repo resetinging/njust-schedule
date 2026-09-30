@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["SESSION_KEY"] = base64.b64encode(os.urandom(32)).decode()
 
 from wxcloudrun.core import cookie_crypto as ss  # noqa: E402
+from wxcloudrun.core import session_store as store  # noqa: E402
 
 COOKIES = [{"name": "JWX", "value": "abc123", "domain": "jw.njust.edu.cn", "path": "/"}]
 RESULTS = []
@@ -34,6 +35,26 @@ def main():
     tampered = token[:-6] + ("AAAAAA" if token[-6:] != "AAAAAA" else "BBBBBB")
     check("篡改密文必须失败", ss.decrypt("924101960123", tampered) == [])
     check("空密文返回空", ss.decrypt("924101960123", "") == [])
+    # 真实读写路径(dao + 加密落库 + 旧明文兼容)
+    class _Cookie(object):
+        def __init__(self, name, value):
+            self.name, self.value, self.domain, self.path = name, value, "jw.njust.edu.cn", "/"
+
+    sid = "924101960123"
+    written = store.save_session(sid, [_Cookie("JWX", "abc123")])
+    check("加密落库写入成功", written == 1, written)
+    loaded = store.load_session(sid) or []
+    check("加密落库后能原样读回", loaded == COOKIES)
+    from wxcloudrun import dao as _dao
+    from config import SSO_SESSION_SETTING_KEY as K
+    import json as _json
+    _dao.set_user_setting(sid, K, _json.dumps({"ts": int(__import__("time").time()),
+                                               "cookies": [{"name": "LEGACY", "value": "1",
+                                                            "domain": "x", "path": "/"}]}))
+    check("旧明文格式仍可读(向后兼容)",
+          (store.load_session(sid) or [{}])[0].get("name") == "LEGACY")
+    store.clear_session(sid)
+    check("清理后读不到", store.load_session(sid) is None)
     os.environ["SESSION_KEY"] = ""
     # config 在 import 时就把环境变量捕获了, 必须同步清掉它, 否则测的仍是旧密钥
     import config as _cfg

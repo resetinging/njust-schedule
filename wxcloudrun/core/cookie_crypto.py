@@ -62,7 +62,8 @@ def decrypt(student_id: str, token: str) -> list:
         iv = raw[1:1 + IV_LEN]
         plain = AESGCM(k).decrypt(iv, raw[1 + IV_LEN:], str(student_id).encode('utf-8'))
         data = json.loads(plain.decode('utf-8'))
-        return data if isinstance(data, list) else []
+        # list(cookie 列表) 或 dict({ts, cookies} 整包) 都允许, 其它一律视为无效
+        return data if isinstance(data, (list, dict)) else []
     except (InvalidTag, ValueError, TypeError):
         return []
     except Exception:
