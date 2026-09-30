@@ -79,7 +79,8 @@ def _recent_since(since_id: int):
 def admin_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        tok = request.headers.get("X-Admin-Token") or request.args.get("token") or ""
+        # 只认请求头: 走 ?token= 会进浏览器历史/Referer/服务器日志
+        tok = request.headers.get("X-Admin-Token") or ""
         with _admin_lock:
             valid = bool(_admin_token and _admin_token[0] == tok and _admin_token[1] > time.time())
         if not valid:
@@ -716,7 +717,7 @@ def admin_feedback_reply(fid: int):
 @app.route("/api/admin/check")
 def admin_check():
     """前端登录态检查(不带 token 也可调, 返回是否已登录)"""
-    tok = request.headers.get("X-Admin-Token") or request.args.get("token") or ""
+    tok = request.headers.get("X-Admin-Token") or ""
     with _admin_lock:
         valid = bool(_admin_token and _admin_token[0] == tok and _admin_token[1] > time.time())
     return jsonify({"success": True, "logged_in": valid})

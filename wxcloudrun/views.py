@@ -179,13 +179,40 @@ def font_pixel_json():
     仅当前端直连字体 URL 失败(域名未加白名单等)时才走这条路。"""
     if not os.path.exists(FONT_FILE):
         return jsonify({'error': 'font not found'}), 404
+    if _rate_limited('fontjson:' + _client_ip(), 5, 60):
+        return jsonify({'error': 'too many requests'}), 429
     resp = jsonify({'format': 'woff2', 'encoding': 'base64', 'data': _font_b64()})
-    resp.headers['Access-Control-Allow-Origin'] = '*'
     return resp
 
 
 # 按需子集: 字体里大部分字用不到, 只把"该用户课程文本"涉及的字发给前端,
 # 体积从 966KB 降到几十 KB, 也不用配 downloadFile 白名单(callContainer 能直接收 JSON)。
+_RATE_BUCKETS = {}
+_RATE_LOCK = threading.Lock()
+
+
+def _rate_limited(key: str, limit: int, window: float = 60.0) -> bool:
+    """简易滑动窗口限流(进程内): 返回 True 表示超限。
+
+    单实例部署下够用; 以后要多实例, 换成 Redis 计数即可。
+    """
+    now = time.time()
+    with _RATE_LOCK:
+        hits = [t for t in _RATE_BUCKETS.get(key, []) if now - t < window]
+        if len(hits) >= limit:
+            _RATE_BUCKETS[key] = hits
+            return True
+        hits.append(now)
+        _RATE_BUCKETS[key] = hits
+        if len(_RATE_BUCKETS) > 5000:            # 防止字典无限增长
+            _RATE_BUCKETS.clear()
+    return False
+
+
+def _client_ip() -> str:
+    return (request.headers.get('X-Forwarded-For') or request.remote_addr or '-').split(',')[0].strip()
+
+
 _SUBSET_CACHE = {}        # key -> (chars_set, base64)
 _SUBSET_BUILDING = set()  # 正在后台生成的 key
 _SUBSET_LOCK = threading.Lock()
@@ -273,6 +300,9 @@ def font_subset():
     """body: {text: "该用户课程名/教师/教室拼接", font?: "pixel|wenkai|smiley"} → 子集字体(base64)"""
     if not os.path.exists(FONT_FILE):
         return jsonify({'error': 'font not found'}), 404
+    # 生成子集是 CPU 活, 必须限流, 否则可被反复调用吃满 CPU
+    if _rate_limited('fontsubset:' + _client_ip(), 10, 60):
+        return jsonify({'error': 'too many requests'}), 429
     payload = request.get_json(silent=True) or {}
     text = payload.get('text') or ''
     font_key = str(payload.get('font') or 'pixel')
@@ -293,7 +323,6 @@ def font_subset():
         body = {'format': 'woff', 'encoding': 'base64', 'chars': len(chars),
                 'partial': True, 'data': data}
     resp = jsonify(body)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
     return resp
 
 
@@ -307,7 +336,6 @@ def font_list():
                 fonts.append({'key': key, 'name': name, 'builtin': False})
                 break
     resp = jsonify({'success': True, 'fonts': fonts})
-    resp.headers['Access-Control-Allow-Origin'] = '*'
     return resp
 
 

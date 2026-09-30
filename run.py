@@ -1,4 +1,5 @@
 # 创建应用实例
+import re
 import logging
 import os
 import sys
@@ -14,6 +15,41 @@ logging.basicConfig(
 # 抑制 werkzeug 自带访问日志(带 ANSI 颜色码且与 [req] 重复, 云托管控制台噪音);
 # 请求日志统一由 views.py 的 [req] 输出(含 rid/状态/耗时/用户)
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
+
+
+class _PIIMaskFilter(logging.Filter):
+    """日志脱敏: 学号只留前 3 后 3, 长 token 只留前 6 位。
+
+    覆盖所有 logger(全局挂在 root 上), 这样新增日志也不会再漏学号——
+    之前 [login]/[refresh]/[feedback]/[freeclass]/[admin] 里都是完整学号。
+    """
+
+    _sid = re.compile(r'\bsid=([A-Za-z0-9_-]{6,})')
+    _tok = re.compile(r'\btok=([A-Za-z0-9_-]{8,})')
+
+    @staticmethod
+    def _mask_sid(m):
+        s = m.group(1)
+        return 'sid=%s****%s' % (s[:3], s[-3:])
+
+    @staticmethod
+    def _mask_tok(m):
+        return 'tok=%s…' % m.group(1)[:6]
+
+    def filter(self, record):
+        try:
+            msg = record.getMessage()
+            new = self._sid.sub(self._mask_sid, msg)
+            new = self._tok.sub(self._mask_tok, new)
+            if new != msg:
+                record.msg = new
+                record.args = ()
+        except Exception:
+            pass
+        return True
+
+
+logging.getLogger().addFilter(_PIIMaskFilter())
 
 from wxcloudrun import app
 

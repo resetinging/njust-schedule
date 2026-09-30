@@ -133,6 +133,10 @@ def api_login_webvpn():
     """通过智慧理工 SSO 自动登录（含自动 OCR 教务验证码）"""
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
+    # 登录限流: 防止爆破学号密码, 也避免频繁登录触发智慧理工风控
+    from wxcloudrun.views import _rate_limited, _client_ip
+    if _rate_limited('loginfail:%s:%s' % (student_id, _client_ip()), 6, 600):
+        return jsonify({"success": False, "message": "尝试过于频繁，请 10 分钟后再试"}), 429
     password = _resolve_password(student_id, data.get("password") or "")
     # 教务密码可与智慧理工密码不同(见 api_login_webvpn_manual)
     jwc_password = (data.get("jwc_password") or "").strip()
