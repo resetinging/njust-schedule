@@ -88,6 +88,7 @@ def api_get_webvpn_captcha():
     """
     data = request.get_json()
     student_id = (data.get("student_id") or "").strip()
+    raw_password = str(data.get("password") or "").strip()
     password = _resolve_password(student_id, data.get("password") or "")
     jwc_password = (data.get("jwc_password") or "").strip()
     if not student_id or not password:
@@ -99,6 +100,14 @@ def api_get_webvpn_captcha():
     if success:
         token = _register_session(client)
         _on_login_success(client, token)   # 副作用: 调用时初始化学期设置
+        # 登录成功时把密码加密存下来(未配 SESSION_KEY 会自动拒存, 绝不落明文),
+        # 用于"会话与 Cookie 都失效"时静默重登; 退出登录时删除。
+        try:
+            from wxcloudrun.core import credential_store
+            if raw_password:
+                credential_store.save(student_id, raw_password)
+        except Exception:
+            pass
         return jsonify({
             "success": True,
             "already_logged_in": True,

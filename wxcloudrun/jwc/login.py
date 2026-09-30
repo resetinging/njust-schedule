@@ -301,6 +301,18 @@ class LoginMixin:
         allow_resume=True 时允许复用持久化会话(仅供无人工密码输入的后台服务账号使用;
         用户登录入口必须真实验证密码, 否则有会话时任意错误密码都会"登录成功")。
         """
+        # 服务器端保存的凭据兜底: 仅当调用方没给密码时才启用(前端已带密码时行为完全不变)。
+        # 这样"会话与 Cookie 都失效、前端又没记住密码"时, 后端能静默重登一次。
+        credential_used = False
+        if not password:
+            try:
+                from wxcloudrun.core import credential_store
+                stored = credential_store.resolve(student_id)
+                if stored:
+                    password = stored
+                    credential_used = True
+            except Exception:
+                pass
         jwc_pwd = jwc_password or password
         self.student_id = student_id
         self.student_name = None
@@ -331,8 +343,20 @@ class LoginMixin:
             # Step 1: 直连 SSO 登录
             if not self._direct_sso_login_with_retry(student_id, password):
                 self._session_store().mark_failure(student_id)
+                if credential_used:
+                    try:
+                        from wxcloudrun.core import credential_store as _cs
+                        _cs.mark_fail(student_id)      # 存的密码不对: 计数, 达上限自动删除
+                    except Exception:
+                        pass
                 return False
             self._session_store().clear_failure(student_id)
+            if credential_used:
+                try:
+                    from wxcloudrun.core import credential_store as _cs
+                    _cs.mark_used(student_id)
+                except Exception:
+                    pass
             self._persist_sso_session()
 
             # Step 2: 需要代理时建立 WebVPN 会话（网关登录入口即统一身份认证 CAS）
