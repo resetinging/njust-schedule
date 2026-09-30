@@ -161,6 +161,13 @@ if not ADMIN_PASSWORD:
 # 教务会话 Cookie 持久化密钥(32 字节 base64)。未配置则"会话持久化"整体不启用
 # (只告警, 绝不降级成明文存储)。生成: python -c "import os,base64;print(base64.b64encode(os.urandom(32)).decode())"
 SESSION_KEY = os.environ.get("SESSION_KEY", "")
+if not SESSION_KEY:
+    import logging as _logging2
+
+    _logging2.getLogger("config").warning(
+        "[config] 未配置 SESSION_KEY, 教务会话持久化(重启后免重登)已禁用; "
+        "需要该能力时在云托管环境变量中配置 32 字节 base64 密钥"
+    )
 
 # ============================================================
 # 调试开关
