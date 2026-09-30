@@ -135,8 +135,9 @@ def api_login_webvpn():
     student_id = (data.get("student_id") or "").strip()
     # 登录限流: 防止爆破学号密码, 也避免频繁登录触发智慧理工风控
     from wxcloudrun.views import _rate_limited, _client_ip
-    if _rate_limited('loginfail:%s:%s' % (student_id, _client_ip()), 6, 600):
-        return jsonify({"success": False, "message": "尝试过于频繁，请 10 分钟后再试"}), 429
+    # 1 次/分钟: 严格节流, 首选防爆破与误触智慧理工风控
+    if _rate_limited('login:%s:%s' % (student_id, _client_ip()), 1, 60):
+        return jsonify({"success": False, "message": "登录过于频繁，请 1 分钟后再试"}), 429
     password = _resolve_password(student_id, data.get("password") or "")
     # 教务密码可与智慧理工密码不同(见 api_login_webvpn_manual)
     jwc_password = (data.get("jwc_password") or "").strip()
