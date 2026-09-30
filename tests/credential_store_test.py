@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """服务器端密码存储的用例(sqlite 跑, 不连教务)。
 
-覆盖: 加密保存后可取回 / 库里搜不到明文 / 换学号解不开 / 连续失败自动删除 /
-      未配置密钥时拒绝保存 / 清理后取不到。
+覆盖: 加密保存后可取回 / 库里搜不到明文 / 换学号解不开 /
+      未配置密钥时拒绝保存 / 删除后取不到。
 """
 import base64
 import os
@@ -36,13 +36,6 @@ def main():
     raw = dao.get_user_setting(SID, "credential", "")
     check("库里搜不到明文", PWD not in raw and len(raw) > 20, raw[:24])
     check("换学号解不开(AAD)", cs._load("924101960999") is None)
-    cs.mark_used(SID)
-    check("mark_used 后仍可取回", cs.resolve(SID) == PWD)
-    cs.mark_fail(SID)
-    cs.mark_fail(SID)
-    check("失败 2 次仍保留", cs.resolve(SID) == PWD)
-    cs.mark_fail(SID)
-    check("失败 3 次自动删除", cs.resolve(SID) is None)
     cs.save(SID, PWD)
     cs.drop(SID)
     check("drop 后取不到", cs.resolve(SID) is None)

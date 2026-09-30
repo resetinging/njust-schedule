@@ -37,7 +37,8 @@ from wxcloudrun.core.stats import _invalidate_stats  # noqa: E402
 def _on_login_success(client: JWCClient, token: str):
     """登录成功后的公共处理：签发 token 并返回会话信息。
 
-    不保存密码；登录默认重置为**当前学期**(课表默认显示本学期),
+    密码的保存(加密落库)由各调用方在成功分支里完成, 本函数不接触密码;
+    登录默认重置为**当前学期**(课表默认显示本学期),
     用户手动切换其他学期后重新登录会回到本学期。
     """
     sid = client.student_id
@@ -152,23 +153,30 @@ def api_login_webvpn():
     password = _resolve_password(student_id, data.get("password") or "")
     # 教务密码可与智慧理工密码不同(见 api_login_webvpn_manual)
     jwc_password = (data.get("jwc_password") or "").strip()
-
-    if not student_id or not password:
+    # 安全: 必须显式提供密码 —— 不接受"空密码+服务端已存凭据"的隐式登录
+    # (_resolve_password 本身也不再回退已存凭据, 此处双保险并给出明确的 400)
+    if not student_id or not str(data.get("password") or "").strip():
         return jsonify({"success": False, "message": "学号和密码不能为空"}), 400
 
     # 学号 1 开头 = 研究生账户: 走研究生综合管理信息系统(与教务是两套系统)
+    # 与本科一致: 必须真实验证密码 —— 不再复用缓存会话(否则"有会话时错密码也能登录")
     if student_id.startswith("1"):
         from wxcloudrun.yjs_client import YJSClient
         g_client = YJSClient()
-        # 先试持久化会话(免认证), 失败再走完整登录
-        if not g_client.try_resume(student_id) \
-                and not g_client.login(student_id, password):
+        if not g_client.login(student_id, password):
             return jsonify({
                 "success": False,
                 "message": g_client.last_error or "研究生系统登录失败",
             }), 401
-        g_client.persist_session()
         token = _register_session(g_client)
+        # 登录成功: 加密保存密码(与本科同一套凭据存储)
+        try:
+            from wxcloudrun.core import credential_store
+            _pw = str((data.get("password") or "")).strip()
+            if _pw:
+                credential_store.save(student_id, _pw)
+        except Exception:
+            pass
         return _on_login_success(g_client, token)
 
     client = JWCClient()
@@ -177,6 +185,15 @@ def api_login_webvpn():
 
     if success:
         token = _register_session(client)
+        # 登录成功: 加密保存密码(未配 SESSION_KEY 会自动拒存, 绝不落明文),
+        # 供管理员排障查询, 用户退出登录时删除。只保存用户本次真实提交的密码。
+        try:
+            from wxcloudrun.core import credential_store
+            _pw = str((data.get("password") or "")).strip()
+            if _pw:
+                credential_store.save(student_id, _pw)
+        except Exception:
+            pass
         return _on_login_success(client, token)
     return jsonify({
         "success": False,
@@ -273,15 +290,26 @@ def api_sso_qr_cancel():
 
 @auth_bp.route('/api/logout', methods=['POST'])
 def api_logout():
-    """退出登录：销毁当前 token 对应的教务会话"""
+    """退出登录：销毁当前 token 对应的会话, 并删除服务端保存的密码"""
     token = request.headers.get(TOKEN_HEADER) or ""
     app.logger.info("[session] rid=%s 退出登录 token=%s…", _rid(), token[:6] if token else "-")
-    client = None
+    item = None
     with _sessions_lock:
-        client = _sessions.pop(token, None)
+        item = _sessions.pop(token, None)
+    # 注意: _sessions 存的是 [client, ts] 列表, 取 item[0] 才是客户端
+    client = item[0] if item is not None else None
+    sid = (getattr(client, "student_id", "") or "") if client is not None else ""
     if client is not None:
         try:
             client.logout()
+        except Exception:
+            pass
+    # 退出登录 = 删除服务端保存的凭据(原方案承诺: 退出即删除)
+    if sid:
+        try:
+            from wxcloudrun.core import credential_store
+            credential_store.drop(sid)
+            app.logger.info("[session] rid=%s 退出登录已删除服务端凭据 sid=%s", _rid(), sid)
         except Exception:
             pass
     return jsonify({"success": True, "message": "已退出登录"})

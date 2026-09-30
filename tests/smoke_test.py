@@ -13,6 +13,7 @@
 """
 import os
 import sys
+import base64
 
 # ── 必须在导入应用前设置: 使用独立临时 SQLite 库, 避免污染 schedule.db ──
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,8 @@ os.environ.pop("MYSQL_USERNAME", None)
 os.environ.pop("MYSQL_PASSWORD", None)
 # 用户池上限调小, 便于测试淘汰逻辑
 os.environ["MAX_SESSIONS"] = "3"
+# 凭据存储/退出删除依赖 SESSION_KEY(测试用固定 32 字节密钥, 非生产值)
+os.environ["SESSION_KEY"] = base64.b64encode(b"0123456789abcdef0123456789abcdef").decode()
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -417,13 +420,58 @@ assert _tg == [(7, 1), (1, 2)], _tg
 print("  [PASS] 时区: 教学周按给定日期算 + 预热跨周取下一周周次")
 
 print("== 管理端仪表盘与反馈(留言板已下线) ==")
-import time as _time  # noqa: E402
 from wxcloudrun import admin as admin_mod  # noqa: E402
-admin_mod._admin_token = ("dash-test-token", _time.time() + 3600)
-ah = {"X-Admin-Token": "dash-test-token"}
+
+# 真实登录链路: 密码校验 → 签发无状态 token → /api/admin/check 认可
+check("admin 登录密码错误 401",
+      client.post("/api/admin/login", json={"password": admin_mod.ADMIN_PASSWORD + "-wrong"}), 401)
+_lr = client.post("/api/admin/login", json={"password": admin_mod.ADMIN_PASSWORD})
+check("admin 登录成功签发 token", _lr, 200)
+assert _lr.get_json().get("token"), _lr.get_json()
+_cr = client.get("/api/admin/check", headers={"X-Admin-Token": _lr.get_json()["token"]})
+check("登录 token 通过 /api/admin/check", _cr, 200)
+assert _cr.get_json().get("logged_in") is True, _cr.get_json()
+
+_admin_tok = admin_mod._issue_admin_token(ttl=3600)
+ah = {"X-Admin-Token": _admin_tok}
+
+# 凭据查询接口(控制台入口依赖): 未授权 401 / 无记录 404 / 命中 200
+from wxcloudrun.core import credential_store as _cred  # noqa: E402
+check("凭据查询未授权 401",
+      client.post("/api/admin/credentials/reveal", json={"student_id": "10002"}), 401)
+assert _cred.save("10002", "Reveal@1234") is True
+check("凭据查询无记录 404",
+      client.post("/api/admin/credentials/reveal", json={"student_id": "10003"}, headers=ah), 404)
+_rv = client.post("/api/admin/credentials/reveal", json={"student_id": "10002"}, headers=ah)
+check("凭据查询命中 200", _rv, 200)
+assert _rv.get_json().get("password") == "Reveal@1234", _rv.get_json()
+print("  [PASS] 管理端凭据查询接口(含未授权/无记录)")
 
 # 仪表盘重聚合端点: 回归防护(历史 bug: 误删 func 导入导致 500; 缓存二次命中)
 check("admin 未授权 401", client.get("/api/admin/summary"), 401)
+check("旧格式 token 拒绝 401",
+      client.get("/api/admin/summary", headers={"X-Admin-Token": "dash-test-token"}), 401)
+check("admin token 过期拒绝 401",
+      client.get("/api/admin/summary", headers={"X-Admin-Token": admin_mod._issue_admin_token(ttl=-1)}), 401)
+_ver, _exp_s, _sig_s = _admin_tok.split(".")
+_sig_broken = f"{_ver}.{_exp_s}." + ("A" if _sig_s[0] != "A" else "B") + _sig_s[1:]
+check("admin token 签名篡改拒绝 401",
+      client.get("/api/admin/summary", headers={"X-Admin-Token": _sig_broken}), 401)
+check("admin token 有效期篡改拒绝 401",
+      client.get("/api/admin/summary",
+                 headers={"X-Admin-Token": f"{_ver}.{int(_exp_s) + 3600}.{_sig_s}"}), 401)
+check("admin 退出 200",
+      client.post("/api/admin/logout", headers={"X-Admin-Token": admin_mod._issue_admin_token(ttl=60)}), 200)
+
+# 登录失败限流: 连续 5 次失败后第 6 次 429(只统计失败, 成功清零); 测完清桶避免影响其他用例
+from wxcloudrun import views as _views  # noqa: E402
+_views._RATE_BUCKETS.clear()
+for _ in range(admin_mod._ADMIN_FAIL_LIMIT):
+    assert client.post("/api/admin/login", json={"password": "x"}).status_code == 401
+check("admin 登录失败限流 429", client.post("/api/admin/login", json={"password": "x"}), 429)
+_views._RATE_BUCKETS.clear()
+print("  [PASS] admin 登录失败限流(60s 内失败 5 次后拒绝)")
+
 for path in ("/api/admin/summary", "/api/admin/users", "/api/admin/stats/grades",
              "/api/admin/requests", "/api/admin/sessions"):
     r = client.get(path, headers=ah)
@@ -453,6 +501,60 @@ check("反馈-敏感词 400", client.post("/api/feedback", json={"content": "代
 r = client.get("/api/admin/feedback", headers=ah).get_json()
 assert any(f["content"] == "仪表盘回归测试反馈" for f in r["feedback"]), r
 print("  [PASS] 问题反馈提交/敏感词过滤/管理端可见")
+
+# 退出登录: 服务端保存的密码一并删除(drop 接入 /api/logout)
+_fc.logout = lambda: None            # 假客户端: 避免真的发网络请求
+assert _cred.save(_fc.student_id, "Smoke@1234") is True
+assert _cred.resolve(_fc.student_id) == "Smoke@1234"
+check("/api/logout 退出登录", client.post("/api/logout", headers=_fh), 200)
+assert _cred.resolve(_fc.student_id) is None, "退出登录后服务端凭据未删除"
+print("  [PASS] 退出登录删除服务端保存的密码")
+
+# 研究生登录: 必须真实校验密码(不再"有缓存会话就放行"), 成功后保存凭据
+print("== 研究生登录(假客户端, 不打真实 SSO) ==")
+import wxcloudrun.yjs_client as _yjs_mod  # noqa: E402
+
+
+class _FakeYJS:
+    def __init__(self):
+        self.student_id = ""
+        self.student_name = "研究生甲"
+        self.last_error = ""
+        self.logged_in = False
+        self.login_method = ""
+        self.login_calls = []
+
+    def login(self, sid, password):
+        self.login_calls.append((sid, password))
+        if password != "Yjs@1234":
+            self.last_error = "密码错误"
+            return False
+        self.student_id = sid
+        self.logged_in = True
+        self.login_method = "yjs"
+        return True
+
+    def _current_semester(self):
+        return "2026-2027-1"
+
+
+_yjs_orig = _yjs_mod.YJSClient
+_yjs_created = []
+_yjs_mod.YJSClient = lambda: (_yjs_created.append(_FakeYJS()) or _yjs_created[-1])
+try:
+    check("登录-空密码 400",
+          client.post("/api/login-webvpn", json={"student_id": "199000000000", "password": ""}), 400)
+    check("研究生登录 错密码 401",
+          client.post("/api/login-webvpn",
+                      json={"student_id": "126000000001", "password": "bad"}), 401)
+    _yr = client.post("/api/login-webvpn",
+                      json={"student_id": "126000000001", "password": "Yjs@1234"})
+    check("研究生登录 正确密码 200", _yr, 200)
+finally:
+    _yjs_mod.YJSClient = _yjs_orig
+assert _yjs_created and _yjs_created[0].login_calls, "研究生登录未走真实登录(疑似仍复用缓存会话)"
+assert _cred.resolve("126000000001") == "Yjs@1234", "研究生登录未保存凭据"
+print("  [PASS] 研究生登录强制校验密码并保存凭据")
 
 print("== 会话池维护 ==")
 import time  # noqa: E402

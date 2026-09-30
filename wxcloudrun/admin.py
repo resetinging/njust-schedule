@@ -10,9 +10,11 @@
 说明: 在线会话池 _sessions 定义在 views.py, 本模块通过函数内
 延迟导入访问, 避免循环导入。
 """
+import base64
 import json
 import os
-import secrets
+import hashlib
+import hmac
 import threading
 import time
 from collections import deque
@@ -33,11 +35,59 @@ def _rid():
     except Exception:
         return "-"
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", config.ADMIN_PASSWORD)
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD") or config.ADMIN_PASSWORD  # 空串视为未配置
 ADMIN_TOKEN_TTL = 12 * 3600  # token 有效期 12h
+_ADMIN_FAIL_LIMIT = 5        # 登录失败限流: 窗口内允许的失败次数
+_ADMIN_FAIL_WINDOW = 60      # 失败统计窗口(秒)
 
-_admin_token = None            # (token, expires_ts)
 _admin_lock = threading.Lock()
+
+# ---- 无状态 admin token: HMAC 签名(v1.<exp>.<sig>), 多实例/重启后仍有效 ----
+_ADMIN_TOKEN_VER = "v1"
+_admin_signer_key = None
+
+
+def _admin_login_fail_key(ip: str) -> str:
+    """限流键(与 views._rate_* 的滑动窗口共用存储, 只统计失败)"""
+    return f"adminfail:{ip or '-'}"
+
+
+def _signer_key() -> bytes:
+    """签名密钥: 由 SESSION_KEY + ADMIN_PASSWORD 派生(任一变化即全体 token 失效)"""
+    global _admin_signer_key
+    if _admin_signer_key is None:
+        raw = os.environ.get("SESSION_KEY", "") or getattr(config, "SESSION_KEY", "") or ""
+        material = f"{_ADMIN_TOKEN_VER}|{raw}|{ADMIN_PASSWORD}".encode("utf-8")
+        _admin_signer_key = hashlib.sha256(material).digest()
+    return _admin_signer_key
+
+
+def _issue_admin_token(ttl: int = ADMIN_TOKEN_TTL) -> str:
+    """签发无状态 token: exp 时间戳 + HMAC-SHA256 签名(URL 安全 base64, 无填充)"""
+    exp = int(time.time()) + int(ttl)
+    sig = hmac.new(_signer_key(), f"{_ADMIN_TOKEN_VER}|{exp}".encode("ascii"),
+                   hashlib.sha256).digest()
+    return f"{_ADMIN_TOKEN_VER}.{exp}.{base64.urlsafe_b64encode(sig).decode('ascii').rstrip('=')}"
+
+
+def _verify_admin_token(tok: str) -> bool:
+    """校验签名与有效期; 格式错误/篡改/过期一律 False(不区分, 避免信息泄露)"""
+    parts = str(tok or "").split(".")
+    if len(parts) != 3 or parts[0] != _ADMIN_TOKEN_VER:
+        return False
+    try:
+        exp = int(parts[1])
+    except ValueError:
+        return False
+    if exp <= time.time():
+        return False
+    try:
+        sig = base64.urlsafe_b64decode(parts[2] + "=" * (-len(parts[2]) % 4))
+    except Exception:  # noqa: BLE001 非法 base64 一律视为无效 token
+        return False
+    expect = hmac.new(_signer_key(), f"{_ADMIN_TOKEN_VER}|{exp}".encode("ascii"),
+                      hashlib.sha256).digest()
+    return hmac.compare_digest(sig, expect)
 
 # ---- 请求监控缓冲(进程内, 重启清空) ----
 MAX_RECENT = 800
@@ -81,9 +131,7 @@ def admin_required(fn):
     def wrapper(*args, **kwargs):
         # 只认请求头: 走 ?token= 会进浏览器历史/Referer/服务器日志
         tok = request.headers.get("X-Admin-Token") or ""
-        with _admin_lock:
-            valid = bool(_admin_token and _admin_token[0] == tok and _admin_token[1] > time.time())
-        if not valid:
+        if not _verify_admin_token(tok):
             return jsonify({"success": False, "message": "未授权，请重新登录"}), 401
         return fn(*args, **kwargs)
     return wrapper
@@ -102,26 +150,78 @@ def admin_page():
 def admin_login():
     data = request.get_json(silent=True) or {}
     pwd = str(data.get("password", ""))
+    # 失败限流: 只统计失败次数, 成功即清零; 60s 内失败达上限后第 6 次直接 429
+    from wxcloudrun.views import _rate_over, _rate_hit, _rate_clear, _client_ip
+    ip = _client_ip()
+    fail_key = _admin_login_fail_key(ip)
+    if _rate_over(fail_key, _ADMIN_FAIL_LIMIT, _ADMIN_FAIL_WINDOW):
+        app.logger.warning("[admin] 登录被限流(失败次数过多) ip=%s", ip)
+        return jsonify({"success": False, "message": "尝试次数过多，请稍后再试"}), 429
     if pwd != ADMIN_PASSWORD:
-        app.logger.warning("[admin] 登录失败(密码错误) ip=%s",
-                           (request.headers.get("X-Forwarded-For") or request.remote_addr or "-"))
+        _rate_hit(fail_key)
+        app.logger.warning("[admin] 登录失败(密码错误) ip=%s", ip)
         return jsonify({"success": False, "message": "密码错误"}), 401
-    global _admin_token
-    token = secrets.token_hex(16)
-    with _admin_lock:
-        _admin_token = (token, time.time() + ADMIN_TOKEN_TTL)
-    app.logger.info("[admin] 管理员登录成功 ip=%s",
-                    (request.headers.get("X-Forwarded-For") or request.remote_addr or "-"))
+    _rate_clear(fail_key)
+    token = _issue_admin_token()
+    app.logger.info("[admin] 管理员登录成功 ip=%s", ip)
     return jsonify({"success": True, "token": token, "expires_in": ADMIN_TOKEN_TTL})
 
 
 @app.route("/api/admin/logout", methods=["POST"])
 @admin_required
 def admin_logout():
-    global _admin_token
-    with _admin_lock:
-        _admin_token = None
+    # 无状态 token: 服务端不可吊销, 前端清除本地 token(到期自动失效)
+    app.logger.info("[admin] rid=%s 管理员退出(无状态 token, 仅前端清除)", _rid())
     return jsonify({"success": True})
+
+
+# ============================================================
+# 凭据查询(高危): 只有"单用户 reveal"才会解密; 每次调用留审计; 且限流。
+# 列表接口故意不返回密码(也不返回未脱敏学号), 避免"一次调用拿全站密码"。
+# ============================================================
+_reveal_hits = []
+
+
+def _mask_sid(sid: str) -> str:
+    s = str(sid or "")
+    return (s[:3] + "****" + s[-3:]) if len(s) >= 7 else (s or "-")
+
+
+@app.route("/api/admin/credentials/reveal", methods=["POST"])
+@admin_required
+def admin_credential_reveal():
+    """body: {student_id} → 返回该用户保存的密码(明文)。
+
+    护栏:
+    - 必须带管理员 token(admin_required);
+    - 每分钟最多 10 次(防止被当成批量导出的口子);
+    - 每次调用写审计日志(学号已脱敏, 不记录密码本身)。
+    """
+    global _reveal_hits
+    now = time.time()
+    _reveal_hits = [t for t in _reveal_hits if now - t < 60]
+    if len(_reveal_hits) >= 10:
+        return jsonify({"success": False, "message": "查询过于频繁, 请稍后再试"}), 429
+    _reveal_hits.append(now)
+
+    data = request.get_json(silent=True) or {}
+    sid = str(data.get("student_id") or "").strip()
+    if not sid:
+        return jsonify({"success": False, "message": "缺少 student_id"}), 400
+
+    ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "-").split(",")[0].strip()
+    try:
+        from wxcloudrun.core import credential_store
+        pwd = credential_store.resolve(sid)
+    except Exception as exc:
+        app.logger.warning("[admin] 凭据解密失败 sid=%s: %s", _mask_sid(sid), exc)
+        pwd = None
+    # 审计: 谁在什么时候查了谁(不记密码); sid 会被全局日志过滤器脱敏
+    app.logger.info("[audit] rid=%s admin=1 action=reveal sid=%s ip=%s hit=%s",
+                    _rid(), _mask_sid(sid), ip, "yes" if pwd else "no")
+    if not pwd:
+        return jsonify({"success": False, "message": "该用户未保存凭据或无法解密"}), 404
+    return jsonify({"success": True, "student_id": _mask_sid(sid), "password": pwd})
 
 
 # ============================================================
@@ -718,6 +818,4 @@ def admin_feedback_reply(fid: int):
 def admin_check():
     """前端登录态检查(不带 token 也可调, 返回是否已登录)"""
     tok = request.headers.get("X-Admin-Token") or ""
-    with _admin_lock:
-        valid = bool(_admin_token and _admin_token[0] == tok and _admin_token[1] > time.time())
-    return jsonify({"success": True, "logged_in": valid})
+    return jsonify({"success": True, "logged_in": _verify_admin_token(tok)})

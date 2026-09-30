@@ -174,6 +174,20 @@
           <button id="fcSave" class="primary ann-save">保存</button>
         </div>
       </div>
+
+      <div class="card">
+        <h3>🔑 用户凭据查询</h3>
+        <p class="dim" style="margin-bottom:12px">查询用户登录时加密保存的智慧理工密码（明文展示，仅用于协助用户排障）。每分钟最多查询 10 次，<strong>每次查询都会写入审计日志</strong>。</p>
+        <div class="form-group">
+          <label for="credSid">学号</label>
+          <input type="text" id="credSid" class="ann-input" placeholder="要查询的学号" maxlength="20">
+        </div>
+        <p class="dim" id="credResult" style="margin-top:8px;word-break:break-all"></p>
+        <div class="ann-actions">
+          <button id="credCopy" class="ghost" style="display:none">复制密码</button>
+          <button id="credQuery" class="primary ann-save">查询</button>
+        </div>
+      </div>
     </section>
 
     <section id="panel-feedback" class="panel">

@@ -557,6 +557,43 @@ $('fcSave').addEventListener('click', async () => {
   }
 });
 
+// ---- 用户凭据查询(明文展示; 有审计日志与 10 次/分限流) ----
+$('credQuery').addEventListener('click', async () => {
+  const sid = $('credSid').value.trim();
+  const box = $('credResult');
+  if (!sid) { alert('请输入学号'); return; }
+  if (!confirm('将查询 ' + sid + ' 保存的密码（明文）并写入审计日志，继续？')) return;
+  box.textContent = '查询中…';
+  $('credCopy').style.display = 'none';
+  box.dataset.pwd = '';
+  let r = null;
+  try {
+    r = await api('/api/admin/credentials/reveal', {
+      method: 'POST', body: JSON.stringify({ student_id: sid })
+    });
+  } catch (e) {
+    box.textContent = '查询失败（网络错误或登录已过期）';
+    return;
+  }
+  if (r.success) {
+    box.textContent = r.student_id + ' 的密码：' + r.password;
+    box.dataset.pwd = r.password;
+    $('credCopy').style.display = '';
+  } else {
+    box.textContent = r.message || '查询失败';
+  }
+});
+$('credCopy').addEventListener('click', async () => {
+  const pwd = $('credResult').dataset.pwd || '';
+  if (!pwd) return;
+  try {
+    await navigator.clipboard.writeText(pwd);
+    alert('已复制');
+  } catch (e) {
+    alert('复制失败，请手动选中复制');
+  }
+});
+
 const FEEDBACK_TYPES = { suggest: '功能建议', bug: '问题/Bug', other: '其他' };
 async function loadFeedback() {
   try {

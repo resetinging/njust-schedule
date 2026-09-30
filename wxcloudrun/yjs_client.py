@@ -10,10 +10,8 @@
   抓取后解析 GridView(节次 × 星期, 上午/下午/晚上分组),
   再转换成与教务完全一致的 courses 结构, 供小程序前端无缝复用。
 """
-import json
 import re
 import threading
-import time
 from urllib.parse import urljoin, quote
 
 import requests
@@ -251,51 +249,9 @@ class YJSClient:
         return True
 
     # ---------------- 会话持久化 ----------------
-    def _session_key(self) -> str:
-        return f"{self.student_id}:{SESSION_SETTING_KEY}"
-
-    def persist_session(self) -> None:
-        try:
-            from wxcloudrun import dao
-            from wxcloudrun.core.session_store import serialize_cookies
-            dao.set_user_setting(self.student_id, SESSION_SETTING_KEY,
-                                 json.dumps({"ts": time.time(),
-                                             "cookies": serialize_cookies(
-                                                 self.session.cookies)},
-                                            ensure_ascii=False))
-        except Exception:  # noqa: BLE001 持久化失败不影响本次使用
-            pass
-
-    def try_resume(self, student_id: str) -> bool:
-        """用持久化 cookie 恢复会话(免登录)。"""
-        from wxcloudrun import dao
-        saved = dao.get_user_setting(student_id, SESSION_SETTING_KEY)
-        try:
-            saved = json.loads(saved) if saved else None
-        except ValueError:
-            saved = None
-        if not saved or time.time() - float(saved.get("ts") or 0) > 30 * 24 * 3600:
-            return False
-        try:
-            for c in saved.get("cookies") or []:
-                self.session.cookies.set(c["name"], c["value"],
-                                         domain=c.get("domain"),
-                                         path=c.get("path") or "/")
-            home = self.session.get(f"{GSTUDENT}Default.aspx", timeout=TIMEOUT,
-                                    allow_redirects=True)
-        except Exception:  # noqa: BLE001
-            return False
-        if "Gstudent" not in home.url and "登录窗口" in home.text:
-            return False
-        self.student_id = student_id
-        try:
-            info = self.session.get(f"{EHALL}/getLoginUser", timeout=TIMEOUT).json()
-            self.student_name = ((info or {}).get("data") or {}).get("userName") or ""
-        except Exception:  # noqa: BLE001 姓名只是展示用
-            self.student_name = ""
-        self.logged_in = True
-        self.login_method = "yjs-cached"
-        return True
+    # 说明: 原 persist_session/try_resume(缓存 cookie 免登录)已移除 ——
+    # 登录入口必须真实验证密码, 且不再保存没有读取方的会话 cookie 副本;
+    # logout() 仍会清理历史遗留的 {sid}:yjs_session 值。
 
     def logout(self) -> None:
         from wxcloudrun import dao

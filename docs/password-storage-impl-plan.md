@@ -1,5 +1,11 @@
 # 密码入库 · 实施计划（可直接开工版）
 
+> **实施现状（2026-10 更新）**：密码只在登录成功时加密保存；登录入口必须显式校验密码，
+> 服务端凭据**不参与登录**，仅供管理员排障查询（`/api/admin/credentials/reveal`，有审计与限流）；
+> 「退出登录即删除」已接入 `/api/logout`（`credential_store.drop`）；
+> 原设计的"连续失败 3 次自动删除"（`mark_fail`/`mark_used`）因无真实调用方已移除。
+> 本文以下内容为当时的实施计划，保留存档。
+
 > 前置：`docs/credential-storage-plan.md` 是选型与安全边界；本文是**落地步骤**。
 > 现状：`SESSION_KEY` 已在云托管配置；`wxcloudrun/core/cookie_crypto.py` 已有
 > AES-256-GCM 加密层（AAD 绑学号、密钥版本、无密钥即禁用），直接复用它加密密码。
