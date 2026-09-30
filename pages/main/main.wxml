@@ -50,6 +50,14 @@
         </view>
 
         <view class="feat-card">
+          <view class="feat-row" data-action="onOpenLinks" bindtap="openSettingsAction">
+            <view class="feat-ico"><icon name="link" size="34" color="#2563EB" /></view>
+            <view class="feat-main">
+              <text class="feat-name">常用链接</text>
+              <text class="feat-desc">教务、图书馆等常用入口</text>
+            </view>
+            <text class="feat-arrow">›</text>
+          </view>
           <view class="feat-row" data-url="/pages/freeclass/freeclass" bindtap="onOpenNavPage">
             <view class="feat-ico"><icon name="building" size="34" color="#2563EB" /></view>
             <view class="feat-main">
@@ -63,6 +71,25 @@
             <view class="feat-main">
               <text class="feat-name">校历 &amp; 照片墙</text>
               <text class="feat-desc">学期校历与校园照片</text>
+            </view>
+            <text class="feat-arrow">›</text>
+          </view>
+        </view>
+
+        <view class="feat-card">
+          <view class="feat-row" data-action="onOpenFeedback" bindtap="openSettingsAction">
+            <view class="feat-ico"><icon name="edit" size="34" color="#2563EB" /></view>
+            <view class="feat-main">
+              <text class="feat-name">问题反馈</text>
+              <text class="feat-desc">功能建议、问题反馈</text>
+            </view>
+            <text class="feat-arrow">›</text>
+          </view>
+          <view class="feat-row" data-action="onOpenMyFeedback" bindtap="openSettingsAction">
+            <view class="feat-ico"><icon name="doc" size="34" color="#2563EB" /></view>
+            <view class="feat-main">
+              <text class="feat-name">我的反馈</text>
+              <text class="feat-desc">查看处理进度与官方回复</text>
             </view>
             <text class="feat-arrow">›</text>
           </view>

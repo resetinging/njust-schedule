@@ -2,7 +2,7 @@
 
 /* ---- 快捷操作卡片(自有实现) ---- */
 .act-card {
-  margin: 20rpx 24rpx 0;
+  margin: 12rpx 20rpx 0;
   background: var(--bg-card);
   border: var(--bw-card) solid var(--line);
   border-radius: var(--radius-card);
@@ -13,7 +13,7 @@
 .act-row {
   display: flex;
   align-items: center;
-  padding: 26rpx 24rpx;
+  padding: 20rpx 18rpx;
   border-bottom: 1rpx solid var(--line-soft);
 }
 
@@ -41,11 +41,70 @@
   color: var(--icon-faint);
 }
 
+.act-title.act-danger { color: var(--danger); }
+
+/* 分组标题(账号 / 数据与账号 / 字体) */
+.group-title {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--text-hint);
+  margin-bottom: 6rpx;
+}
+
+.info-arrow {
+  margin-left: 10rpx;
+  font-size: 30rpx;
+  color: var(--icon-faint);
+}
+
+/* 入口行右侧的值 */
+.act-value {
+  margin-right: 12rpx;
+  font-size: 26rpx;
+  color: var(--text-hint);
+}
+
+/* 二级页返回条 */
+.sub-back {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  margin: 12rpx 20rpx 4rpx;
+  padding: 14rpx 18rpx;
+  font-size: 27rpx;
+  color: var(--primary);
+  background: var(--bg-card);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.sub-back:active { background: var(--bg-hover); }
+.sub-back-ico { font-size: 32rpx; }
+
+/* 用户卡一行式: 头像 + 姓名/学号 + 学期 */
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.user-card .user-info { flex: 1; min-width: 0; }
+
+.user-semester {
+  flex-shrink: 0;
+  padding: 6rpx 18rpx;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  color: var(--primary-dark);
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
 /* ---- 字体档位选择 ---- */
 .font-row {
   display: flex;
   align-items: center;
-  padding: 22rpx 4rpx;
+  padding: 15rpx 4rpx;
   border-bottom: 1rpx solid var(--line-soft);
 }
 
@@ -78,6 +137,21 @@
   color: var(--primary);
   font-weight: 700;
 }
+
+/* ============================================================
+   紧凑化: 统一收紧卡片间距与行高(放在最后, 覆盖上面的零散定义)
+   ============================================================ */
+.announce-card { margin: 12rpx 20rpx 0 !important; padding: 18rpx 20rpx !important; }
+.user-card { margin: 12rpx 20rpx 0 !important; padding: 20rpx 20rpx !important; }
+.info-card { margin: 12rpx 20rpx 0 !important; padding: 14rpx 16rpx !important; gap: 8rpx !important; }
+.info-row { padding: 12rpx 18rpx !important; }
+.act-card { margin: 12rpx 20rpx 0 !important; }
+.act-row { padding: 20rpx 18rpx !important; }
+.font-row { padding: 15rpx 4rpx !important; }
+.setting-card { margin: 12rpx 20rpx 0 !important; padding: 18rpx 20rpx !important; }
+.setting-title { margin-bottom: 8rpx !important; }
+.btn-group { margin: 16rpx 20rpx 0 !important; }
+.version-tip { margin-top: 22rpx !important; padding-bottom: 26rpx !important; }
 
 /* 微信扫码登录 */
 .qr-entry {
@@ -146,7 +220,7 @@
 /* 公告栏(我的页常驻; 展开即视为已读) */
 .announce-card {
   font-family: var(--font-ann);
-  margin: 20rpx 24rpx 0;
+  margin: 12rpx 20rpx 0;
   padding: 24rpx;
   background: var(--bg-card);
   border-radius: var(--radius-card);
@@ -621,6 +695,18 @@
   display: flex;
   gap: 16rpx;
   margin: 24rpx 24rpx 0;
+}
+
+/* 底部两个按钮: 等宽并排, 圆角矩形 */
+.btn-group .main-btn {
+  flex: 1;
+  height: 84rpx;
+  line-height: 84rpx;
+  padding: 0;
+  margin: 0;
+  font-size: 27rpx;
+  border-radius: var(--radius-ctrl) !important;
+  box-sizing: border-box;
 }
 
 .btn-group .main-btn {

@@ -22,25 +22,20 @@
   <!-- ============================================================ -->
   <view wx:if="{{isLoggedIn}}">
 
-    <!-- 用户信息卡片(浅蓝软底) -->
+    <!-- 用户卡(一行式: 头像 + 姓名/学号 + 学期) -->
     <view class="user-card card">
       <view class="avatar"><icon name="user" size="40" color="#2563EB" /></view>
       <view class="user-info">
         <text class="user-name">{{studentName || '未设置'}}</text>
         <text class="user-id">{{studentId}}</text>
       </view>
+      <text class="user-semester">{{semester || '未知学期'}}</text>
     </view>
 
-    <!-- 信息行(灰底圆角) -->
-    <view class="info-card">
-      <view class="info-row">
-        <text class="info-label">账号</text>
-        <text class="info-value">{{studentId}}</text>
-      </view>
-      <view class="info-row">
-        <text class="info-label">姓名</text>
-        <text class="info-value">{{studentName || '未设置'}}</text>
-      </view>
+    <!-- 设置项直接平铺在"我的"页(不做二级页) -->
+    <!-- 账号组: 只保留用户卡里没有的信息(账号/姓名已在上方展示, 不再重复) -->
+    <view class="setting-card card">
+      <view class="group-title">账号</view>
       <view class="info-row">
         <text class="info-label">当前学期</text>
         <text class="info-value">{{semester || '未知'}}</text>
@@ -49,35 +44,18 @@
         <text class="info-label">成绩数量</text>
         <text class="info-value">{{gradeCount}} 门</text>
       </view>
+      <picker mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
+        <view class="info-row">
+          <text class="info-label">第一周周一</text>
+          <text class="info-value">{{firstWeekDate || '点击设置'}}</text>
+          <text class="info-arrow">›</text>
+        </view>
+      </picker>
     </view>
 
-    <!-- 快捷操作(自有实现, 不再依赖组件库) -->
-    <view class="act-card">
-      <view class="act-row" bindtap="onGoFreeClass">
-        <text class="act-title">空教室查询</text><text class="act-arrow">›</text>
-      </view>
-      <view class="act-row" bindtap="onGoGallery">
-        <text class="act-title">校历 &amp; 照片墙</text><text class="act-arrow">›</text>
-      </view>
-      <view class="act-row" bindtap="onOpenLinks">
-        <text class="act-title">常用链接</text><text class="act-arrow">›</text>
-      </view>
-      <view class="act-row" bindtap="onOpenFeedback">
-        <text class="act-title">问题反馈</text><text class="act-arrow">›</text>
-      </view>
-      <view class="act-row" bindtap="onOpenMyFeedback">
-        <text class="act-title">我的反馈</text>
-        <text class="act-badge" wx:if="{{fbUnread > 0}}">{{fbUnread > 99 ? '99+' : fbUnread}}</text>
-        <text class="act-arrow">›</text>
-      </view>
-      <view class="act-row" bindtap="onClearData">
-        <text class="act-title">清除缓存数据</text><text class="act-arrow">›</text>
-      </view>
-    </view>
-
-    <!-- 校历设置 -->
+    <!-- 偏好组: 字体 -->
     <view class="setting-card card">
-      <view class="setting-title">字体</view>
+      <view class="group-title">字体</view>
       <view class="font-row f-pixel {{fontMode === 'pixel' ? 'on' : ''}}" data-mode="pixel" bindtap="onPickFont">
         <view class="font-main">
           <text class="font-name">像素点阵</text>
@@ -94,24 +72,10 @@
       </view>
     </view>
 
-    <!-- 校历设置 -->
-    <view class="setting-card card">
-      <view class="setting-title">学期第一周周一</view>
-      <picker mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
-        <view class="setting-value">{{firstWeekDate || '点击设置（课表自动跳转本周）'}}</view>
-      </picker>
-      <view class="setting-hint">设置后课表将自动定位当前教学周并高亮今天</view>
-    </view>
-
-    <!-- 按钮组(主/描边) -->
+    <!-- 底部操作: 清除缓存 / 退出登录(放在最下方, 危险操作标红) -->
     <view class="btn-group">
-      <button class="btn-primary main-btn" bindtap="onRefreshAll">重新同步课表与成绩</button>
-      <button class="btn-outline main-btn" bindtap="onGoGrades">查看成绩</button>
-    </view>
-
-    <!-- 退出登录(白底红描边) -->
-    <view class="logout-area">
-      <button class="btn-danger-plain" bindtap="onLogout">退出登录</button>
+      <button class="btn-outline main-btn" bindtap="onClearData">清除缓存数据</button>
+      <button class="btn-danger-plain main-btn" wx:if="{{isLoggedIn}}" bindtap="onLogout">退出登录</button>
     </view>
   </view>
 
