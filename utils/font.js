@@ -1,5 +1,5 @@
 /**
- * 字体档位: pixel(内联像素字, 默认) / system(系统字) / wenkai(霞鹜文楷) / smiley(得意黑)
+ * 字体档位: pixel(内联像素字, 默认) / system(系统字)
  *
  * pixel 的子集内联在 WXSS 里(ZpixPixel), 零请求;
  * 其余中文档位走后端按需子集: POST /api/font/subset {text, font} → woff(base64)
@@ -18,9 +18,7 @@ const MAX_CHARS = 3000
 
 const MODES = {
   pixel: { cls: '', family: '', remote: false, label: '像素点阵' },
-  system: { cls: 'font-system', family: '', remote: false, label: '系统字体' },
-  wenkai: { cls: 'font-wenkai', family: 'WenKaiSub', remote: true, label: '霞鹜文楷' },
-  smiley: { cls: 'font-smiley', family: 'SmileySub', remote: true, label: '得意黑' }
+  system: { cls: 'font-system', family: '', remote: false, label: '系统字体' }
 }
 
 function getMode() {
@@ -77,6 +75,30 @@ function loadFace(family, path) {
 function fetchSubset(mode, chars) {
   const conf = MODES[mode]
   if (!conf.remote || !chars) return Promise.resolve(false)
+  // 本地联调: 直连本机 Flask(开发者工具需勾"不校验合法域名")
+  if (config.USE_LOCAL) {
+    return new Promise((resolve) => {
+      wx.request({
+        url: config.LOCAL_BASE + '/api/font/subset',
+        method: 'POST',
+        data: { text: chars, font: mode },
+        timeout: 30000,
+        success: (res) => {
+          const body = res && res.data
+          if (body && body.pending) return resolve('pending')
+          if (!body || !body.data) return resolve(false)
+          wx.getFileSystemManager().writeFile({
+            filePath: fileOf(mode),
+            data: body.data,
+            encoding: 'base64',
+            success: () => loadFace(conf.family, fileOf(mode)).then(ok => resolve(ok ? (body.partial ? 'partial' : true) : false)),
+            fail: () => resolve(false)
+          })
+        },
+        fail: () => resolve(false)
+      })
+    })
+  }
   if (!wx.cloud || !wx.cloud.callContainer) return Promise.resolve(false)
   return new Promise((resolve) => {
     wx.cloud.callContainer({
@@ -135,13 +157,6 @@ function ensureCurrent() {
  * 否则只用本地已缓存的那份(没有缓存就等下次刷新), 避免每次启动/切周都打网络。
  */
 function loadForText(text, opts) {
-  const mode = getMode()
-  if (!MODES[mode].remote) return Promise.resolve(false)
-  const force = !!(opts && opts.force)
-  // 非主动刷新: 本地有缓存就直接注册, 不发请求
-  if (!force && fileReady(mode)) {
-    return loadFace(MODES[mode].family, fileOf(mode))
-  }
   const stored = storage.get(CHARS_KEY, '') || ''
   const set = new Set(stored.split(''))
   String(text || '').split('').forEach((ch) => {
@@ -150,6 +165,17 @@ function loadForText(text, opts) {
   let chars = Array.from(set).join('')
   if (chars.length > MAX_CHARS) chars = chars.slice(-MAX_CHARS)
   if (!chars) return Promise.resolve(false)
+  // 关键: 不管当前是哪一档都先把字符集记下来 —— 否则用户从"像素"切到"文楷"时
+  // 客户端手里没有文本可发, 切换会静默失败(表现为"点了没反应")
+  if (chars !== stored) storage.set(CHARS_KEY, chars)
+
+  const mode = getMode()
+  if (!MODES[mode].remote) return Promise.resolve(false)
+  const force = !!(opts && opts.force)
+  // 非主动刷新: 本地有缓存就直接注册, 不发请求
+  if (!force && fileReady(mode)) {
+    return loadFace(MODES[mode].family, fileOf(mode))
+  }
   if (!force && chars === stored && fileReady(mode)) {
     return loadFace(MODES[mode].family, fileOf(mode))
   }

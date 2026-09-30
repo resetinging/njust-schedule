@@ -92,20 +92,6 @@
         </view>
         <text class="font-tick" wx:if="{{fontMode === 'system'}}">✓</text>
       </view>
-      <view class="font-row f-wenkai {{fontMode === 'wenkai' ? 'on' : ''}}" data-mode="wenkai" bindtap="onPickFont">
-        <view class="font-main">
-          <text class="font-name">霞鹜文楷</text>
-          <text class="font-desc">楷体笔意，阅读型（首次切换需加载）</text>
-        </view>
-        <text class="font-tick" wx:if="{{fontMode === 'wenkai'}}">✓</text>
-      </view>
-      <view class="font-row f-smiley {{fontMode === 'smiley' ? 'on' : ''}}" data-mode="smiley" bindtap="onPickFont">
-        <view class="font-main">
-          <text class="font-name">得意黑</text>
-          <text class="font-desc">粗壮抓眼，标题型（首次切换需加载）</text>
-        </view>
-        <text class="font-tick" wx:if="{{fontMode === 'smiley'}}">✓</text>
-      </view>
     </view>
 
     <!-- 校历设置 -->

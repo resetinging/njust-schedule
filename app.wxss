@@ -5,29 +5,12 @@
   --font-body: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-num: "DIN Alternate", "Avenir Next", "Helvetica Neue", sans-serif;
   --font-display: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-ann: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-ann: var(--font-body);
   /* 必须在这里重新声明一次: page 上的 font-family 已经解析成具体字体并向下继承,
      只覆盖变量对子元素不起作用(它们没有自己的 font-family 声明)。 */
   font-family: var(--font-body);
 }
 
-/* 霞鹜文楷(后端按需子集, family 名 WenKaiSub) */
-.font-wenkai {
-  --font-body: "WenKaiSub", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-num: "WenKaiSub", "DIN Alternate", sans-serif;
-  --font-display: "WenKaiSub", "PingFang SC", sans-serif;
-  --font-ann: "WenKaiSub", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-family: var(--font-body);
-}
-
-/* 得意黑(后端按需子集, family 名 SmileySub) */
-.font-smiley {
-  --font-body: "SmileySub", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-num: "SmileySub", "DIN Alternate", sans-serif;
-  --font-display: "SmileySub", "PingFang SC", sans-serif;
-  --font-ann: "SmileySub", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-family: var(--font-body);
-}
 
 /* ============================================================
    课表助手 — 全局样式
@@ -130,8 +113,8 @@ page {
   --font-display: "ZpixFull", "ZpixPixel", "PingFang SC", "Microsoft YaHei", monospace;
   /* 公告等长文本用系统字: 点阵字读长句较累 */
   --font-plain: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
-  /* 公告等长文本: 像素档位下仍用系统字, 选其它档位时跟随所选字体 */
-  --font-ann: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  /* 公告等文本也跟随当前档位(只有"我的"页字体列表本身用各自字体做预览) */
+  --font-ann: var(--font-body);
 
   /* --- 课程色板(10 组: 粉彩底 / 深色字 / 明快左边条) --- */
   --c1-bg: #E8F1FF;  --c1-fg: #2563EB;  --c1-bar: #3B82F6;

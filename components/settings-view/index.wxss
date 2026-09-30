@@ -52,8 +52,6 @@
 /* 每一行用"它自己那种字体"渲染, 相当于字体预览 */
 .font-row.f-pixel { font-family: "ZpixPixel", "PingFang SC", monospace; }
 .font-row.f-system { font-family: var(--font-plain); }
-.font-row.f-wenkai { font-family: "WenKaiSub", "PingFang SC", "Microsoft YaHei", sans-serif; }
-.font-row.f-smiley { font-family: "SmileySub", "PingFang SC", "Microsoft YaHei", sans-serif; }
 
 .font-row:last-child { border-bottom: none; }
 .font-row:active { background: var(--bg-hover); }
