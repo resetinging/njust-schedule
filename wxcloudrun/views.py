@@ -419,14 +419,15 @@ app.register_blueprint(grades_bp)
 
 @app.errorhandler(404)
 def not_found(e):
-    return jsonify({"error": "页面不存在"}), 404
+    return jsonify({"error": "页面不存在", "rid": _rid()}), 404
 
 
 @app.errorhandler(500)
 def server_error(e):
     # 记录完整堆栈, 便于线上排障(云托管采集 stdout 日志)
     app.logger.error("[500] rid=%s %s %s: %s", _rid(), request.method, request.path, e, exc_info=True)
-    return jsonify({"error": "服务器内部错误"}), 500
+    # 回给前端的只有通用文案 + rid: 用户报障时能直接对上日志, 又不泄露内部细节
+    return jsonify({"error": "服务器内部错误", "rid": _rid()}), 500
 
 
 # 空教室定时预热: 由服务入口 run.py 启动(默认开启, FREE_CLASSROOM_PREWARM=0 关闭)。
