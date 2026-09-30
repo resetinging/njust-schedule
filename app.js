@@ -114,6 +114,11 @@ App({
       // 请求失败(网络超时/5xx)返回 {success:false}, logged_in 为 undefined:
       // 绝不能当作"未登录"清空本地登录态, 静默跳过即可
       if (!res || res.success === false || typeof res.logged_in !== 'boolean') return
+      // 能力协商: 记录后端 api_version / features, 供前端做兼容判断(旧后端没有这些字段时保持默认)
+      try {
+        if (typeof res.api_version === 'number') storage.set('api_version', String(res.api_version))
+        if (Array.isArray(res.features)) storage.set('api_features', res.features.join(','))
+      } catch (e) { /* 老后端: 忽略 */ }
       // 账号类型兜底同步(研究生: tabBar 隐藏评教、成绩/考试走研究生数据)
       if (res.account_type) {
         const changed = storage.get('account_type', '') !== res.account_type
