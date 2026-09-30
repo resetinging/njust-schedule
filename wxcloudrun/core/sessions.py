@@ -7,6 +7,7 @@
 - 验证码临时会话: 登录尝试的客户端, 10 分钟未使用自动回收。
 """
 import os
+import hashlib
 import secrets
 import threading
 import time
@@ -17,9 +18,41 @@ from flask import request
 from wxcloudrun.jwc_client import JWCClient
 
 _sessions = {}          # token -> [JWCClient, last_active_ts]
+_session_ua = {}        # token -> ua_hash(首次绑定的客户端指纹; 只告警不拦截)
 _captcha_clients = {}   # captcha_id -> [JWCClient, created_ts]
 _sessions_lock = threading.Lock()
 TOKEN_HEADER = "X-Auth-Token"
+
+
+def _ua_hash() -> str:
+    """当前请求的客户端指纹(UA 摘要, 不含个人信息)"""
+    try:
+        ua = request.headers.get("User-Agent", "") or ""
+        return hashlib.sha256(ua.encode("utf-8", "ignore")).hexdigest()[:12]
+    except Exception:
+        return "-"
+
+
+def _bind_ua_locked(token: str) -> None:
+    _session_ua[token] = _ua_hash()
+    if len(_session_ua) > 5000:          # 兜底: 防止字典无限增长
+        _session_ua.clear()
+
+
+def _check_ua_locked(token: str) -> None:
+    """token 指纹变化时告警(不拦截): 正常用户换设备/升级 UA 会命中, 只作风险线索"""
+    bound = _session_ua.get(token)
+    now = _ua_hash()
+    if bound and now != bound and now != "-":
+        # app / _rid 在本模块是延迟导入的, 这里同样延迟取, 并且绝不能让告警失败影响请求
+        try:
+            from wxcloudrun import app
+            from wxcloudrun.core.web import _rid
+            app.logger.warning(
+                "[session] rid=%s token=%s… 客户端指纹变化(绑定=%s 当前=%s), 可能是换设备或凭据外泄",
+                _rid(), token[:6], bound, now)
+        except Exception:
+            pass
 
 JW_MAX_CONCURRENT = int(os.environ.get("JW_MAX_CONCURRENT", "4"))
 SESSION_TTL = int(os.environ.get("SESSION_TTL", str(12 * 3600)))  # 默认 12h
@@ -129,7 +162,9 @@ def _register_session(client: JWCClient) -> str:
                     if c.student_id and c.student_id == client.student_id]
         for t in same_sid:
             _sessions.pop(t, None)
+            _session_ua.pop(t, None)
         _sessions[token] = [client, time.time()]
+        _bind_ua_locked(token)
         _prune_sessions_locked()
     app.logger.info("[session] rid=%s 登录成功 sid=%s name=%s token=%s… 顶掉旧会话=%d 在线=%d",
                     _rid(), client.student_id, client.student_name, token[:6],
@@ -163,8 +198,10 @@ def _get_session_client() -> Optional[JWCClient]:
             return None
         if time.time() - item[1] > SESSION_TTL:
             _sessions.pop(token, None)
+            _session_ua.pop(token, None)
             return None
         item[1] = time.time()  # 更新活动时间
+        _check_ua_locked(token)
         return item[0]
 
 
