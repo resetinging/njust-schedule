@@ -41,6 +41,46 @@
   color: var(--icon-faint);
 }
 
+/* ---- 字体档位选择 ---- */
+.font-row {
+  display: flex;
+  align-items: center;
+  padding: 22rpx 4rpx;
+  border-bottom: 1rpx solid var(--line-soft);
+}
+
+/* 每一行用"它自己那种字体"渲染, 相当于字体预览 */
+.font-row.f-pixel { font-family: "ZpixPixel", "PingFang SC", monospace; }
+.font-row.f-system { font-family: var(--font-plain); }
+.font-row.f-wenkai { font-family: "WenKaiSub", "PingFang SC", "Microsoft YaHei", sans-serif; }
+.font-row.f-smiley { font-family: "SmileySub", "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+.font-row:last-child { border-bottom: none; }
+.font-row:active { background: var(--bg-hover); }
+
+.font-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.font-name {
+  font-size: 29rpx;
+  color: var(--text-primary);
+}
+
+.font-desc {
+  font-size: 22rpx;
+  color: var(--text-hint);
+}
+
+.font-tick {
+  font-size: 32rpx;
+  color: var(--primary);
+  font-weight: 700;
+}
+
 /* 微信扫码登录 */
 .qr-entry {
   margin-top: 24rpx;
@@ -107,7 +147,7 @@
 
 /* 公告栏(我的页常驻; 展开即视为已读) */
 .announce-card {
-  font-family: var(--font-plain);
+  font-family: var(--font-ann);
   margin: 20rpx 24rpx 0;
   padding: 24rpx;
   background: var(--bg-card);

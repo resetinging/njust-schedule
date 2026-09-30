@@ -9,6 +9,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const font = require('../../utils/font')
 const { groupRooms, isMainTeaching } = require('../../utils/room-group')
 const { bigSectionIndex } = require('../../utils/period-time')
 
@@ -114,6 +115,7 @@ Page({
   },
 
   onLoad() {
+    this.setData({ fontClass: font.getClass() })
     if (!storage.isLoggedIn()) {
       this.setData({ loggedIn: false })
       return

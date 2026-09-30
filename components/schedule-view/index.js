@@ -497,6 +497,7 @@ Component({
           .join('')
         if (text) {
           if (this._fontTimer) clearTimeout(this._fontTimer)
+          // 启动/切周: 只用本地缓存, 不发请求
           this._fontTimer = setTimeout(() => font.loadForText(text), 2500)
         }
       } catch (e) { /* 字体只是观感, 失败不影响功能 */ }
@@ -608,6 +609,13 @@ Component({
     /** 手动刷新(主动操作, 显示反馈; 防重复点击) */
     async onRefresh() {
       if (this.data.loading) return
+      // 用户主动刷新: 顺带向服务器要一次当前字体档位的子集(覆盖本地缓存)
+      try {
+        const ft = (this.data.courses || [])
+          .map((c) => `${c.name || ''}${c.teacher || ''}${c.classroom || ''}`)
+          .join('')
+        if (ft) font.loadForText(ft, { force: true })
+      } catch (e) { /* 字体失败不影响刷新 */ }
       if (!storage.isLoggedIn()) {
         wx.showToast({ title: '请先在"我的"页面登录', icon: 'none' })
         return

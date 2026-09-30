@@ -8,6 +8,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const font = require('../../utils/font')
 const fs = wx.getFileSystemManager()
 
 const GALLERY_META_KEY = 'cached_gallery_meta'   // {t: 时间戳, names: [文件名]}
@@ -24,6 +25,7 @@ Page({
   },
 
   onLoad() {
+    this.setData({ fontClass: font.getClass() })
     this.loadImages()
   },
 

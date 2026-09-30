@@ -11,12 +11,14 @@
 
 const ann = require('../../utils/announcement')
 const storage = require('../../utils/storage')
+const font = require('../../utils/font')
 
 Page({
   data: {
     current: 1,        // 底栏选中项: 0=功能 1=课表 2=我的
     sub: '',           // 功能页二级视图: '' | exams | eval | grades
     isGraduate: false, // 研究生账号在功能页隐藏"教学评价"
+    fontClass: '',     // 字体档位: '' 像素 | 'font-system' 系统字体
     swiperHeight: 600, // 内容区高度(px), 自适应计算(公告条可见时扣除其高度)
     visited: [true, false, false, false, false],  // 已挂载的 Tab(懒渲染)
 
@@ -41,6 +43,8 @@ Page({
 
   onShow() {
     this._syncAccountType()
+    const fc = font.getClass()
+    if (fc !== this.data.fontClass) this.setData({ fontClass: fc })
     // 从非 tab 页(如图鉴页)返回时同步全局状态到激活页(带重试)
     this._route()
     // 同步 tabBar 高亮

@@ -9,6 +9,7 @@ const storage = require('../../utils/storage')
 const config = require('../../utils/config')
 const dataLoader = require('../../utils/data-loader')
 const ann = require('../../utils/announcement')
+const font = require('../../utils/font')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
 // 常用链接数据源(容错加载: 模块异常时降级为空列表,
 // 避免 require 失败导致整个组件定义抛错、页面全白)
@@ -31,6 +32,7 @@ Component({
 
   data: {
     isLoggedIn: false,
+    fontMode: 'pixel',      // 字体档位: pixel | system
     studentId: '',
     studentName: '',
     semester: '',
@@ -99,10 +101,23 @@ Component({
   },
 
   methods: {
+    /** 切换字体档位(像素 / 系统) */
+    onPickFont(e) {
+      const mode = e.currentTarget.dataset.mode
+      if (!mode || mode === this.data.fontMode) return
+      font.setMode(mode)
+      this.setData({ fontMode: font.getMode() })
+      wx.showToast({
+        title: mode === 'system' ? '已切换系统字体' : '已切换像素字体',
+        icon: 'none', duration: 1200
+      })
+    },
+
     /** 由 main 页面调用: 每次被激活时触发 */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
       this.refreshState()
+      this.setData({ fontMode: font.getMode() })
       // 回填记住的学号与密码（登录走自动 OCR，无需预取验证码）
       if (!this.data.isLoggedIn) {
         const updates = {}

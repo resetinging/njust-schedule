@@ -1,5 +1,5 @@
 <!-- 空教室查询页: 渐变头卡 + 筛选卡片 + 按教学楼分组的教室列表 -->
-<view class="container">
+<view class="container {{fontClass}}">
 
   <!-- ============ 已登录 ============ -->
   <block wx:if="{{loggedIn}}">

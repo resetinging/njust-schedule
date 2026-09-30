@@ -118,7 +118,7 @@
 顶部公告条 — 新公告横幅(查看后隐藏, 高度由 JS 计入 swiperHeight)
 ============================================================ */
 .ann-bar {
-  font-family: var(--font-plain);
+  font-family: var(--font-ann);
   display: flex;
   align-items: center;
   height: 88rpx;

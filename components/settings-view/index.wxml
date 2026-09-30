@@ -77,6 +77,39 @@
 
     <!-- 校历设置 -->
     <view class="setting-card card">
+      <view class="setting-title">字体</view>
+      <view class="font-row f-pixel {{fontMode === 'pixel' ? 'on' : ''}}" data-mode="pixel" bindtap="onPickFont">
+        <view class="font-main">
+          <text class="font-name">像素点阵</text>
+          <text class="font-desc">默认，和界面风格一致</text>
+        </view>
+        <text class="font-tick" wx:if="{{fontMode === 'pixel'}}">✓</text>
+      </view>
+      <view class="font-row f-system {{fontMode === 'system' ? 'on' : ''}}" data-mode="system" bindtap="onPickFont">
+        <view class="font-main">
+          <text class="font-name">系统字体</text>
+          <text class="font-desc">小字号更清晰，长文更好读</text>
+        </view>
+        <text class="font-tick" wx:if="{{fontMode === 'system'}}">✓</text>
+      </view>
+      <view class="font-row f-wenkai {{fontMode === 'wenkai' ? 'on' : ''}}" data-mode="wenkai" bindtap="onPickFont">
+        <view class="font-main">
+          <text class="font-name">霞鹜文楷</text>
+          <text class="font-desc">楷体笔意，阅读型（首次切换需加载）</text>
+        </view>
+        <text class="font-tick" wx:if="{{fontMode === 'wenkai'}}">✓</text>
+      </view>
+      <view class="font-row f-smiley {{fontMode === 'smiley' ? 'on' : ''}}" data-mode="smiley" bindtap="onPickFont">
+        <view class="font-main">
+          <text class="font-name">得意黑</text>
+          <text class="font-desc">粗壮抓眼，标题型（首次切换需加载）</text>
+        </view>
+        <text class="font-tick" wx:if="{{fontMode === 'smiley'}}">✓</text>
+      </view>
+    </view>
+
+    <!-- 校历设置 -->
+    <view class="setting-card card">
       <view class="setting-title">学期第一周周一</view>
       <picker mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
         <view class="setting-value">{{firstWeekDate || '点击设置（课表自动跳转本周）'}}</view>

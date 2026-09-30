@@ -1,6 +1,6 @@
 <!-- 主页面: swiper 承载 5 个 Tab 视图(仅 tabBar 切页);
      横滑手势在课表页用于切换周次, 不再翻页 -->
-<view class="main-page">
+<view class="main-page {{fontClass}}">
 
   <!-- 顶部公告条: 有新公告(updated 未读)时展示, 查看后隐藏 -->
   <view class="ann-bar" wx:if="{{ann.visible}}" bindtap="onAnnTap">
