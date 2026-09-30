@@ -14,21 +14,34 @@ import sys
 from fontTools import subset as ft_subset
 from fontTools.ttLib import TTFont
 
-FONT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         'static', 'fonts', 'pixel.woff2')
+FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'fonts')
+
+
+def font_path(key: str) -> str:
+    """字体 key → 源文件(候选 woff2/ttf/otf 各取第一个存在的)"""
+    for ext in ('.woff2', '.ttf', '.otf'):
+        p = os.path.join(FONT_DIR, f'{key}{ext}')
+        if os.path.exists(p):
+            return p
+    return os.path.join(FONT_DIR, 'pixel.woff2')
 
 
 def main() -> int:
     if len(sys.argv) < 3:
-        print('usage: python -m wxcloudrun.font_subset_tool <chars_file> <out_woff>',
+        print('usage: python font_subset_tool.py <chars_file> <out_woff> [font_key]',
               file=sys.stderr)
         return 2
     chars_file, out_file = sys.argv[1], sys.argv[2]
+    key = sys.argv[3] if len(sys.argv) > 3 else 'pixel'
     with open(chars_file, encoding='utf-8') as f:
         chars = f.read().strip()
     if not chars:
         return 3
-    font = TTFont(FONT_FILE)
+    src = font_path(key)
+    if not os.path.exists(src):
+        print(f'font not found: {key}', file=sys.stderr)
+        return 4
+    font = TTFont(src)
     opts = ft_subset.Options()
     opts.flavor = 'woff'
     opts.layout_features = ['*']

@@ -212,7 +212,7 @@ _SUBSET_MAX_BUILDING = 2      # 同时最多两个生成任务, 避免请求量�
 _SUBSET_TOOL = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'font_subset_tool.py')
 
 
-def _start_subset_build(key: str, chars: str):
+def _start_subset_build(key: str, chars: str, font_key: str = 'pixel'):
     """后台生成子集。
 
     生成器放在**独立子进程**里跑: 子集生成是纯 CPU 活, 放在 Flask 进程里会持有 GIL,
@@ -234,7 +234,7 @@ def _start_subset_build(key: str, chars: str):
                 f.write(chars)
             proc = subprocess.run(
                 # 直接当脚本执行: 用 -m 会先导入 wxcloudrun 包, 触发数据库初始化
-                [sys.executable, _SUBSET_TOOL, chars_file, out_file],
+                [sys.executable, _SUBSET_TOOL, chars_file, out_file, font_key],
                 capture_output=True, timeout=120)
             if proc.returncode != 0:
                 raise RuntimeError((proc.stderr or b'').decode('utf-8', 'replace')[:200])
@@ -270,26 +270,43 @@ def _pick_subset(need: set):
 
 @app.route('/api/font/subset', methods=['POST'])
 def font_subset():
-    """body: {text: "该用户课程名/教师/教室拼接"} → 子集字体(base64)"""
+    """body: {text: "该用户课程名/教师/教室拼接", font?: "pixel|wenkai|smiley"} → 子集字体(base64)"""
     if not os.path.exists(FONT_FILE):
         return jsonify({'error': 'font not found'}), 404
     payload = request.get_json(silent=True) or {}
     text = payload.get('text') or ''
+    font_key = str(payload.get('font') or 'pixel')
+    if not re.fullmatch(r'[a-z0-9_-]{1,16}', font_key):
+        return jsonify({'error': 'bad font'}), 400
     if not isinstance(text, str) or not text.strip():
         return jsonify({'error': 'no text'}), 400
     chars = ''.join(sorted(set(text)))[:3000]
-    key = hashlib.md5(chars.encode('utf-8')).hexdigest()
+    key = hashlib.md5((font_key + '|' + chars).encode('utf-8')).hexdigest()
     data, partial = _pick_subset(set(chars))
     if not partial:
         body = {'format': 'woff', 'encoding': 'base64', 'chars': len(chars), 'data': data}
     else:
         # 还没有覆盖这份文本的子集: 后台去生成, 本次先给上一份可用的(前端会自行重试)
-        _start_subset_build(key, chars)
+        _start_subset_build(key, chars, font_key)
         if data is None:
             return jsonify({'pending': True, 'message': 'subset building'}), 202
         body = {'format': 'woff', 'encoding': 'base64', 'chars': len(chars),
                 'partial': True, 'data': data}
     resp = jsonify(body)
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
+
+@app.route('/api/font/list')
+def font_list():
+    """可用字体档位(pixel 内联在客户端, 这里列出需要下载的)"""
+    fonts = [{'key': 'pixel', 'name': '像素点阵', 'builtin': True}]
+    for key, name in (('wenkai', '霞鹜文楷'), ('smiley', '得意黑')):
+        for ext in ('.woff2', '.ttf', '.otf'):
+            if os.path.exists(os.path.join(os.path.dirname(FONT_FILE), key + ext)):
+                fonts.append({'key': key, 'name': name, 'builtin': False})
+                break
+    resp = jsonify({'success': True, 'fonts': fonts})
     resp.headers['Access-Control-Allow-Origin'] = '*'
     return resp
 
