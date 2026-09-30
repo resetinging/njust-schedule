@@ -135,8 +135,10 @@ def api_login_webvpn():
     student_id = (data.get("student_id") or "").strip()
     # 登录限流: 防止爆破学号密码, 也避免频繁登录触发智慧理工风控
     from wxcloudrun.views import _rate_limited, _client_ip
-    # 3 次/分钟/学号+IP: 够防爆破, 又不会挡住手滑重试或 401 自动重登
-    if _rate_limited('login:%s:%s' % (student_id, _client_ip()), 3, 60):
+    # 只统计"失败次数": 连续失败 3 次才冷却 60 秒, 登录成功立刻清零。
+    # 这样正常登录/自动重登永远不会被自己的成功请求挤掉额度。
+    from wxcloudrun.views import _rate_over, _LOGIN_FAIL_KEY
+    if _rate_over(_LOGIN_FAIL_KEY(student_id, _client_ip()), 3, 60):
         return jsonify({"success": False, "message": "登录过于频繁，请稍后再试"}), 429
     password = _resolve_password(student_id, data.get("password") or "")
     # 教务密码可与智慧理工密码不同(见 api_login_webvpn_manual)

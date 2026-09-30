@@ -209,8 +209,48 @@ def _rate_limited(key: str, limit: int, window: float = 60.0) -> bool:
     return False
 
 
+def _rate_over(key: str, limit: int, window: float = 60.0) -> bool:
+    """只检查是否超限, 不计数(计数交给 _rate_hit)"""
+    now = time.time()
+    with _RATE_LOCK:
+        hits = [t for t in _RATE_BUCKETS.get(key, []) if now - t < window]
+        _RATE_BUCKETS[key] = hits
+        return len(hits) >= limit
+
+
+def _rate_hit(key: str) -> None:
+    with _RATE_LOCK:
+        _RATE_BUCKETS.setdefault(key, []).append(time.time())
+
+
+def _rate_clear(key: str) -> None:
+    with _RATE_LOCK:
+        _RATE_BUCKETS.pop(key, None)
+
+
 def _client_ip() -> str:
     return (request.headers.get('X-Forwarded-For') or request.remote_addr or '-').split(',')[0].strip()
+
+
+def _LOGIN_FAIL_KEY(student_id: str, ip: str) -> str:
+    return 'loginfail:%s:%s' % (student_id or '-', ip)
+
+
+@app.after_request
+def _count_login_failure(resp):
+    """登录接口: 成功清零计数, 失败累加 —— 实现"只统计失败次数"的节流。"""
+    try:
+        if request.path == '/api/login-webvpn' and request.method == 'POST':
+            body = request.get_json(silent=True) or {}
+            sid = (body.get('student_id') or '').strip()
+            key = _LOGIN_FAIL_KEY(sid, _client_ip())
+            if resp.status_code == 200:
+                _rate_clear(key)
+            else:
+                _rate_hit(key)
+    except Exception:
+        pass
+    return resp
 
 
 _SUBSET_CACHE = {}        # key -> (chars_set, base64)

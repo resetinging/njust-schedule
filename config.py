@@ -145,7 +145,18 @@ JW_TRY_DEFAULT_PWD = os.environ.get("JW_TRY_DEFAULT_PWD", "true").strip().lower(
 # 管理控制面板
 # ============================================================
 # 管理员密码(环境变量注入; 未设置时默认 admin123, 生产环境务必修改)
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+# 安全: 绝不留已知默认口令 —— 没配环境变量时生成一次性随机口令(重启即变),
+# 并在日志里告警, 而不是退回 "admin123" 这种可被猜到默认值
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+if not ADMIN_PASSWORD:
+    import logging as _logging
+    import secrets as _secrets
+
+    ADMIN_PASSWORD = _secrets.token_urlsafe(18)
+    _logging.getLogger("config").warning(
+        "[config] 未配置 ADMIN_PASSWORD 环境变量, 已生成本次运行的随机管理口令(重启即变); "
+        "请在云托管环境变量中配置固定口令"
+    )
 
 # ============================================================
 # 调试开关
