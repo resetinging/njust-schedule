@@ -243,33 +243,34 @@ def schedule_study_prefetch(client, sid: str, semester: str = "", delay: float =
 
     def _run():
         try:
-            time.sleep(delay)                 # 让登录响应先返回
-            if not getattr(client, "logged_in", False):
-                return
-            sem = semester or dao.get_user_setting(sid, "semester") or ""
-            cached = _load_json(_calendar_key(sem))
-            if cached and time.time() - int(cached.get("fetched_at") or 0) < CALENDAR_TTL:
-                _sync_first_week(sid, cached)
-            else:
-                _fetch_calendar(client, sid, sem, cached)
-            if not getattr(client, "logged_in", False):
-                return
-            with _jwc_request(client):
-                data = client.fetch_programme()
-            if not data:
-                return
-            data["fetched_at"] = int(time.time())
-            _save_user_json(sid, PROGRAMME_KEY, data)
-            # 学籍卡片: 30 天缓存, 没过期就不再抓
-            prof = _load_user_json(sid, PROFILE_KEY)
-            if not (prof and time.time() - int(prof.get("fetched_at") or 0) < PROFILE_TTL):
+            with app.app_context():
+                time.sleep(delay)                 # 让登录响应先返回
+                if not getattr(client, "logged_in", False):
+                    return
+                sem = semester or dao.get_user_setting(sid, "semester") or ""
+                cached = _load_json(_calendar_key(sem))
+                if cached and time.time() - int(cached.get("fetched_at") or 0) < CALENDAR_TTL:
+                    _sync_first_week(sid, cached)
+                else:
+                    _fetch_calendar(client, sid, sem, cached)
+                if not getattr(client, "logged_in", False):
+                    return
                 with _jwc_request(client):
-                    pdata = client.fetch_profile()
-                if pdata:
-                    pdata["fetched_at"] = int(time.time())
-                    _save_user_json(sid, PROFILE_KEY, pdata)
-            app.logger.info("[prefetch] rid=%s 周历+培养方案+学籍 sid=%s sem=%s count=%s",
-                            _rid(), sid, sem, data.get("count"))
+                    data = client.fetch_programme()
+                if not data:
+                    return
+                data["fetched_at"] = int(time.time())
+                _save_user_json(sid, PROGRAMME_KEY, data)
+                # 学籍卡片: 30 天缓存, 没过期就不再抓
+                prof = _load_user_json(sid, PROFILE_KEY)
+                if not (prof and time.time() - int(prof.get("fetched_at") or 0) < PROFILE_TTL):
+                    with _jwc_request(client):
+                        pdata = client.fetch_profile()
+                    if pdata:
+                        pdata["fetched_at"] = int(time.time())
+                        _save_user_json(sid, PROFILE_KEY, pdata)
+                app.logger.info("[prefetch] rid=%s 周历+培养方案+学籍 sid=%s sem=%s count=%s",
+                                _rid(), sid, sem, data.get("count"))
         except Exception:                     # noqa: BLE001 预抓失败不影响用户
             pass
 

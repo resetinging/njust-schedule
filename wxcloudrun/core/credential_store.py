@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""服务器端保存教务密码(可逆加密), 供管理员排障查询(console reveal 接口)。
+"""服务器端保存教务密码(可逆加密), 用于会话失效时自动重登。
 
 与 session_store 同一套路, 复用 settings 表(键 `{student_id}:credential`),
 因此**不需要新建表/迁移**; 密文走 cookie_crypto(AES-256-GCM, AAD 绑学号)。
@@ -7,9 +7,12 @@
 安全底线:
 - 未配置 SESSION_KEY(加密不可用) → save() 直接返回 False, **绝不落明文**;
 - resolve() 解密失败/格式不对 → 返回 None(不抛错);
-- 删除时机: 用户退出登录(/api/logout → drop());
+- 删除时机: 用户关闭「记住学号和密码」或退出登录;
 - 任何日志都不打印密码/密文(本模块只记学号是否命中)。
 """
+import base64
+import hashlib
+import hmac
 import json
 import time
 from typing import Optional
@@ -17,6 +20,7 @@ from typing import Optional
 from config import SSO_SESSION_SETTING_KEY  # noqa: F401  (同域常量, 便于对齐)
 
 CRED_KEY = "credential"          # settings 键后缀: {student_id}:credential
+DELETE_TOKEN_TTL = 30 * 24 * 3600
 
 
 def _dao():
@@ -76,11 +80,93 @@ def resolve(student_id: str) -> Optional[str]:
     return str(data.get("pwd") or "") or None
 
 
-def drop(student_id: str) -> None:
-    """删除凭据(用户退出登录时调用; 无凭据则无操作)"""
+def _save_payload(student_id: str, data: dict) -> bool:
+    if not student_id or not data or not enabled():
+        return False
+    try:
+        blob = _crypto().encrypt(student_id, data)
+        _dao().set_user_setting(student_id, CRED_KEY, blob)
+        return True
+    except Exception:
+        return False
+
+
+def mark_used(student_id: str) -> bool:
+    """记录一次成功使用，并清零连续失败计数。"""
+    data = _load(student_id)
+    if not data:
+        return False
+    data["used_at"] = int(time.time())
+    data["fail"] = 0
+    return _save_payload(student_id, data)
+
+
+def mark_failure(student_id: str, limit: int = 3) -> bool:
+    """记录一次自动重登失败；连续失败达到上限后删除凭据。"""
+    data = _load(student_id)
+    if not data:
+        return False
+    fail = int(data.get("fail") or 0) + 1
+    if fail >= max(1, int(limit)):
+        drop(student_id)
+        return False
+    data["fail"] = fail
+    return _save_payload(student_id, data)
+
+
+def drop(student_id: str) -> bool:
+    """删除凭据；返回是否成功执行删除。"""
     if not student_id:
-        return
+        return False
     try:
         _dao().set_user_setting(student_id, CRED_KEY, "")
+        return True
     except Exception:
-        pass
+        return False
+
+
+def _delete_token_key() -> bytes:
+    """删除凭据专用签名密钥，和会话/密文加密域分离。"""
+    try:
+        raw = _crypto().key()
+    except Exception:
+        return b""
+    if not raw:
+        return b""
+    return hashlib.sha256(b"credential-delete-v1|" + raw).digest()
+
+
+def issue_delete_token(student_id: str, ttl: int = DELETE_TOKEN_TTL) -> str:
+    """签发“仅删除凭据”token；不授予任何数据访问权限。"""
+    if not student_id:
+        return ""
+    key = _delete_token_key()
+    if not key:
+        return ""
+    exp = int(time.time()) + max(60, int(ttl))
+    payload = f"{student_id}|{exp}".encode("utf-8")
+    body = base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+    sig = hmac.new(key, payload, hashlib.sha256).hexdigest()
+    return body + "." + sig
+
+
+def verify_delete_token(token: str) -> str:
+    """校验删除 token，返回 student_id；无效/过期返回空串。"""
+    if not token or "." not in token:
+        return ""
+    key = _delete_token_key()
+    if not key:
+        return ""
+    try:
+        body, sig = token.split(".", 1)
+        raw = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))
+        payload_text = raw.decode("utf-8")
+        student_id, exp_text = payload_text.rsplit("|", 1)
+        if int(exp_text) < time.time():
+            return ""
+        expect = hmac.new(key, raw, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expect):
+            return ""
+        return student_id
+    except Exception:
+        return ""

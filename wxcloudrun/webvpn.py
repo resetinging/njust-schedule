@@ -77,7 +77,8 @@ def _pad16(text: str) -> str:
 
 def wengine_token(host: str, key: str = WRD_KEY, iv: str = WRD_IV) -> str:
     """把主机名加密成网关 token：hex(iv) + hex(CFB128(pad16(host)))[:2*len(host)]"""
-    from Crypto.Cipher import AES  # pycryptodome：SSO 密码加密已在用，属既有依赖
+    # pycryptodome provides the Crypto package; this is not deprecated pycrypto.
+    from Crypto.Cipher import AES  # nosec B413
 
     key_b = key.encode("utf-8")
     iv_b = iv.encode("utf-8")

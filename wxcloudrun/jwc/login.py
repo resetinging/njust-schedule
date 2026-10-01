@@ -303,7 +303,7 @@ class LoginMixin:
         """
         # 服务器端保存的凭据**不用于用户登录入口**: 必须真实验证用户输入的密码,
         # 否则"不填密码也能登录"会成为越权风险。
-        # 凭据仅用于管理员排障查询, 用户退出登录时删除(见 /api/logout)。
+        # 凭据仅用于会话失效时自动重登; 用户关闭记住开关或退出登录时删除。
         jwc_pwd = jwc_password or password
         self.student_id = student_id
         self.student_name = None

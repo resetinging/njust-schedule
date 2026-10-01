@@ -2,11 +2,22 @@
 """教务请求代理路由(Phase 1b 从 views.py 拆出)。"""
 from flask import Blueprint, Response, request
 
-from wxcloudrun.core.auth import _require_login
-from wxcloudrun.core.pool import _jwc_request
-from wxcloudrun.core.web import _rid
+from wxcloudrun.core.sessions import _get_session_client
+from wxcloudrun.core.web import EVAL_HEADERS
 
 proxy_bp = Blueprint("proxy_api", __name__)
+
+_PROXY_SECURITY_HEADERS = {
+    "Content-Security-Policy":
+        "sandbox allow-forms; script-src 'none'; object-src 'none'; base-uri 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+}
+
+
+def _warm_eval_session(client):
+    from wxcloudrun.views import _warm_eval_session as _impl
+    return _impl(client)
 
 
 @proxy_bp.route('/proxy/jw/<path:target_path>', methods=['GET', 'POST'])
@@ -36,7 +47,7 @@ def proxy_jw(target_path):
                 <p><a href="/evaluations">返回评价列表</a></p>
                 <p><a href="/settings">重新登录教务系统</a></p>
                 </body></html>
-            """, status=403)
+            """, status=403, headers=_PROXY_SECURITY_HEADERS)
         for old, new in [
             ('src="/njlgdx/', 'src="/proxy/jw/'),
             ('href="/njlgdx/', 'href="/proxy/jw/'),
@@ -48,8 +59,12 @@ def proxy_jw(target_path):
             ("'/njlgdx/js/", "'/proxy/jw/js/"),
         ]:
             content = content.replace(old, new)
-        return Response(content, status=resp.status_code,
-                        content_type="text/html; charset=utf-8")
+        return Response(
+            content,
+            status=resp.status_code,
+            content_type="text/html; charset=utf-8",
+            headers=_PROXY_SECURITY_HEADERS,
+        )
     return Response(resp.content, status=resp.status_code,
                     content_type=resp.headers.get("content-type", "text/html"))
 
@@ -59,5 +74,3 @@ def proxy_jw(target_path):
 # ============================================================
 from wxcloudrun.core.stats import (  # noqa: E402
     _stats_cache, _stats_cache_lock, STATS_CACHE_TTL, _get_data_stats)
-
-

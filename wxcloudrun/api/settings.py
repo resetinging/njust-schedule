@@ -6,6 +6,7 @@ from wxcloudrun import app, dao
 from wxcloudrun.core.auth import _require_login
 from wxcloudrun.core.cache import invalidate_user_cache
 from wxcloudrun.core.sessions import _get_session_client
+from wxcloudrun.core.stats import _invalidate_stats
 from wxcloudrun.jwc_client import JWCClient
 
 settings_bp = Blueprint("settings_api", __name__)
@@ -42,7 +43,7 @@ def api_settings():
         }
         return jsonify(settings)
     else:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         for key, value in data.items():
             if key in ("auto_refresh", "refresh_interval"):
                 dao.set_setting(key, str(value))
@@ -77,7 +78,7 @@ def api_get_semesters():
 
 @settings_bp.route('/api/semester', methods=['POST'])
 def api_set_semester():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     semester = (data.get("semester") or "").strip()
     if not semester:
         return jsonify({"success": False, "message": "学期不能为空"}), 400

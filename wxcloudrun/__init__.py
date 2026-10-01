@@ -19,11 +19,24 @@ app.json.ensure_ascii = False
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # 数据库连接：优先使用 SQLALCHEMY_DATABASE_URI 环境变量（本地开发可用 sqlite:///xxx.db），
-# 否则使用 MySQL（云托管自动注入 MYSQL_USERNAME/PASSWORD/ADDRESS 环境变量）
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-    'SQLALCHEMY_DATABASE_URI',
-    'mysql://{}:{}@{}/flask_demo'.format(
-        config.MYSQL_USERNAME, config.MYSQL_PASSWORD, config.MYSQL_ADDRESS))
+# 否则必须完整提供 MySQL 环境变量。生产环境缺失配置时直接失败，避免回退到弱默认凭据。
+_db_uri = os.environ.get('SQLALCHEMY_DATABASE_URI', '').strip()
+if not _db_uri:
+    _missing_db_env = [
+        name for name, value in (
+            ("MYSQL_USERNAME", config.MYSQL_USERNAME),
+            ("MYSQL_PASSWORD", config.MYSQL_PASSWORD),
+            ("MYSQL_ADDRESS", config.MYSQL_ADDRESS),
+        ) if not value
+    ]
+    if _missing_db_env:
+        raise RuntimeError(
+            "数据库未配置: 请设置 SQLALCHEMY_DATABASE_URI，或完整设置 "
+            + ", ".join(_missing_db_env)
+        )
+    _db_uri = 'mysql://{}:{}@{}/flask_demo'.format(
+        config.MYSQL_USERNAME, config.MYSQL_PASSWORD, config.MYSQL_ADDRESS)
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 防止 MySQL 连接空闲超时断开（云数据库默认 8 小时，但容器冷启后旧连接失效）；

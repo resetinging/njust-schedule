@@ -26,6 +26,17 @@ debug_*.json
 # 文档
 README.md
 PLAN.md
+AGENTS.md
+CLAUDE.md
+docs/
+tests/
+.github/
+requirements-dev.txt
+
+# 小程序前端与素材工作区
+.miniapp/
+poster/
+apk_work/
 
 # 临时文件
 nul

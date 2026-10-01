@@ -42,7 +42,7 @@ from wxcloudrun.core.sessions import (  # noqa: E402
 from wxcloudrun.core.pool import (  # noqa: E402
     _jw_semaphore, _jwc_request, _jwc_request_priority)
 from wxcloudrun.core.web import (  # noqa: E402
-    SLOW_MS, _rid, register_request_logging)
+    SLOW_MS, EVAL_HEADERS, _rid, register_request_logging)
 
 # 全局教务客户端：仅用于学期计算等无状态工具方法（不参与业务会话）
 jwc_client = JWCClient()
@@ -108,16 +108,6 @@ def _current_semester() -> str:
 
 # 北京时间工具已下沉到 core/timeutil.py(Phase 1b)
 from wxcloudrun.core.timeutil import _beijing_now, _beijing_date  # noqa: E402
-
-
-EVAL_HEADERS = {
-    "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-    "Host": "202.119.81.112:9080",
-    "Origin": "http://202.119.81.112:9080",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.9",
-    "Cache-Control": "max-age=0",
-}
 
 
 def _warm_eval_session(client: JWCClient):
@@ -189,6 +179,13 @@ def font_pixel_json():
 # 体积从 966KB 降到几十 KB, 也不用配 downloadFile 白名单(callContainer 能直接收 JSON)。
 _RATE_BUCKETS = {}
 _RATE_LOCK = threading.Lock()
+TRUSTED_PROXY_HOPS = max(1, int(os.environ.get("TRUSTED_PROXY_HOPS", "1")))
+
+
+def _prune_rate_buckets_locked(max_keys: int = 5000) -> None:
+    """上限保护: 淘汰最旧的键, 不能 clear 掉全部限流状态。"""
+    while len(_RATE_BUCKETS) > max_keys:
+        _RATE_BUCKETS.pop(next(iter(_RATE_BUCKETS)), None)
 
 
 def _rate_limited(key: str, limit: int, window: float = 60.0) -> bool:
@@ -204,8 +201,7 @@ def _rate_limited(key: str, limit: int, window: float = 60.0) -> bool:
             return True
         hits.append(now)
         _RATE_BUCKETS[key] = hits
-        if len(_RATE_BUCKETS) > 5000:            # 防止字典无限增长
-            _RATE_BUCKETS.clear()
+        _prune_rate_buckets_locked()
     return False
 
 
@@ -215,6 +211,7 @@ def _rate_over(key: str, limit: int, window: float = 60.0) -> bool:
     with _RATE_LOCK:
         hits = [t for t in _RATE_BUCKETS.get(key, []) if now - t < window]
         _RATE_BUCKETS[key] = hits
+        _prune_rate_buckets_locked()
         return len(hits) >= limit
 
 
@@ -229,11 +226,20 @@ def _rate_clear(key: str) -> None:
 
 
 def _client_ip() -> str:
-    return (request.headers.get('X-Forwarded-For') or request.remote_addr or '-').split(',')[0].strip()
+    xff = request.headers.get('X-Forwarded-For') or ''
+    parts = [p.strip() for p in xff.split(',') if p.strip()]
+    if parts:
+        idx = max(0, len(parts) - TRUSTED_PROXY_HOPS)
+        return parts[idx]
+    return request.remote_addr or '-'
 
 
 def _LOGIN_FAIL_KEY(student_id: str, ip: str) -> str:
     return 'loginfail:%s:%s' % (student_id or '-', ip)
+
+
+def _LOGIN_FAIL_SID_KEY(student_id: str) -> str:
+    return 'loginfail:sid:%s' % (student_id or '-')
 
 
 @app.after_request
@@ -244,10 +250,13 @@ def _count_login_failure(resp):
             body = request.get_json(silent=True) or {}
             sid = (body.get('student_id') or '').strip()
             key = _LOGIN_FAIL_KEY(sid, _client_ip())
+            sid_key = _LOGIN_FAIL_SID_KEY(sid)
             if resp.status_code == 200:
                 _rate_clear(key)
+                _rate_clear(sid_key)
             else:
                 _rate_hit(key)
+                _rate_hit(sid_key)
     except Exception:
         pass
     return resp
@@ -351,7 +360,10 @@ def font_subset():
     if not isinstance(text, str) or not text.strip():
         return jsonify({'error': 'no text'}), 400
     chars = ''.join(sorted(set(text)))[:3000]
-    key = hashlib.md5((font_key + '|' + chars).encode('utf-8')).hexdigest()
+    key = hashlib.md5(
+        (font_key + '|' + chars).encode('utf-8'),
+        usedforsecurity=False,
+    ).hexdigest()
     data, partial = _pick_subset(set(chars))
     if not partial:
         body = {'format': 'woff', 'encoding': 'base64', 'chars': len(chars), 'data': data}

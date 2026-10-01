@@ -13,7 +13,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["SESSION_KEY"] = base64.b64encode(os.urandom(32)).decode()
 
 from wxcloudrun.core import credential_store as cs  # noqa: E402
-from wxcloudrun import dao  # noqa: E402
+from wxcloudrun import app, dao  # noqa: E402
+
+_APP_CTX = app.app_context()
+_APP_CTX.push()
 
 SID = "924101960123"
 PWD = "Secret@2026"
@@ -36,6 +39,13 @@ def main():
     raw = dao.get_user_setting(SID, "credential", "")
     check("库里搜不到明文", PWD not in raw and len(raw) > 20, raw[:24])
     check("换学号解不开(AAD)", cs._load("924101960999") is None)
+    cs.save(SID, PWD)
+    check("使用成功清零失败计数", cs.mark_used(SID) is True and cs._load(SID)["fail"] == 0)
+    cs.mark_failure(SID, limit=3)
+    cs.mark_failure(SID, limit=3)
+    check("连续失败未达上限仍保留", cs.resolve(SID) == PWD)
+    cs.mark_failure(SID, limit=3)
+    check("连续失败达到上限自动删除", cs.resolve(SID) is None)
     cs.save(SID, PWD)
     cs.drop(SID)
     check("drop 后取不到", cs.resolve(SID) is None)

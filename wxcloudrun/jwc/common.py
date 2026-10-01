@@ -132,7 +132,7 @@ try:
     from config import JW_DEFAULT_PWD_TEMPLATE, JW_TRY_DEFAULT_PWD
 except ImportError:  # pragma: no cover
     JW_DEFAULT_PWD_TEMPLATE = "{sid}@Njust"
-    JW_TRY_DEFAULT_PWD = True
+    JW_TRY_DEFAULT_PWD = False
 
 try:
     from config import JW_LOGON_BASES
@@ -147,8 +147,9 @@ except ImportError:  # pragma: no cover
 
 # === 加密模块（智慧理工 SSO 密码加密） ===
 try:
-    from Crypto.Cipher import AES
-    from Crypto.Util.Padding import pad as aes_pad
+    # pycryptodome provides the Crypto package; this is not deprecated pycrypto.
+    from Crypto.Cipher import AES  # nosec B413
+    from Crypto.Util.Padding import pad as aes_pad  # nosec B413
     _HAS_CRYPTO = True
 except ImportError:
     _HAS_CRYPTO = False
@@ -225,4 +226,3 @@ def _encrypt_sso_password(password: str, salt: str) -> str:
     encrypted = cipher.encrypt(padded)
 
     return base64.b64encode(encrypted).decode()
-

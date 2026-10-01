@@ -1,6 +1,7 @@
 # 课表助手 — 微信云托管 Dockerfile
 # 基于官方模板框架，更换基础镜像以兼容 ddddocr（onnxruntime）
-FROM python:3.10-slim
+# 生产构建建议在发布流水线中进一步固定 digest。
+FROM python:3.10-slim-bookworm
 
 # 容器默认时区为UTC，启用上海时区（学期计算/日志时间依赖北京时间）
 # 一并安装系统依赖（ddddocr 的 onnxruntime 需要 libgomp）
@@ -16,8 +17,7 @@ WORKDIR /app
 # ★ 先拷贝并安装依赖（Docker 层缓存: 代码改动不会触发依赖重装, 构建大幅加速）
 # 直接安装到系统 site-packages(云托管标准做法, 避免 --user 的 user-site 不确定性)
 COPY requirements.txt /app/requirements.txt
-RUN pip config set global.index-url http://mirrors.cloud.tencent.com/pypi/simple \
-    && pip config set global.trusted-host mirrors.cloud.tencent.com \
+RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simple \
     && pip install --upgrade pip \
     && pip install -r requirements.txt
 

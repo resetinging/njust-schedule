@@ -79,8 +79,9 @@ def api_status():
         "first_week_date": first_week_date,
         "network": network,
         # 能力协商: 前端可据此判断后端支持哪些能力(以后加接口/改字段时避免静默不兼容)
-        "api_version": 2,
-        "features": ["yjs", "freeclass", "font_subset", "refresh_dedupe"],
+        "api_version": 3,
+        "features": ["yjs", "freeclass", "font_subset", "refresh_dedupe",
+                     "credential_relogin"],
     })
 
 

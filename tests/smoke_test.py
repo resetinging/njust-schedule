@@ -32,6 +32,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from wxcloudrun import app, db, dao  # noqa: E402  (导入即触发 db.create_all())
 
+_APP_CTX = app.app_context()
+_APP_CTX.push()
+
 client = app.test_client()
 
 PASS, FAIL, FAILURES = 0, 0, []
@@ -112,6 +115,8 @@ print("  [PASS] 库中存有凭证时 /api/status 仍为未登录、不泄露账
 
 print("== 参数校验 ==")
 check("login 缺参数", client.post("/api/login", json={}), 400)
+check("login-webvpn 畸形 JSON",
+      client.post("/api/login-webvpn", data="{bad", content_type="application/json"), 400)
 check("semester 空值", client.post("/api/semester", json={"semester": ""}), 400)
 check("eval-form 缺 url", client.get("/api/eval-form"), 400)
 check("404 处理", client.get("/no-such-page"), 404)
@@ -435,17 +440,28 @@ assert _cr.get_json().get("logged_in") is True, _cr.get_json()
 _admin_tok = admin_mod._issue_admin_token(ttl=3600)
 ah = {"X-Admin-Token": _admin_tok}
 
-# 凭据查询接口(控制台入口依赖): 未授权 401 / 无记录 404 / 命中 200
+# 管理员明文凭据查询已下线
 from wxcloudrun.core import credential_store as _cred  # noqa: E402
-check("凭据查询未授权 401",
-      client.post("/api/admin/credentials/reveal", json={"student_id": "10002"}), 401)
-assert _cred.save("10002", "Reveal@1234") is True
-check("凭据查询无记录 404",
-      client.post("/api/admin/credentials/reveal", json={"student_id": "10003"}, headers=ah), 404)
-_rv = client.post("/api/admin/credentials/reveal", json={"student_id": "10002"}, headers=ah)
-check("凭据查询命中 200", _rv, 200)
-assert _rv.get_json().get("password") == "Reveal@1234", _rv.get_json()
-print("  [PASS] 管理端凭据查询接口(含未授权/无记录)")
+check("管理员明文凭据查询已下线 404",
+      client.post("/api/admin/credentials/reveal", json={"student_id": "10002"}, headers=ah), 404)
+# remember 三态: 缺省保持现状 / false 删除 / true 保存
+from wxcloudrun.api import auth as _auth  # noqa: E402
+assert _auth._remember_requested({}) is None
+assert _auth._remember_requested({"remember": False}) is False
+assert _auth._remember_requested({"remember": "true"}) is True
+assert _cred.save("10002", "Keep@1234") is True
+_auth._apply_credential_preference("10002", "", None)
+assert _cred.resolve("10002") == "Keep@1234", "remember 缺省不应删除已有凭据"
+print("  [PASS] remember 三态兼容(缺省保持已有凭据)")
+assert _cred.save("10005", "Revoke@1234") is True
+_dt = _cred.issue_delete_token("10005")
+check("仅凭删除 token 也可撤销凭据",
+      client.delete("/api/credentials", headers={"X-Credential-Delete-Token": _dt}), 200)
+assert _cred.resolve("10005") is None, "删除 token 未撤销服务端凭据"
+_bad_dt = _dt[:-1] + ("A" if _dt[-1] != "A" else "B")
+check("篡改删除 token 被拒绝",
+      client.delete("/api/credentials", headers={"X-Credential-Delete-Token": _bad_dt}), 401)
+print("  [PASS] 删除 token 不依赖教务会话且可防篡改")
 
 # 仪表盘重聚合端点: 回归防护(历史 bug: 误删 func 导入导致 500; 缓存二次命中)
 check("admin 未授权 401", client.get("/api/admin/summary"), 401)
@@ -465,6 +481,9 @@ check("admin 退出 200",
 
 # 登录失败限流: 连续 5 次失败后第 6 次 429(只统计失败, 成功清零); 测完清桶避免影响其他用例
 from wxcloudrun import views as _views  # noqa: E402
+with app.test_request_context(headers={"X-Forwarded-For": "1.1.1.1, 2.2.2.2"}):
+    assert _views._client_ip() == "2.2.2.2", _views._client_ip()
+print("  [PASS] 可信代理 IP 解析不采用客户端最左侧伪造值")
 _views._RATE_BUCKETS.clear()
 for _ in range(admin_mod._ADMIN_FAIL_LIMIT):
     assert client.post("/api/admin/login", json={"password": "x"}).status_code == 401
@@ -502,13 +521,41 @@ r = client.get("/api/admin/feedback", headers=ah).get_json()
 assert any(f["content"] == "仪表盘回归测试反馈" for f in r["feedback"]), r
 print("  [PASS] 问题反馈提交/敏感词过滤/管理端可见")
 
-# 退出登录: 服务端保存的密码一并删除(drop 接入 /api/logout)
+# 用户主动删除服务端凭据 / 退出登录: 服务端保存的密码一并删除
 _fc.logout = lambda: None            # 假客户端: 避免真的发网络请求
 assert _cred.save(_fc.student_id, "Smoke@1234") is True
 assert _cred.resolve(_fc.student_id) == "Smoke@1234"
+_fc.logged_in = False                # 教务会话失效时仍应允许删除凭据
+assert _cred.save(_fc.student_id, "Smoke@1234") is True
+check("/api/credentials DELETE 教务会话失效时仍可删除",
+      client.delete("/api/credentials", headers=_fh), 200)
+assert _cred.resolve(_fc.student_id) is None, "会话失效时删除凭据失败"
+_fc.logged_in = True
+assert _cred.save(_fc.student_id, "Smoke@1234") is True
+check("/api/credentials DELETE 删除服务端凭据",
+      client.delete("/api/credentials", headers=_fh), 200)
+assert _cred.resolve(_fc.student_id) is None, "主动删除后服务端凭据仍存在"
+print("  [PASS] 用户主动删除服务端保存的密码")
+assert _cred.save(_fc.student_id, "Smoke@1234") is True
 check("/api/logout 退出登录", client.post("/api/logout", headers=_fh), 200)
 assert _cred.resolve(_fc.student_id) is None, "退出登录后服务端凭据未删除"
 print("  [PASS] 退出登录删除服务端保存的密码")
+
+# 会话失效: 用户明确保存的服务端凭据可自动重登一次
+_rc = JWCClient()
+_rc.logged_in = True
+_rc.student_id = "10004"
+_rc.student_name = "自动重登"
+_rc.is_session_valid = lambda: False
+_rc.login_webvpn = lambda sid, pwd: (
+    setattr(_rc, "logged_in", sid == "10004" and pwd == "AutoRelogin@1234")
+    or _rc.logged_in
+)
+_rt = views._register_session(_rc)
+assert _cred.save("10004", "AutoRelogin@1234") is True
+_rr = client.get("/api/courses", headers={"X-Auth-Token": _rt})
+assert _rr.status_code == 200 and _rr.get_json()["success"] is True, _rr.get_json()
+print("  [PASS] 会话失效时使用明确授权保存的密码自动重登")
 
 print("== 教学周历 / 培养方案接口 ==")
 _cc = JWCClient()
@@ -577,7 +624,7 @@ check("/api/subscribe/test-send 未配置密钥 400",
       client.post("/api/subscribe/test-send", headers=_ch), 400)
 print("  [PASS] 教学周历/培养方案/学籍卡片/订阅消息接口")
 
-# 研究生登录: 必须真实校验密码(不再"有缓存会话就放行"), 成功后保存凭据
+# 研究生登录: 必须真实校验密码(不再"有缓存会话就放行"), 明确授权后保存凭据
 print("== 研究生登录(假客户端, 不打真实 SSO) ==")
 import wxcloudrun.yjs_client as _yjs_mod  # noqa: E402
 
@@ -615,7 +662,8 @@ try:
           client.post("/api/login-webvpn",
                       json={"student_id": "126000000001", "password": "bad"}), 401)
     _yr = client.post("/api/login-webvpn",
-                      json={"student_id": "126000000001", "password": "Yjs@1234"})
+                      json={"student_id": "126000000001", "password": "Yjs@1234",
+                            "remember": True})
     check("研究生登录 正确密码 200", _yr, 200)
 finally:
     _yjs_mod.YJSClient = _yjs_orig

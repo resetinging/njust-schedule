@@ -15,6 +15,16 @@ from wxcloudrun.core.sessions import TOKEN_HEADER, _sid_by_token
 
 SLOW_MS = int(os.environ.get("SLOW_MS", "2000"))
 
+# 教务评教/代理请求使用浏览器原生来源，避免教务侧 Referer 校验。
+EVAL_HEADERS = {
+    "Referer": "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
+    "Host": "202.119.81.112:9080",
+    "Origin": "http://202.119.81.112:9080",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9",
+    "Cache-Control": "max-age=0",
+}
+
 
 def _rid() -> str:
     """当前请求 ID(无请求上下文时返回 '-', 如测试/后台调用)"""
@@ -22,6 +32,14 @@ def _rid() -> str:
         return g.get("rid", "-")
     except Exception:
         return "-"
+
+
+def _mask_sid(sid: str) -> str:
+    """外部日志只保留学号首尾，管理端内存缓冲仍保留完整值用于排障。"""
+    s = str(sid or "-")
+    if s == "-" or len(s) < 7:
+        return s
+    return s[:3] + "****" + s[-3:]
 
 
 def register_request_logging(app):
@@ -50,7 +68,7 @@ def register_request_logging(app):
             except Exception:
                 pass
             line = (f"[req] rid={rid} {request.method} {request.path} "
-                    f"status={resp.status_code} sid={sid} tok={tok} ip={ip} d={dur_ms:.0f}ms")
+                    f"status={resp.status_code} sid={_mask_sid(sid)} tok={tok} ip={ip} d={dur_ms:.0f}ms")
             if dur_ms >= SLOW_MS:
                 app.logger.warning("[slow] %s", line)
             else:

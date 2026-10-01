@@ -163,7 +163,8 @@ def _loop() -> None:
         try:
             if mp.enabled():
                 # 幂等: 每轮只补发"未提醒过且未开考"的考试, 成功后按考试去重
-                res = run_exam_reminders()
+                with app.app_context():
+                    res = run_exam_reminders()
                 if res.get("sent") or res.get("failed"):
                     app.logger.info("[reminder] 考试提醒 %s", res)
         except Exception as e:  # noqa: BLE001 循环内异常不致命

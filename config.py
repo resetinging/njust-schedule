@@ -15,9 +15,9 @@ PORT = 5000
 # MySQL 数据库（云托管通过环境变量注入）
 # ============================================================
 DEBUG = os.environ.get("DEBUG", "False").strip().lower() == "true"
-MYSQL_USERNAME = os.environ.get("MYSQL_USERNAME", "root")
-MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "root")
-MYSQL_ADDRESS = os.environ.get("MYSQL_ADDRESS", "127.0.0.1:3306")
+MYSQL_USERNAME = os.environ.get("MYSQL_USERNAME", "")
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "")
+MYSQL_ADDRESS = os.environ.get("MYSQL_ADDRESS", "")
 
 # ============================================================
 # 教务系统配置（强智教务）
@@ -135,11 +135,10 @@ WEBVPN_ENABLED = os.environ.get("WEBVPN_ENABLED", "auto").strip().lower()
 # ============================================================
 # 教务登录密码兜底规则
 # ============================================================
-# 用户只登智慧理工时后端手上只有智慧理工密码，而教务密码通常是学校初始密码。
-# 按此规则多试一次(仅在密码被拒时才换候选)，用户就只需输一次智慧理工密码。
-# 关闭：JW_TRY_DEFAULT_PWD=false，或把模板置空
+# 用户只登智慧理工时后端手上只有智慧理工密码；教务初始密码兜底存在账号接管风险，
+# 默认关闭。仅明确配置 JW_TRY_DEFAULT_PWD=true 时才允许尝试模板密码。
 JW_DEFAULT_PWD_TEMPLATE = os.environ.get("JW_DEFAULT_PWD_TEMPLATE", "{sid}@Njust")
-JW_TRY_DEFAULT_PWD = os.environ.get("JW_TRY_DEFAULT_PWD", "true").strip().lower() != "false"
+JW_TRY_DEFAULT_PWD = os.environ.get("JW_TRY_DEFAULT_PWD", "false").strip().lower() == "true"
 
 # ============================================================
 # 管理控制面板

@@ -91,10 +91,24 @@ def _verify_admin_token(tok: str) -> bool:
 
 # ---- 请求监控缓冲(进程内, 重启清空) ----
 MAX_RECENT = 800
+RECENT_TTL = max(60, int(os.environ.get("ADMIN_REQUEST_TTL", "900")))
 _recent = deque(maxlen=MAX_RECENT)
 _req_seq = 0
 _req_total = 0                 # 进程启动以来请求总数
 _start_ts = time.time()
+
+
+def _prune_recent_locked():
+    cutoff = time.time() - RECENT_TTL
+    while _recent and float(_recent[0].get("t") or 0) < cutoff:
+        _recent.popleft()
+
+
+def _mask_sid(sid: str) -> str:
+    s = str(sid or "")
+    if not s or s == "-":
+        return s or "-"
+    return (s[:3] + "****" + s[-3:]) if len(s) >= 7 else s
 
 
 def record_request(method: str, path: str, status: int, ms: float, sid: str, ip: str):
@@ -103,6 +117,7 @@ def record_request(method: str, path: str, status: int, ms: float, sid: str, ip:
     if not path.startswith(("/api/", "/proxy/", "/admin")):
         return
     with _admin_lock:
+        _prune_recent_locked()
         _req_seq += 1
         _req_total += 1
         _recent.append({
@@ -113,13 +128,14 @@ def record_request(method: str, path: str, status: int, ms: float, sid: str, ip:
             "path": path,
             "status": status,
             "ms": round(ms),
-            "sid": sid,
+            "sid": _mask_sid(sid),
             "ip": ip,
         })
 
 
 def _recent_since(since_id: int):
     with _admin_lock:
+        _prune_recent_locked()
         return [r for r in _recent if r["id"] > since_id]
 
 
@@ -173,55 +189,6 @@ def admin_logout():
     # 无状态 token: 服务端不可吊销, 前端清除本地 token(到期自动失效)
     app.logger.info("[admin] rid=%s 管理员退出(无状态 token, 仅前端清除)", _rid())
     return jsonify({"success": True})
-
-
-# ============================================================
-# 凭据查询(高危): 只有"单用户 reveal"才会解密; 每次调用留审计; 且限流。
-# 列表接口故意不返回密码(也不返回未脱敏学号), 避免"一次调用拿全站密码"。
-# ============================================================
-_reveal_hits = []
-
-
-def _mask_sid(sid: str) -> str:
-    s = str(sid or "")
-    return (s[:3] + "****" + s[-3:]) if len(s) >= 7 else (s or "-")
-
-
-@app.route("/api/admin/credentials/reveal", methods=["POST"])
-@admin_required
-def admin_credential_reveal():
-    """body: {student_id} → 返回该用户保存的密码(明文)。
-
-    护栏:
-    - 必须带管理员 token(admin_required);
-    - 每分钟最多 10 次(防止被当成批量导出的口子);
-    - 每次调用写审计日志(学号已脱敏, 不记录密码本身)。
-    """
-    global _reveal_hits
-    now = time.time()
-    _reveal_hits = [t for t in _reveal_hits if now - t < 60]
-    if len(_reveal_hits) >= 10:
-        return jsonify({"success": False, "message": "查询过于频繁, 请稍后再试"}), 429
-    _reveal_hits.append(now)
-
-    data = request.get_json(silent=True) or {}
-    sid = str(data.get("student_id") or "").strip()
-    if not sid:
-        return jsonify({"success": False, "message": "缺少 student_id"}), 400
-
-    ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "-").split(",")[0].strip()
-    try:
-        from wxcloudrun.core import credential_store
-        pwd = credential_store.resolve(sid)
-    except Exception as exc:
-        app.logger.warning("[admin] 凭据解密失败 sid=%s: %s", _mask_sid(sid), exc)
-        pwd = None
-    # 审计: 谁在什么时候查了谁(不记密码); sid 会被全局日志过滤器脱敏
-    app.logger.info("[audit] rid=%s admin=1 action=reveal sid=%s ip=%s hit=%s",
-                    _rid(), _mask_sid(sid), ip, "yes" if pwd else "no")
-    if not pwd:
-        return jsonify({"success": False, "message": "该用户未保存凭据或无法解密"}), 404
-    return jsonify({"success": True, "student_id": _mask_sid(sid), "password": pwd})
 
 
 # ============================================================

@@ -14,7 +14,7 @@
 分层说明：cookie 的读写属于「状态/持久化」，按架构归 core；`jwc` 层只负责
 导出/载入 cookie 与探测教务会话，不直接接触 dao。
 """
-import json
+import logging
 import threading
 import time
 from typing import List, Optional
@@ -24,6 +24,7 @@ from config import (SSO_LOGIN_COOLDOWN, SSO_SESSION_MAX_AGE,
 
 _fail_ts = {}          # student_id -> 上次认证失败时间
 _fail_lock = threading.Lock()
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -51,13 +52,15 @@ def save_session(student_id: str, cookies) -> int:
         return 0
     from wxcloudrun import dao          # 延迟导入，避免包初始化循环
     payload = {"ts": int(time.time()), "cookies": rows}
-    raw = json.dumps(payload)
     try:
         from wxcloudrun.core import cookie_crypto
-        if cookie_crypto.enabled():          # 配了 SESSION_KEY 就加密落库(不存明文 cookie)
-            raw = cookie_crypto.encrypt(student_id, payload)
-    except Exception:                        # 加密不可用不能阻断登录, 退回旧行为
-        raw = json.dumps(payload)
+        if not cookie_crypto.enabled():
+            return 0
+        raw = cookie_crypto.encrypt(student_id, payload)
+    except Exception as exc:                 # 加密失败时拒绝落库，绝不写明文
+        logger.warning("[session] 加密失败，未保存会话 sid=%s: %s",
+                       student_id, type(exc).__name__)
+        return 0
     dao.set_user_setting(student_id, SSO_SESSION_SETTING_KEY, raw)
     return len(rows)
 
@@ -70,20 +73,13 @@ def load_session(student_id: str) -> Optional[List[dict]]:
     raw = dao.get_user_setting(student_id, SSO_SESSION_SETTING_KEY, "")
     if not raw:
         return None
-    data = None
     try:
         from wxcloudrun.core import cookie_crypto
-        if cookie_crypto.enabled():          # 先按密文解, 解不开再当旧明文读(向后兼容)
-            got = cookie_crypto.decrypt(student_id, raw)
-            if isinstance(got, dict):
-                data = got
-    except Exception:
-        data = None
-    if data is None:
-        try:
-            data = json.loads(raw)
-        except (TypeError, ValueError):
+        if not cookie_crypto.enabled():
             return None
+        data = cookie_crypto.decrypt(student_id, raw)
+    except Exception:
+        return None
     if not isinstance(data, dict):
         return None
     if time.time() - int(data.get("ts") or 0) > SSO_SESSION_MAX_AGE:

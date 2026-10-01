@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """教学评价路由与页面解析(Phase 1b 从 views.py 拆出)。"""
+import base64
 import json
 import re
 
+from bs4 import BeautifulSoup
 from flask import Blueprint, jsonify, request
 
 import config
@@ -12,7 +14,7 @@ from wxcloudrun.core.auth import _require_login, _retry_with_relogin
 from wxcloudrun.core.cache import _cache_get, _cache_set, invalidate_user_cache
 from wxcloudrun.core.pool import _jwc_request
 from wxcloudrun.core.stats import _invalidate_stats
-from wxcloudrun.core.web import _rid
+from wxcloudrun.core.web import EVAL_HEADERS, _rid
 from wxcloudrun.jwc_client import JWCClient
 
 eval_bp = Blueprint("eval_api", __name__)
@@ -301,7 +303,7 @@ def api_submit_eval():
     client, err = _require_login()
     if err:
         return err
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     form_data = data.get("form_data", {})
     submit_type = data.get("submit_type", "0")
     action_path = data.get("action", "/njlgdx/xspj/xspj_save.do")
@@ -335,7 +337,7 @@ def api_jw_proxy():
     client, err = _require_login()
     if err:
         return err
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     method = (data.get("method") or "GET").upper()
     path = (data.get("path") or "").strip()
     if not path:

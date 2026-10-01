@@ -208,7 +208,7 @@ function exportReqs() {
   const f = reqFilters();
   const rows = reqBuf.filter(r => reqMatch(r, f));
   if (!rows.length) { alert('当前筛选下没有可导出的请求'); return; }
-  const head = ['序号', '时间', '方法', '路径', '状态', '耗时ms', '学号', 'IP'];
+  const head = ['序号', '时间', '方法', '路径', '状态', '耗时ms', '学号(脱敏)', 'IP'];
   const lines = rows.map(r => [
     r.id, r.ts, r.method,
     '"' + String(r.path || '').replace(/"/g, '""') + '"',
@@ -554,43 +554,6 @@ $('fcSave').addEventListener('click', async () => {
     alert('已保存。空教室缓存会在下次大节刷新时生效。');
   } else {
     alert('保存失败: ' + (r.message || '未知错误'));
-  }
-});
-
-// ---- 用户凭据查询(明文展示; 有审计日志与 10 次/分限流) ----
-$('credQuery').addEventListener('click', async () => {
-  const sid = $('credSid').value.trim();
-  const box = $('credResult');
-  if (!sid) { alert('请输入学号'); return; }
-  if (!confirm('将查询 ' + sid + ' 保存的密码（明文）并写入审计日志，继续？')) return;
-  box.textContent = '查询中…';
-  $('credCopy').style.display = 'none';
-  box.dataset.pwd = '';
-  let r = null;
-  try {
-    r = await api('/api/admin/credentials/reveal', {
-      method: 'POST', body: JSON.stringify({ student_id: sid })
-    });
-  } catch (e) {
-    box.textContent = '查询失败（网络错误或登录已过期）';
-    return;
-  }
-  if (r.success) {
-    box.textContent = r.student_id + ' 的密码：' + r.password;
-    box.dataset.pwd = r.password;
-    $('credCopy').style.display = '';
-  } else {
-    box.textContent = r.message || '查询失败';
-  }
-});
-$('credCopy').addEventListener('click', async () => {
-  const pwd = $('credResult').dataset.pwd || '';
-  if (!pwd) return;
-  try {
-    await navigator.clipboard.writeText(pwd);
-    alert('已复制');
-  } catch (e) {
-    alert('复制失败，请手动选中复制');
   }
 });
 

@@ -17,7 +17,11 @@ _MAX_ENTRIES = 500
 
 
 def _key_of(prefix: str) -> str:
-    tok = request.headers.get('X-Token') or request.headers.get('token') or ''
+    # 用户会话实际使用 X-Auth-Token；必须优先按该 token 隔离，
+    # 否则同一出口 IP 的不同用户会互相复用刷新响应。
+    tok = (request.headers.get('X-Auth-Token')
+           or request.headers.get('X-Token')
+           or request.headers.get('token') or '')
     if not tok:
         body = request.get_json(silent=True) or {}
         tok = str(body.get('token') or '')

@@ -21,7 +21,7 @@
   - 成绩记录按学期存储,计算学期绩点与全部学期加权平均绩点(4.0 量表)
   - 排除通识教育选修课、缓考/缺考/免修等非正式成绩
   - 保研模式:四六级成绩按官方公式折算百分制,替换英语模块(8 学分)重算 GPA
-- **登录**:双端口重定向链认证,验证码支持 ddddocr 自动识别(5 次重试)与手动输入;**仅支持手动登录**(无账号模式)——后端绝不自动登录,用户在设置页输入学号/密码/验证码登录;密码不落库
+- **登录**:支持智慧理工 SSO 密码登录与微信扫码登录。开启「记住学号和密码」后，密码由后端 AES-256-GCM 加密保存，仅用于会话失效时自动重登；关闭开关或退出登录即删除，管理员不能查看明文
 
 ## 技术栈
 
@@ -42,8 +42,11 @@
 ├── container.config.json         云托管服务设置与建表 SQL
 ├── wxcloudrun/                   app 目录
 │   ├── __init__.py               Flask 应用与 SQLAlchemy 初始化
-│   ├── views.py                  页面路由 + 全部 /api/* 接口 + 批量评教后台
-│   ├── jwc_client.py             教务系统爬虫客户端(登录/课表/考试/成绩/评教/四六级)
+│   ├── views.py                  页面路由 + Blueprint 装配 + 字体接口
+│   ├── api/                      各域接口(认证/课表/成绩/评教/空教室/学习/订阅)
+│   ├── core/                     通用能力(会话/Cookie 加密/限流/微信订阅/考试提醒)
+│   ├── jwc_client.py             教务客户端门面(组合 jwc/ 下各域 mixin)
+│   ├── jwc/                      教务各域 mixin(课表/考试/成绩/评教/周历/培养方案/学籍)
 │   ├── model.py                  ORM 模型(Course/Exam/Evaluation/Grade/CetScore/Setting)
 │   ├── dao.py                    数据访问层
 │   ├── templates/                Jinja2 页面模板(课表/考试/成绩/评教/校历/设置)
@@ -58,11 +61,20 @@
 
 | 变量 | 说明 | 默认 |
 |---|---|---|
-| `MYSQL_USERNAME` / `MYSQL_PASSWORD` / `MYSQL_ADDRESS` | 云托管 MySQL 连接信息(云托管自动注入) | `root` / `root` / `127.0.0.1:3306` |
+| `SQLALCHEMY_DATABASE_URI` | 数据库连接串；本地可用 `sqlite:///xxx.db` | 空(则必须配置下列 MySQL 变量) |
+| `MYSQL_USERNAME` / `MYSQL_PASSWORD` / `MYSQL_ADDRESS` | 云托管 MySQL 连接信息；生产环境必须完整配置 | 空 |
 | `DEBUG` | Flask 调试模式(生产环境保持关闭) | `False` |
 | `JW_MAX_CONCURRENT` | 教务访问池并发上限(同时进行的教务 HTTP 请求数,防打爆教务服务器) | `4` |
 | `SESSION_TTL` | 用户会话无活动回收时间(秒) | `43200`(12h) |
 | `MAX_SESSIONS` | 用户池上限,超限自动淘汰最久未活动会话 | `200` |
+| `TRUSTED_PROXY_HOPS` | 可信反向代理跳数, 用于安全解析客户端 IP | `1` |
+| `JW_TRY_DEFAULT_PWD` | 是否允许尝试教务初始密码兜底(高风险, 默认关闭) | `false` |
+| `ADMIN_REQUEST_TTL` | 管理端请求监控缓冲留存时间(秒) | `900` |
+| `ADMIN_PASSWORD` | 管理控制面板(/admin)登录口令; 未配置则本次运行随机生成(重启即变) | 随机 |
+| `SESSION_KEY` | 32 字节 base64 密钥: 教务会话/密码加密落库, 并派生 admin token 签名 | 空(相关能力禁用) |
+| `MP_SECRET` | 小程序 AppSecret: 订阅消息(考试提醒)发送用; 不配置则只记录授权、不发送 | 空(发送禁用) |
+| `SUBSCRIBE_TPL_EXAM` | 考试提醒的订阅消息模板 ID | 已内置 |
+| `EXAM_REMINDER` / `EXAM_REMINDER_HOUR` | 考试提醒开关 / 考前一天开始提醒的小时(北京时间) | `1` / `18` |
 
 ### 本地运行
 
@@ -73,6 +85,17 @@ python run.py 127.0.0.1 5000
 
 浏览器访问 http://127.0.0.1:5000,在「设置」页登录教务系统后即可刷新数据。
 注意:教务系统仅限校园网或 VPN 环境访问。
+
+### 安全扫描
+
+```bash
+pip install -r requirements-dev.txt
+python tools/security_scan.py
+```
+
+脚本会依次执行 Python 编译检查、凭据/会话/管理端/冒烟测试、pytest、
+`pip-audit` 依赖漏洞扫描和 Bandit 静态安全扫描。仓库内的
+`.github/workflows/security.yml` 会在 push/PR 时执行同一入口。
 
 ### 云托管部署
 
@@ -93,15 +116,22 @@ python run.py 127.0.0.1 5000
 | `POST /api/submit-eval` | 单门评教提交中转(批量循环由前端执行) |
 | `POST /api/jw-proxy` | 通用教务网关:转发任意 9080 GET/POST 并返回原始内容 |
 | `POST /api/login-webvpn` | 智慧理工 SSO 一步登录(免教务密码/验证码);`get-webvpn-captcha` 为其旧名别名 |
+| `DELETE /api/credentials` | 删除当前用户明确授权保存的服务端密码 |
 | `POST /api/sso-qr/start` / `GET /api/sso-qr/status` / `POST /api/sso-qr/cancel` | 微信扫码登录(免密码): 长按二维码→识别图中二维码→确认 |
 | `GET/POST /api/settings`, `POST /api/semester` | 设置与学期切换 |
 | `POST /api/clear-data` | 清除当前学期数据 |
 | `GET /api/connect-test` | 教务连通性测试 |
 | `GET/POST /proxy/jw/*` | 教务页面反向代理(评教用) |
+| `GET /api/calendar` / `POST /api/refresh-calendar` | 教学周历(第 N 周→日期); 登录后自动回写 `first_week_date`(以教务为准) |
+| `GET /api/programme` / `POST /api/refresh-programme` | 专业培养方案(整份, 自动翻页); 学分进度数据源 |
+| `GET /api/profile` / `POST /api/refresh-profile` | 学籍卡片(院系/专业/班级等; 30 天缓存, 不含头像) |
+| `GET /api/subscribe/status` / `POST /api/subscribe/grant` | 订阅消息额度查询 / 授权上报(当前仅考试提醒) |
+| `POST /api/subscribe/test-send` | 发送一条样例考试提醒(验证模板与密钥, 消耗 1 次额度) |
 
 ## 使用注意
 
-- 教务系统需要校园网或 VPN 才能访问;**仅支持手动登录**:Session 过期后需在设置页重新输入学号/密码/验证码登录,后端绝不自动登录、不保存密码。
+- 教务系统需要校园网或 VPN 才能访问;**登录必须显式提供密码**(不接受空密码/仅凭历史会话登录),Session 过期后需重新输入学号与密码。
+- 用户开启「记住学号和密码」时，服务端才在配置 `SESSION_KEY` 后**加密保存登录密码**(AES-256-GCM, 学号绑定)，仅用于会话失效时自动重登；关闭开关或退出登录即删除，管理员控制台不提供明文查询。
 - **多用户**:每位用户独立登录、持有独立的教务会话(以登录签发的 token 标识),课表/考试/成绩/评教/四六级数据按学号隔离、互不可见;会话保存在后端容器内存,容器重启(重新部署/缩容冷启动)后所有用户需重新登录。
 - 批量评教为自动化辅助工具,请仅用于自己的账号,并自行承担使用责任。
 
