@@ -271,6 +271,10 @@
   margin-bottom: 8rpx;
 }
 
+/* 列表卡片: 教室加重(更粗更大), 老师保持次要 */
+.card-teacher { opacity: 0.9; }
+.card-room { font-size: 27rpx; font-weight: 700; }
+
 .card-footer {
   display: flex;
   align-items: center;
@@ -460,4 +464,100 @@
   display: flex;
   gap: 16rpx;
   margin-top: 26rpx;
+}
+/* 今日课程卡片(仅本周显示): 顶部一条, 下一节高亮 */
+.today-card {
+  margin: 12rpx 20rpx 6rpx;
+  padding: 20rpx 22rpx;
+  background: var(--bg-card, #FFFFFF);
+  border: 2rpx solid var(--line, #EEF2F8);
+  border-radius: var(--radius-card, 20rpx);
+  box-shadow: var(--shadow-card, 0 2rpx 10rpx rgba(15,23,42,0.04));
+}
+
+.today-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.today-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary, #0F172A);
+}
+
+.today-count {
+  font-size: 23rpx;
+  color: var(--text-hint, #94A3B8);
+}
+
+.today-empty {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  color: var(--text-muted, #64748B);
+}
+
+.today-row {
+  display: flex;
+  align-items: center;
+  margin-top: 14rpx;
+}
+
+.today-row.on {
+  padding: 10rpx 12rpx;
+  margin-left: -12rpx;
+  margin-right: -12rpx;
+  border-radius: 14rpx;
+  background: var(--bg-hover, #F8FAFF);
+}
+
+.today-dot {
+  flex: none;
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  margin-right: 14rpx;
+}
+
+.today-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.today-name {
+  font-size: 27rpx;
+  color: var(--text-primary, #0F172A);
+  line-height: 1.35;
+}
+
+.today-sub {
+  margin-top: 2rpx;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+/* 教室加重显示: 更粗、更深、字号略大; 节次/钟点退为次要信息 */
+.today-room {
+  margin-right: 14rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--text-strong, #1E293B);
+}
+
+.today-time {
+  font-size: 22rpx;
+  color: var(--text-hint, #94A3B8);
+}
+
+.today-next {
+  flex: none;
+  margin-left: 12rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  background: var(--brand-soft, #EFF6FF);
+  color: var(--brand, #2563EB);
+  font-size: 21rpx;
 }

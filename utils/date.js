@@ -2,6 +2,25 @@
  * 日期工具 — 学期周次计算、日期格式化
  */
 
+const config = require('./config')
+
+/**
+ * 当前日期(联调可覆盖)。
+ * config.DEBUG_TODAY 非空时(如 '2026-09-30')把"今天"钉在该日期,
+ * 但保留真实的时分秒 —— 便于查看某天的今日课程卡片, 又不影响"下一节"判断。
+ */
+function nowDate() {
+  const real = new Date()
+  const d = config.DEBUG_TODAY
+  if (d) {
+    const p = String(d).split('-').map(Number)
+    if (p.length === 3 && p[0] && p[1] && p[2]) {
+      return new Date(p[0], p[1] - 1, p[2], real.getHours(), real.getMinutes(), real.getSeconds())
+    }
+  }
+  return real
+}
+
 /**
  * 格式化日期 YYYY-MM-DD
  */
@@ -196,7 +215,7 @@ function getDefaultFirstWeekDate() {
 function calcCurrentWeek(firstWeekDate) {
   const firstMonday = parseDateStr(firstWeekDate)
   if (!firstMonday || isNaN(firstMonday.getTime())) return 1
-  const now = new Date()
+  const now = nowDate()
   const diffMs = now.getTime() - firstMonday.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
   const week = Math.floor(diffDays / 7) + 1
@@ -208,7 +227,7 @@ function calcCurrentWeek(firstWeekDate) {
  * @returns {number} 1=周一 ... 7=周日
  */
 function calcTodayDay() {
-  const day = new Date().getDay()
+  const day = nowDate().getDay()
   return day === 0 ? 7 : day
 }
 
@@ -228,6 +247,7 @@ function getDateLabel(firstWeekDate, weekNum, dayOfWeek) {
 }
 
 module.exports = {
+  nowDate,
   calcCurrentWeek,
   calcTodayDay,
   getDateLabel,

@@ -20,25 +20,36 @@ Page({
     isGraduate: false, // 研究生账号在功能页隐藏"教学评价"
     fontClass: '',     // 字体档位: '' 像素 | 'font-system' 系统字体
     swiperHeight: 600, // 内容区高度(px), 自适应计算(公告条可见时扣除其高度)
-    visited: [true, false, false, false, false],  // 已挂载的 Tab(懒渲染)
+    visited: [true, false, false, false, false, false],  // 已挂载的 Tab(懒渲染): 5=学分进度
 
     // 顶部公告条(long: 文本被单行截断, 显示"查看 ›"提示)
     ann: { visible: false, text: '', updated: '', long: false }
   },
 
-  onLoad() {
+  onLoad(options) {
     this._syncAccountType()
     this._calcHeight()
     // 首屏停在"课表"(底栏中间项)
     this._route()
     // 拉取公告(有新公告则顶部横幅展示)
     this._loadAnnouncement(true)
+    // 订阅消息/外链落地: pages/main/main?feature=exams|eval|grades|credit → 直接打开对应二级视图
+    if (options && options.feature) {
+      const sub = String(options.feature)
+      if (['exams', 'eval', 'grades', 'credit'].indexOf(sub) >= 0) this._pendingFeature = sub
+    }
   },
 
   onReady() {
     // 页面渲染完成后确保当前 Tab 已激活(此时 selectComponent 必可拿到组件,
     // 解决慢设备上首屏激活重试超时导致页面空白)
     this._route()
+    // 落地页参数: 首帧渲染完再切二级视图(组件此时可被 selectComponent 拿到)
+    if (this._pendingFeature) {
+      const sub = this._pendingFeature
+      this._pendingFeature = ''
+      this.goFeature(sub)
+    }
   },
 
   onShow() {
@@ -197,7 +208,7 @@ Page({
     const sub = e.currentTarget.dataset.sub
     if (!sub) return
     // 组件是懒挂载的(wx:if=visited[n]), 这里必须先把它标记为已访问, 否则进去是空白
-    const VIEW_OF = { exams: 1, eval: 2, grades: 3 }
+    const VIEW_OF = { exams: 1, eval: 2, grades: 3, credit: 5 }
     const visited = this.data.visited.slice()
     if (VIEW_OF[sub] !== undefined) visited[VIEW_OF[sub]] = true
     this.setData({ sub, visited })
@@ -215,7 +226,7 @@ Page({
    * 会把 current 设成不存在的项 → 所有视图都被隐藏, 表现为"跳转没反应/白屏"。
    */
   goFeature(sub) {
-    const VIEW_OF = { exams: 1, eval: 2, grades: 3 }
+    const VIEW_OF = { exams: 1, eval: 2, grades: 3, credit: 5 }
     const visited = this.data.visited.slice()
     if (VIEW_OF[sub] !== undefined) visited[VIEW_OF[sub]] = true
     this.setData({ current: 0, sub: sub || '', visited })
@@ -242,6 +253,7 @@ Page({
       if (sub === 'exams') view = 1
       else if (sub === 'eval') view = 2
       else if (sub === 'grades') view = 3
+      else if (sub === 'credit') view = 5
     }
     if (view >= 0) this._activate(view)
   },

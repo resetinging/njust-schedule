@@ -143,7 +143,8 @@ App({
         } else {
           // 会话失效: 保留本地缓存数据 → 离线模式继续展示; 仅失效凭证
           storage.remove('token')
-          storage.remove('saved_password')
+          // 注意: 会话过期时**保留** saved_password —— 这样登录页能自动回填账号,
+          // 也能让 401 自动重登生效(之前这里删掉, 导致用户每次都要重新输一遍)
           storage.setOffline(true)
           this.globalData.isLoggedIn = false
           wx.showModal({
@@ -168,7 +169,18 @@ App({
 
   /** 退出登录（等待后端登出 + 本地清理完成） */
   async doLogout() {
+    // 先记下"上次登录的账号信息": 登出会 clearAll 清空本地存储,
+    // 清完再写回, 这样登录页能自动回填学号(和密码), 不用每次手输
+    const lastSid = storage.getStudentId()
+    const lastPwd = storage.get('saved_password', '')
     await api.logout()
+    try {
+      // 注意: 不能用 setStudentId 写回 —— isLoggedIn() 判据就是"有没有学号",
+      // 写回去会让 App 以为还处于登录态, 表现就是"退出登录点了没反应"。
+      // 因此另存到 last_login_sid, 只供登录页回填。
+      if (lastSid) storage.set('last_login_sid', lastSid)
+      if (lastPwd) storage.set('saved_password', lastPwd)
+    } catch (e) { /* 写回失败不影响登出 */ }
     this.globalData.isLoggedIn = false
     this.globalData.studentName = ''
     this.globalData.semester = ''

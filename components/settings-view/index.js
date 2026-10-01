@@ -6,6 +6,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const subUtil = require('../../utils/subscribe')
 const config = require('../../utils/config')
 const dataLoader = require('../../utils/data-loader')
 const ann = require('../../utils/announcement')
@@ -55,6 +56,11 @@ Component({
 
     // 校历设置
     firstWeekDate: '',
+    calendarSyncing: false,
+
+    // 消息提醒(订阅消息): 由后端返回可用类型与剩余额度
+    subKinds: [],
+    subEnabled: false,
 
     // 问题反馈弹窗(不另开页面)
     showFeedback: false,
@@ -67,6 +73,9 @@ Component({
     myFeedback: [],
     fbLoading: false,
     fbUnread: 0,
+
+    // 赞赏支持弹窗(展示赞赏码; 长按可保存/识别)
+    showAppreciate: false,
 
     // 公告栏(常驻: 展示当前公告; 展开即视为已读, 主页面顶部横幅随之隐藏)
     announcement: '',
@@ -118,10 +127,13 @@ Component({
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
       this.refreshState()
       this.setData({ fontMode: font.getMode() })
+      this.loadSubscribeStatus()
       // 回填记住的学号与密码（登录走自动 OCR，无需预取验证码）
       if (!this.data.isLoggedIn) {
         const updates = {}
-        if (storage.getStudentId()) updates.studentId = storage.getStudentId()
+        // 回填上次登录的学号(登出后会保留在 last_login_sid; 未登出时直接用当前学号)
+        const lastSid = storage.getStudentId() || storage.get('last_login_sid', '')
+        if (lastSid) updates.studentId = lastSid
         const savedPwd = storage.get('saved_password', '')
         if (savedPwd) updates.password = savedPwd
         if (Object.keys(updates).length) {
@@ -495,12 +507,9 @@ Component({
         this.setData({ loggingIn: false })
 
         if (res.success) {
-          // 记住密码（保存在本机；退出登录时自动清除）
-          if (rememberPwd) {
-            storage.set('saved_password', password)
-          } else {
-            storage.remove('saved_password')
-          }
+          // 登录成功后把密码保存在本机, 下次打开登录页自动回填(学号+密码);
+          // 关掉"记住密码"开关会立即删除它。服务端同样只加密保存凭据。
+          storage.set('saved_password', password)
           storage.setStudentId(studentId)
           storage.setStudentName(res.student_name || '')
           storage.setSemester(res.semester || '')
@@ -554,6 +563,69 @@ Component({
       }).catch(() => {
         wx.showToast({ title: '保存失败', icon: 'none' })
       })
+    },
+
+    /**
+     * 从教务教学周历同步第一周周一(教务为准)。
+     * 后端 refresh-calendar 会重新抓取并顺带回写 first_week_date, 这里只负责刷新本地展示。
+     */
+    async onSyncCalendar() {
+      if (this.data.calendarSyncing) return
+      this.setData({ calendarSyncing: true })
+      try {
+        const sem = storage.getSemester()
+        let res = await api.refreshCalendar(sem)
+        if (!res || !res.first_monday) res = await api.getCalendar(sem)
+        const fm = res && res.first_monday
+        if (fm) {
+          this.setData({ firstWeekDate: fm })
+          const sid = storage.getStudentId() || 'guest'
+          storage.remove('cached_status_' + sid + '_' + (sem || 'default'))
+          wx.showToast({ title: '已按教务周历校准', icon: 'success' })
+        } else {
+          wx.showToast({ title: (res && res.message) || '教务周历获取失败', icon: 'none' })
+        }
+      } catch (e) {
+        wx.showToast({ title: '同步失败，稍后再试', icon: 'none' })
+      }
+      this.setData({ calendarSyncing: false })
+    },
+
+    // ============================================================
+    // 消息提醒(订阅消息): 微信一次性订阅, 授权一次可发一条
+    // ============================================================
+
+    /** 拉取可用提醒类型与剩余额度 */
+    async loadSubscribeStatus() {
+      if (!storage.isLoggedIn()) {
+        if (this.data.subKinds.length) this.setData({ subKinds: [] })
+        return
+      }
+      const res = await subUtil.loadStatus()
+      this.setData({ subKinds: res.kinds || [], subEnabled: !!res.enabled })
+    },
+
+    /** 点击提醒条目: 请求订阅授权 → 上报额度 */
+    async onSubscribeTap(e) {
+      const kind = e.currentTarget.dataset.kind
+      const item = (this.data.subKinds || []).find(x => x.kind === kind)
+      if (!item || !item.templateId) {
+        wx.showToast({ title: '该提醒暂不可用', icon: 'none' })
+        return
+      }
+      if (!this.data.subEnabled) {
+        wx.showToast({ title: '服务端未配置，暂不可用', icon: 'none' })
+        return
+      }
+      const r = await subUtil.requestGrant(kind, item.templateId)
+      if (r.ok) {
+        wx.showToast({ title: '已 +1 条（剩余 ' + (r.quota || 1) + ' 次）', icon: 'none' })
+        this.loadSubscribeStatus()
+      } else if (r.reason === 'reject' || r.reason === 'ban') {
+        wx.showToast({ title: '未授权', icon: 'none' })
+      } else {
+        wx.showToast({ title: '授权未完成，请重试', icon: 'none' })
+      }
     },
 
     // ============================================================
@@ -696,6 +768,18 @@ Component({
       this.setData({ showMyFeedback: false })
     },
 
+    // ============================================================
+    // 赞赏支持(弹窗显示赞赏码; 长按图片可保存或识别)
+    // ============================================================
+
+    onOpenAppreciate() {
+      this.setData({ showAppreciate: true })
+    },
+
+    onCloseAppreciate() {
+      this.setData({ showAppreciate: false })
+    },
+
     /** 拉取我的反馈; markRead=true 时把回复标记为已读(清小红点) */
     async _loadMyFeedback(markRead) {
       if (!storage.isLoggedIn() || !storage.get('token', '')) {
@@ -783,13 +867,25 @@ Component({
         title: '确认退出',
         content: '退出后需要重新登录才能查看数据',
         success: async (res) => {
-          if (res.confirm) {
+          if (!res.confirm) return
+          // 加可见反馈 + 兜底: 之前这里 await 抛错时界面毫无变化, 看起来就是"点了没反应"
+          wx.showLoading({ title: '正在退出…', mask: true })
+          try {
             await getApp().doLogout()   // 等待后端登出 + 本地清理完成, 避免状态未清导致要点两次
-            this.refreshState()
-            this.setData({
-              password: ''
-            })
+          } catch (e) {
+            wx.showToast({ title: '退出失败，请重试', icon: 'none', duration: 2500 })
           }
+          wx.hideLoading()
+          this.refreshState()
+          // 登出后立刻回填"上次登录的学号 + 记住的密码"(不用切 Tab 再触发 activate)
+          this.setData({
+            studentId: storage.get('last_login_sid', '') || storage.getStudentId() || '',
+            password: storage.get('saved_password', '') || ''
+          })
+          this._updateCanLogin()
+        },
+        fail: () => {
+          wx.showToast({ title: '弹窗打开失败，请重进小程序', icon: 'none', duration: 2500 })
         }
       })
     }

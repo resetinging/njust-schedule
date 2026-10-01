@@ -51,6 +51,11 @@
           <text class="info-arrow">›</text>
         </view>
       </picker>
+      <view class="info-row" bindtap="onSyncCalendar">
+        <text class="info-label">从教务同步</text>
+        <text class="info-value">{{calendarSyncing ? '同步中…' : '按教学周历校准周次'}}</text>
+        <text class="info-arrow">›</text>
+      </view>
     </view>
 
     <!-- 偏好组: 字体 -->
@@ -72,6 +77,19 @@
       </view>
     </view>
 
+    <!-- 消息提醒(订阅消息): 授权一次可发一条; 服务端未配置时不显示 -->
+    <view class="act-card" wx:if="{{subKinds.length > 0}}">
+      <view class="act-row" wx:for="{{subKinds}}" wx:key="kind"
+            data-kind="{{item.kind}}" bindtap="onSubscribeTap">
+        <view class="act-main">
+          <text class="act-title">{{item.label}}</text>
+          <text class="act-sub">{{item.quota > 0 ? ('已开启 · 剩余 ' + item.quota + ' 条') : '点一下开启，可重复点击囤额度'}}</text>
+        </view>
+        <text class="act-plus">＋1</text>
+      </view>
+      <view class="act-note">微信规则：每授权一次可发 1 条；勾选"总是保持以上选择"后，重复点击不再弹窗，可连续囤额度</view>
+    </view>
+
     <!-- 帮助与反馈(弹窗实现都在本组件内, 入口必须放在同一页, 否则会先跳页再弹窗) -->
     <view class="act-card">
       <view class="act-row" bindtap="onOpenLinks">
@@ -84,6 +102,9 @@
         <text class="act-title">我的反馈</text>
         <text class="act-badge" wx:if="{{fbUnread > 0}}">{{fbUnread > 99 ? '99+' : fbUnread}}</text>
         <text class="act-arrow">›</text>
+      </view>
+      <view class="act-row" bindtap="onOpenAppreciate">
+        <text class="act-title">赞赏支持</text><text class="act-arrow">›</text>
       </view>
     </view>
 
@@ -264,6 +285,20 @@
       </view>
 
       <view class="link-foot">共 {{linkTotal}} 个常用链接</view>
+    </view>
+  </view>
+
+  <!-- 赞赏支持弹窗: 显示赞赏码(长按可保存/识别, 点击可放大) -->
+  <view class="fb-mask" wx:if="{{showAppreciate}}" bindtap="onCloseAppreciate">
+    <view class="fb-card appreciate-card" catchtap="noop">
+      <view class="fb-head">
+        <text class="fb-title">赞赏支持</text>
+        <text class="fb-close" bindtap="onCloseAppreciate">✕</text>
+      </view>
+      <image class="appreciate-img" src="/static/appreciate.jpg" mode="widthFix"
+             show-menu-by-longpress="{{true}}" />
+      <view class="appreciate-tip">如果这个小工具帮到了你，欢迎请我喝杯奶茶 ☕</view>
+      <view class="appreciate-sub">长按图片可保存或识别</view>
     </view>
   </view>
 

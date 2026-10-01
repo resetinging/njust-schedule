@@ -47,6 +47,14 @@
             </view>
             <text class="feat-arrow">›</text>
           </view>
+          <view class="feat-row" data-sub="credit" bindtap="onOpenFeature">
+            <view class="feat-ico"><icon name="award" size="34" color="#2563EB" /></view>
+            <view class="feat-main">
+              <text class="feat-name">学分进度</text>
+              <text class="feat-desc">培养方案 × 已修学分，按类别统计</text>
+            </view>
+            <text class="feat-arrow">›</text>
+          </view>
         </view>
 
         <view class="feat-card">
@@ -83,6 +91,10 @@
     <view class="tab-wrap" hidden="{{!(current === 0 && sub === 'grades')}}">
       <view class="sub-back" bindtap="onBackFeature"><text class="sub-back-ico">‹</text>返回功能</view>
       <grades-view wx:if="{{visited[3]}}" id="tabview3" />
+    </view>
+    <view class="tab-wrap" hidden="{{!(current === 0 && sub === 'credit')}}">
+      <view class="sub-back" bindtap="onBackFeature"><text class="sub-back-ico">‹</text>返回功能</view>
+      <credit-view wx:if="{{visited[5]}}" id="tabview5" />
     </view>
 
     <!-- ③ 课表 -->

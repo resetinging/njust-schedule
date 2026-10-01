@@ -1,0 +1,129 @@
+/* 学分进度视图 —— 与成绩页保持同一视觉语言(浅蓝卡 + 细进度条) */
+
+/* 宿主节点与滚动容器高度链(与成绩/考试视图一致, 缺少会导致无法滚动) */
+:host {
+  display: block;
+  height: 100%;
+}
+
+.container {
+  padding-bottom: 40rpx;
+  background: var(--bg-page, #F6F7FB);
+}
+
+.view-root {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.view-scroll {
+  height: 100%;
+}
+
+.cr-hero {
+  margin: 20rpx 24rpx 8rpx;
+  padding: 30rpx 28rpx 24rpx;
+  border-radius: 22rpx;
+  background: linear-gradient(135deg, #EEF4FF 0%, #F7FAFF 100%);
+  border: 1rpx solid #DCE7FF;
+}
+
+.cr-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cr-hero-num { display: flex; flex-direction: column; }
+
+.cr-hero-value {
+  font-size: 64rpx;
+  line-height: 1.1;
+  font-weight: 600;
+  color: var(--brand, #2563EB);
+}
+
+.cr-hero-label {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #5B6478;
+}
+
+.cr-hero-refresh {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.cr-hero-sub {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  color: #7A8399;
+}
+
+.cr-bar {
+  margin-top: 16rpx;
+  height: 12rpx;
+  border-radius: 8rpx;
+  background: rgba(37, 99, 235, 0.12);
+  overflow: hidden;
+}
+
+.cr-bar-in {
+  height: 100%;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #5B8DEF 0%, #2563EB 100%);
+  transition: width 0.3s ease;
+}
+
+.cr-row { padding: 18rpx 0; }
+.cr-row + .cr-row { border-top: 1rpx solid #F0F2F7; }
+
+.cr-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.cr-name { font-size: 28rpx; color: #2B3245; font-weight: 500; }
+.cr-val { font-size: 22rpx; color: #7A8399; }
+
+.cr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cr-title { font-size: 28rpx; color: #2B3245; font-weight: 500; }
+.cr-toggle { font-size: 24rpx; color: var(--brand, #2563EB); }
+
+.cr-sem { margin-top: 18rpx; }
+
+.cr-sem-name {
+  display: block;
+  font-size: 24rpx;
+  color: #5B6478;
+  margin-bottom: 8rpx;
+}
+
+.cr-course {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8rpx 0;
+}
+
+.cr-c-name { font-size: 26rpx; color: #2B3245; }
+.cr-c-meta { font-size: 22rpx; color: #99A1B3; }
+
+.cr-note {
+  margin: 10rpx 28rpx 0;
+  font-size: 22rpx;
+  color: #99A1B3;
+  line-height: 1.5;
+}

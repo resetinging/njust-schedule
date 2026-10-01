@@ -17,6 +17,10 @@
       {
         "value": "/minitest",
         "type": "folder"
+      },
+      {
+        "value": "/tests",
+        "type": "folder"
       }
     ],
     "include": []

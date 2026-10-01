@@ -6,6 +6,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const subUtil = require('../../utils/subscribe')
 const { timeUntil } = require('../../utils/date')
 
 Component({
@@ -26,6 +27,9 @@ Component({
     isGraduate: false,
     examRows: [],
 
+    // 考前提醒(订阅消息): 有可用模板时显示入口
+    subExam: null,
+
     active: false            // 懒渲染: main 激活时才渲染内容
   },
 
@@ -44,6 +48,7 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      this.loadExamSubscribe()
       // 研究生账号: 考试来自研究生系统, 先渲染本地缓存
       const isGrad = storage.get('account_type', '') === 'graduate'
       this.setData({ isGraduate: isGrad })
@@ -70,6 +75,35 @@ Component({
         this._applyYjsExams(cached)
       } else {
         this.setData({ loading: false, examRows: [], errorMsg: '' })
+      }
+    },
+
+    /** 考前提醒入口: 拉取订阅状态(只显示考试类型) */
+    async loadExamSubscribe() {
+      if (!storage.isLoggedIn() || storage.get('account_type', '') === 'graduate') {
+        if (this.data.subExam) this.setData({ subExam: null })
+        return
+      }
+      const res = await subUtil.loadStatus()
+      const exam = (res.kinds || []).find(k => k.kind === 'exam') || null
+      this.setData({ subExam: res.enabled ? exam : null })
+    },
+
+    /** 点击: 授权一次并上报额度(微信要求必须用户点击触发) */
+    async onSubscribeExamTap() {
+      const item = this.data.subExam
+      if (!item || !item.templateId) {
+        wx.showToast({ title: '该提醒暂不可用', icon: 'none' })
+        return
+      }
+      const r = await subUtil.requestGrant('exam', item.templateId)
+      if (r.ok) {
+        wx.showToast({ title: '已开启考前提醒（剩余 ' + (r.quota || 1) + ' 条）', icon: 'none' })
+        this.loadExamSubscribe()
+      } else if (r.reason === 'reject' || r.reason === 'ban') {
+        wx.showToast({ title: '未授权', icon: 'none' })
+      } else {
+        wx.showToast({ title: '授权未完成，请重试', icon: 'none' })
       }
     },
 

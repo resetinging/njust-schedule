@@ -10,7 +10,7 @@ const config = require('../../utils/config')
 const { courseColors } = require('../../utils/course-color')
 const font = require('../../utils/font')
 const { periodStart } = require('../../utils/period-time')
-const { calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
+const { nowDate, calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
 // ── 自定义课程(本地存储, 与教务课程合并显示) ──
 const CUSTOM_KEY = 'custom_courses'
@@ -41,6 +41,9 @@ Component({
     courses: [],             // 全部课程
     filteredCourses: [],     // 当前周的课程（含单双周过滤）
     listDayGroups: [],       // 列表视图分组数据
+
+    // 今日课程卡片(仅"本周"显示): { show, count, weekday, courses:[{name,room,period,clock,bar,isNext}] }
+    today: { show: false, count: 0, weekday: '', courses: [] },
     viewMode: 'grid',        // 'grid' | 'list'
     loading: false,
     showDetail: false,
@@ -184,13 +187,29 @@ Component({
         // 网络失败: 用默认值兜底定位
         this._applyFirstWeek(getDefaultFirstWeekDate(), false)
       }
+      // 后端无值/网络失败 → 用教务教学周历校准(教务为准)
+      await this._syncFirstWeekFromCalendar(sem, statusKey, '')
+    },
+
+    /** 从教务教学周历取第一周周一(后端 /api/calendar; 值由后端按"教务为准"落库) */
+    async _syncFirstWeekFromCalendar(semester, statusKey, prevVal) {
+      try {
+        const cal = await api.getCalendar(semester)
+        const fm = cal && cal.first_monday
+        if (!fm) return false
+        storage.setCached(statusKey, { t: Date.now(), first_week_date: fm })
+        if (fm !== prevVal) this._applyFirstWeek(fm, false)
+        return true
+      } catch (e) {
+        return false
+      }
     },
 
     /** 应用第一周日期: 计算当前周并刷新显示(保留用户手动跳转的周次) */
     _applyFirstWeek(firstWeekDate, showHint) {
       const actualWeek = calcCurrentWeek(firstWeekDate)
       const todayDay = calcTodayDay()
-      const now = new Date()
+      const now = nowDate()
       const weekday = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()]
       const todayText = `今天 ${now.getMonth() + 1}月${now.getDate()}日 周${weekday}`
       // 仅首次设置或日期变化时定位本周; 否则保留用户当前查看的周次
@@ -489,6 +508,7 @@ Component({
       const listDayGroups = this._buildListGroups(filtered)
 
       this.setData({ filteredCourses: filtered, currentWeek: w, listDayGroups, weekRange })
+      this._buildToday(filtered, w)
       // 像素字体按需子集: 延后 2.5s 再发, 避免和用户刚点的"刷新数据"抢带宽/线程
       // (字符没变时内部直接返回, 不重复请求)
       try {
@@ -501,6 +521,38 @@ Component({
           this._fontTimer = setTimeout(() => font.loadForText(text), 2500)
         }
       } catch (e) { /* 字体只是观感, 失败不影响功能 */ }
+    },
+
+    /**
+     * 今日课程卡片: 只在本周显示, 列出今天课程并标出"下一节"。
+     * 数据来自 filterByWeek 的过滤结果(已含周次/单双周过滤与配色)。
+     */
+    _buildToday(filtered, w) {
+      const today = Number(this.data.todayDay) || 0
+      const empty = { show: false, count: 0, weekday: '', courses: [] }
+      if (!today || w !== this.data.actualWeek) {
+        if (this.data.today.show) this.setData({ today: empty })
+        return
+      }
+      const DAY = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+      const list = (filtered || [])
+        .filter(c => Number(c.day) === today)
+        .sort((a, b) => ((a.start || a.start_period || 0) - (b.start || b.start_period || 0)))
+        .map(c => ({
+          name: c.name || '',
+          room: c.classroom || '',
+          period: c._periodLabel || '',
+          clock: (c._clock || '').replace('.', ':'),
+          bar: c._bar || '#3B82F6',
+          text: c._text || '#2563EB'
+        }))
+      // 下一节: 今天的课里, 上课钟点晚于当前时间的最近一节
+      const now = nowDate()
+      const hhmm = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2)
+      let nextIdx = -1
+      list.forEach((c, i) => { if (nextIdx < 0 && c.clock && c.clock > hhmm) nextIdx = i })
+      list.forEach((c, i) => { c.isNext = (i === nextIdx) })
+      this.setData({ today: { show: true, count: list.length, weekday: DAY[today] || '', courses: list } })
     },
 
     /**

@@ -449,6 +449,34 @@
   height: 100%;
 }
 
+/* 考前提醒(订阅消息): 顶部条, 点一次 = +1 条额度 */
+.exam-sub {
+  margin: 16rpx 24rpx 0;
+  padding: 18rpx 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--hero-bg, #EEF4FF);
+  border: 2rpx solid var(--hero-border, #DCE7FF);
+  border-radius: var(--radius-card, 20rpx);
+}
+
+.exam-sub-t {
+  font-size: 26rpx;
+  color: var(--text-secondary, #334155);
+}
+
+.exam-sub-btn {
+  flex: none;
+  margin-left: 16rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  background: var(--brand, #2563EB);
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
 /* 宿主节点高度(swiper-item 内撑满, 保证内部 100% 高度链有效) */
 :host {
   display: block;

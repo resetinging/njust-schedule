@@ -25,6 +25,10 @@ const BUILD = '2c00fa0'
 const USE_LOCAL = false
 const LOCAL_BASE = 'http://127.0.0.1:5000'
 
+// 联调用: 把"今天"钉在指定日期(YYYY-MM-DD), 便于查看某天的今日课程卡片;
+// 留空 = 使用真实日期。⚠️ 发版前必须留空。
+const DEBUG_TODAY = ''
+
 // 缓存有效期（毫秒）
 const CACHE_TTL = {
   courses: 30 * 60 * 1000,    // 课表 30分钟
@@ -53,6 +57,7 @@ module.exports = {
   BUILD,
   USE_LOCAL,
   LOCAL_BASE,
+  DEBUG_TODAY,
   CACHE_TTL,
   BIG_PERIOD_MAP
 }

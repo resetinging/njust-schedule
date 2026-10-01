@@ -43,6 +43,36 @@
 
 .act-title.act-danger { color: var(--danger); }
 
+/* 消息提醒: 主标题 + 副行(剩余次数)与底部说明 */
+.act-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.act-sub {
+  margin-top: 4rpx;
+  font-size: 23rpx;
+  color: var(--text-hint);
+}
+
+.act-note {
+  padding: 12rpx 18rpx 18rpx;
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: var(--text-hint);
+}
+
+.act-plus {
+  flex: none;
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  background: var(--brand-soft, #EFF6FF);
+  color: var(--brand, #2563EB);
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
 /* 分组标题(账号 / 数据与账号 / 字体) */
 .group-title {
   font-size: 24rpx;
@@ -145,6 +175,9 @@
 .user-card { margin: 12rpx 20rpx 0 !important; padding: 20rpx 20rpx !important; }
 .info-card { margin: 12rpx 20rpx 0 !important; padding: 14rpx 16rpx !important; gap: 8rpx !important; }
 .info-row { padding: 12rpx 18rpx !important; }
+/* 行内: 标签左、值右(日期等靠右对齐, 与箭头同一侧) */
+.info-row .info-label { flex-shrink: 0; }
+.info-row .info-value { flex: 1; text-align: right; }
 .act-card { margin: 12rpx 20rpx 0 !important; }
 .act-row { padding: 20rpx 18rpx !important; }
 .font-row { padding: 15rpx 4rpx !important; }
@@ -800,6 +833,28 @@
   border-radius: var(--radius-card);
   padding: 32rpx 28rpx 28rpx;
   box-sizing: border-box;
+}
+
+/* 赞赏支持弹窗: 图片自适应宽度, 提示文案弱化展示 */
+.appreciate-card { text-align: center; }
+
+.appreciate-img {
+  width: 100%;
+  margin: 12rpx 0 8rpx;
+  border-radius: 16rpx;
+  background: #FFFFFF;
+}
+
+.appreciate-tip {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+.appreciate-sub {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: var(--text-hint);
 }
 
 .fb-head {

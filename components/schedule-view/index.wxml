@@ -45,6 +45,26 @@
     <!-- 周次相关内容: 切换周次时整体做滑入动画 -->
     <view class="week-body {{weekAnim}}">
 
+    <!-- 今日课程卡片(仅本周显示): 下一节高亮 -->
+    <view class="today-card" wx:if="{{today.show}}">
+      <view class="today-head">
+        <text class="today-title">今天 · {{today.weekday}}</text>
+        <text class="today-count">{{today.count > 0 ? (today.count + ' 门课') : '没有课'}}</text>
+      </view>
+      <view class="today-empty" wx:if="{{today.count === 0}}">今天没有课，休息一下 🎉</view>
+      <view class="today-row {{item.isNext ? 'on' : ''}}" wx:for="{{today.courses}}" wx:key="index">
+        <view class="today-dot" style="background: {{item.bar}}"></view>
+        <view class="today-main">
+          <text class="today-name">{{item.name}}</text>
+          <view class="today-sub">
+            <text class="today-room" wx:if="{{item.room}}">{{item.room}}</text>
+            <text class="today-time">{{item.period}}</text>
+          </view>
+        </view>
+        <text class="today-next" wx:if="{{item.isNext}}">下一节</text>
+      </view>
+    </view>
+
     <!-- 网格视图(刷新时保留旧内容, 仅首次无数据才显示占位) -->
     <view class="grid-wrapper" wx:if="{{viewMode === 'grid' && filteredCourses.length > 0 && !(loading && courses.length === 0)}}">
       <week-grid
@@ -76,8 +96,8 @@
                 <text class="card-periods" style="color: {{c._text}}">{{c._periodLabel}}</text>
               </view>
               <view class="card-body">
-                <text wx:if="{{c.teacher}}" style="color: {{c._text}}">{{c.teacher}}</text>
-                <text wx:if="{{c.classroom}}" style="color: {{c._text}}">{{c.classroom}}</text>
+                <text wx:if="{{c.teacher}}" class="card-teacher" style="color: {{c._text}}">{{c.teacher}}</text>
+                <text wx:if="{{c.classroom}}" class="card-room" style="color: {{c._text}}">{{c.classroom}}</text>
               </view>
               <view class="card-footer">
                 <text class="card-weeks" style="color: {{c._text}}">{{c.weeks || '1-18周'}}</text>

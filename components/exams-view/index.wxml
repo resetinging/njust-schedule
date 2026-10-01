@@ -4,6 +4,12 @@
   <!-- 滚动内容区(scroll-view 内滚; 刷新走顶部按钮) -->
   <scroll-view class="view-scroll" scroll-y>
 
+    <!-- 考前提醒(订阅消息): 点一次 +1 条额度; 未开启时显示引导 -->
+    <view class="exam-sub" wx:if="{{!isGraduate && subExam}}" bindtap="onSubscribeExamTap">
+      <text class="exam-sub-t">{{subExam.quota > 0 ? ('考前 1 天提醒已开启 · 剩余 ' + subExam.quota + ' 条') : '考前 1 天提醒我（点一下开启）'}}</text>
+      <text class="exam-sub-btn">{{subExam.quota > 0 ? '＋1' : '开启'}}</text>
+    </view>
+
     <!-- ============ 研究生: 考试信息(本地优先, 手动刷新) ============ -->
     <block wx:if="{{isGraduate}}">
       <view class="card">

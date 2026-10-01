@@ -4,6 +4,7 @@
     "exams-view": "/components/exams-view/index",
     "eval-view": "/components/eval-view/index",
     "grades-view": "/components/grades-view/index",
+    "credit-view": "/components/credit-view/index",
     "settings-view": "/components/settings-view/index",
     "custom-tab-bar": "/custom-tab-bar/index",
     "icon": "/components/icon/index"
