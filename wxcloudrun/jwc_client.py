@@ -18,9 +18,12 @@ from wxcloudrun.jwc.grades import GradesMixin
 from wxcloudrun.jwc.cet import CetMixin
 from wxcloudrun.jwc.freeclass import FreeClassMixin
 from wxcloudrun.jwc.qrlogin import QrLoginMixin
+from wxcloudrun.jwc.calendar import CalendarMixin
+from wxcloudrun.jwc.programme import ProgrammeMixin
+from wxcloudrun.jwc.profile import ProfileMixin
 
 
 class JWCClient(BaseMixin, LoginMixin, CoreMixin, ScheduleMixin, ExamsMixin,
                 UtilsMixin, EvalMixin, GradesMixin, CetMixin, FreeClassMixin,
-                QrLoginMixin):
+                QrLoginMixin, CalendarMixin, ProgrammeMixin, ProfileMixin):
     """教务客户端: 各域 mixin 组合(方法实现见 wxcloudrun/jwc/*)。"""

@@ -1,0 +1,1141 @@
+
+
+  
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+
+
+
+
+<head id="headerid1">
+
+	<base target='_self'>
+
+	<title>执行计划</title>	
+
+	<meta http-equiv="pragma" content="no-cache">
+
+	<meta http-equiv="cache-control" content="no-cache">
+
+	<meta http-equiv="expires" content="0">
+
+	<meta http-equiv="keywords" content="湖南强智科技教务系统">
+
+	<meta http-equiv="description" content="湖南强智科技教务系统">
+
+	<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8" />
+
+<script type="text/javascript" src="/njlgdx/js/jquery-min.js" language="javascript" ></script>
+
+<script type="text/javascript" src="/njlgdx/js/common.js" language="javascript" ></script>
+
+<script type="text/javascript" src="/njlgdx/js/iepngfix_tilebg.js" language="javascript" ></script>
+
+<link href="/njlgdx/framework/images/common.css" rel="stylesheet" type="text/css" />
+
+<link href="/njlgdx/framework/images/blue.css" rel="stylesheet" type="text/css" id="link_theme" />
+
+<link href="/njlgdx/framework/images/workstation.css" rel="stylesheet" type="text/css" />
+
+</head>
+
+<iframe id="notSession" name="notSession" style="display: none;" src=""></iframe>
+
+<script type="text/javascript">
+
+jQuery(document).ready(function(){
+
+	window.setInterval(function(){
+
+		 document.getElementById("notSession").src = "/njlgdx/framework/blankPage.jsp";
+
+	 }, 1000 * 60 * 10);
+
+});
+
+</script>
+
+<body>
+
+
+
+
+
+
+
+
+
+<div class="Nsb_pw">
+
+  <div class="Nsb_top">
+
+    <div class="Nsb_top_logo"><table border="0" cellpadding="0" cellspacing="0"><tr><td height="75" valign="middle"><img style="display:;" id="imgLogo" src="/njlgdx/framework/images/index_logo.gif" /></td></tr></table></div>
+
+    <div class="Nsb_top_menu">        
+
+        <div id="Top1_divLoginName" class="Nsb_top_menu_nc" style="color: #000000;">测试学生</div>
+
+        <ul>
+
+            <li><a id="TopUserSetting" info="个人设置" href="#" class="Nsb_top_menu_id"><img src="/njlgdx/framework/images/Nsb_top_p1.jpg" id="Top1_imgTopSmallUserPhoto" /></a></li>
+
+            <span></span>                                      
+
+            <li><a id="TopTheme" info="切换主题" href="#" class="Nsb_top_menu_style" onclick="changeDisplay('divTopTheme')"></a></li>
+
+            <span id="Top1_LBackManageSpliter"></span>
+
+            <span id="Top1_LExitSpliter"></span>
+
+            <li id="Top1_LBackManage">
+
+            	<a info="个人设置" href="/njlgdx/grsz/grsz_xggrxx.do?Ves632DSdyV=NEW_JSD_WDZM" class="Nsb_top_menu_options"></a>
+
+            </li>
+
+            <li id="Top1_LExit"><a info="退出" href="javascript:Logout('/njlgdx');" class="Nsb_top_menu_exit"></a></li>
+
+        </ul>            
+
+     </div>   
+
+     <div id="divTopTheme" group="topDiv" style="display:none;z-index:10000">      
+
+        <div class="Nsb_top_c Nsb_top_c3">
+
+          <ul>
+
+            <li id="theme_blue" theme="blue" index="1" class="Nsb_top_c3_11" onclick="javascript:changeTheme('/njlgdx','blue',this);"></li>
+
+            <li id="theme_green" theme="green" index="2" class="Nsb_top_c3_2"  onclick="javascript:changeTheme('/njlgdx','green',this);"></li>
+
+            <li id="theme_orange" theme="orange" index="3" class="Nsb_top_c3_3" onclick="javascript:changeTheme('/njlgdx','orange',this);"></li>
+
+            <li id="theme_red" theme="red" index="4" class="Nsb_top_c3_4"  onclick="javascript:changeTheme('/njlgdx','red',this);"></li>
+
+            <li id="theme_purple" theme="purple" index="5" class="Nsb_top_c3_5" onclick="javascript:changeTheme('/njlgdx','purple',this);"></li>
+
+            <li id="theme_gray" theme="gray" index="6" class="Nsb_top_c3_6"  onclick="javascript:changeTheme('/njlgdx','gray',this);"></li>
+
+          </ul>
+
+        </div>
+
+     </div>
+
+   </div>
+
+</div>
+
+<div class="Nsb_menu_pw">
+
+  <div class="Nsb_pw">
+
+    <div id="divFirstMenuClass" class="Nsb_menu menu_cn">
+
+      <ul>         
+
+         <li class="Nsb_menu_li_now" title="首页">
+
+         	<a class="Nsb_menu_li_h" id="homepage" href="/njlgdx/framework/main.jsp"><span></span></a>
+
+         </li>
+
+         
+
+         	<li title="我的桌面">
+
+         		<a id="calender_user_schedule" href="/njlgdx/jxzl/jxzl_query?Ves632DSdyV=NEW_XSD_WDZM">我的桌面</a>
+
+         	</li>
+
+         
+
+         	<li title="学籍成绩">
+
+         		<a id="calender_user_schedule" href="/njlgdx/xsxj/xjxxgl.do?Ves632DSdyV=NEW_XSD_XJCJ">学籍成绩</a>
+
+         	</li>
+
+         
+
+         	<li title="培养管理">
+
+         		<a id="calender_user_schedule" href="/njlgdx/pyfa/pyfadg_query?Ves632DSdyV=NEW_XSD_PYGL">培养管理</a>
+
+         	</li>
+
+         
+
+         	<li title="考试报名">
+
+         		<a id="calender_user_schedule" href="/njlgdx/xsks/xsksap_query?Ves632DSdyV=NEW_XSD_KSBM">考试报名</a>
+
+         	</li>
+
+         
+
+         	<li title="教学评价">
+
+         		<a id="calender_user_schedule" href="/njlgdx/xspj/xspj_find.do?Ves632DSdyV=NEW_XSD_JXPJ">教学评价</a>
+
+         	</li>
+
+         
+
+      </ul>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+
+function Logout(url){
+
+	window.location.href = url + "/xk/LoginToXk?method=exit";
+
+}
+
+</script>
+
+<div class="Nsb_pw">
+
+	
+
+
+
+  
+
+<div id="LeftMenu1_divChildMenu" class="Nsb_layout_l Nsb_l_list">
+
+	<div class="Nsb_l_list_top"></div>
+
+	
+
+			<h4 class="exam_user_exam">培养方案</h4>
+
+			<ul>			
+
+	
+
+				<li><a  href="/njlgdx/pyfa/pyfadg_query">培养方案大纲</a></li>
+
+	
+
+				<li><a  href="/njlgdx/pyfa/pyfa_query_find">指导培养方案</a></li>
+
+	
+
+				<li><a  href="/njlgdx/pyfa/pyfajc_query">教学进程查询</a></li>
+
+	
+
+				<li><a class='Nsb_l_list_now' href="/njlgdx/pyfa/zxjh_query_find">执行计划</a></li>
+
+	
+
+				<li><a  href="/njlgdx/jspyfa/pyfa_find">专业培养方案</a></li>
+
+	
+
+				<li><a  href="/njlgdx/pyfa/kcdgxz">课程总库</a></li>
+
+	
+
+			</ul>
+
+	
+
+			<h4 class="exam_user_exam">我的课表</h4>
+
+			<ul>			
+
+	
+
+				<li><a  href="/njlgdx/xskb/xskb_list.do">学期理论课表</a></li>
+
+	
+
+				<li><a  href="/njlgdx/syjx/toXskb.do">实验课表查询</a></li>
+
+	
+
+				<li><a  href="/njlgdx/kbcx/kbxx_xzb">班级课表查询</a></li>
+
+	
+
+				<li><a  href="/njlgdx/kbcx/kbxx_teacher">教师课表查询</a></li>
+
+	
+
+				<li><a  href="/njlgdx/kbcx/kbxx_classroom">教室课表查询</a></li>
+
+	
+
+				<li><a  href="/njlgdx/kbcx/kbxx_kc">课程课表查询</a></li>
+
+	
+
+			</ul>
+
+	
+
+			<h4 class="exam_user_exam">选课管理</h4>
+
+			<ul>			
+
+	
+
+				<li><a  href="/njlgdx/xk/AccessToXk">学生选课中心</a></li>
+
+	
+
+				<li><a  href="/njlgdx/xkgl/xsyxgl">学生预选管理</a></li>
+
+	
+
+				<li><a  href="/njlgdx/kbxx/jsjy_query">教室借用查询</a></li>
+
+	
+
+				<li><a  href="/njlgdx/mtxk/mtxk_query">学生免听选课</a></li>
+
+	
+
+				<li><a  href="/njlgdx/view/xkgl/txKcdgFind.jsp">通识选修课大纲查询</a></li>
+
+	
+
+			</ul>
+
+	
+
+			<h4 class="exam_user_exam">在线问答</h4>
+
+			<ul>			
+
+	
+
+				<li><a  href="/njlgdx/zxwd/zxwd_opt">在线问答</a></li>
+
+	
+
+			</ul>
+
+	
+
+			<h4 class="exam_user_exam">辅修管理</h4>
+
+			<ul>			
+
+	
+
+				<li><a  href="/njlgdx/fxgl/fxbmxx_query">辅修报名</a></li>
+
+	
+
+				<li><a  href="/njlgdx/fxgl/fxkcfind">辅修课程列表</a></li>
+
+	
+
+			</ul>
+
+	
+
+</div>
+
+	<div class="Nsb_layout_r"  style="width: 100%">
+
+	<div class="Nsb_r_title"><a href="/njlgdx/framework/main.jsp">首页</a> » 培养方案 » 执行计划</div>
+
+	<form action="/njlgdx/pyfa/pyfa_query" name="Form1" id="Form1" method="post">
+
+	<table id="dataList" width="100%" border="0" cellspacing="0" cellpadding="0" class="Nsb_r_list Nsb_table">
+
+		<tr>
+
+            <th class="Nsb_r_list_thb" scope="col">序号</th>
+
+			<th class="Nsb_r_list_thb" scope="col">开课学期</th>
+
+			<th class="Nsb_r_list_thb" scope="col">课程编号</th>
+
+			<th class="Nsb_r_list_thb" scope="col">课程名称</th>
+
+			<th class="Nsb_r_list_thb" scope="col">开课单位</th>
+
+			<th class="Nsb_r_list_thb" scope="col">学分</th>
+
+			<th class="Nsb_r_list_thb" scope="col">总学时</th>
+
+			<th class="Nsb_r_list_thb" scope="col">考核方式</th>
+
+			<th class="Nsb_r_list_thb" scope="col">课程属性</th>
+
+			<th class="Nsb_r_list_thb" scope="col">是否考试</th>
+
+			<th class="Nsb_r_list_thb" scope="col">操作列</th>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>1</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060602</td>
+
+			<td align="left">专用英语-商务职场英语</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>2</td>
+
+			<td>32</td>
+
+			<td>考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+				<a href="#" onclick="kcdgView('E8AE9C73F5BE44EE8AD73399CF8E7A86')"  >课程大纲查看</a>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>2</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060603</td>
+
+			<td align="left">专用英语-中华文化英语导论</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>2</td>
+
+			<td>32</td>
+
+			<td>考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+				<a href="#" onclick="kcdgView('266210788DD8481E8C26AF825C7A9C58')"  >课程大纲查看</a>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>3</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060604</td>
+
+			<td align="left">专用英语-英美文化</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>2</td>
+
+			<td>32</td>
+
+			<td>考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+				<a href="#" onclick="kcdgView('5A1FC66005D2432EAFF9E674E4F06B76')"  >课程大纲查看</a>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>4</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060608</td>
+
+			<td align="left">专用英语-口译入门</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>2</td>
+
+			<td>32</td>
+
+			<td>考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+				<a href="#" onclick="kcdgView('86A0B7E1CE6748A7B6B8058DF293D7F5')"  >课程大纲查看</a>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>5</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060609</td>
+
+			<td align="left">专用英语-报刊英语选读</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>2</td>
+
+			<td>32</td>
+
+			<td>考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+				<a href="#" onclick="kcdgView('8B73E75BFA204355837427A3FFA64161')"  >课程大纲查看</a>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>6</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060610</td>
+
+			<td align="left">专用英语-跨文化思想交流英语</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>2</td>
+
+			<td>32</td>
+
+			<td>考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+				<a href="#" onclick="kcdgView('5E9AC0C420FE4EEFA309AC24031D52D0')"  >课程大纲查看</a>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>7</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060611</td>
+
+			<td align="left">专用英语-免修</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>2</td>
+
+			<td>32</td>
+
+			<td>不考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>8</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060614</td>
+
+			<td align="left">专用英语-英语综合能力提升</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>2</td>
+
+			<td>32</td>
+
+			<td>考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+				<a href="#" onclick="kcdgView('DD0B98C3E2FC414A9D1D99846A673B12')"  >课程大纲查看</a>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>9</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060615</td>
+
+			<td align="left">专用英语-通用学术英语</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>2</td>
+
+			<td>32</td>
+
+			<td>考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+				<a href="#" onclick="kcdgView('A9E6F08FA43841CA9E70770AEC01DF56')"  >课程大纲查看</a>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>10</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">14060616</td>
+
+			<td align="left">专用英语-民体班基础英语</td>
+
+			<td align="left">外国语学院</td>
+
+			<td>4</td>
+
+			<td>64</td>
+
+			<td>考试</td>
+
+			<td>限选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>11</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">19000001</td>
+
+			<td align="left">思想道德与法治</td>
+
+			<td align="left">马克思主义学院</td>
+
+			<td>3</td>
+
+			<td>48</td>
+
+			<td>考试</td>
+
+			<td>必修</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>12</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">19007301</td>
+
+			<td align="left">国家安全教育</td>
+
+			<td align="left">马克思主义学院</td>
+
+			<td>1</td>
+
+			<td>16</td>
+
+			<td>考查</td>
+
+			<td>必修</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>13</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">21220102</td>
+
+			<td align="left">体育（Ⅱ）</td>
+
+			<td align="left">体育部</td>
+
+			<td>1</td>
+
+			<td>24</td>
+
+			<td>考查</td>
+
+			<td>必修</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+				<a href="#" onclick="kcdgView('21220102')"  >课程大纲查看</a>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>14</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">22100002</td>
+
+			<td align="left">工程实践（Ⅰ）</td>
+
+			<td align="left">工程训练中心</td>
+
+			<td>1.5</td>
+
+			<td>60</td>
+
+			<td>考查</td>
+
+			<td>必修</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>15</td>
+
+			<td>2024-2025-2</td>
+
+			<td align="left">36200002</td>
+
+			<td align="left">形势与政策（Ⅱ）</td>
+
+			<td align="left">马克思主义学院</td>
+
+			<td>0.3</td>
+
+			<td>8</td>
+
+			<td>考试</td>
+
+			<td>必修</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>16</td>
+
+			<td>2024-2025-3</td>
+
+			<td align="left">22100101</td>
+
+			<td align="left">电子工程实践（Ⅰ）</td>
+
+			<td align="left">工程训练中心</td>
+
+			<td>1.5</td>
+
+			<td>60</td>
+
+			<td>考查</td>
+
+			<td>必修</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>17</td>
+
+			<td>2025-2026-1</td>
+
+			<td align="left">01275501</td>
+
+			<td align="left">机器人系统设计与实战（Ⅱ）</td>
+
+			<td align="left">机械工程学院</td>
+
+			<td>1.5</td>
+
+			<td>24</td>
+
+			<td>考试</td>
+
+			<td>任选</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>18</td>
+
+			<td>2025-2026-1</td>
+
+			<td align="left">04061501</td>
+
+			<td align="left">电路</td>
+
+			<td align="left">电子工程与光电技术学院</td>
+
+			<td>3.5</td>
+
+			<td>56</td>
+
+			<td>考查</td>
+
+			<td>必修</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>19</td>
+
+			<td>2025-2026-1</td>
+
+			<td align="left">04061602</td>
+
+			<td align="left">电路分析综合实验</td>
+
+			<td align="left">电子工程与光电技术学院</td>
+
+			<td>0.5</td>
+
+			<td>20</td>
+
+			<td>考试</td>
+
+			<td>必修</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+		<tr>
+
+			<td>20</td>
+
+			<td>2025-2026-1</td>
+
+			<td align="left">05021701</td>
+
+			<td align="left">工程制图</td>
+
+			<td align="left">机械工程学院</td>
+
+			<td>3</td>
+
+			<td>48</td>
+
+			<td>考试</td>
+
+			<td>必修</td>
+
+			<td>是</td>
+
+			<td>
+
+				
+
+			</td>
+
+		</tr>
+
+		
+
+	</table>
+
+	<div id="PagingControl1_divOuterClass" class="Nsb_r_list_tdfy"> <div class="Nsb_r_list_fy" ><div class="Nsb_r_list_fy2"><span>转到</span><input name="pageIndex" type="text" value="2" id="pageIndex" onkeyup="keyUpNum(this);"  onafterpaste="keyUpNum(this);" onkeydown="paginationKeyDown()"/> </div><div class="Nsb_r_list_fy3"> <span> 共6页&nbsp;101条</span></div><div class="Nsb_r_list_fy4"><a id="PagingControl1_btnPrevPage" href="javascript:pagination(1)" title='点击跳转上一页'></a><a id="PagingControl1_btnNextPage" href="javascript:pagination(3)" title='点击跳转下一页'></a></div></div></div>	
+
+	<input type="hidden" name="xnxq" value="" />
+
+	<input type="hidden" name="kctxs" value="" />
+
+	<input type="hidden" name="kcsx" value="" />
+
+	</form>
+
+	<iframe id="hidens" name="hidens" style="display: none;"></iframe>
+
+	<form action="" target="hidens" id="Form2" name="Form2">
+
+		<input type="hidden" name="jx02id" id="jx02ids"/>
+
+	</form>
+
+	
+
+	</div>
+
+</div>
+
+<br />
+
+
+
+<div id="Footer1_divCopyright" class="Nsb_pw" style="display:;">
+
+  <div class="Nsb_rights">Copyright (C) 湖南强智科技发展有限公司 2003-2013 All Rights Reserved 湘ICP 备12010071号</div>
+
+</div>
+
+<script language="javascript">
+
+//合并学年学期列
+
+jQuery("#dataList").rowspan(1);
+
+function kcdgView(jx02id){
+
+	var url2="/njlgdx/view/pyfa/kcdg_View.jsp?jx02id="+jx02id;
+
+	window.open(url2,"_blank","","true");
+
+	
+
+	//JsMod(url2,1400,800);
+
+}
+
+function importPdf(jx02id){
+
+	$("#jx02ids").val(jx02id);
+
+	var url="/njlgdx/jspyfa/importPdf";
+
+	var act =document.getElementById("Form2").action;
+
+	document.getElementById("Form2").action=url;
+
+	Form2.submit();
+
+	//document.getElementById("Form1").action=act
+
+}
+
+
+
+</script>
+
+</body>
+
+</html><script src=http://ehall2.njust.edu.cn/casp-ioc/track.min.js></script><script src=http://ehall2.njust.edu.cn/casp-ioc/app_access.js></script>

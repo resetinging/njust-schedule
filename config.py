@@ -170,6 +170,16 @@ if not SESSION_KEY:
     )
 
 # ============================================================
+# 微信小程序订阅消息(云托管环境变量注入; 模板 ID 非密钥, 可入库)
+# ============================================================
+MP_APPID = os.environ.get("MP_APPID", "wx1d76c0631bdeebac")
+MP_SECRET = os.environ.get("MP_SECRET", "")          # 只从环境变量读取, 绝不写进仓库
+# 订阅消息: 当前只做"考试提醒"; 将来要加成绩/截止提醒, 在此追加模板 ID 并在
+# core/subscribe_store.py 的 KINDS 中登记即可(前端会自动多显示一行)。
+SUBSCRIBE_TPL_EXAM = os.environ.get("SUBSCRIBE_TPL_EXAM",
+                                    "ng8fatzWFGkwY5Q5X2QM-BNktLyMLQPaJl2xFi7Z180")
+
+# ============================================================
 # 调试开关
 # ============================================================
 DEBUG_EVAL = False

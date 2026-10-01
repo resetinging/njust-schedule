@@ -194,6 +194,12 @@ def api_login_webvpn():
                 credential_store.save(student_id, _pw)
         except Exception:
             pass
+        # 后台预抓: 教学周历(校准 first_week_date) + 培养方案(学分进度)
+        try:
+            from wxcloudrun.api.study import schedule_study_prefetch
+            schedule_study_prefetch(client, student_id)
+        except Exception:
+            pass
         return _on_login_success(client, token)
     return jsonify({
         "success": False,

@@ -417,6 +417,16 @@ from wxcloudrun.api.grades import grades_bp  # noqa: E402
 app.register_blueprint(grades_bp)
 
 
+from wxcloudrun.api.study import study_bp  # noqa: E402
+
+app.register_blueprint(study_bp)
+
+
+from wxcloudrun.api.subscribe import subscribe_bp  # noqa: E402
+
+app.register_blueprint(subscribe_bp)
+
+
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({"error": "页面不存在", "rid": _rid()}), 404

@@ -1,0 +1,469 @@
+
+
+  
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+
+
+
+
+<head id="headerid1">
+
+	<base target='_self'>
+
+	<title>教学周历查看</title>	
+
+	<meta http-equiv="pragma" content="no-cache">
+
+	<meta http-equiv="cache-control" content="no-cache">
+
+	<meta http-equiv="expires" content="0">
+
+	<meta http-equiv="keywords" content="湖南强智科技教务系统">
+
+	<meta http-equiv="description" content="湖南强智科技教务系统">
+
+	<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8" />
+
+<script type="text/javascript" src="/njlgdx/js/jquery-min.js" language="javascript" ></script>
+
+<script type="text/javascript" src="/njlgdx/js/common.js" language="javascript" ></script>
+
+<script type="text/javascript" src="/njlgdx/js/iepngfix_tilebg.js" language="javascript" ></script>
+
+<link href="/njlgdx/framework/images/common.css" rel="stylesheet" type="text/css" />
+
+<link href="/njlgdx/framework/images/blue.css" rel="stylesheet" type="text/css" id="link_theme" />
+
+<link href="/njlgdx/framework/images/workstation.css" rel="stylesheet" type="text/css" />
+
+</head>
+
+<iframe id="notSession" name="notSession" style="display: none;" src=""></iframe>
+
+<script type="text/javascript">
+
+jQuery(document).ready(function(){
+
+	window.setInterval(function(){
+
+		 document.getElementById("notSession").src = "/njlgdx/framework/blankPage.jsp";
+
+	 }, 1000 * 60 * 10);
+
+});
+
+</script>
+
+
+
+
+
+
+
+<body>
+
+
+
+
+
+
+
+
+
+<div class="Nsb_pw">
+
+  <div class="Nsb_top">
+
+    <div class="Nsb_top_logo"><table border="0" cellpadding="0" cellspacing="0"><tr><td height="75" valign="middle"><img style="display:;" id="imgLogo" src="/njlgdx/framework/images/index_logo.gif" /></td></tr></table></div>
+
+    <div class="Nsb_top_menu">        
+
+        <div id="Top1_divLoginName" class="Nsb_top_menu_nc" style="color: #000000;">测试学生</div>
+
+        <ul>
+
+            <li><a id="TopUserSetting" info="个人设置" href="#" class="Nsb_top_menu_id"><img src="/njlgdx/framework/images/Nsb_top_p1.jpg" id="Top1_imgTopSmallUserPhoto" /></a></li>
+
+            <span></span>                                      
+
+            <li><a id="TopTheme" info="切换主题" href="#" class="Nsb_top_menu_style" onclick="changeDisplay('divTopTheme')"></a></li>
+
+            <span id="Top1_LBackManageSpliter"></span>
+
+            <span id="Top1_LExitSpliter"></span>
+
+            <li id="Top1_LBackManage">
+
+            	<a info="个人设置" href="/njlgdx/grsz/grsz_xggrxx.do?Ves632DSdyV=NEW_JSD_WDZM" class="Nsb_top_menu_options"></a>
+
+            </li>
+
+            <li id="Top1_LExit"><a info="退出" href="javascript:Logout('/njlgdx');" class="Nsb_top_menu_exit"></a></li>
+
+        </ul>            
+
+     </div>   
+
+     <div id="divTopTheme" group="topDiv" style="display:none;z-index:10000">      
+
+        <div class="Nsb_top_c Nsb_top_c3">
+
+          <ul>
+
+            <li id="theme_blue" theme="blue" index="1" class="Nsb_top_c3_11" onclick="javascript:changeTheme('/njlgdx','blue',this);"></li>
+
+            <li id="theme_green" theme="green" index="2" class="Nsb_top_c3_2"  onclick="javascript:changeTheme('/njlgdx','green',this);"></li>
+
+            <li id="theme_orange" theme="orange" index="3" class="Nsb_top_c3_3" onclick="javascript:changeTheme('/njlgdx','orange',this);"></li>
+
+            <li id="theme_red" theme="red" index="4" class="Nsb_top_c3_4"  onclick="javascript:changeTheme('/njlgdx','red',this);"></li>
+
+            <li id="theme_purple" theme="purple" index="5" class="Nsb_top_c3_5" onclick="javascript:changeTheme('/njlgdx','purple',this);"></li>
+
+            <li id="theme_gray" theme="gray" index="6" class="Nsb_top_c3_6"  onclick="javascript:changeTheme('/njlgdx','gray',this);"></li>
+
+          </ul>
+
+        </div>
+
+     </div>
+
+   </div>
+
+</div>
+
+<div class="Nsb_menu_pw">
+
+  <div class="Nsb_pw">
+
+    <div id="divFirstMenuClass" class="Nsb_menu menu_cn">
+
+      <ul>         
+
+         <li  title="首页">
+
+         	<a class="Nsb_menu_li_h" id="homepage" href="/njlgdx/framework/main.jsp"><span></span></a>
+
+         </li>
+
+         
+
+         	<li title="我的桌面">
+
+         		<a id="calender_user_schedule" href="/njlgdx/jxzl/jxzl_query?Ves632DSdyV=NEW_XSD_WDZM">我的桌面</a>
+
+         	</li>
+
+         
+
+         	<li title="学籍成绩">
+
+         		<a id="calender_user_schedule" href="/njlgdx/xsxj/xjxxgl.do?Ves632DSdyV=NEW_XSD_XJCJ">学籍成绩</a>
+
+         	</li>
+
+         
+
+         	<li title="培养管理">
+
+         		<a id="calender_user_schedule" href="/njlgdx/pyfa/pyfadg_query?Ves632DSdyV=NEW_XSD_PYGL">培养管理</a>
+
+         	</li>
+
+         
+
+         	<li title="考试报名">
+
+         		<a id="calender_user_schedule" href="/njlgdx/xsks/xsksap_query?Ves632DSdyV=NEW_XSD_KSBM">考试报名</a>
+
+         	</li>
+
+         
+
+         	<li title="教学评价">
+
+         		<a id="calender_user_schedule" href="/njlgdx/xspj/xspj_find.do?Ves632DSdyV=NEW_XSD_JXPJ">教学评价</a>
+
+         	</li>
+
+         
+
+      </ul>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+
+function Logout(url){
+
+	window.location.href = url + "/xk/LoginToXk?method=exit";
+
+}
+
+</script>
+
+<div class="Nsb_pw">
+
+
+
+	
+
+		
+
+
+
+  
+
+<div id="LeftMenu1_divChildMenu" class="Nsb_layout_l Nsb_l_list">
+
+	<div class="Nsb_l_list_top"></div>
+
+	
+
+			<h4 class="exam_user_exam">公告留言</h4>
+
+			<ul>			
+
+	
+
+				<li><a  href="/njlgdx/ggly/ysgg_query">已收公告</a></li>
+
+	
+
+				<li><a  href="/njlgdx/ggly/ysly_query">已收留言</a></li>
+
+	
+
+			</ul>
+
+	
+
+			<h4 class="exam_user_exam">个人信息</h4>
+
+			<ul>			
+
+	
+
+				<li><a  href="/njlgdx/grsz/grsz_xggrxx.do">修改个人信息</a></li>
+
+	
+
+				<li><a  href="/njlgdx/grsz/grsz_xgmm">修改密码</a></li>
+
+	
+
+			</ul>
+
+	
+
+			<h4 class="exam_user_exam">教学周历</h4>
+
+			<ul>			
+
+	
+
+				<li><a class='Nsb_l_list_now' href="/njlgdx/jxzl/jxzl_query">教学周历查看</a></li>
+
+	
+
+			</ul>
+
+	
+
+</div>
+
+	
+
+
+
+	
+
+	
+
+	<div class="Nsb_layout_r" >
+
+<iframe style="display:none;" name="ifrmPrint" id="ifrmPrint"></iframe>
+
+<form action="" name="FormPrint" id="FormPrint" method="post" >
+
+</form>
+
+ <form action="" name="Form1" id="Form1" method="post" target="_self">
+
+ <br/>
+
+        <div class="Nsb_r_title"><a href="/njlgdx/framework/main.jsp">首页</a> » 教学周历» 教学周历查看</div>
+
+        <div align="center"> 
+
+		<center><font size="4">&nbsp;2026-2027&nbsp;学年&nbsp;第&nbsp;1&nbsp;学期&nbsp;&nbsp;教学周历</font>		
+
+		&nbsp;&nbsp;&nbsp;&nbsp;<select name="xnxq01id" id="xnxq01id" onchange="document.getElementById('Form1').submit();"　style="width:180px;">
+
+		
+
+			<option value="2026-2027-1"   selected="selected">2026-2027-1</option>
+
+		
+
+			<option value="2025-2026-1"  >2025-2026-1</option>
+
+		
+
+			<option value="2020-2021-2"  >2020-2021-2</option>
+
+		
+
+			<option value="2019-2020-2"  >2019-2020-2</option>
+
+		
+
+			<option value="2019-2020-1"  >2019-2020-1</option>
+
+		
+
+			<option value="2018-2019-2"  >2018-2019-2</option>
+
+		
+
+			<option value="2018-2019-1"  >2018-2019-1</option>
+
+		
+
+			<option value="2017-2018-2"  >2017-2018-2</option>
+
+		
+
+			<option value="2017-2018-1"  >2017-2018-1</option>
+
+		
+
+			<option value="2016-2017-2"  >2016-2017-2</option>
+
+		
+
+			<option value="2016-2017-1"  >2016-2017-1</option>
+
+		
+
+			<option value="2015-2016-2"  >2015-2016-2</option>
+
+		
+
+			<option value="2014-2015-2"  >2014-2015-2</option>
+
+		
+
+			<option value="2014-2015-1"  >2014-2015-1</option>
+
+		
+
+		</select>
+
+		<!-- 
+
+		&nbsp;<input type="button" value="查 询"  onclick="search(this)" class="button"/>
+
+		 -->
+
+		&nbsp;&nbsp;<input type="button" value="打 印"  onclick="print(this)" class="button"/>
+
+		</center>
+
+        </div>
+
+        	
+
+		　<table id="kbtable" border="1" width="100%" cellspacing="0" cellpadding="0" class="Nsb_r_list Nsb_table" style="table-layout:fixed;overflow:hidden;">
+
+				<tr>
+
+					<th width="60" height="48" align="center" border=0>
+
+						<image src="../framework/images/rq.png"/>
+
+					</th>
+
+					
+
+					<th width="80" height="48" align="center">星期一</th>
+
+					<th width="80" height="48" align="center">星期二</th>
+
+					<th width="80" height="48" align="center">星期三</th>
+
+					<th width="80" height="48" align="center">星期四</th>
+
+					<th width="80" height="48" align="center">星期五</th>
+
+					<th width="80" height="48" align="center">星期六</th>
+
+					<th width="80" height="48" align="center">星期日</th>
+
+					<th width="110" height="48" align="center" nowrap>备注</th>
+
+				</tr> 
+
+				<tr height='28'><td>1</td><td title='2026年08月24'><B><font color='black' size='2' face='宋体'>24</font><B></td><td title='2026年08月25'><B><font color='black' size='2' face='宋体'>25</font><B></td><td title='2026年08月26'><B><font color='black' size='2' face='宋体'>26</font><B></td><td title='2026年08月27'><B><font color='black' size='2' face='宋体'>27</font><B></td><td title='2026年08月28'><B><font color='black' size='2' face='宋体'>28</font><B></td><td title='2026年08月29'><B><font color='blue' size='2' face='宋体'>08月29日</font><B></td><td title='2026年08月30'><B><font color='blue' size='2' face='宋体'>08月30日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>2</td><td title='2026年08月31'><B><font color='black' size='2' face='宋体'>31</font><B></td><td title='2026年09月01'><B><font color='black' size='2' face='宋体'>01</font><B></td><td title='2026年09月02'><B><font color='black' size='2' face='宋体'>02</font><B></td><td title='2026年09月03'><B><font color='black' size='2' face='宋体'>03</font><B></td><td title='2026年09月04'><B><font color='black' size='2' face='宋体'>04</font><B></td><td title='2026年09月05'><B><font color='blue' size='2' face='宋体'>09月05日</font><B></td><td title='2026年09月06'><B><font color='blue' size='2' face='宋体'>09月06日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>3</td><td title='2026年09月07'><B><font color='black' size='2' face='宋体'>07</font><B></td><td title='2026年09月08'><B><font color='black' size='2' face='宋体'>08</font><B></td><td title='2026年09月09'><B><font color='black' size='2' face='宋体'>09</font><B></td><td title='2026年09月10'><B><font color='black' size='2' face='宋体'>10</font><B></td><td title='2026年09月11'><B><font color='black' size='2' face='宋体'>11</font><B></td><td title='2026年09月12'><B><font color='blue' size='2' face='宋体'>09月12日</font><B></td><td title='2026年09月13'><B><font color='blue' size='2' face='宋体'>09月13日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>4</td><td title='2026年09月14'><B><font color='black' size='2' face='宋体'>14</font><B></td><td title='2026年09月15'><B><font color='black' size='2' face='宋体'>15</font><B></td><td title='2026年09月16'><B><font color='black' size='2' face='宋体'>16</font><B></td><td title='2026年09月17'><B><font color='black' size='2' face='宋体'>17</font><B></td><td title='2026年09月18'><B><font color='black' size='2' face='宋体'>18</font><B></td><td title='2026年09月19'><B><font color='blue' size='2' face='宋体'>09月19日</font><B></td><td title='2026年09月20'><B><font color='blue' size='2' face='宋体'>09月20日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>5</td><td title='2026年09月21'><B><font color='black' size='2' face='宋体'>21</font><B></td><td title='2026年09月22'><B><font color='black' size='2' face='宋体'>22</font><B></td><td title='2026年09月23'><B><font color='black' size='2' face='宋体'>23</font><B></td><td title='2026年09月24'><B><font color='black' size='2' face='宋体'>24</font><B></td><td title='2026年09月25'><B><font color='black' size='2' face='宋体'>25</font><B></td><td title='2026年09月26'><B><font color='blue' size='2' face='宋体'>09月26日</font><B></td><td title='2026年09月27'><B><font color='blue' size='2' face='宋体'>09月27日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>6</td><td title='2026年09月28'><B><font color='black' size='2' face='宋体'>28</font><B></td><td title='2026年09月29'><B><font color='black' size='2' face='宋体'>29</font><B></td><td title='2026年09月30'><B><font color='black' size='2' face='宋体'>30</font><B></td><td title='2026年10月01'><B><font color='black' size='2' face='宋体'>01</font><B></td><td title='2026年10月02'><B><font color='black' size='2' face='宋体'>02</font><B></td><td title='2026年10月03'><B><font color='blue' size='2' face='宋体'>10月03日</font><B></td><td title='2026年10月04'><B><font color='blue' size='2' face='宋体'>10月04日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>7</td><td title='2026年10月05'><B><font color='black' size='2' face='宋体'>05</font><B></td><td title='2026年10月06'><B><font color='black' size='2' face='宋体'>06</font><B></td><td title='2026年10月07'><B><font color='black' size='2' face='宋体'>07</font><B></td><td title='2026年10月08'><B><font color='black' size='2' face='宋体'>08</font><B></td><td title='2026年10月09'><B><font color='black' size='2' face='宋体'>09</font><B></td><td title='2026年10月10'><B><font color='blue' size='2' face='宋体'>10月10日</font><B></td><td title='2026年10月11'><B><font color='blue' size='2' face='宋体'>10月11日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>8</td><td title='2026年10月12'><B><font color='black' size='2' face='宋体'>12</font><B></td><td title='2026年10月13'><B><font color='black' size='2' face='宋体'>13</font><B></td><td title='2026年10月14'><B><font color='black' size='2' face='宋体'>14</font><B></td><td title='2026年10月15'><B><font color='black' size='2' face='宋体'>15</font><B></td><td title='2026年10月16'><B><font color='black' size='2' face='宋体'>16</font><B></td><td title='2026年10月17'><B><font color='blue' size='2' face='宋体'>10月17日</font><B></td><td title='2026年10月18'><B><font color='blue' size='2' face='宋体'>10月18日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>9</td><td title='2026年10月19'><B><font color='black' size='2' face='宋体'>19</font><B></td><td title='2026年10月20'><B><font color='black' size='2' face='宋体'>20</font><B></td><td title='2026年10月21'><B><font color='black' size='2' face='宋体'>21</font><B></td><td title='2026年10月22'><B><font color='black' size='2' face='宋体'>22</font><B></td><td title='2026年10月23'><B><font color='black' size='2' face='宋体'>23</font><B></td><td title='2026年10月24'><B><font color='blue' size='2' face='宋体'>10月24日</font><B></td><td title='2026年10月25'><B><font color='blue' size='2' face='宋体'>10月25日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>10</td><td title='2026年10月26'><B><font color='black' size='2' face='宋体'>26</font><B></td><td title='2026年10月27'><B><font color='black' size='2' face='宋体'>27</font><B></td><td title='2026年10月28'><B><font color='black' size='2' face='宋体'>28</font><B></td><td title='2026年10月29'><B><font color='black' size='2' face='宋体'>29</font><B></td><td title='2026年10月30'><B><font color='black' size='2' face='宋体'>30</font><B></td><td title='2026年10月31'><B><font color='blue' size='2' face='宋体'>10月31日</font><B></td><td title='2026年11月01'><B><font color='blue' size='2' face='宋体'>11月01日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>11</td><td title='2026年11月02'><B><font color='black' size='2' face='宋体'>02</font><B></td><td title='2026年11月03'><B><font color='black' size='2' face='宋体'>03</font><B></td><td title='2026年11月04'><B><font color='black' size='2' face='宋体'>04</font><B></td><td title='2026年11月05'><B><font color='black' size='2' face='宋体'>05</font><B></td><td title='2026年11月06'><B><font color='black' size='2' face='宋体'>06</font><B></td><td title='2026年11月07'><B><font color='blue' size='2' face='宋体'>11月07日</font><B></td><td title='2026年11月08'><B><font color='blue' size='2' face='宋体'>11月08日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>12</td><td title='2026年11月09'><B><font color='black' size='2' face='宋体'>09</font><B></td><td title='2026年11月10'><B><font color='black' size='2' face='宋体'>10</font><B></td><td title='2026年11月11'><B><font color='black' size='2' face='宋体'>11</font><B></td><td title='2026年11月12'><B><font color='black' size='2' face='宋体'>12</font><B></td><td title='2026年11月13'><B><font color='black' size='2' face='宋体'>13</font><B></td><td title='2026年11月14'><B><font color='blue' size='2' face='宋体'>11月14日</font><B></td><td title='2026年11月15'><B><font color='blue' size='2' face='宋体'>11月15日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>13</td><td title='2026年11月16'><B><font color='black' size='2' face='宋体'>16</font><B></td><td title='2026年11月17'><B><font color='black' size='2' face='宋体'>17</font><B></td><td title='2026年11月18'><B><font color='black' size='2' face='宋体'>18</font><B></td><td title='2026年11月19'><B><font color='black' size='2' face='宋体'>19</font><B></td><td title='2026年11月20'><B><font color='black' size='2' face='宋体'>20</font><B></td><td title='2026年11月21'><B><font color='blue' size='2' face='宋体'>11月21日</font><B></td><td title='2026年11月22'><B><font color='blue' size='2' face='宋体'>11月22日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>14</td><td title='2026年11月23'><B><font color='black' size='2' face='宋体'>23</font><B></td><td title='2026年11月24'><B><font color='black' size='2' face='宋体'>24</font><B></td><td title='2026年11月25'><B><font color='black' size='2' face='宋体'>25</font><B></td><td title='2026年11月26'><B><font color='black' size='2' face='宋体'>26</font><B></td><td title='2026年11月27'><B><font color='black' size='2' face='宋体'>27</font><B></td><td title='2026年11月28'><B><font color='blue' size='2' face='宋体'>11月28日</font><B></td><td title='2026年11月29'><B><font color='blue' size='2' face='宋体'>11月29日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>15</td><td title='2026年11月30'><B><font color='black' size='2' face='宋体'>30</font><B></td><td title='2026年12月01'><B><font color='black' size='2' face='宋体'>01</font><B></td><td title='2026年12月02'><B><font color='black' size='2' face='宋体'>02</font><B></td><td title='2026年12月03'><B><font color='black' size='2' face='宋体'>03</font><B></td><td title='2026年12月04'><B><font color='black' size='2' face='宋体'>04</font><B></td><td title='2026年12月05'><B><font color='blue' size='2' face='宋体'>12月05日</font><B></td><td title='2026年12月06'><B><font color='blue' size='2' face='宋体'>12月06日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>16</td><td title='2026年12月07'><B><font color='black' size='2' face='宋体'>07</font><B></td><td title='2026年12月08'><B><font color='black' size='2' face='宋体'>08</font><B></td><td title='2026年12月09'><B><font color='black' size='2' face='宋体'>09</font><B></td><td title='2026年12月10'><B><font color='black' size='2' face='宋体'>10</font><B></td><td title='2026年12月11'><B><font color='black' size='2' face='宋体'>11</font><B></td><td title='2026年12月12'><B><font color='blue' size='2' face='宋体'>12月12日</font><B></td><td title='2026年12月13'><B><font color='blue' size='2' face='宋体'>12月13日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>17</td><td title='2026年12月14'><B><font color='black' size='2' face='宋体'>14</font><B></td><td title='2026年12月15'><B><font color='black' size='2' face='宋体'>15</font><B></td><td title='2026年12月16'><B><font color='black' size='2' face='宋体'>16</font><B></td><td title='2026年12月17'><B><font color='black' size='2' face='宋体'>17</font><B></td><td title='2026年12月18'><B><font color='black' size='2' face='宋体'>18</font><B></td><td title='2026年12月19'><B><font color='blue' size='2' face='宋体'>12月19日</font><B></td><td title='2026年12月20'><B><font color='blue' size='2' face='宋体'>12月20日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>18</td><td title='2026年12月21'><B><font color='black' size='2' face='宋体'>21</font><B></td><td title='2026年12月22'><B><font color='black' size='2' face='宋体'>22</font><B></td><td title='2026年12月23'><B><font color='black' size='2' face='宋体'>23</font><B></td><td title='2026年12月24'><B><font color='black' size='2' face='宋体'>24</font><B></td><td title='2026年12月25'><B><font color='black' size='2' face='宋体'>25</font><B></td><td title='2026年12月26'><B><font color='blue' size='2' face='宋体'>12月26日</font><B></td><td title='2026年12月27'><B><font color='blue' size='2' face='宋体'>12月27日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>19</td><td title='2026年12月28'><B><font color='black' size='2' face='宋体'>28</font><B></td><td title='2026年12月29'><B><font color='black' size='2' face='宋体'>29</font><B></td><td title='2026年12月30'><B><font color='black' size='2' face='宋体'>30</font><B></td><td title='2026年12月31'><B><font color='black' size='2' face='宋体'>31</font><B></td><td title='2027年01月01'><B><font color='black' size='2' face='宋体'>01</font><B></td><td title='2027年01月02'><B><font color='blue' size='2' face='宋体'>01月02日</font><B></td><td title='2027年01月03'><B><font color='blue' size='2' face='宋体'>01月03日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>20</td><td title='2027年01月04'><B><font color='black' size='2' face='宋体'>04</font><B></td><td title='2027年01月05'><B><font color='black' size='2' face='宋体'>05</font><B></td><td title='2027年01月06'><B><font color='black' size='2' face='宋体'>06</font><B></td><td title='2027年01月07'><B><font color='black' size='2' face='宋体'>07</font><B></td><td title='2027年01月08'><B><font color='black' size='2' face='宋体'>08</font><B></td><td title='2027年01月09'><B><font color='blue' size='2' face='宋体'>01月09日</font><B></td><td title='2027年01月10'><B><font color='blue' size='2' face='宋体'>01月10日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>21</td><td title='2027年01月11'><B><font color='black' size='2' face='宋体'>11</font><B></td><td title='2027年01月12'><B><font color='black' size='2' face='宋体'>12</font><B></td><td title='2027年01月13'><B><font color='black' size='2' face='宋体'>13</font><B></td><td title='2027年01月14'><B><font color='black' size='2' face='宋体'>14</font><B></td><td title='2027年01月15'><B><font color='black' size='2' face='宋体'>15</font><B></td><td title='2027年01月16'><B><font color='blue' size='2' face='宋体'>01月16日</font><B></td><td title='2027年01月17'><B><font color='blue' size='2' face='宋体'>01月17日</font><B></td><td align='left' nowrap width='110'></td></tr><tr height='28'><td>周历编制</td><td colspan='8' align='left'></td>
+
+		</table>
+
+</form>
+
+</div>
+
+</div>
+
+<br />
+
+
+
+<div id="Footer1_divCopyright" class="Nsb_pw" style="display:;">
+
+  <div class="Nsb_rights">Copyright (C) 湖南强智科技发展有限公司 2003-2013 All Rights Reserved 湘ICP 备12010071号</div>
+
+</div>
+
+<script language="javascript">
+
+function search(obj){
+
+	if(obj != null){
+
+		obj.value = "查询中";
+
+		obj.disabled = true;
+
+	}
+
+	document.getElementById('Form1').submit();
+
+}
+
+
+
+function print(obj){
+
+	var xnxq01id = document.getElementById("xnxq01id").value ; 
+
+	url = "?xnxq01id="+xnxq01id;
+
+	document.getElementById("FormPrint").action = "/njlgdx/jxzl/jxzl_print.do"+url;
+
+	document.getElementById("FormPrint").submit();
+
+}
+
+</script>
+
+</body>
+
+</html><script src=http://ehall2.njust.edu.cn/casp-ioc/track.min.js></script><script src=http://ehall2.njust.edu.cn/casp-ioc/app_access.js></script>

@@ -510,6 +510,73 @@ check("/api/logout 退出登录", client.post("/api/logout", headers=_fh), 200)
 assert _cred.resolve(_fc.student_id) is None, "退出登录后服务端凭据未删除"
 print("  [PASS] 退出登录删除服务端保存的密码")
 
+print("== 教学周历 / 培养方案接口 ==")
+_cc = JWCClient()
+_cc.logged_in = True
+_cc.student_id = "10001"
+_cc.student_name = "回归甲"
+_cc.is_session_valid = lambda: True
+_cc.account_type = ""
+dao.set_user_setting("10001", "semester", "2026-2027-1")
+_ct = views._register_session(_cc)
+_ch = {"X-Auth-Token": _ct}
+check("/api/calendar 未登录 401", client.get("/api/calendar"), 401)
+_cc.fetch_calendar = lambda semester="": {
+    "semester": "2026-2027-1", "first_monday": "2026-08-24", "count": 1,
+    "weeks": [{"week": 1, "monday": "2026-08-24", "sunday": "2026-08-30",
+               "days": ["2026-08-24"] * 7, "note": ""}],
+}
+_cr = client.get("/api/calendar", headers=_ch)
+check("/api/calendar 200", _cr, 200)
+assert _cr.get_json().get("first_monday") == "2026-08-24", _cr.get_json()
+assert dao.get_setting("10001:first_week_date:2026-2027-1") == "2026-08-24", "周历未回写 first_week_date"
+_cached = client.get("/api/calendar", headers=_ch).get_json()
+assert _cached.get("cached") is True, _cached
+check("/api/refresh-calendar 200", client.post("/api/refresh-calendar", headers=_ch), 200)
+
+_cc.fetch_programme = lambda: {
+    "pages": 1, "count": 1,
+    "courses": [{"semester": "2024-2025-1", "code": "00010701", "name": "劳动教育理论",
+                 "dept": "教务处", "credit": 0.5, "hours": 8,
+                 "exam_type": "考查", "attribute": "必修", "is_exam": "是"}],
+}
+check("/api/programme 未登录 401", client.get("/api/programme"), 401)
+_pr = client.get("/api/programme", headers=_ch)
+check("/api/programme 200", _pr, 200)
+assert _pr.get_json()["courses"][0]["code"] == "00010701", _pr.get_json()
+_pr2 = client.get("/api/programme", headers=_ch).get_json()
+assert _pr2.get("cached") is True, _pr2
+check("/api/refresh-programme 200", client.post("/api/refresh-programme", headers=_ch), 200)
+_cc.account_type = "graduate"
+_pg = client.get("/api/programme", headers=_ch).get_json()
+assert _pg.get("supported") is False and _pg.get("courses") == [], _pg
+
+_cc.fetch_profile = lambda: {
+    "fields": {"院系": "机械工程学院", "专业": "机器人工程", "学号": "10001", "姓名": "回归甲"},
+    "base": {"college": "机械工程学院", "major": "机器人工程", "student_id": "10001"},
+}
+check("/api/profile 未登录 401", client.get("/api/profile"), 401)
+_pf = client.get("/api/profile", headers=_ch)
+check("/api/profile 200", _pf, 200)
+assert _pf.get_json()["fields"]["专业"] == "机器人工程", _pf.get_json()
+_pf2 = client.get("/api/profile", headers=_ch).get_json()
+assert _pf2.get("cached") is True, _pf2
+check("/api/refresh-profile 200", client.post("/api/refresh-profile", headers=_ch), 200)
+
+# 订阅消息: 状态 / 授权额度 / 未配置密钥时的样例发送
+check("/api/subscribe/status 未登录 401", client.get("/api/subscribe/status"), 401)
+_sub = client.get("/api/subscribe/status", headers=_ch)
+check("/api/subscribe/status 200", _sub, 200)
+assert "exam" in _sub.get_json()["kinds"], _sub.get_json()
+check("/api/subscribe/grant 200",
+      client.post("/api/subscribe/grant", json={"kind": "exam"}, headers=_ch), 200)
+assert client.get("/api/subscribe/status", headers=_ch).get_json()["kinds"]["exam"]["quota"] == 1
+check("/api/subscribe/grant 未知类型 400",
+      client.post("/api/subscribe/grant", json={"kind": "nope"}, headers=_ch), 400)
+check("/api/subscribe/test-send 未配置密钥 400",
+      client.post("/api/subscribe/test-send", headers=_ch), 400)
+print("  [PASS] 教学周历/培养方案/学籍卡片/订阅消息接口")
+
 # 研究生登录: 必须真实校验密码(不再"有缓存会话就放行"), 成功后保存凭据
 print("== 研究生登录(假客户端, 不打真实 SSO) ==")
 import wxcloudrun.yjs_client as _yjs_mod  # noqa: E402
@@ -584,7 +651,8 @@ import wxcloudrun.jwc.common as _common_mod  # noqa: E402
 _syms = sorted(n for n in vars(_common_mod)
                if n.startswith("_") and not n.startswith("__"))
 _MIXINS = ("base", "login", "core", "schedule", "exams", "utils",
-           "eval", "grades", "cet", "freeclass", "qrlogin")
+           "eval", "grades", "cet", "freeclass", "qrlogin",
+           "calendar", "programme", "profile")
 for _m in _MIXINS:
     _mod = _importlib.import_module("wxcloudrun.jwc." + _m)
     _missing = [n for n in _syms if not hasattr(_mod, n)]

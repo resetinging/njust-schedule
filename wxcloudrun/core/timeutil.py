@@ -17,3 +17,9 @@ def _beijing_date():
     """
     import datetime as _dt
     return _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=8))).date()
+
+
+def _beijing_datetime():
+    """当前北京时间(naive datetime, 便于与考试时间等做比较)。"""
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=8))).replace(tzinfo=None)
