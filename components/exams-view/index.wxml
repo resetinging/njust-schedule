@@ -1,11 +1,11 @@
 <!-- 考试安排视图组件 -->
-<view class="container view-root" wx:if="{{active}}">
+<view class="container view-root">
 
   <!-- 滚动内容区(scroll-view 内滚; 刷新走顶部按钮) -->
   <scroll-view class="view-scroll" scroll-y>
 
     <!-- 考前提醒(订阅消息): 点一次 +1 条额度; 未开启时显示引导 -->
-    <view class="exam-sub" wx:if="{{!isGraduate && subExam}}" bindtap="onSubscribeExamTap">
+    <view class="exam-sub tap" wx:if="{{!isGraduate && subExam}}" bindtap="onSubscribeExamTap">
       <text class="exam-sub-t">{{subExam.quota > 0 ? ('考前 1 天提醒已开启 · 剩余 ' + subExam.quota + ' 条') : '考前 1 天提醒我（点一下开启）'}}</text>
       <text class="exam-sub-btn">{{subExam.quota > 0 ? '＋1' : '开启'}}</text>
     </view>
@@ -18,7 +18,7 @@
         </view>
         <view class="yjs-hint" wx:if="{{!examRows.length}}">暂无考试安排，点下方按钮获取</view>
       </view>
-      <view class="yjs-refresh" bindtap="onRefreshYjsExams">
+      <view class="yjs-refresh tap" bindtap="onRefreshYjsExams">
         {{refreshing ? '获取中…' : '从研究生系统获取'}}
       </view>
       <view class="yjs-note">数据来自研究生系统「学期考试信息查询」</view>
@@ -44,7 +44,7 @@
           <text class="ph-title">考试安排</text>
           <text class="ph-sub">共 {{exams.length}} 场考试</text>
         </view>
-        <view class="ph-refresh {{loading ? 'spin' : ''}}" bindtap="onRefresh">
+        <view class="ph-refresh tap {{loading ? 'spin' : ''}}" bindtap="onRefresh">
           <icon name="refresh" size="32" color="#64748B" />
         </view>
       </view>
@@ -65,7 +65,7 @@
       <view class="exam-scroll">
         <block wx:for="{{dayGroups}}" wx:key="date" wx:for-item="group">
           <!-- 日期头部（已结束可折叠） -->
-          <view class="date-header" data-date="{{group.date}}" data-done="{{group.urgency === 'done'}}" bindtap="onToggleGroup">
+          <view class="date-header tap" data-date="{{group.date}}" data-done="{{group.urgency === 'done'}}" bindtap="onToggleGroup">
             <text class="date-title">{{group.date}} {{group.weekday}}</text>
             <view class="date-right">
               <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>

@@ -29,7 +29,7 @@
         wx:for="{{item.blocks}}"
         wx:key="index"
         wx:for-item="b"
-        class="course-block"
+        class="course-block tap"
         style="top: {{b._top}}rpx; height: {{b._height}}rpx; background: {{b._bg}}; border-left-color: {{b._bar}}; color: {{b._text}}"
         bindtap="onCourseTap"
         data-course="{{b}}"

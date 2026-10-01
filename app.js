@@ -5,6 +5,8 @@
 const api = require('./utils/api')
 const storage = require('./utils/storage')
 const config = require('./utils/config')
+const freeclassCache = require('./utils/freeclass-cache')
+const { BIG_SECTION_START_PERIODS, PERIOD_STARTS, bigSectionIndex } = require('./utils/period-time')
 
 App({
   globalData: {
@@ -47,6 +49,23 @@ App({
     const sem = storage.getSemester()
     const ttl = config.CACHE_TTL
     const tasks = []
+
+    // 空教室默认条件后台预热: 用户进入功能页后通常先看当天/本周,
+    // 提前把查询结果写入本地缓存, 页面 onLoad 可直接渲染, 不再等网络。
+    // 延后于课表等主数据, 避免抢占首屏请求。
+    setTimeout(() => {
+      const slotIndex = bigSectionIndex()
+      const jc1 = BIG_SECTION_START_PERIODS[slotIndex]
+      const jc2 = slotIndex >= BIG_SECTION_START_PERIODS.length - 1
+        ? PERIOD_STARTS.length
+        : BIG_SECTION_START_PERIODS[slotIndex + 1] - 1
+      freeclassCache.warm({
+        campus: '孝陵卫',
+        jc1,
+        jc2,
+        semester: sem || ''
+      }).catch(() => {})
+    }, 900)
 
     // 课表（缓存键带学期）
     const coursesKey = 'cached_courses_' + (sem || 'default')
@@ -169,17 +188,14 @@ App({
 
   /** 退出登录（等待后端登出 + 本地清理完成） */
   async doLogout() {
-    // 先记下"上次登录的账号信息": 登出会 clearAll 清空本地存储,
-    // 清完再写回, 这样登录页能自动回填学号(和密码), 不用每次手输
+    // 只保留上次学号用于登录页回填。密码按隐私承诺随退出删除，不回写。
     const lastSid = storage.getStudentId()
-    const lastPwd = storage.get('saved_password', '')
     await api.logout()
     try {
       // 注意: 不能用 setStudentId 写回 —— isLoggedIn() 判据就是"有没有学号",
       // 写回去会让 App 以为还处于登录态, 表现就是"退出登录点了没反应"。
       // 因此另存到 last_login_sid, 只供登录页回填。
       if (lastSid) storage.set('last_login_sid', lastSid)
-      if (lastPwd) storage.set('saved_password', lastPwd)
     } catch (e) { /* 写回失败不影响登出 */ }
     this.globalData.isLoggedIn = false
     this.globalData.studentName = ''

@@ -30,6 +30,9 @@ function ssoQrStatus(qrId) {
         storage.setStudentName(res.student_name || '')
         storage.setSemester(res.semester || '')
         storage.set(TOKEN_KEY, res.token)
+        if (res.credential_delete_token) {
+          storage.set('credential_delete_token', res.credential_delete_token)
+        }
       }
       return res
     })
@@ -66,11 +69,11 @@ function logout() {
 
 /** 智慧理工一步登录（SSO 直连教务，免教务密码/验证码） */
 
-function loginWebvpn(studentId, password) {
-  const hadSavedPwd = storage.get('saved_password', '')
+function loginWebvpn(studentId, password, remember) {
   return request('POST', '/api/login-webvpn', {
     student_id: studentId,
-    password: password
+    password: password,
+    remember: !!remember
   }).then(res => {
     if (res.success) {
       storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
@@ -78,10 +81,21 @@ function loginWebvpn(studentId, password) {
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
       storage.set(TOKEN_KEY, res.token || '')
-      if (hadSavedPwd) storage.set('saved_password', password)  // 延续记住密码
+      if (res.credential_delete_token) {
+        storage.set('credential_delete_token', res.credential_delete_token)
+      }
+      if (remember) storage.set('saved_password', password)
+      else storage.remove('saved_password')
     }
     return res
   })
+}
+
+/** 删除服务端加密保存的密码(关闭“记住学号和密码”时调用) */
+function deleteCredential() {
+  const deleteToken = storage.get('credential_delete_token', '')
+  const headers = deleteToken ? { 'X-Credential-Delete-Token': deleteToken } : {}
+  return request('DELETE', '/api/credentials', {}, { headers })
 }
 
 // ============================================================
@@ -90,4 +104,7 @@ function loginWebvpn(studentId, password) {
 
 /** 保存设置（first_week_date 等） */
 
-module.exports = { logout, loginWebvpn, startSsoQr, ssoQrStatus, ssoQrImageUrl, cancelSsoQr }
+module.exports = {
+  logout, loginWebvpn, deleteCredential,
+  startSsoQr, ssoQrStatus, ssoQrImageUrl, cancelSsoQr
+}

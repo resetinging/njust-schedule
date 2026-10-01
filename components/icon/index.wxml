@@ -8,7 +8,20 @@ module.exports.tone = function (c) {
   if (c === '#64748B' || c === '#475569') return 'slate'
   return 'grey'
 }
+
+module.exports.file = function (name, c) {
+  var tone = module.exports.tone(c)
+  // 部分线性图标当前只保留 slate 资源；这里做组件级兜底，
+  // 避免旧页面或缓存继续请求不存在的 indigo/grey 文件。
+  if (name === 'next' || name === 'prev') return name + '-slate'
+  if (name === 'back') return 'next-slate'
+  if (name === 'link') return tone === 'indigo' ? 'grid-indigo' : 'grid-grey'
+  if (name === 'close') return 'plus-indigo'
+  if (name === 'clipboard' || name === 'chart' || name === 'award' ||
+      name === 'doc' || name === 'image') return name + '-indigo'
+  return name + '-' + tone
+}
 </wxs>
 <image class="icon"
-  src="../../static/icons/{{name}}-{{ico.tone(color)}}.png"
+  src="../../static/icons/{{ico.file(name, color)}}.png"
   style="width: {{size}}rpx; height: {{size}}rpx;" mode="aspectFit" />

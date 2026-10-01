@@ -9,6 +9,7 @@ const path = require('path')
 
 const ROOT = path.resolve(process.argv[2] || path.join(__dirname, '..'))
 const store = new Map()
+let lastHeaders = {}
 
 global.wx = {
   getStorageSync: (k) => (store.has(k) ? store.get(k) : ''),
@@ -22,15 +23,17 @@ global.wx = {
   getWindowInfo: () => ({ windowWidth: 375, windowHeight: 667, safeArea: { bottom: 667 } }),
   // USE_LOCAL=true(本地/素材服务器联调)时请求走 wx.request, 这里同样给桩,
   // 让冒烟测试不依赖当前的路由开关
-  request: (o) => o.success({
+  request: (o) => { lastHeaders = o.header || {}; o.success({
     statusCode: 200,
-    data: { success: true, token: 'tok-1', student_id: '10001', student_name: '测试', semester: '2026-2027-1' }
-  }),
+    data: { success: true, token: 'tok-1', student_id: '10001', student_name: '测试',
+            semester: '2026-2027-1', credential_delete_token: 'del-1' }
+  }) },
   cloud: {
-    callContainer: (o) => o.success({
+    callContainer: (o) => { lastHeaders = o.header || {}; o.success({
       statusCode: 200,
-      data: { success: true, token: 'tok-1', student_id: '10001', student_name: '测试', semester: '2026-2027-1' }
-    })
+      data: { success: true, token: 'tok-1', student_id: '10001', student_name: '测试',
+              semester: '2026-2027-1', credential_delete_token: 'del-1' }
+    }) }
   }
 }
 
@@ -50,18 +53,30 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 39 个接口(含微信扫码登录 4 个)', () => {
-    assert.strictEqual(Object.keys(api).length, 39, Object.keys(api).join(','))
+  await check('导出 49 个接口(含服务端凭据删除)', () => {
+    assert.strictEqual(Object.keys(api).length, 49, Object.keys(api).join(','))
   })
-  await check('loginWebvpn 成功路径(存 token/学号)', async () => {
-    const res = await api.loginWebvpn('10001', 'pwd')
+  await check('loginWebvpn 成功路径(存 token/学号/授权密码)', async () => {
+    const res = await api.loginWebvpn('10001', 'pwd', true)
     assert.ok(res && res.success, '应返回 success')
     assert.strictEqual(store.get('token'), 'tok-1')
     assert.strictEqual(store.get('student_id'), '10001')
+    assert.strictEqual(store.get('credential_delete_token'), 'del-1')
+    assert.strictEqual(store.get('saved_password'), 'pwd')
+  })
+  await check('loginWebvpn 未授权时不保存本地密码', async () => {
+    await api.loginWebvpn('10001', 'pwd', false)
+    assert.ok(!store.get('saved_password'), 'saved_password 不应存在')
   })
   await check('logout 清理本地登录态', async () => {
     await api.logout()
     assert.ok(!store.get('token'), 'token 应被清除')
+    assert.ok(!store.get('credential_delete_token'), '删除 token 应被清除')
+  })
+  await check('deleteCredential 携带独立删除 token', async () => {
+    store.set('credential_delete_token', 'del-2')
+    await api.deleteCredential()
+    assert.strictEqual(lastHeaders['X-Credential-Delete-Token'], 'del-2')
   })
   await check('教务直连/第二步登录接口已移除, 智慧理工一步登录可用', async () => {
     assert.strictEqual(typeof api.login, 'undefined', 'login 应已移除')

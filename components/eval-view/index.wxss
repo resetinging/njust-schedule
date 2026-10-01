@@ -3,7 +3,7 @@
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   background: var(--bg-page);
 }
 
@@ -512,6 +512,20 @@
   padding: 6rpx 20rpx;
 }
 
+.sub-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  color: var(--primary);
+  font-size: 25rpx;
+  font-weight: 650;
+}
+
+.icon-back {
+  display: inline-flex;
+  transform: rotate(180deg);
+}
+
 
 /* ============================================================
    V4 简约风格 — 评教页
@@ -608,4 +622,43 @@
 :host {
   display: block;
   height: 100%;
+}
+
+/* 评教页统一卡片: 去掉大面积高饱和背景 */
+.top-bar,
+.summary-bar,
+.batch-card,
+.course-card,
+.indicator-card,
+.readonly-banner,
+.autofill-bar {
+  background: var(--bg-card) !important;
+  border: 1rpx solid var(--line) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+.batch-card.batch-urgent {
+  background: var(--signal-soft) !important;
+  border-color: var(--signal-line) !important;
+}
+
+.batch-card.batch-warning {
+  background: var(--warning-soft) !important;
+  border-color: var(--warning-line) !important;
+}
+
+.batch-card.batch-done {
+  background: var(--bg-sunken) !important;
+}
+
+.batch-card,
+.course-card,
+.indicator-card {
+  animation: evalCardIn 400ms var(--ease-spring) backwards;
+}
+
+@keyframes evalCardIn {
+  from { opacity: 0; transform: translateY(16rpx) scale(.982); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }

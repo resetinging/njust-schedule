@@ -1,0 +1,293 @@
+/**
+ * 空教室查询页 — 查教务"教室借用查询"(教室状态=空闲)
+ * 筛选: 校区/星期/周次/起止时段(可跨官方大节, 时间段内全空闲才算); 需登录
+ * - 本地缓存优先: 命中缓存立即渲染(秒开), 60s 内不重复请求, 过期后后台静默刷新
+ * - 星期选"今天"、周次选"本周"时省略参数, 由后端按当天/第一周设置推算
+ * - 结果按教学楼分组纯展示(不调用剪贴板)
+ * - 选择器确认后自动查询(不做下拉刷新)
+ */
+
+const api = require('../../utils/api')
+const storage = require('../../utils/storage')
+const font = require('../../utils/font')
+const { groupRooms, isMainTeaching } = require('../../utils/room-group')
+const { bigSectionIndex } = require('../../utils/period-time')
+const {
+  LEGACY_CACHE_KEY,
+  NO_REQUEST_AGE,
+  cacheKeyOf,
+  resolvedKeyOf,
+  readCache,
+  writeCache
+} = require('../../utils/freeclass-cache')
+
+const WEEKDAY_LIST = ['今天', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
+// 官方大节(key/展示名/起止节号); 起止时段各选一个, 发送节号范围
+const SLOT_LIST = [
+  { key: '1-3', label: '第1-3节', j1: 1, j2: 3 },
+  { key: '4-5', label: '第4-5节', j1: 4, j2: 5 },
+  { key: '6-7', label: '第6-7节', j1: 6, j2: 7 },
+  { key: '8-10', label: '第8-10节', j1: 8, j2: 10 },
+  { key: '11-13', label: '第11-13节', j1: 11, j2: 13 }
+]
+const CAMPUS_LIST = ['孝陵卫', '江阴']
+const WEEK_LIST = (() => {
+  const arr = ['本周']
+  for (let i = 1; i <= 30; i++) arr.push('第' + i + '周')   // 教务借用页周次 1-30
+  return arr
+})()
+
+function fmtTime(ts) {
+  const d = new Date(ts || Date.now())
+  const p = n => (n < 10 ? '0' : '') + n
+  return p(d.getHours()) + ':' + p(d.getMinutes())
+}
+
+Component({
+  options: { styleIsolation: 'apply-shared' },
+
+  properties: {
+    embedded: { type: Boolean, value: false }
+  },
+
+  data: {
+    statusBarHeight: 20,
+    navBarHeight: 44,
+    navRight: 96,
+    loggedIn: true,
+    loading: false,
+    errorMsg: '',
+    searched: false,       // 是否完成过查询(区分首屏空状态)
+    cacheNote: '',         // 数据来源提示(缓存/更新中/离线)
+
+    // 筛选状态(picker 索引)
+    campusIndex: 0,
+    weekdayIndex: 0,       // 0 = 今天
+    weekIndex: 0,          // 0 = 本周
+    startIndex: 2,         // 开始时段(onLoad 时按当前时间对应的大节覆盖)
+    endIndex: 2,           // 结束时段
+
+    campusList: CAMPUS_LIST,
+    weekdayList: WEEKDAY_LIST,
+    weekList: WEEK_LIST,
+    slotList: SLOT_LIST,
+
+    // 结果: 按教学楼分组
+    result: null,          // {summary, count}
+    groups: []
+  },
+
+  lifetimes: {
+    attached() {
+    let statusBarHeight = 20
+    let navBarHeight = 44
+    let navRight = 96
+    try {
+      const win = wx.getWindowInfo()
+      const menu = wx.getMenuButtonBoundingClientRect()
+      statusBarHeight = win.statusBarHeight || statusBarHeight
+      if (menu && menu.height && menu.top) {
+        navBarHeight = (menu.top - statusBarHeight) * 2 + menu.height
+        navRight = Math.max(88, win.windowWidth - menu.left + 8)
+      }
+    } catch (e) { /* 使用安全默认值 */ }
+    this.setData({
+      fontClass: font.getClass(),
+      statusBarHeight,
+      navBarHeight,
+      navRight
+    })
+    if (!storage.isLoggedIn()) {
+      this.setData({ loggedIn: false })
+      return
+    }
+    storage.remove(LEGACY_CACHE_KEY)    // 清理旧版数据源缓存
+    // 默认时段 = 当前时间对应的大节(08:00 前取第1-3节, 19:00 后取第11-13节)
+    const slotIdx = bigSectionIndex()
+    this.setData({ startIndex: slotIdx, endIndex: slotIdx })
+    // 默认条件首查(有缓存则秒开)
+      this.search()
+    }
+  },
+
+  methods: {
+  goBack() {
+    this.triggerEvent('close')
+  },
+
+  onCampusChange(e) {
+    this.setData({
+      campusIndex: Number(e.detail.value),
+      result: null, groups: []
+    })
+    this.search()
+  },
+
+  onWeekdayChange(e) {
+    this.setData({ weekdayIndex: Number(e.detail.value) })
+    this.search()
+  },
+
+  onWeekChange(e) {
+    this.setData({ weekIndex: Number(e.detail.value) })
+    this.search()
+  },
+
+  onStartChange(e) {
+    this._updateRange(Number(e.detail.value), this.data.endIndex)
+  },
+
+  onEndChange(e) {
+    this._updateRange(this.data.startIndex, Number(e.detail.value))
+  },
+
+  /** 起止时段: 若起 > 止则自动交换, 保证时间段有效 */
+  _updateRange(start, end) {
+    const patch = start > end ? { startIndex: end, endIndex: start } : { startIndex: start, endIndex: end }
+    this.setData(patch)
+    this.search()
+  },
+
+  /** 渲染结果(缓存或网络数据共用) */
+  _applyResult(res) {
+    const groups = groupRooms(res.rooms || [], res.buildings)
+      .filter(isMainTeaching)              // 只展示四大教学楼
+      .map(g => Object.assign({}, g, { expanded: false, overflow: false }))
+    const count = groups.reduce((n, g) => n + g.rooms.length, 0)
+    this.setData({
+      searched: true,
+      errorMsg: '',
+      groups,
+      result: {
+        summary: [res.campus, res.weekday_name, '第' + res.week + '周', res.time_text]
+          .join(' · '),
+        count
+      }
+    }, () => this._markOverflow())
+  },
+
+  /** 实测各分组内容高度: 超过折叠高度(两行)的组显示"展开"按钮 */
+  _markOverflow() {
+    const q = (typeof wx !== 'undefined' && typeof wx.createSelectorQuery === 'function')
+      ? wx.createSelectorQuery() : null
+    if (!q || typeof q.selectAll !== 'function') return
+    q.selectAll('.group-chips').boundingClientRect()
+    q.selectAll('.chips-inner').boundingClientRect()
+    q.exec(res => {
+      const outer = (res && res[0]) || []
+      const inner = (res && res[1]) || []
+      let changed = false
+      const groups = this.data.groups.map((g, i) => {
+        if (!outer[i] || !inner[i]) return g
+        const overflow = inner[i].height > outer[i].height + 1
+        if (g.overflow === overflow) return g
+        changed = true
+        return Object.assign({}, g, { overflow })
+      })
+      if (changed) this.setData({ groups })
+    })
+  },
+
+  /** 折叠分组 展开/收起 */
+  onToggleGroup(e) {
+    const i = Number(e.currentTarget.dataset.index)
+    const g = this.data.groups[i]
+    if (!g || !g.overflow) return
+    const groups = this.data.groups.slice()
+    groups[i] = Object.assign({}, g, { expanded: !g.expanded })
+    this.setData({ groups })
+  },
+
+  /** 按当前筛选查询空闲教室(优先本地缓存, 后台静默刷新) */
+  search() {
+    if (!storage.isLoggedIn()) return Promise.resolve()
+    const d = this.data
+    const s = d.slotList[d.startIndex]
+    const e = d.slotList[d.endIndex]
+    const params = {
+      campus: d.campusList[d.campusIndex],
+      jc1: s.j1,
+      jc2: e.j2,
+      semester: storage.getSemester() || ''
+    }
+    if (d.weekdayIndex > 0) params.weekday = d.weekdayIndex
+    if (d.weekIndex > 0) params.week = d.weekIndex
+    const key = cacheKeyOf(params)
+    // 竞态保护: 快速切换筛选时会并发多个请求, 只认最后一次的结果
+    const seq = (this._seq = (this._seq || 0) + 1)
+
+    // ── 1) 命中本地缓存: 立即渲染, 秒开 ──
+    const hit = readCache(key)
+    let fromCache = false
+    if (hit) {
+      fromCache = true
+      this._applyResult(hit.data)
+      const age = Date.now() - hit.t
+      if (age < NO_REQUEST_AGE) {
+        // 缓存足够新: 不再请求
+        this.setData({ loading: false, errorMsg: '', cacheNote: '' })
+        return Promise.resolve()
+      }
+      // 显示服务端刷新时间(后端定时在上下课时刻预热) — 前后端协作
+      const srvTime = (hit.data && hit.data.updated_at)
+        ? fmtTime(hit.data.updated_at * 1000) : fmtTime(hit.t)
+      this.setData({
+        loading: false,
+        errorMsg: '',
+        cacheNote: '服务端 ' + srvTime + ' 更新 · 刷新中…'
+      })
+    } else {
+      this.setData({ loading: true, errorMsg: '', cacheNote: '' })
+    }
+
+    // ── 2) 请求最新数据(成功后覆盖缓存与界面) ──
+    return api.getFreeClassrooms(params)
+      .then(res => {
+        if (seq !== this._seq) return          // 已有更新的查询: 丢弃过期响应
+        if (!res || !res.success) {
+          if (fromCache) {
+            // 网络失败: 保留缓存展示, 标注离线(附服务端更新时间)
+            const srvTime = (hit.data && hit.data.updated_at)
+              ? fmtTime(hit.data.updated_at * 1000) : ''
+            this.setData({
+              loading: false,
+              cacheNote: '网络不可用 · 缓存数据' + (srvTime ? '(服务端 ' + srvTime + ' 更新)' : '')
+            })
+            return
+          }
+          this.setData({
+            loading: false,
+            searched: true,
+            groups: [],
+            errorMsg: (res && res.message) || '查询失败，请稍后再试'
+          })
+          return
+        }
+        writeCache(key, res)
+        // 同时按"后端解析后的实际条件"存一份(今天/本周 → 具体星期/周次), 便于复用
+        const rk = resolvedKeyOf(res)
+        if (rk && rk !== key) writeCache(rk, res)
+        this._applyResult(res)
+        this.setData({ loading: false, cacheNote: '' })
+      })
+      .catch(() => {
+        if (seq !== this._seq) return          // 过期请求的失败同样忽略
+        if (fromCache) {
+          const srvTime = (hit.data && hit.data.updated_at)
+            ? fmtTime(hit.data.updated_at * 1000) : ''
+          this.setData({
+            loading: false,
+            cacheNote: '网络不可用 · 缓存数据' + (srvTime ? '(服务端 ' + srvTime + ' 更新)' : '')
+          })
+          return
+        }
+        this.setData({ loading: false, searched: true, errorMsg: '网络异常，请稍后再试' })
+      })
+  },
+
+  /** 未登录: 返回"我的"页登录 */
+  goLogin() {
+    this.triggerEvent('login')
+  }
+  }
+})

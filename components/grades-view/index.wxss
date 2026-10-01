@@ -300,9 +300,12 @@
 }
 
 .sem-fold {
-  font-size: 24rpx;
-  color: var(--text-hint);
-  padding: 0 6rpx;
+  width: 36rpx;
+  height: 36rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .sem-stats {
@@ -412,4 +415,185 @@
 :host {
   display: block;
   height: 100%;
+}
+
+/* 成绩页统一卡片: 低饱和底色 + 细描边 */
+.gpa-hero,
+.sc-cet,
+.sem-gpa-card,
+.sem-card {
+  background: var(--bg-card) !important;
+  border: 1rpx solid var(--line) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card) !important;
+  animation: gradeCardIn 400ms var(--ease-spring) backwards;
+}
+
+.gpa-hero {
+  background: var(--hero-bg) !important;
+  border-color: var(--hero-border) !important;
+}
+
+.stat-pills .pill {
+  background: var(--bg-sunken);
+  border: 1rpx solid var(--line);
+}
+
+.sem-gpa-card:nth-child(2) { animation-delay: 30ms; }
+.sem-gpa-card:nth-child(3) { animation-delay: 60ms; }
+.sem-card:nth-child(2) { animation-delay: 30ms; }
+.sem-card:nth-child(3) { animation-delay: 60ms; }
+
+@keyframes gradeCardIn {
+  from { opacity: 0; transform: translateY(16rpx) scale(.982); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 2026-10 成绩页布局收敛 */
+.gpa-hero {
+  padding: 30rpx 26rpx 22rpx !important;
+}
+
+.hero-gpa {
+  font-size: 88rpx;
+}
+
+.hero-label {
+  margin-top: 6rpx;
+  font-size: 23rpx;
+  color: var(--text-muted);
+}
+
+.mode-seg {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-sunken) !important;
+}
+
+.mode-indicator {
+  position: absolute;
+  z-index: 0;
+  top: 6rpx;
+  bottom: 6rpx;
+  left: 6rpx;
+  width: calc(50% - 6rpx);
+  border-radius: 14rpx;
+  background: var(--bg-card);
+  box-shadow: 0 6rpx 18rpx rgba(15, 23, 42, .08);
+  transition: transform 340ms var(--ease-spring);
+}
+
+.mode-indicator.right {
+  transform: translateX(100%);
+}
+
+.mode-seg .seg {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  color: var(--text-muted);
+}
+
+.mode-seg .seg.on {
+  background: transparent !important;
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+  margin: 0 24rpx 22rpx;
+}
+
+.metric-card {
+  min-width: 0;
+  padding: 18rpx 10rpx;
+  border: 1rpx solid var(--line);
+  border-radius: 18rpx;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+  animation: gradeCardIn 380ms var(--ease-spring) backwards;
+}
+
+.metric-card:nth-child(2) { animation-delay: 30ms; }
+.metric-card:nth-child(3) { animation-delay: 60ms; }
+
+.metric-value {
+  display: block;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 32rpx;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-label {
+  display: block;
+  margin-top: 4rpx;
+  color: var(--text-hint);
+  font-size: 20rpx;
+}
+
+.sc-cet {
+  animation-delay: 90ms;
+}
+
+.sem-gpa-section {
+  margin-bottom: 22rpx;
+}
+
+.sg-sub {
+  font-size: 20rpx;
+}
+
+.detail-head {
+  margin-bottom: 10rpx;
+}
+
+.sem-card {
+  padding: 20rpx 24rpx 6rpx !important;
+}
+
+.sem-head {
+  padding: 6rpx 0 12rpx;
+}
+
+.grade-row {
+  animation: gradeRowIn 320ms var(--ease-spring) backwards;
+}
+
+.grade-row:nth-child(2) { animation-delay: 20ms; }
+.grade-row:nth-child(3) { animation-delay: 40ms; }
+.grade-row:nth-child(4) { animation-delay: 60ms; }
+.grade-row:nth-child(5) { animation-delay: 80ms; }
+.grade-row:nth-child(6) { animation-delay: 100ms; }
+
+.chk {
+  transition: transform 260ms var(--ease-spring),
+              background-color 160ms var(--ease-standard),
+              border-color 160ms var(--ease-standard);
+}
+
+.chk:active {
+  transform: scale(.88);
+}
+
+.chk.on {
+  animation: checkPop 300ms var(--ease-spring);
+}
+
+@keyframes gradeRowIn {
+  from { opacity: 0; transform: translateY(12rpx); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes checkPop {
+  0% { transform: scale(.86); }
+  65% { transform: scale(1.08); }
+  100% { transform: scale(1); }
 }

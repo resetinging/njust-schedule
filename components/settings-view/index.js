@@ -11,6 +11,8 @@ const config = require('../../utils/config')
 const dataLoader = require('../../utils/data-loader')
 const ann = require('../../utils/announcement')
 const font = require('../../utils/font')
+const gpaUtil = require('../../utils/gpa')
+const creditUtil = require('../../utils/credit')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
 // 常用链接数据源(容错加载: 模块异常时降级为空列表,
 // 避免 require 失败导致整个组件定义抛错、页面全白)
@@ -34,10 +36,13 @@ Component({
   data: {
     isLoggedIn: false,
     fontMode: 'pixel',      // 字体档位: pixel | system
+    fontSwitching: false,
     studentId: '',
     studentName: '',
     semester: '',
     gradeCount: 0,
+    gpa: '--',
+    creditProgress: '--',
 
     // 登录模式
 
@@ -106,6 +111,8 @@ Component({
     },
     detached() {
       this._stopQrPoll()      // 组件销毁时停止扫码轮询
+      if (this._fontTimer) clearTimeout(this._fontTimer)
+      if (this._fontDoneTimer) clearTimeout(this._fontDoneTimer)
     }
   },
 
@@ -114,12 +121,16 @@ Component({
     onPickFont(e) {
       const mode = e.currentTarget.dataset.mode
       if (!mode || mode === this.data.fontMode) return
-      font.setMode(mode)
-      this.setData({ fontMode: font.getMode() })
-      wx.showToast({
-        title: mode === 'system' ? '已切换系统字体' : '已切换像素字体',
-        icon: 'none', duration: 1200
-      })
+      if (this._fontTimer) clearTimeout(this._fontTimer)
+      if (this._fontDoneTimer) clearTimeout(this._fontDoneTimer)
+      this.setData({ fontSwitching: true })
+      this._fontTimer = setTimeout(() => {
+        font.setMode(mode)
+        this.setData({ fontMode: font.getMode() })
+        this._fontDoneTimer = setTimeout(() => {
+          this.setData({ fontSwitching: false })
+        }, 240)
+      }, 70)
     },
 
     /** 由 main 页面调用: 每次被激活时触发 */
@@ -182,13 +193,30 @@ Component({
       const loggedIn = storage.isLoggedIn()
       // 成绩数量(本地缓存, 供"信息行"展示)
       const gradesRes = storage.getCached('cached_grades')
-      const gradeCount = gradesRes && gradesRes.grades ? gradesRes.grades.length : 0
+      const grades = gradesRes && gradesRes.grades ? gradesRes.grades : []
+      const cetRes = storage.getCached('cached_cet_scores')
+      const cetScores = (cetRes && cetRes.success ? cetRes.scores : []) || []
+      const gradeCount = grades.length
+      const gpa = gradeCount
+        ? Number(gpaUtil.calcScholarshipGpa(grades, cetScores)).toFixed(2)
+        : '--'
+      const programme = (storage.getCached('cached_programme') || {}).courses || []
+      let creditProgress = '--'
+      if (programme.length) {
+        const credit = creditUtil.computeCredit(
+          programme, grades, storage.getSemester())
+        if (credit.totalRequired > 0) {
+          creditProgress = `${credit.totalEarned}/${credit.totalRequired}`
+        }
+      }
       this.setData({
         isLoggedIn: loggedIn,
         studentId: storage.getStudentId(),
         studentName: storage.getStudentName(),
         semester: storage.getSemester(),
-        gradeCount
+        gradeCount,
+        gpa,
+        creditProgress
       })
     },
 
@@ -470,23 +498,58 @@ Component({
       })
     },
 
+    /**
+     * 关闭记住密码: 先删服务端凭据, 成功后再清本地密码。
+     * 服务端删除失败时保持开关开启, 避免“界面已关闭但密码仍在服务器”。
+     */
+    async _disableRemember() {
+      if (this._rememberBusy) return false
+      this._rememberBusy = true
+      const sid = storage.getStudentId()
+      const token = storage.get('token', '')
+      if (sid && token) {
+        try {
+          const res = await api.deleteCredential()
+          if (!res || !res.success) {
+            throw new Error((res && res.message) || '服务端密码删除失败')
+          }
+          storage.remove('credential_delete_token')
+        } catch (e) {
+          this.setData({ rememberPwd: true })
+          storage.set('remember_pwd', '1')
+          wx.showToast({ title: '服务端密码删除失败，请检查网络后重试', icon: 'none' })
+          this._rememberBusy = false
+          return false
+        }
+      } else if (sid) {
+        wx.showToast({ title: '当前离线，重新登录后会删除服务端密码', icon: 'none' })
+      }
+      storage.remove('saved_password')
+      storage.set('remember_pwd', '0')
+      this.setData({ rememberPwd: false })
+      this._rememberBusy = false
+      return true
+    },
+
     /** 记住密码开关(状态持久化) */
     onToggleRemember(e) {
       const val = !!e.detail.value
-      this.setData({ rememberPwd: val })
-      storage.set('remember_pwd', val ? '1' : '0')
-      if (!val) {
-        storage.remove('saved_password')
+      if (val) {
+        this.setData({ rememberPwd: true })
+        storage.set('remember_pwd', '1')
+      } else {
+        this._disableRemember()
       }
     },
 
     /** 点击文字切换记住密码 */
     onTapRemember() {
       const next = !this.data.rememberPwd
-      this.setData({ rememberPwd: next })
-      storage.set('remember_pwd', next ? '1' : '0')
-      if (!next) {
-        storage.remove('saved_password')
+      if (next) {
+        this.setData({ rememberPwd: true })
+        storage.set('remember_pwd', '1')
+      } else {
+        this._disableRemember()
       }
     },
 
@@ -502,20 +565,27 @@ Component({
       this.setData({ loggingIn: true })
       try {
         wx.showLoading({ title: '智慧理工登录中…' })
-        res = await api.loginWebvpn(studentId, password)
+        res = await api.loginWebvpn(studentId, password, rememberPwd)
         wx.hideLoading()
         this.setData({ loggingIn: false })
 
         if (res.success) {
-          // 登录成功后把密码保存在本机, 下次打开登录页自动回填(学号+密码);
-          // 关掉"记住密码"开关会立即删除它。服务端同样只加密保存凭据。
-          storage.set('saved_password', password)
+          // 仅在用户明确开启“记住学号和密码”时保存本地密码与服务端加密凭据。
+          if (rememberPwd) storage.set('saved_password', password)
+          else storage.remove('saved_password')
           storage.setStudentId(studentId)
           storage.setStudentName(res.student_name || '')
           storage.setSemester(res.semester || '')
           // 账号类型(研究生/本科): 决定课表/成绩页走哪套数据
           storage.set('account_type', res.account_type || 'undergraduate')
-          wx.showToast({ title: '登录成功，正在同步数据…', icon: 'success' })
+          if (rememberPwd && res.credential_saved === false) {
+            wx.showToast({
+              title: '登录成功，但服务端未启用密码保存',
+              icon: 'none', duration: 2600
+            })
+          } else {
+            wx.showToast({ title: '登录成功，正在同步数据…', icon: 'success' })
+          }
           this.refreshState()
           // 通知全局
           getApp().setLoginState(true, res.student_name || studentId, res.semester || '')
@@ -880,7 +950,7 @@ Component({
           // 登出后立刻回填"上次登录的学号 + 记住的密码"(不用切 Tab 再触发 activate)
           this.setData({
             studentId: storage.get('last_login_sid', '') || storage.getStudentId() || '',
-            password: storage.get('saved_password', '') || ''
+            password: ''
           })
           this._updateCanLogin()
         },

@@ -3,7 +3,7 @@
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   background: var(--bg-page);
 }
 
@@ -496,3 +496,44 @@
   justify-content: center;
 }
 .yjs-note { font-size: 11px; color: var(--text-hint); text-align: center; margin-top: 10px; }
+
+/* 统一卡片材质: 状态只通过细边框和数字颜色表达 */
+.countdown-card,
+.exam-card,
+.exam-sub,
+.yjs-refresh {
+  background: var(--bg-card) !important;
+  border: 1rpx solid var(--line) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card) !important;
+  animation: examCardIn 400ms var(--ease-spring) backwards;
+}
+
+.countdown-card.urgent {
+  background: var(--signal-soft) !important;
+  border-color: var(--signal-line) !important;
+}
+
+.countdown-card.warning {
+  background: var(--warning-soft) !important;
+  border-color: var(--warning-line) !important;
+}
+
+.countdown-card.done {
+  background: var(--bg-sunken) !important;
+  border-color: var(--line) !important;
+  opacity: .72;
+}
+
+.exam-card.exam-urgent {
+  border-left: 6rpx solid var(--signal) !important;
+}
+
+.exam-card.exam-warning {
+  border-left: 6rpx solid var(--warning) !important;
+}
+
+@keyframes examCardIn {
+  from { opacity: 0; transform: translateY(16rpx) scale(.982); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}

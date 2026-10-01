@@ -20,9 +20,9 @@
 
 page {
   /* --- 主色: 交互(按钮 / 链接 / 选中态) --- */
-  --primary: #3B82F6;
-  --primary-light: #60A5FA;
-  --primary-dark: #2563EB;
+  --primary: #2563EB;
+  --primary-light: #3B82F6;
+  --primary-dark: #1D4ED8;
   --primary-soft: #EFF6FF;
   --primary-line: #DBEAFE;
 
@@ -54,15 +54,21 @@ page {
   --ink: #0F172A;
 
   /* --- 背景与描边 --- */
-  --bg-page: #F7F9FC;
+  --bg-page: #F3F6F4;
   --bg-card: #FFFFFF;
-  --bg-sunken: #F8FAFC;
-  --bg-hover: #F8FAFF;
-  --line: #EEF2F8;
-  --line-soft: #F1F5F9;
-  --line-strong: #E2E8F0;
-  --border: #EEF2F8;
+  --bg-sunken: #EDF3F0;
+  --bg-hover: #F4F8F6;
+  --line: #E4ECE8;
+  --line-soft: #EFF4F2;
+  --line-strong: #DCE7E2;
+  --border: #E4ECE8;
   --overlay: rgba(15, 23, 42, 0.45);
+
+  /* --- Apple 风格玻璃材质(不支持毛玻璃时仍有半透明底色) --- */
+  --glass-bg: rgba(255, 255, 255, .68);
+  --glass-bg-strong: rgba(255, 255, 255, .86);
+  --glass-line: rgba(255, 255, 255, .72);
+  --glass-shadow: 0 18rpx 52rpx rgba(15, 23, 42, .10);
 
   /* --- 今天 --- */
   --today-chip-bg: #F97316;
@@ -78,8 +84,8 @@ page {
   --grid-line: rgba(15, 23, 42, 0.07);
 
   /* --- 页面头部 --- */
-  --hero-bg: #EFF6FF;
-  --hero-border: #DBEAFE;
+  --hero-bg: #EFF5F2;
+  --hero-border: #DDE8E3;
   --hero-title: #2563EB;
   --hero-sub: #64748B;
 
@@ -95,10 +101,19 @@ page {
   --radius-pill: 999rpx;
   --bw-card: 1rpx;
   --bw-ctrl: 2rpx;
-  --shadow-card: none;
-  --shadow-btn: none;
+  --shadow-card: 0 6rpx 24rpx rgba(15, 23, 42, .045);
+  --shadow-btn: 0 8rpx 24rpx rgba(37, 99, 235, .14);
   --shadow-pop: 0 16rpx 44rpx rgba(15, 23, 42, 0.18);
   --shadow-sheet: 0 -8rpx 32rpx rgba(15, 23, 42, 0.12);
+
+  /* --- 节奏 / 动效 --- */
+  --space-page: 20rpx;
+  --space-section: 20rpx;
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 360ms;
+  --ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
 
   /* --- 课程块 --- */
   --co-radius: 10rpx;
@@ -117,16 +132,16 @@ page {
   --font-ann: var(--font-body);
 
   /* --- 课程色板(10 组: 粉彩底 / 深色字 / 明快左边条) --- */
-  --c1-bg: #E8F1FF;  --c1-fg: #2563EB;  --c1-bar: #3B82F6;
-  --c2-bg: #E6F7F1;  --c2-fg: #0F766E;  --c2-bar: #14B8A6;
-  --c3-bg: #FFF4E5;  --c3-fg: #B45309;  --c3-bar: #F59E0B;
-  --c4-bg: #FDE8F1;  --c4-fg: #BE185D;  --c4-bar: #EC4899;
-  --c5-bg: #EFE9FF;  --c5-fg: #6D28D9;  --c5-bar: #8B5CF6;
-  --c6-bg: #E7F6FB;  --c6-fg: #0E7490;  --c6-bar: #06B6D4;
-  --c7-bg: #E8ECFF;  --c7-fg: #4338CA;  --c7-bar: #6366F1;
-  --c8-bg: #F0F7DE;  --c8-fg: #4D7C0F;  --c8-bar: #84CC16;
-  --c9-bg: #FFE9EC;  --c9-fg: #BE123C;  --c9-bar: #F43F5E;
-  --c10-bg: #EEF2F7; --c10-fg: #475569; --c10-bar: #64748B;
+  --c1-bg: #F2F7FF;  --c1-fg: #3D6FB8;  --c1-bar: #7BA5E8;
+  --c2-bg: #F0FAF7;  --c2-fg: #327B70;  --c2-bar: #68B8AA;
+  --c3-bg: #FFF9F1;  --c3-fg: #9A6A27;  --c3-bar: #DDB36D;
+  --c4-bg: #FFF3F7;  --c4-fg: #A54D71;  --c4-bar: #D99AB4;
+  --c5-bg: #F6F2FF;  --c5-fg: #6756A5;  --c5-bar: #A99AE0;
+  --c6-bg: #F1F9FC;  --c6-fg: #3D7E92;  --c6-bar: #72B6C8;
+  --c7-bg: #F2F4FF;  --c7-fg: #5362A8;  --c7-bar: #929DD8;
+  --c8-bg: #F5FAEC;  --c8-fg: #62823B;  --c8-bar: #A3C876;
+  --c9-bg: #FFF3F4;  --c9-fg: #A75664;  --c9-bar: #DD9AA5;
+  --c10-bg: #F5F7FA; --c10-fg: #667386; --c10-bar: #9BA6B5;
 
   font-family: var(--font-body);
   font-size: 28rpx;
@@ -140,12 +155,38 @@ page {
    ============================================================ */
 
 .card {
-  margin: 20rpx;
+  margin: var(--space-page);
   padding: 24rpx;
   background: var(--bg-card);
   border: var(--bw-card) solid var(--line);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
+}
+
+button::after { border: 0; }
+
+button, .tap {
+  transition: background-color var(--motion-fast) var(--ease-standard),
+              opacity var(--motion-fast) var(--ease-standard),
+              transform var(--motion-base) var(--ease-spring),
+              box-shadow var(--motion-base) var(--ease-standard);
+}
+
+button:active, .tap:active {
+  opacity: .88;
+  transform: scale(.97);
+}
+
+.glass {
+  background: var(--glass-bg);
+  border: 1rpx solid var(--glass-line);
+  -webkit-backdrop-filter: blur(24rpx) saturate(165%);
+  backdrop-filter: blur(24rpx) saturate(165%);
+  box-shadow: var(--glass-shadow);
+}
+
+.tap {
+  will-change: transform;
 }
 
 .divider {
@@ -406,11 +447,19 @@ page {
 .modal-card {
   width: 600rpx;
   max-height: 80vh;
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, .90);
+  border: 1rpx solid rgba(255, 255, 255, .82);
   border-radius: var(--radius-card);
   padding: 40rpx;
   overflow-y: auto;
-  box-shadow: var(--shadow-pop);
+  -webkit-backdrop-filter: blur(32rpx) saturate(180%);
+  backdrop-filter: blur(32rpx) saturate(180%);
+  box-shadow: 0 28rpx 80rpx rgba(15, 23, 42, .22);
+}
+
+.modal-mask {
+  -webkit-backdrop-filter: blur(12rpx);
+  backdrop-filter: blur(12rpx);
 }
 
 .modal-title {
@@ -456,4 +505,21 @@ page {
 /* 底部安全区 */
 .page-safe-bottom {
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button, .tap, .tab-bar-item, .tab-emoji-wrap, .tab-wrap,
+  .user-card, .course-block, .feat-tile, .feat-tool-tile, .today-card,
+  .grid-wrapper, .course-card, .day-group, .week-body, .ctrl-icon,
+  .announce-card,
+  .login-card, .setting-card, .notice-card, .menu-card,
+  .hero, .filter-card, .result-bar, .group-card, .tool-card,
+  .countdown-card, .exam-card, .batch-card, .indicator-card,
+  .gpa-hero, .sc-cet, .sem-gpa-card, .sem-card, .cr-hero,
+  .metric-card, .mode-indicator, .grade-row, .chk,
+  .sub-shell, .sub-back, .custom-nav, .custom-back, .container {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }

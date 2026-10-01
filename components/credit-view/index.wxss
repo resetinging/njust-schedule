@@ -127,3 +127,28 @@
   color: #99A1B3;
   line-height: 1.5;
 }
+
+/* 学分进度统一卡片: 浅底 + 细描边 + 低饱和进度条 */
+.cr-hero {
+  background: var(--hero-bg) !important;
+  border: 1rpx solid var(--hero-border) !important;
+  box-shadow: var(--shadow-card) !important;
+  animation: creditCardIn 420ms var(--ease-spring) backwards;
+}
+
+.cr-bar {
+  background: #E8EFEC !important;
+}
+
+.cr-bar-in {
+  background: #7BA5E8 !important;
+}
+
+.card {
+  animation: creditCardIn 420ms var(--ease-spring) backwards;
+}
+
+@keyframes creditCardIn {
+  from { opacity: 0; transform: translateY(18rpx) scale(.982); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}

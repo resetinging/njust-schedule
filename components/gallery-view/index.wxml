@@ -1,0 +1,52 @@
+<!-- 校园工具 — 校历 & 地图卡片墙(复刻目标 UI) -->
+<view class="container {{fontClass}}">
+
+  <view class="custom-nav {{embedded ? 'is-embedded' : ''}}"
+        style="{{embedded ? 'padding-top:0;' : 'padding-top:' + statusBarHeight + 'px;'}}">
+    <view class="custom-nav-inner"
+          style="{{embedded ? 'height:88rpx;' : 'height:' + navBarHeight + 'px;'}}padding-right:{{navRight}}px;">
+      <view class="custom-back tap" aria-label="返回" bindtap="goBack">
+        <view class="icon-back"><icon name="next" size="28" color="#64748B" /></view>
+        <text>返回</text>
+      </view>
+      <text class="custom-nav-title">校园工具</text>
+    </view>
+  </view>
+
+  <view class="page-content">
+
+  <!-- 首帧只显示轻量加载态；真正开始下载图片时才弹出带毛玻璃的进度层。 -->
+  <view class="page-loading" wx:if="{{loading && !showDownloadProgress}}">
+    <view class="spinner"></view>
+    <text class="loading-text">正在准备校历…</text>
+  </view>
+
+  <!-- 诊断信息(仅出错时显示) -->
+  <view class="diag-tip" wx:if="{{diag}}">{{diag}}</view>
+
+  <!-- 空状态 / 错误 -->
+  <empty-state wx:if="{{!loading && errorMsg}}"
+               icon="🖼️"
+               title="{{errorMsg}}"
+               desc="网络异常，请稍后再试"
+               action-text="重新加载"
+               bind:action="loadImages" />
+
+  <!-- 卡片列表 -->
+  <view wx:if="{{!loading && !errorMsg}}" class="tool-list">
+    <view class="tool-card tap" wx:for="{{images}}" wx:key="name"
+          data-index="{{index}}" bindtap="onImageTap">
+      <view class="tool-title">{{item.title}}</view>
+      <image class="tool-img" src="{{item.src}}" mode="widthFix" lazy-load />
+    </view>
+  </view>
+
+  </view>
+
+  <!-- 进度层放在动画容器外, 避免被 transform 影响 fixed 定位。 -->
+  <loading-modal visible="{{loading && showDownloadProgress}}" title="加载图片…"
+                 message="{{downloadMsg}}"
+                 showProgress="{{downloadPercent > 0}}"
+                 percent="{{downloadPercent}}" />
+
+</view>

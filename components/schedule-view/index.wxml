@@ -14,8 +14,8 @@
 
     <!-- 顶栏第二行: 周次导航 + 工具(切换/刷新/加号) -->
     <view class="weekbar">
-      <view class="week-btn" bindtap="prevWeek">
-        <icon name="prev" size="26" color="#64748B" />
+      <view class="week-btn tap" bindtap="prevWeek">
+        <icon class="ctrl-icon prev-icon" name="prev" size="26" color="#64748B" />
       </view>
       <!-- 点周次可快速跳周 -->
       <picker mode="selector" range="{{weekPickerRange}}" bindchange="onJumpWeek">
@@ -24,20 +24,20 @@
           <text class="week-range" wx:if="{{weekRange}}">{{weekRange}}</text>
         </view>
       </picker>
-      <view class="week-btn" bindtap="nextWeek">
-        <icon name="next" size="26" color="#64748B" />
+      <view class="week-btn tap" bindtap="nextWeek">
+        <icon class="ctrl-icon next-icon" name="next" size="26" color="#64748B" />
       </view>
 
       <!-- 工具: 视图切换(图标显示"切过去的形态") / 刷新 / 加号 -->
       <view class="tb-acts">
-        <view class="tb-toggle" data-mode="{{viewMode === 'grid' ? 'list' : 'grid'}}" bindtap="switchView">
-          <icon name="{{viewMode === 'grid' ? 'list' : 'grid'}}" size="34" color="#64748B" />
+        <view class="tb-toggle tap" data-mode="{{viewMode === 'grid' ? 'list' : 'grid'}}" bindtap="switchView">
+          <icon class="ctrl-icon toggle-icon" name="{{viewMode === 'grid' ? 'list' : 'grid'}}" size="34" color="#64748B" />
         </view>
-        <view class="refresh-btn {{loading ? 'spin' : ''}}" bindtap="onRefresh">
-          <icon name="refresh" size="34" color="#64748B" />
+        <view class="refresh-btn tap {{loading ? 'spin' : ''}}" bindtap="onRefresh">
+          <icon class="ctrl-icon refresh-icon" name="refresh" size="34" color="#64748B" />
         </view>
-        <view class="u-ico-btn" bindtap="onAddCustom">
-          <icon name="plus" size="36" color="#2563EB" />
+        <view class="u-ico-btn tap" bindtap="onAddCustom">
+          <icon class="ctrl-icon plus-icon" name="plus" size="36" color="#2563EB" />
         </view>
       </view>
     </view>
@@ -86,7 +86,7 @@
             wx:for="{{group.courses}}"
             wx:key="index"
             wx:for-item="c"
-            class="course-card"
+            class="course-card tap"
             style="background: {{c._bg || '#E8F1FF'}}; border-left: 10rpx solid {{c._bar || '#2563EB'}};"
             bindtap="onCourseTap"
             data-course="{{c}}"
@@ -201,7 +201,7 @@
       <view class="cu-field">
         <text class="cu-label">星期</text>
         <picker mode="selector" range="{{dayOptions}}" value="{{formDayIdx}}" bindchange="onFormDay">
-          <view class="cu-pick">{{dayOptions[formDayIdx]}} <text class="cu-arrow">›</text></view>
+          <view class="cu-pick">{{dayOptions[formDayIdx]}} <view class="cu-arrow"><icon name="next" size="24" color="#64748B" /></view></view>
         </picker>
       </view>
       <view class="cu-field">
@@ -219,7 +219,7 @@
       <view class="cu-field">
         <text class="cu-label">周次类型</text>
         <picker mode="selector" range="{{weekTypeOptions}}" value="{{formTypeIdx}}" bindchange="onFormType">
-          <view class="cu-pick">{{weekTypeOptions[formTypeIdx]}} <text class="cu-arrow">›</text></view>
+          <view class="cu-pick">{{weekTypeOptions[formTypeIdx]}} <view class="cu-arrow"><icon name="next" size="24" color="#64748B" /></view></view>
         </picker>
       </view>
       <view class="cu-field">

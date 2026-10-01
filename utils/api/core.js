@@ -61,7 +61,10 @@ function request(method, path, data = {}, opts) {
   }
 
   const send = (token) => {
-    const header = { 'Content-Type': 'application/json' }
+    const header = Object.assign(
+      { 'Content-Type': 'application/json' },
+      (opts && opts.headers) || {}
+    )
     if (token) header['X-Auth-Token'] = token
 
     // 本地联调: 直连本机 Flask(需开发者工具勾选「不校验合法域名」)
@@ -137,13 +140,17 @@ function autoRelogin() {
   }
   _autoReloginPromise = request('POST', '/api/login-webvpn', {
     student_id: sid,
-    password: pwd
+    password: pwd,
+    remember: true
   }).then((res) => {
     _autoReloginPromise = null
     if (res && res.success && res.token) {
       // 关键: 新 token 必须持久化, 否则后续请求仍携带旧 token → 401 循环
       storage.remove('relogin_fail_ts')
       storage.set(TOKEN_KEY, res.token)
+      if (res.credential_delete_token) {
+        storage.set('credential_delete_token', res.credential_delete_token)
+      }
       if (res.semester) storage.setSemester(res.semester)
       // 账号类型可能变化(本科↔研究生): 重登成功后同步
       if (res.account_type) storage.set('account_type', res.account_type)

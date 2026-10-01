@@ -1,5 +1,5 @@
 <!-- 教学评价视图组件 — 原 pages/eval 页面改造（方案A 合页 swiper） -->
-<view class="container view-root" wx:if="{{active}}">
+<view class="container view-root">
 
   <!-- 滚动内容区(scroll-view 内滚; 刷新走顶部按钮) -->
   <scroll-view class="view-scroll" scroll-y>
@@ -25,14 +25,14 @@
         <text class="ph-title">教学评价</text>
         <text class="ph-sub">{{batches.length}} 个批次</text>
       </view>
-      <view class="ph-refresh {{loading ? 'spin' : ''}}" bindtap="onRefresh">
+      <view class="ph-refresh tap {{loading ? 'spin' : ''}}" bindtap="onRefresh">
         <icon name="refresh" size="32" color="#64748B" />
       </view>
     </view>
 
     <!-- 批次卡片列表 -->
     <block wx:for="{{batches}}" wx:key="index">
-      <view class="batch-card card {{item.is_done ? 'batch-done' : ''}} {{!item.is_done && item._urgency === 'urgent' ? 'batch-urgent' : ''}} {{!item.is_done && item._urgency === 'warning' ? 'batch-warning' : ''}}"
+      <view class="batch-card card tap {{item.is_done ? 'batch-done' : ''}} {{!item.is_done && item._urgency === 'urgent' ? 'batch-urgent' : ''}} {{!item.is_done && item._urgency === 'warning' ? 'batch-warning' : ''}}"
             bindtap="openBatch" data-index="{{index}}">
         <view class="batch-header">
           <text class="batch-title">{{item.category || '评教批次'}}</text>
@@ -53,9 +53,9 @@
   <!-- ============================================================ -->
   <view wx:if="{{batchCourses.length > 0 && !showForm}}">
     <view class="summary-bar">
-      <text bindtap="backToBatches">← 返回</text>
+      <view class="sub-link tap" bindtap="backToBatches"><view class="icon-back"><icon name="next" size="26" color="#64748B" /></view><text>返回</text></view>
       <text>{{batchCourses.length}} 门课程</text>
-      <text class="batch-btn" bindtap="showBatchDialog">一键评教</text>
+      <text class="batch-btn tap" bindtap="showBatchDialog">一键评教</text>
     </view>
 
     <scroll-view scroll-y class="course-scroll">
@@ -90,7 +90,7 @@
   <!-- ============================================================ -->
   <view wx:if="{{showForm}}">
     <view class="summary-bar">
-      <text bindtap="backToCourses">← 返回课程</text>
+      <view class="sub-link tap" bindtap="backToCourses"><view class="icon-back"><icon name="next" size="26" color="#64748B" /></view><text>返回课程</text></view>
       <text class="form-course-name">{{formCourseName}}</text>
       <text></text>
     </view>
@@ -116,7 +116,7 @@
       <view class="indicator-card card" wx:for="{{indicators}}" wx:key="index">
         <view class="indicator-label">{{index + 1}}. {{item.label}}</view>
         <view class="indicator-options">
-          <view class="option-item {{opt.checked ? 'option-checked' : ''}} {{formReadonly ? 'option-readonly' : ''}}"
+          <view class="option-item tap {{opt.checked ? 'option-checked' : ''}} {{formReadonly ? 'option-readonly' : ''}}"
                 wx:for="{{item.options}}" wx:for-item="opt" wx:key="value"
                 bindtap="{{formReadonly ? '' : 'selectOption'}}"
                 data-seq="{{item.seq}}" data-value="{{opt.value}}">

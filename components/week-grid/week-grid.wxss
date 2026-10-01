@@ -158,23 +158,40 @@
   flex-direction: column;
   gap: 2rpx;
   box-shadow: none;
+  transition: transform var(--motion-base) var(--ease-spring),
+              box-shadow var(--motion-base) var(--ease-standard);
+  animation: courseBlockIn 320ms var(--ease-spring) backwards;
+  will-change: transform;
+}
+
+@keyframes courseBlockIn {
+  from { opacity: 0; transform: scale(.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.course-block:active {
+  transform: scale(.945);
+  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, .18);
 }
 
 /* 课程名: 占满剩余空间、按块高自然换行 */
 .cb-name {
   flex: 1;
   min-height: 0;
-  font-size: 19rpx;
-  font-weight: 600;
-  line-height: 1.2;
+  display: -webkit-box;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  word-break: break-all;
+  word-break: normal;
 }
 
 .cb-code {
   flex-shrink: 0;
-  font-size: 15rpx;
-  line-height: 1.15;
+  font-size: 16rpx;
+  line-height: 1.12;
   /* 教室必须显示完整: 允许换行, 不做省略号截断 */
   white-space: normal;
   word-break: break-all;

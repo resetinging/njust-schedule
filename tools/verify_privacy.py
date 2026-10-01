@@ -75,13 +75,20 @@ NON_PRIVACY = {
     'removeStorageSync': '清除本机缓存',
     'getStorageInfoSync': '查询本机缓存用量',
     'getWindowInfo': '仅取视口尺寸/安全区用于布局, 不含设备标识',
+    'getMenuButtonBoundingClientRect': '仅取胶囊按钮位置, 用于自定义导航栏安全区布局',
+    'preloadWebview': '预加载下一页 WebView 渲染外壳, 不读取或采集信息',
     'showLoading': '界面加载提示',
     'hideLoading': '关闭界面加载提示',
     'showToast': '界面轻提示',
     'showModal': '界面弹窗',
+    'setNavigationBarTitle': '设置原生导航栏标题, 仅界面展示',
     'navigateTo': '页面跳转',
     'navigateBack': '页面返回',
     'reLaunch': '重启到指定页面',
+    'createSelectorQuery': '查询本页节点尺寸/位置用于列表溢出判断, 不涉及个人信息',
+    'loadFontFace': '加载已下载的像素字体文件, 不涉及个人信息',
+    'openSetting': '用户主动打开小程序权限设置页, 不读取或采集信息',
+    'requestSubscribeMessage': '用户主动授权考试提醒订阅消息, 不采集个人信息',
 }
 
 READ_APIS = ['wx.getClipboardData', 'readClipboard', 'Clipboard.getData']

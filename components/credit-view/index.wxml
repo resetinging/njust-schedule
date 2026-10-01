@@ -1,5 +1,5 @@
 <!-- 学分进度视图 —— 培养方案(应修) × 成绩(已修, 按课程代码匹配) -->
-<view class="container view-root" wx:if="{{active}}">
+<view class="container view-root">
   <scroll-view class="view-scroll" scroll-y>
 
     <!-- 没有培养方案数据(未预抓成功/研究生) -->
@@ -18,7 +18,7 @@
             <text class="cr-hero-value">{{view.totalEarned}}</text>
             <text class="cr-hero-label">已修学分 · 计划 {{view.totalRequired}} 学分 · 完成 {{view.totalPercent}}%</text>
           </view>
-          <view class="cr-hero-refresh {{refreshing ? 'spin' : ''}}" bindtap="onRefresh">
+          <view class="cr-hero-refresh tap {{refreshing ? 'spin' : ''}}" bindtap="onRefresh">
             <icon name="refresh" size="34" color="#2563EB" />
           </view>
         </view>
@@ -39,7 +39,7 @@
 
       <!-- 未通过(已开课, 按学期, 可折叠) -->
       <view class="card" wx:if="{{view.failed.count > 0}}">
-        <view class="cr-head" bindtap="onToggleExpand">
+        <view class="cr-head tap" bindtap="onToggleExpand">
           <text class="cr-title">未通过（{{view.failed.count}} 门 / {{view.failed.credits}} 学分）</text>
           <text class="cr-toggle">{{expanded ? '收起' : '展开'}}</text>
         </view>
@@ -56,7 +56,7 @@
 
       <!-- 本学期在读(尚未出成绩) -->
       <view class="card" wx:if="{{view.current.count > 0}}">
-        <view class="cr-head" bindtap="onToggleCurrent">
+        <view class="cr-head tap" bindtap="onToggleCurrent">
           <text class="cr-title">本学期课程（{{view.current.count}} 门 / {{view.current.credits}} 学分）</text>
           <text class="cr-toggle">{{expandedCurrent ? '收起' : '展开'}}</text>
         </view>
@@ -73,7 +73,7 @@
 
       <!-- 后续学期未开课(计划内, 正常现象) -->
       <view class="card" wx:if="{{view.upcoming.count > 0}}">
-        <view class="cr-head" bindtap="onToggleUpcoming">
+        <view class="cr-head tap" bindtap="onToggleUpcoming">
           <text class="cr-title">后续学期未开课（{{view.upcoming.count}} 门 / {{view.upcoming.credits}} 学分）</text>
           <text class="cr-toggle">{{expandedUpcoming ? '收起' : '展开'}}</text>
         </view>

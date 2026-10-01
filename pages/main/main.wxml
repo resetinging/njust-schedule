@@ -3,12 +3,12 @@
 <view class="main-page {{fontClass}}">
 
   <!-- 顶部公告条: 有新公告(updated 未读)时展示, 查看后隐藏 -->
-  <view class="ann-bar" wx:if="{{ann.visible}}" bindtap="onAnnTap">
+  <view class="ann-bar tap" wx:if="{{ann.visible}}" bindtap="onAnnTap">
     <view class="ann-icon"><icon name="megaphone" size="30" color="#2563EB" /></view>
     <text class="ann-tag">公告</text>
     <text class="ann-text">{{ann.text}}</text>
-    <text class="ann-more" wx:if="{{ann.long}}">查看 ›</text>
-    <text class="ann-close" catchtap="onAnnClose">✕</text>
+    <view class="ann-more" wx:if="{{ann.long}}"><text>查看</text><view class="ann-next"><icon name="next" size="22" color="#64748B" /></view></view>
+    <text class="ann-close tap" catchtap="onAnnClose">×</text>
   </view>
 
   <!-- 内容区: 已无 swiper, 横滑不再翻页(翻页只走底部 tabBar);
@@ -20,81 +20,63 @@
         bindtouchstart="onSwipeTouchStart"
         bindtouchend="onSwipeTouchEnd">
     <!-- ① 功能页(一级): 考试/评教/成绩 + 空教室/校历 -->
-    <view class="tab-wrap" hidden="{{!(current === 0 && !sub)}}">
+    <view class="tab-wrap" hidden="{{current !== 0}}">
       <view class="feat-page">
-        <view class="feat-card">
-          <view class="feat-row" data-sub="exams" bindtap="onOpenFeature">
-            <view class="feat-ico"><icon name="doc" size="34" color="#2563EB" /></view>
-            <view class="feat-main">
-              <text class="feat-name">考试安排</text>
-              <text class="feat-desc">考试时间、考场与倒计时</text>
+        <view class="feat-section">
+          <text>课业</text>
+        </view>
+        <view class="feat-grid">
+          <view class="feat-tile tile-exam tap" data-sub="exams" bindtap="onOpenFeature">
+            <view class="tile-top">
+              <view class="tile-ico"><icon name="doc" size="36" color="#2563EB" /></view>
+              <view class="tile-arrow"><icon name="next" size="24" color="#64748B" /></view>
             </view>
-            <text class="feat-arrow">›</text>
+            <text class="tile-name">考试安排</text>
           </view>
-          <view class="feat-row" data-sub="eval" bindtap="onOpenFeature">
-            <view class="feat-ico"><icon name="clipboard" size="34" color="#2563EB" /></view>
-            <view class="feat-main">
-              <text class="feat-name">教学评价</text>
-              <text class="feat-desc">批量评教与进度跟踪</text>
+          <view class="feat-tile tile-eval tap" data-sub="eval" bindtap="onOpenFeature">
+            <view class="tile-top">
+              <view class="tile-ico"><icon name="clipboard" size="36" color="#2563EB" /></view>
+              <view class="tile-arrow"><icon name="next" size="24" color="#64748B" /></view>
             </view>
-            <text class="feat-arrow">›</text>
+            <text class="tile-name">教学评价</text>
           </view>
-          <view class="feat-row" data-sub="grades" bindtap="onOpenFeature">
-            <view class="feat-ico"><icon name="chart" size="34" color="#2563EB" /></view>
-            <view class="feat-main">
-              <text class="feat-name">成绩查询</text>
-              <text class="feat-desc">绩点、分数与四六级</text>
+          <view class="feat-tile tile-grade tap" data-sub="grades" bindtap="onOpenFeature">
+            <view class="tile-top">
+              <view class="tile-ico"><icon name="chart" size="36" color="#2563EB" /></view>
+              <view class="tile-arrow"><icon name="next" size="24" color="#64748B" /></view>
             </view>
-            <text class="feat-arrow">›</text>
+            <text class="tile-name">成绩查询</text>
           </view>
-          <view class="feat-row" data-sub="credit" bindtap="onOpenFeature">
-            <view class="feat-ico"><icon name="award" size="34" color="#2563EB" /></view>
-            <view class="feat-main">
-              <text class="feat-name">学分进度</text>
-              <text class="feat-desc">培养方案 × 已修学分，按类别统计</text>
+          <view class="feat-tile tile-credit tap" data-sub="credit" bindtap="onOpenFeature">
+            <view class="tile-top">
+              <view class="tile-ico"><icon name="award" size="36" color="#2563EB" /></view>
+              <view class="tile-arrow"><icon name="next" size="24" color="#64748B" /></view>
             </view>
-            <text class="feat-arrow">›</text>
+            <text class="tile-name">学分进度</text>
           </view>
         </view>
 
-        <view class="feat-card">
-          <view class="feat-row" data-url="/pages/freeclass/freeclass" bindtap="onOpenNavPage">
-            <view class="feat-ico"><icon name="building" size="34" color="#2563EB" /></view>
-            <view class="feat-main">
-              <text class="feat-name">空教室查询</text>
-              <text class="feat-desc">按教学楼与时段找空闲教室</text>
+        <view class="feat-section">
+          <text>校园工具</text>
+        </view>
+        <view class="feat-tools">
+          <view class="feat-tool-tile tool-room tap" data-page="freeclass" bindtap="onOpenNavPage">
+            <view class="tile-top">
+              <view class="tile-ico"><icon name="building" size="36" color="#2563EB" /></view>
+              <view class="tile-arrow"><icon name="next" size="24" color="#64748B" /></view>
             </view>
-            <text class="feat-arrow">›</text>
+            <text class="tile-name">空教室查询</text>
           </view>
-          <view class="feat-row" data-url="/pages/gallery/gallery" bindtap="onOpenNavPage">
-            <view class="feat-ico"><icon name="image" size="34" color="#2563EB" /></view>
-            <view class="feat-main">
-              <text class="feat-name">校历 &amp; 照片墙</text>
-              <text class="feat-desc">学期校历与校园照片</text>
+          <view class="feat-tool-tile tool-gallery tap" data-page="gallery" bindtap="onOpenNavPage">
+            <view class="tile-top">
+              <view class="tile-ico"><icon name="image" size="36" color="#2563EB" /></view>
+              <view class="tile-arrow"><icon name="next" size="24" color="#64748B" /></view>
             </view>
-            <text class="feat-arrow">›</text>
+            <text class="tile-name">校历与照片墙</text>
           </view>
         </view>
 
       </view>
-    </view>
-
-    <!-- ② 功能页(二级): 考试 / 评教 / 成绩, 顶部带返回 -->
-    <view class="tab-wrap" hidden="{{!(current === 0 && sub === 'exams')}}">
-      <view class="sub-back" bindtap="onBackFeature"><text class="sub-back-ico">‹</text>返回功能</view>
-      <exams-view wx:if="{{visited[1]}}" id="tabview1" />
-    </view>
-    <view class="tab-wrap" hidden="{{!(current === 0 && sub === 'eval')}}">
-      <view class="sub-back" bindtap="onBackFeature"><text class="sub-back-ico">‹</text>返回功能</view>
-      <eval-view wx:if="{{visited[2]}}" id="tabview2" />
-    </view>
-    <view class="tab-wrap" hidden="{{!(current === 0 && sub === 'grades')}}">
-      <view class="sub-back" bindtap="onBackFeature"><text class="sub-back-ico">‹</text>返回功能</view>
-      <grades-view wx:if="{{visited[3]}}" id="tabview3" />
-    </view>
-    <view class="tab-wrap" hidden="{{!(current === 0 && sub === 'credit')}}">
-      <view class="sub-back" bindtap="onBackFeature"><text class="sub-back-ico">‹</text>返回功能</view>
-      <credit-view wx:if="{{visited[5]}}" id="tabview5" />
     </view>
 
     <!-- ③ 课表 -->
@@ -110,4 +92,36 @@
 
   <!-- 自定义 tabBar(手动引用: main 不在 tabBar list 中, 需自渲染) -->
   <custom-tab-bar id="tabbar" />
+
+  <!-- 空教室 / 校园工具: 页面内底部上滑假页, 避免 navigateTo 原生左滑与自定义动画叠加 -->
+  <page-container
+    show="{{toolVisible}}"
+    position="bottom"
+    overlay="{{false}}"
+    round="{{false}}"
+    duration="{{320}}"
+    z-index="{{1200}}"
+    close-on-slide-down="{{false}}"
+    custom-style="height: 100vh; background: transparent;"
+    bind:beforeleave="onToolBeforeLeave"
+    bind:afterleave="onToolAfterLeave">
+    <freeclass-view wx:if="{{toolPage === 'freeclass'}}"
+                    embedded="{{true}}"
+                    bind:close="onToolClose"
+                    bind:login="onToolLogin" />
+    <gallery-view wx:elif="{{toolPage === 'gallery'}}"
+                  embedded="{{true}}"
+                  bind:close="onToolClose" />
+    <view wx:elif="{{toolPage === 'exams' || toolPage === 'eval' || toolPage === 'grades' || toolPage === 'credit'}}"
+          class="subject-shell">
+      <view class="sub-back tap" aria-label="返回功能" bindtap="onToolClose">
+        <view class="icon-back"><icon name="next" size="28" color="#64748B" /></view>
+        <text>返回</text>
+      </view>
+      <exams-view wx:if="{{toolPage === 'exams'}}" id="toolExams" />
+      <eval-view wx:elif="{{toolPage === 'eval'}}" id="toolEval" />
+      <grades-view wx:elif="{{toolPage === 'grades'}}" id="toolGrades" />
+      <credit-view wx:elif="{{toolPage === 'credit'}}" id="toolCredit" />
+    </view>
+  </page-container>
 </view>

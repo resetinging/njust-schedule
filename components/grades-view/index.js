@@ -257,7 +257,7 @@ Component({
         }
         if (best) {
           cet = {
-            line: best.s.type + ' ' + best.s.score + ' | 折算 ' + _fixed(best.pct, 2) + ' | 学分 8',
+            line: best.s.type + ' ' + best.s.score + ' · 折算 ' + _fixed(best.pct, 2),
             date: best.s.exam_date || ''
           }
         }
@@ -297,9 +297,7 @@ Component({
               name: g.course_name,
               checked: this._checked[g.id] !== false,
               meta: '绩点 ' + (gp < 0 ? '-' : gp.toFixed(1)) +
-                ' | 学分 ' + (_num(g.credit) || '-') +
-                ' | ' + (g.course_type || '-') +
-                ' | ' + (g.course_nature || '-'),
+                ' · ' + (_num(g.credit) || '-') + ' 学分',
               score: String(g.score)
             }
           })

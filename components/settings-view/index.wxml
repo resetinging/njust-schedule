@@ -1,5 +1,5 @@
 <!-- 设置/登录视图组件 — 原 pages/settings 页面改造（方案A 合页 swiper） -->
-<view class="container view-root" wx:if="{{active}}">
+<view class="container view-root {{fontSwitching ? 'font-switching' : ''}}" wx:if="{{active}}">
 
   <!-- 滚动内容区(scroll-view 内滚, 无下拉刷新) -->
   <scroll-view class="view-scroll" scroll-y>
@@ -7,7 +7,7 @@
   <!-- ============================================================ -->
   <!-- 公告栏(常驻, 登录前后均显示): 折叠展示, 点击展开全文即视为已读 -->
   <!-- ============================================================ -->
-  <view class="announce-card" wx:if="{{announcement}}" bindtap="onToggleAnnounce">
+  <view class="announce-card tap" wx:if="{{announcement}}" bindtap="onToggleAnnounce">
     <view class="announce-head">
       <view class="announce-icon"><icon name="megaphone" size="28" color="#2563EB" /></view>
       <text class="announce-title">公告</text>
@@ -22,96 +22,107 @@
   <!-- ============================================================ -->
   <view wx:if="{{isLoggedIn}}">
 
-    <!-- 用户卡(一行式: 头像 + 姓名/学号 + 学期) -->
+    <!-- 身份面板: 姓名与学号 + 关键数据 -->
     <view class="user-card card">
-      <view class="avatar"><icon name="user" size="40" color="#2563EB" /></view>
-      <view class="user-info">
-        <text class="user-name">{{studentName || '未设置'}}</text>
-        <text class="user-id">{{studentId}}</text>
-      </view>
-      <text class="user-semester">{{semester || '未知学期'}}</text>
-    </view>
-
-    <!-- 设置项直接平铺在"我的"页(不做二级页) -->
-    <!-- 账号组: 只保留用户卡里没有的信息(账号/姓名已在上方展示, 不再重复) -->
-    <view class="setting-card card">
-      <view class="group-title">账号</view>
-      <view class="info-row">
-        <text class="info-label">当前学期</text>
-        <text class="info-value">{{semester || '未知'}}</text>
-      </view>
-      <view class="info-row">
-        <text class="info-label">成绩数量</text>
-        <text class="info-value">{{gradeCount}} 门</text>
-      </view>
-      <picker mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
-        <view class="info-row">
-          <text class="info-label">第一周周一</text>
-          <text class="info-value">{{firstWeekDate || '点击设置'}}</text>
-          <text class="info-arrow">›</text>
+      <view class="user-top">
+        <view class="avatar"><icon name="user" size="40" color="#2563EB" /></view>
+        <view class="user-info">
+          <text class="user-name">{{studentName || '未设置'}}</text>
+          <text class="user-id">{{studentId}}</text>
         </view>
-      </picker>
-      <view class="info-row" bindtap="onSyncCalendar">
-        <text class="info-label">从教务同步</text>
-        <text class="info-value">{{calendarSyncing ? '同步中…' : '按教学周历校准周次'}}</text>
-        <text class="info-arrow">›</text>
+        <text class="user-semester">{{semester || '未知学期'}}</text>
+      </view>
+      <view class="user-overview">
+        <view class="user-overview-item">
+          <text class="user-overview-value">{{gradeCount}}</text>
+          <text class="user-overview-label">成绩记录</text>
+        </view>
+        <view class="user-overview-divider"></view>
+        <view class="user-overview-item">
+          <text class="user-overview-value">{{gpa}}</text>
+          <text class="user-overview-label">总 GPA</text>
+        </view>
+        <view class="user-overview-divider"></view>
+        <view class="user-overview-item">
+          <text class="user-overview-value credit-value">{{creditProgress}}</text>
+          <text class="user-overview-label">学分进度</text>
+        </view>
+      </view>
+
+      <view class="user-calibration">
+        <picker class="calibration-picker" mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
+          <view class="calibration-inline tap">
+            <view class="calibration-icon"><icon name="calendar" size="28" color="#2563EB" /></view>
+            <view class="calibration-copy">
+              <text class="calibration-title">第一周周一</text>
+            </view>
+            <text class="calibration-value">{{firstWeekDate || '设置'}}</text>
+            <view class="calibration-arrow"><icon name="next" size="24" color="#64748B" /></view>
+          </view>
+        </picker>
+        <view class="sync-inline tap" bindtap="onSyncCalendar">
+          <view class="sync-icon {{calendarSyncing ? 'spin' : ''}}"><icon name="refresh" size="28" color="#2563EB" /></view>
+          <text>{{calendarSyncing ? '同步中…' : '从教务同步'}}</text>
+        </view>
       </view>
     </view>
 
-    <!-- 偏好组: 字体 -->
+    <!-- 界面字体: 紧凑分段选择 -->
     <view class="setting-card card">
-      <view class="group-title">字体</view>
-      <view class="font-row f-pixel {{fontMode === 'pixel' ? 'on' : ''}}" data-mode="pixel" bindtap="onPickFont">
-        <view class="font-main">
+      <view class="group-title">界面字体</view>
+      <view class="font-seg">
+        <view class="font-choice f-pixel tap {{fontMode === 'pixel' ? 'on' : ''}}" data-mode="pixel" bindtap="onPickFont">
           <text class="font-name">像素点阵</text>
-          <text class="font-desc">默认，和界面风格一致</text>
         </view>
-        <text class="font-tick" wx:if="{{fontMode === 'pixel'}}">✓</text>
-      </view>
-      <view class="font-row f-system {{fontMode === 'system' ? 'on' : ''}}" data-mode="system" bindtap="onPickFont">
-        <view class="font-main">
+        <view class="font-choice f-system tap {{fontMode === 'system' ? 'on' : ''}}" data-mode="system" bindtap="onPickFont">
           <text class="font-name">系统字体</text>
-          <text class="font-desc">小字号更清晰，长文更好读</text>
         </view>
-        <text class="font-tick" wx:if="{{fontMode === 'system'}}">✓</text>
       </view>
     </view>
 
     <!-- 消息提醒(订阅消息): 授权一次可发一条; 服务端未配置时不显示 -->
-    <view class="act-card" wx:if="{{subKinds.length > 0}}">
-      <view class="act-row" wx:for="{{subKinds}}" wx:key="kind"
+    <view class="notice-card" wx:if="{{subKinds.length > 0}}">
+      <view class="act-row tap" wx:for="{{subKinds}}" wx:key="kind"
             data-kind="{{item.kind}}" bindtap="onSubscribeTap">
+        <view class="notice-dot {{item.quota > 0 ? 'on' : ''}}"></view>
         <view class="act-main">
           <text class="act-title">{{item.label}}</text>
           <text class="act-sub">{{item.quota > 0 ? ('已开启 · 剩余 ' + item.quota + ' 条') : '点一下开启，可重复点击囤额度'}}</text>
         </view>
-        <text class="act-plus">＋1</text>
+        <text class="act-plus">{{item.quota > 0 ? '＋1' : '开启'}}</text>
       </view>
       <view class="act-note">微信规则：每授权一次可发 1 条；勾选"总是保持以上选择"后，重复点击不再弹窗，可连续囤额度</view>
     </view>
 
     <!-- 帮助与反馈(弹窗实现都在本组件内, 入口必须放在同一页, 否则会先跳页再弹窗) -->
-    <view class="act-card">
-      <view class="act-row" bindtap="onOpenLinks">
-        <text class="act-title">常用链接</text><text class="act-arrow">›</text>
+    <view class="menu-card">
+      <view class="act-row tap" bindtap="onOpenLinks">
+        <view class="menu-ico"><icon name="grid" size="28" color="#2563EB" /></view>
+        <view class="menu-copy"><text class="act-title">常用链接</text></view>
+        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
       </view>
-      <view class="act-row" bindtap="onOpenFeedback">
-        <text class="act-title">问题反馈</text><text class="act-arrow">›</text>
+      <view class="act-row tap" bindtap="onOpenFeedback">
+        <view class="menu-ico"><icon name="doc" size="28" color="#2563EB" /></view>
+        <view class="menu-copy"><text class="act-title">问题反馈</text></view>
+        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
       </view>
-      <view class="act-row" bindtap="onOpenMyFeedback">
-        <text class="act-title">我的反馈</text>
+      <view class="act-row tap" bindtap="onOpenMyFeedback">
+        <view class="menu-ico"><icon name="clipboard" size="28" color="#2563EB" /></view>
+        <view class="menu-copy"><text class="act-title">我的反馈</text></view>
         <text class="act-badge" wx:if="{{fbUnread > 0}}">{{fbUnread > 99 ? '99+' : fbUnread}}</text>
-        <text class="act-arrow">›</text>
+        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
       </view>
-      <view class="act-row" bindtap="onOpenAppreciate">
-        <text class="act-title">赞赏支持</text><text class="act-arrow">›</text>
+      <view class="act-row tap" bindtap="onOpenAppreciate">
+        <view class="menu-ico"><icon name="award" size="28" color="#2563EB" /></view>
+        <view class="menu-copy"><text class="act-title">赞赏支持</text></view>
+        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
       </view>
     </view>
 
     <!-- 底部操作: 清除缓存 / 退出登录(放在最下方, 危险操作标红) -->
     <view class="btn-group">
-      <button class="btn-outline main-btn" bindtap="onClearData">清除缓存数据</button>
-      <button class="btn-danger-plain main-btn" wx:if="{{isLoggedIn}}" bindtap="onLogout">退出登录</button>
+      <button class="btn-outline main-btn clear-btn" bindtap="onClearData">清除缓存数据</button>
+      <button class="btn-danger-plain main-btn logout-btn" wx:if="{{isLoggedIn}}" bindtap="onLogout">退出登录</button>
     </view>
   </view>
 
@@ -140,7 +151,7 @@
           <input class="form-input pwd-input" placeholder="请输入智慧理工密码"
                  password="{{!showPassword}}" value="{{password}}"
                  bindinput="onPasswordInput" />
-          <view class="pwd-toggle" bindtap="onTogglePassword">
+          <view class="pwd-toggle tap" bindtap="onTogglePassword">
             <view class="pwd-eye {{showPassword ? 'pwd-eye-on' : ''}}"></view>
           </view>
         </view>
@@ -149,7 +160,7 @@
       <!-- 记住学号密码 -->
       <view class="remember-row">
         <switch checked="{{rememberPwd}}" bindchange="onToggleRemember" color="#2563EB" style="transform:scale(0.8);" />
-        <text class="remember-label" bindtap="onTapRemember">记住学号和密码</text>
+        <text class="remember-label tap" bindtap="onTapRemember">记住学号和密码</text>
       </view>
 
       <!-- 登录按钮(不禁用: 空表单点击时 onLogin 校验并提示, 避免"点了没反应") -->
@@ -160,19 +171,19 @@
 
       <!-- 微信扫码登录(免密码): 长按二维码 → 识别图中二维码 → 确认登录 -->
       <view wx:if="{{!qrMode}}" class="qr-entry">
-        <text class="qr-entry-link" bindtap="onStartQr">扫码登录</text>
+        <text class="qr-entry-link tap" bindtap="onStartQr">扫码登录</text>
       </view>
       <view wx:else class="qr-panel">
-        <image class="qr-img" src="{{qrSrc}}" mode="widthFix"
+        <image class="qr-img tap" src="{{qrSrc}}" mode="widthFix"
                show-menu-by-longpress="{{true}}" binderror="onQrImgError"
                bindtap="onQrPreview"></image>
         <view class="qr-panel-hint">{{qrHint}}</view>
         <button class="qr-save-btn" bindtap="onQrSave">保存到相册</button>
         <view class="qr-save-tip">用微信「扫一扫」→ 相册，选择刚保存的二维码</view>
         <view class="qr-panel-actions">
-          <text class="qr-link" bindtap="onStartQr">刷新</text>
-          <text class="qr-link" bindtap="onQrConfirmTap">我已确认</text>
-          <text class="qr-link" bindtap="onCloseQr">返回</text>
+          <text class="qr-link tap" bindtap="onStartQr">刷新</text>
+          <text class="qr-link tap" bindtap="onQrConfirmTap">我已确认</text>
+          <text class="qr-link tap" bindtap="onCloseQr">返回</text>
         </view>
       </view>
     </view>
@@ -184,7 +195,7 @@
   </view>
 
   <!-- 版本标识 -->
-  <view class="version-tip">v1.1.0 · build {{build}}</view>
+  <view class="version-tip">v1.2.0 · build {{build}}</view>
 
   </scroll-view>
 
@@ -195,14 +206,14 @@
     <view class="fb-card" catchtap="noop">
       <view class="fb-head">
         <text class="fb-title">问题反馈</text>
-        <text class="fb-close" bindtap="onFbClose">✕</text>
+        <text class="fb-close tap" bindtap="onFbClose">×</text>
       </view>
 
       <view class="fb-label">反馈类型</view>
       <view class="type-tabs">
-        <view class="type-tab {{fbType === 'suggest' ? 'on' : ''}}" data-type="suggest" bindtap="onFbType">功能建议</view>
-        <view class="type-tab {{fbType === 'bug' ? 'on' : ''}}" data-type="bug" bindtap="onFbType">问题/Bug</view>
-        <view class="type-tab {{fbType === 'other' ? 'on' : ''}}" data-type="other" bindtap="onFbType">其他</view>
+        <view class="type-tab tap {{fbType === 'suggest' ? 'on' : ''}}" data-type="suggest" bindtap="onFbType">功能建议</view>
+        <view class="type-tab tap {{fbType === 'bug' ? 'on' : ''}}" data-type="bug" bindtap="onFbType">问题/Bug</view>
+        <view class="type-tab tap {{fbType === 'other' ? 'on' : ''}}" data-type="other" bindtap="onFbType">其他</view>
       </view>
 
       <view class="fb-label">反馈内容</view>
@@ -224,7 +235,7 @@
     <view class="fb-card" catchtap="noop">
       <view class="fb-head">
         <text class="fb-title">我的反馈</text>
-        <text class="fb-close" bindtap="onMyFbClose">✕</text>
+        <text class="fb-close tap" bindtap="onMyFbClose">×</text>
       </view>
 
       <view class="myfb-list">
@@ -262,7 +273,7 @@
     <view class="fb-card" catchtap="noop">
       <view class="fb-head">
         <text class="fb-title">常用链接</text>
-        <text class="fb-close" bindtap="onLinksClose">✕</text>
+        <text class="fb-close tap" bindtap="onLinksClose">×</text>
       </view>
 
       <view class="link-tip">点击复制链接，在浏览器粘贴打开 · 长按查看完整网址</view>
@@ -270,7 +281,7 @@
       <view class="link-list">
         <block wx:for="{{linkGroups}}" wx:key="title" wx:for-item="group">
           <view class="link-group-title">{{group.icon}} {{group.title}}（{{group.items.length}}）</view>
-          <view class="link-row" wx:for="{{group.items}}" wx:key="url" wx:for-item="item"
+          <view class="link-row tap" wx:for="{{group.items}}" wx:key="url" wx:for-item="item"
                 data-url="{{item.url}}" data-name="{{item.name}}"
                 bindtap="onCopyLink" bindlongpress="onShowLink">
             <view class="link-main">
@@ -293,7 +304,7 @@
     <view class="fb-card appreciate-card" catchtap="noop">
       <view class="fb-head">
         <text class="fb-title">赞赏支持</text>
-        <text class="fb-close" bindtap="onCloseAppreciate">✕</text>
+        <text class="fb-close tap" bindtap="onCloseAppreciate">×</text>
       </view>
       <image class="appreciate-img" src="/static/appreciate.jpg" mode="widthFix"
              show-menu-by-longpress="{{true}}" />

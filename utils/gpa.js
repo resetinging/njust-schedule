@@ -118,6 +118,26 @@ function calcGpa(grades, gpaOnly) {
   return totalCredits > 0 ? _round(totalWeighted / totalCredits) : 0
 }
 
+/**
+ * 奖学金/综测口径总 GPA:
+ * - 排除通识教育选修课
+ * - 存在有效 CET 时排除英语课
+ * - 排除无学分课程
+ * - 缓考/缺考/免修等非正式成绩由 calcGpa 内部排除
+ */
+function calcScholarshipGpa(grades, cetScores) {
+  const hasCet = (cetScores || []).some(s => {
+    const score = parseFloat(s && s.score) || 0
+    return score >= 425 && cetToPercentage(score, s && s.type) > 0
+  })
+  const list = (grades || []).filter(g => {
+    if (!isGpaCourse(g.course_nature)) return false
+    if (hasCet && isEnglishCourse(g.course_name)) return false
+    return (parseFloat(g.credit) || 0) > 0
+  })
+  return calcGpa(list, false)
+}
+
 /** 四六级总分 → 百分制折算(参考 App 公式: 总分/710×100, 无 60 下限;
  *  折算 <60 分时绩点为 0, 与参考 App 一致); 无效分数返回 0 */
 function cetToPercentage(cetScore, cetType) {
@@ -175,6 +195,7 @@ module.exports = {
   scoreToPct,
   calcAvg,
   calcGpa,
+  calcScholarshipGpa,
   cetToPercentage,
   isEnglishCourse,
   calcGpaBaoyan

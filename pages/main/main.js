@@ -13,14 +13,18 @@ const ann = require('../../utils/announcement')
 const storage = require('../../utils/storage')
 const font = require('../../utils/font')
 
+const MAIN_TITLE = '课表助手'
+const TOOL_TITLES = { freeclass: '空教室查询', gallery: '校园工具' }
+
 Page({
   data: {
     current: 1,        // 底栏选中项: 0=功能 1=课表 2=我的
-    sub: '',           // 功能页二级视图: '' | exams | eval | grades
+    toolPage: '',      // 页面内假页: '' | freeclass | gallery | exams | eval | grades | credit
+    toolVisible: false,
     isGraduate: false, // 研究生账号在功能页隐藏"教学评价"
     fontClass: '',     // 字体档位: '' 像素 | 'font-system' 系统字体
     swiperHeight: 600, // 内容区高度(px), 自适应计算(公告条可见时扣除其高度)
-    visited: [true, false, false, false, false, false],  // 已挂载的 Tab(懒渲染): 5=学分进度
+    visited: [true, false, false, false, false, false],  // 已挂载的常驻 Tab: 0=课表, 4=我的
 
     // 顶部公告条(long: 文本被单行截断, 显示"查看 ›"提示)
     ann: { visible: false, text: '', updated: '', long: false }
@@ -33,7 +37,7 @@ Page({
     this._route()
     // 拉取公告(有新公告则顶部横幅展示)
     this._loadAnnouncement(true)
-    // 订阅消息/外链落地: pages/main/main?feature=exams|eval|grades|credit → 直接打开对应二级视图
+    // 订阅消息/外链落地: pages/main/main?feature=exams|eval|grades|credit → 直接打开对应假页
     if (options && options.feature) {
       const sub = String(options.feature)
       if (['exams', 'eval', 'grades', 'credit'].indexOf(sub) >= 0) this._pendingFeature = sub
@@ -78,7 +82,7 @@ Page({
       // 详见 docs/privacy-guideline.md(getWindowInfo 只返回窗口尺寸, 不涉及个人信息)
       const sys = wx.getWindowInfo()
       const ratio = sys.windowWidth / 750
-      const tabH = Math.ceil(96 * ratio)
+      const tabH = Math.ceil(112 * ratio)
       // iOS 全面屏底部安全区(tabBar 有 env(safe-area-inset-bottom) padding)
       const safeH = (sys.safeArea && sys.safeArea.bottom) ? Math.max(0, sys.windowHeight - sys.safeArea.bottom) : 0
       let h = sys.windowHeight - tabH - safeH - 2
@@ -198,63 +202,103 @@ Page({
     const v = VIEW_OF_TAB[i]
     if (v !== undefined) visited[v] = true
     // 点底栏一律回到一级界面(功能页的二级视图收起)
-    this.setData({ current: i, sub: '', visited })
+    this.setData({ current: i, visited })
     this._route()
     this._syncTabBar()
   },
 
-  /** 功能页: 打开二级视图(考试/评教/成绩) */
+  /** 功能页: 打开课业假页(考试/评教/成绩/学分进度) */
   onOpenFeature(e) {
     const sub = e.currentTarget.dataset.sub
     if (!sub) return
-    // 组件是懒挂载的(wx:if=visited[n]), 这里必须先把它标记为已访问, 否则进去是空白
-    const VIEW_OF = { exams: 1, eval: 2, grades: 3, credit: 5 }
-    const visited = this.data.visited.slice()
-    if (VIEW_OF[sub] !== undefined) visited[VIEW_OF[sub]] = true
-    this.setData({ sub, visited })
-    this._route()
-  },
-
-  /** 功能页: 从二级视图返回列表 */
-  onBackFeature() {
-    this.setData({ sub: '' })
+    const toolId = {
+      exams: 'toolExams', eval: 'toolEval', grades: 'toolGrades', credit: 'toolCredit'
+    }[sub]
+    this._openToolPage(sub, toolId)
   },
 
   /**
-   * 供其他页面调用: 切到"功能"页并直接打开某个二级视图(如成绩)。
-   * 之前设置页里"查看成绩"走的是 onTabTap(3), 而底栏重构后只有 0~2,
-   * 会把 current 设成不存在的项 → 所有视图都被隐藏, 表现为"跳转没反应/白屏"。
+   * 供其他页面调用: 切到"功能"页并直接打开课业假页(如成绩)。
    */
   goFeature(sub) {
-    const VIEW_OF = { exams: 1, eval: 2, grades: 3, credit: 5 }
-    const visited = this.data.visited.slice()
-    if (VIEW_OF[sub] !== undefined) visited[VIEW_OF[sub]] = true
-    this.setData({ current: 0, sub: sub || '', visited })
+    this.setData({ current: 0 })
     this._route()
     this._syncTabBar()
+    const toolId = {
+      exams: 'toolExams', eval: 'toolEval', grades: 'toolGrades', credit: 'toolCredit'
+    }[sub]
+    this._openToolPage(sub, toolId)
   },
 
-  /** 功能页: 跳转独立页面(空教室 / 校历照片墙) */
+  /** 功能页: 打开页面内假页(空教室 / 校历照片墙) */
   onOpenNavPage(e) {
-    const url = e.currentTarget.dataset.url
-    if (url) wx.navigateTo({ url, fail() {} })
+    const page = e.currentTarget.dataset.page
+    this._openToolPage(page)
   },
 
   /**
-   * 按 (current, sub) 决定要激活哪个视图组件。
-   * 组件索引保持不变: 0 课表 / 1 考试 / 2 评教 / 3 成绩 / 4 我的
+   * 打开页面内假页。课业组件依赖 activate() 进入激活态并处理研究生分流,
+   * 挂载后再查找组件实例激活; 找不到时短暂重试。
+   */
+  _openToolPage(page, toolId) {
+    const allowed = ['freeclass', 'gallery', 'exams', 'eval', 'grades', 'credit']
+    if (allowed.indexOf(page) < 0 || this.data.toolVisible) return
+    if (TOOL_TITLES[page]) this._setNavTitle(TOOL_TITLES[page])
+    this.setData({ toolPage: page, toolVisible: true }, () => {
+      if (!toolId) return
+      const activate = (retry) => {
+        const comp = this.selectComponent('#' + toolId)
+        if (comp && typeof comp.activate === 'function') {
+          comp.activate()
+          return
+        }
+        if (retry < 6) setTimeout(() => activate(retry + 1), 60)
+      }
+      activate(0)
+    })
+  },
+
+  /** 关闭页面内假页(子组件返回按钮触发) */
+  onToolClose() {
+    if (this.data.toolVisible) this.setData({ toolVisible: false })
+  },
+
+  /** 系统返回/右滑关闭假页时, 同步受控状态 */
+  onToolBeforeLeave() {
+    if (this.data.toolVisible) this.setData({ toolVisible: false })
+  },
+
+  /** 退出动画结束后卸载组件, 避免常驻占用 */
+  onToolAfterLeave() {
+    if (!this.data.toolVisible && this.data.toolPage) {
+      this.setData({ toolPage: '' })
+    }
+    this._setNavTitle(MAIN_TITLE)
+  },
+
+  /** 假页使用主页面原生导航栏标题, 不再重复绘制组件标题 */
+  _setNavTitle(title) {
+    if (typeof wx === 'undefined' || typeof wx.setNavigationBarTitle !== 'function') return
+    try {
+      wx.setNavigationBarTitle({ title })
+    } catch (e) { /* 非原生导航栏场景忽略 */ }
+  },
+
+  /** 假页内提示登录: 关闭假页并切到"我的" */
+  onToolLogin() {
+    this.setData({ toolVisible: false })
+    setTimeout(() => this.onTabTap(2), 340)
+  },
+
+  /**
+   * 按 current 决定要激活哪个常驻 Tab 组件。
+   * 组件索引保持不变: 0 课表 / 4 我的
    */
   _route() {
-    const { current, sub } = this.data
+    const { current } = this.data
     let view = -1
     if (current === 1) view = 0
     else if (current === 2) view = 4
-    else if (current === 0) {
-      if (sub === 'exams') view = 1
-      else if (sub === 'eval') view = 2
-      else if (sub === 'grades') view = 3
-      else if (sub === 'credit') view = 5
-    }
     if (view >= 0) this._activate(view)
   },
 

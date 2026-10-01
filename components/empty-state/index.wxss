@@ -12,8 +12,8 @@
   background: var(--bg-card);
   border: var(--bw-card) solid var(--line);
   border-radius: var(--radius-card);
-  padding: 56rpx 36rpx 48rpx;
-  box-shadow: 0 6rpx 24rpx rgba(15, 23, 42, 0.06);
+  padding: 52rpx 36rpx 44rpx;
+  box-shadow: none;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -21,13 +21,14 @@
 }
 
 .es-icon-wrap {
-  width: 128rpx;
-  height: 128rpx;
+  width: 112rpx;
+  height: 112rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary-soft) 0%, var(--primary-line) 100%);
-  border-radius: 50%;
+  background: var(--primary-soft);
+  border: 1rpx solid var(--primary-line);
+  border-radius: 28rpx;
 }
 
 .es-icon {

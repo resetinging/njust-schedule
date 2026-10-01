@@ -37,8 +37,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 12rpx;
-  padding: 8rpx 20rpx;
-  background: var(--bg-card);
+  margin: 12rpx 20rpx 0;
+  padding: 12rpx 16rpx;
+  background: rgba(255, 255, 255, .82);
+  -webkit-backdrop-filter: blur(24rpx) saturate(170%);
+  backdrop-filter: blur(24rpx) saturate(170%);
+  border: var(--bw-card) solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  animation: scheduleChromeIn 360ms var(--ease-spring) backwards;
 }
 
 .tb-today {
@@ -53,9 +60,20 @@
   display: flex;
   align-items: center;
   gap: 4rpx;
-  padding: 2rpx 12rpx 6rpx;
-  background: var(--bg-card);
-  border-bottom: 1rpx solid var(--line-soft);
+  margin: 0 20rpx 12rpx;
+  padding: 4rpx 8rpx 8rpx;
+  background: rgba(255, 255, 255, .82);
+  -webkit-backdrop-filter: blur(24rpx) saturate(170%);
+  backdrop-filter: blur(24rpx) saturate(170%);
+  border: var(--bw-card) solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  animation: scheduleChromeIn 390ms var(--ease-spring) 35ms backwards;
+}
+
+@keyframes scheduleChromeIn {
+  from { opacity: 0; transform: translateY(-10rpx) scale(.992); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* picker 是 flex 子项: 学期允许压缩, 周次占满剩余宽度 */
@@ -68,8 +86,8 @@
   align-items: center;
   gap: 4rpx;
   max-width: 200rpx;
-  padding: 6rpx 14rpx;
-  border-radius: var(--radius-chip);
+  padding: 7rpx 14rpx;
+  border-radius: 12rpx;
   background: var(--primary-soft);
   color: var(--primary-dark);
   font-size: 24rpx;
@@ -104,6 +122,20 @@
   background: rgba(59, 130, 246, 0.10);
 }
 
+.ctrl-icon {
+  transition: transform var(--motion-base) var(--ease-spring),
+              opacity var(--motion-fast) var(--ease-standard);
+  will-change: transform;
+}
+
+.week-btn:active .prev-icon {
+  transform: translateX(-6rpx) scale(.94);
+}
+
+.week-btn:active .next-icon {
+  transform: translateX(6rpx) scale(.94);
+}
+
 .week-label {
   width: 100%;
   padding: 0 6rpx;
@@ -117,8 +149,8 @@
 
 .week-main {
   max-width: 100%;
-  font-size: 24rpx;
-  font-weight: 700;
+  font-size: 30rpx;
+  font-weight: 800;
   color: var(--text-primary);
   font-family: var(--font-display);
   white-space: nowrap;
@@ -127,7 +159,7 @@
 }
 
 .week-range {
-  font-size: 19rpx;
+  font-size: 21rpx;
   font-weight: 400;
   color: var(--text-hint);
   font-family: var(--font-display);
@@ -155,6 +187,10 @@
   background: rgba(59, 130, 246, 0.10);
 }
 
+.tb-toggle:active .toggle-icon {
+  transform: rotate(14deg) scale(.90);
+}
+
 /* 手动刷新: 与 u-ico-btn 一致的无底色图标钮 */
 .refresh-btn {
   flex-shrink: 0;
@@ -172,19 +208,27 @@
   background: rgba(59, 130, 246, 0.10);
 }
 
+.refresh-btn:active .refresh-icon {
+  transform: rotate(180deg) scale(.90);
+}
+
 /* 加号按钮(全局 u-ico-btn 是 88rpx, 这里跟工具组对齐) */
 .tb-acts .u-ico-btn {
   width: 84rpx;
   height: 84rpx;
 }
 
+.u-ico-btn:active .plus-icon {
+  transform: rotate(90deg) scale(.90);
+}
+
 /* 周次切换动画: 下一周从右滑入, 上一周从左滑入 */
 .week-body.from-right {
-  animation: weekSlideInRight 0.26s ease-out;
+  animation: weekSlideInRight 340ms var(--ease-spring);
 }
 
 .week-body.from-left {
-  animation: weekSlideInLeft 0.26s ease-out;
+  animation: weekSlideInLeft 340ms var(--ease-spring);
 }
 
 @keyframes weekSlideInRight {
@@ -211,6 +255,13 @@
   border: var(--bw-card) solid var(--line);
   border-radius: var(--radius-card);
   overflow: hidden;
+  box-shadow: 0 8rpx 28rpx rgba(15, 23, 42, .055);
+  animation: gridPanelIn 420ms var(--ease-spring) 70ms backwards;
+}
+
+@keyframes gridPanelIn {
+  from { opacity: 0; transform: translateY(18rpx) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* ============================================================
@@ -225,7 +276,12 @@
 
 .day-group {
   margin-bottom: 24rpx;
+  animation: courseCardIn 380ms var(--ease-spring) backwards;
 }
+
+.day-group:nth-child(2) { animation-delay: 30ms; }
+.day-group:nth-child(3) { animation-delay: 60ms; }
+.day-group:nth-child(4) { animation-delay: 90ms; }
 
 .day-title {
   font-size: 28rpx;
@@ -244,9 +300,18 @@
   padding: 18rpx 22rpx;
   margin-bottom: 12rpx;
   box-shadow: var(--shadow-card);
+  animation: courseCardIn 360ms var(--ease-spring) backwards;
 }
 
-.course-card:active { transform: scale(0.988); }
+@keyframes courseCardIn {
+  from { opacity: 0; transform: translateY(16rpx) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.course-card:active {
+  transform: scale(.95);
+  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, .14);
+}
 
 .card-header {
   display: flex;
@@ -325,6 +390,16 @@
   box-shadow: var(--shadow-sheet);
   overflow-y: auto;
   max-height: 80vh;
+}
+
+.modal-card .u-btn {
+  transition: transform 260ms var(--ease-spring),
+              opacity 140ms var(--ease-standard),
+              background-color 140ms var(--ease-standard);
+}
+
+.modal-card .u-btn:active {
+  transform: scale(.945);
 }
 
 .modal-title {
@@ -426,6 +501,9 @@
 }
 
 .cu-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   min-width: 240rpx;
   height: 72rpx;
   padding: 0 20rpx;
@@ -439,8 +517,12 @@
 }
 
 .cu-arrow {
-  float: right;
-  color: var(--text-hint);
+  width: 32rpx;
+  height: 32rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .cu-range {
@@ -467,12 +549,21 @@
 }
 /* 今日课程卡片(仅本周显示): 顶部一条, 下一节高亮 */
 .today-card {
-  margin: 12rpx 20rpx 6rpx;
-  padding: 20rpx 22rpx;
-  background: var(--bg-card, #FFFFFF);
-  border: 2rpx solid var(--line, #EEF2F8);
+  margin: 10rpx 20rpx 8rpx;
+  padding: 18rpx 20rpx;
+  background: linear-gradient(105deg, #FFF9F1 0%, #FFFFFF 78%);
+  border: 2rpx solid var(--signal-line, #FED7AA);
   border-radius: var(--radius-card, 20rpx);
   box-shadow: var(--shadow-card, 0 2rpx 10rpx rgba(15,23,42,0.04));
+  -webkit-backdrop-filter: blur(20rpx) saturate(160%);
+  backdrop-filter: blur(20rpx) saturate(160%);
+  animation: todayCardIn 420ms var(--ease-spring) backwards;
+}
+
+@keyframes todayCardIn {
+  from { opacity: 0; transform: translateY(14rpx) scale(.975); }
+  62% { transform: translateY(-2rpx) scale(1.008); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .today-head {
@@ -482,9 +573,20 @@
 }
 
 .today-title {
-  font-size: 28rpx;
-  font-weight: 600;
+  font-size: 27rpx;
+  font-weight: 750;
   color: var(--text-primary, #0F172A);
+}
+
+.today-title::before {
+  content: "";
+  display: inline-block;
+  width: 8rpx;
+  height: 24rpx;
+  margin-right: 10rpx;
+  border-radius: 999rpx;
+  background: var(--signal, #F97316);
+  vertical-align: -3rpx;
 }
 
 .today-count {
@@ -509,7 +611,7 @@
   margin-left: -12rpx;
   margin-right: -12rpx;
   border-radius: 14rpx;
-  background: var(--bg-hover, #F8FAFF);
+  background: var(--signal-soft, #FFF7ED);
 }
 
 .today-dot {
@@ -557,7 +659,8 @@
   margin-left: 12rpx;
   padding: 4rpx 14rpx;
   border-radius: 999rpx;
-  background: var(--brand-soft, #EFF6FF);
-  color: var(--brand, #2563EB);
+  background: var(--signal-soft, #FFF7ED);
+  color: var(--signal-deep, #B45309);
   font-size: 21rpx;
+  font-weight: 700;
 }

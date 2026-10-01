@@ -21,6 +21,22 @@
       {
         "value": "/tests",
         "type": "folder"
+      },
+      {
+        "value": "/docs",
+        "type": "folder"
+      },
+      {
+        "value": "/templates",
+        "type": "folder"
+      },
+      {
+        "value": "static/app-icon.png",
+        "type": "file"
+      },
+      {
+        "value": "project.private.config.json",
+        "type": "file"
       }
     ],
     "include": []
