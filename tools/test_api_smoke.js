@@ -53,8 +53,9 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 56 个接口(含服务端凭据删除、同步版本与蹭课收藏)', () => {
-    assert.strictEqual(Object.keys(api).length, 56, Object.keys(api).join(','))
+  await check('导出 57 个接口(含连接测试、服务端凭据删除、同步版本与蹭课收藏)', () => {
+    assert.strictEqual(Object.keys(api).length, 57, Object.keys(api).join(','))
+    assert.strictEqual(typeof api.testConnection, 'function')
     assert.strictEqual(typeof api.searchAuditCourses, 'function')
     assert.strictEqual(typeof api.listAuditOptions, 'function')
     assert.strictEqual(typeof api.listAuditFavorites, 'function')
@@ -160,6 +161,18 @@ async function check(name, fn) {
     }))
     const r = await api.getDataRefreshStatus()
     assert.strictEqual(r.data_refresh.state, 'running')
+  })
+  await check('测试连接绕过离线短路并返回 ok 状态', async () => {
+    storage.setOffline(true)
+    let called = 0
+    stubBoth((o) => {
+      called++
+      o.success({ statusCode: 200, data: { ok: true, message: '' } })
+    })
+    const r = await api.testConnection()
+    assert.ok(r && r.ok === true)
+    assert.strictEqual(called, 1)
+    storage.setOffline(false)
   })
 
   console.log('\n' + '='.repeat(52))

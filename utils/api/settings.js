@@ -8,6 +8,11 @@ function getStatus() {
   return request('GET', '/api/status')
 }
 
+/** 测试服务端到智慧理工/教务的连通性; force 绕过离线模式短路 */
+function testConnection() {
+  return request('GET', '/api/connect-test', {}, { force: true })
+}
+
 /** 登录后全量同步状态(轻量接口: 不查库、不探测教务) */
 function getDataRefreshStatus() {
   return request('GET', '/api/prefetch-status')
@@ -62,6 +67,7 @@ function saveSettings(data) {
 
 module.exports = {
   getStatus,
+  testConnection,
   getDataRefreshStatus,
   setSemester,
   clearData,

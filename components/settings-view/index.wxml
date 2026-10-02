@@ -96,6 +96,15 @@
 
     <!-- 帮助与反馈(弹窗实现都在本组件内, 入口必须放在同一页, 否则会先跳页再弹窗) -->
     <view class="menu-card">
+      <view class="act-row tap {{testingConnection ? 'is-disabled' : ''}}" bindtap="onTestConnection">
+        <view class="menu-ico"><icon name="sync" size="28" color="#2563EB" /></view>
+        <view class="menu-copy">
+          <text class="act-title">测试连接</text>
+          <text class="act-sub {{connectionStatus === 'ok' ? 'is-ok' : (connectionStatus === 'fail' ? 'is-fail' : '')}}"
+                wx:if="{{connectionText}}">{{connectionText}}</text>
+        </view>
+        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
+      </view>
       <view class="act-row tap" bindtap="onOpenLinks">
         <view class="menu-ico"><icon name="grid" size="28" color="#2563EB" /></view>
         <view class="menu-copy"><text class="act-title">常用链接</text></view>

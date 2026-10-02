@@ -1522,6 +1522,9 @@
   color: var(--text-hint);
   font-size: 21rpx;
 }
+.act-sub.is-ok { color: var(--success); }
+.act-sub.is-fail { color: var(--danger); }
+.act-row.is-disabled { opacity: .72; }
 
 .act-plus {
   flex-shrink: 0;

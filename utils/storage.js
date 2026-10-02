@@ -15,7 +15,8 @@ const STORAGE_KEYS = {
   GRADES: 'cached_grades',
   CET_SCORES: 'cached_cet_scores',
   CACHE_TIME: 'cache_timestamps',
-  OFFLINE: 'offline_mode'   // 会话失效但保留本地缓存只读展示
+  OFFLINE: 'offline_mode',  // 会话失效但保留本地缓存只读展示
+  MANUAL_LOGOUT: 'manual_logout'  // 手动退出后禁止测试连接自动登录
 }
 
 /** 获取存储值 */

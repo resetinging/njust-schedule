@@ -96,6 +96,11 @@ Component({
     // 版本标识（排查线上版本用）
     build: config.BUILD || '',
 
+    // 连接测试/自动恢复会话
+    testingConnection: false,
+    connectionStatus: '',   // '' | ok | fail
+    connectionText: '',
+
     active: false        // 懒渲染: main 激活时才渲染内容
   },
 
@@ -669,6 +674,129 @@ Component({
     /** 打开常用链接弹窗 */
     onOpenLinks() {
       this.setData({ showLinks: true })
+    },
+
+    /** 测试服务端连通性; 会话失效时用已保存凭据自动重建服务端会话 */
+    async onTestConnection() {
+      if (this.data.testingConnection) return
+      this.setData({
+        testingConnection: true,
+        connectionStatus: '',
+        connectionText: '正在测试连接…'
+      })
+
+      let res
+      try {
+        res = await api.testConnection()
+      } catch (e) {
+        res = null
+      }
+
+      if (!res || typeof res.ok !== 'boolean') {
+        this.setData({
+          testingConnection: false,
+          connectionStatus: 'fail',
+          connectionText: '服务器连接失败，请稍后重试'
+        })
+        wx.showToast({ title: '服务器连接失败', icon: 'none' })
+        return
+      }
+
+      if (!res.ok) {
+        this.setData({
+          testingConnection: false,
+          connectionStatus: 'fail',
+          connectionText: '智慧理工或教务入口不可达'
+        })
+        wx.showModal({
+          title: '连接失败',
+          content: res.message || '智慧理工或教务入口当前不可达，请检查网络后重试',
+          showCancel: false,
+          confirmText: '知道了'
+        })
+        return
+      }
+
+      const sid = storage.getStudentId() || storage.get('last_login_sid', '')
+      const password = storage.get('saved_password', '')
+      const manualLogout = !!storage.get('manual_logout', false)
+      const hasToken = !!storage.get('token', '')
+      if (!sid || !password || manualLogout) {
+        this.setData({
+          testingConnection: false,
+          connectionStatus: 'ok',
+          connectionText: '连接正常，请手动登录'
+        })
+        wx.showToast({ title: '连接正常', icon: 'success' })
+        return
+      }
+
+      // token 存在但服务端会话可能已被清理: 先轻量校验, 有效时不重复登录。
+      if (hasToken && !storage.isOffline()) {
+        let sessionRes
+        try {
+          sessionRes = await api.getStatus()
+        } catch (e) {
+          sessionRes = null
+        }
+        if (sessionRes && sessionRes.logged_in === true) {
+          this.setData({
+            testingConnection: false,
+            connectionStatus: 'ok',
+            connectionText: '连接正常，当前会话仍有效'
+          })
+          wx.showToast({ title: '连接正常', icon: 'success' })
+          return
+        }
+        if (!sessionRes || typeof sessionRes.logged_in !== 'boolean') {
+          this.setData({
+            testingConnection: false,
+            connectionStatus: 'ok',
+            connectionText: '连接正常，但无法确认会话状态'
+          })
+          wx.showToast({ title: '连接正常', icon: 'success' })
+          return
+        }
+      }
+
+      this.setData({ connectionText: '连接正常，正在建立会话…' })
+      let loginRes
+      try {
+        loginRes = await api.loginWebvpn(sid, password)
+      } catch (e) {
+        loginRes = null
+      }
+
+      if (loginRes && loginRes.success && loginRes.token) {
+        this.setData({
+          testingConnection: false,
+          connectionStatus: 'ok',
+          connectionText: '连接正常，会话已建立'
+        })
+        this.refreshState()
+        getApp().setLoginState(
+          true,
+          loginRes.student_name || sid,
+          loginRes.semester || ''
+        )
+        this.loadSettings()
+        this._loadMyFeedback(false)
+        wx.showToast({ title: '会话已建立', icon: 'success' })
+        dataLoader.fetchAllData().then((ok) => {
+          if (ok > 0) wx.showToast({ title: '数据已更新', icon: 'success' })
+        })
+        return
+      }
+
+      this.setData({
+        testingConnection: false,
+        connectionStatus: 'fail',
+        connectionText: '连接正常，但自动登录失败，请手动登录'
+      })
+      wx.showToast({
+        title: (loginRes && loginRes.message) || '自动登录失败，请手动登录',
+        icon: 'none'
+      })
     },
 
     /** 关闭常用链接弹窗 */
