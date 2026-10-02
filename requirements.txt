@@ -16,6 +16,7 @@ brotli==1.2.0
 cryptography==50.0.0
 # Academic-system crawling dependencies
 requests==2.34.2
+urllib3==2.8.0
 beautifulsoup4==4.15.0
 lxml==6.1.2
 ddddocr==1.6.1

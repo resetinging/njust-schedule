@@ -15,10 +15,8 @@ from wxcloudrun.api import auth as auth_api  # noqa: E402
 from wxcloudrun.core import credential_store  # noqa: E402
 
 
-def test_remember_tristate():
-    assert auth_api._remember_requested({}) is None
-    assert auth_api._remember_requested({"remember": False}) is False
-    assert auth_api._remember_requested({"remember": "true"}) is True
+def test_credential_resume_requires_matching_stored_password():
+    assert auth_api._can_resume_credential("10001", "pwd") is False
 
 
 def test_delete_token_roundtrip_and_tamper():

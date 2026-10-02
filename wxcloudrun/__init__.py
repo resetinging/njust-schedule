@@ -122,12 +122,54 @@ def _migrate_feedback_reply():
             app.logger.warning("[migrate] feedback 补列跳过(可能已被其他实例补充): %s", e)
 
 
+_PERF_INDEXES = (
+    ("courses", "ix_courses_user_semester_day",
+     ("student_id", "semester", "day_of_week", "start_period")),
+    ("exams", "ix_exams_user_semester_date",
+     ("student_id", "semester", "exam_date")),
+    ("grades", "ix_grades_user_year_semester",
+     ("student_id", "academic_year", "semester")),
+    ("evaluations", "ix_evaluations_user_end",
+     ("student_id", "end_date")),
+    ("cet_scores", "ix_cet_user_type_score",
+     ("student_id", "cet_type", "total_score")),
+)
+
+
+def _ensure_perf_indexes():
+    """为高频多用户查询补充复合索引; 幂等, 失败不阻塞容器启动。"""
+    from sqlalchemy import inspect as sa_inspect, text as sa_text
+
+    for table, index_name, columns in _PERF_INDEXES:
+        try:
+            insp = sa_inspect(db.engine)
+            if not insp.has_table(table):
+                continue
+            indexes = insp.get_indexes(table)
+            if any(i.get("name") == index_name for i in indexes):
+                continue
+            wanted = list(columns)
+            if any(list(i.get("column_names") or []) == wanted for i in indexes):
+                continue
+            quoted_cols = ", ".join(f"`{c}`" for c in columns)
+            with db.engine.begin() as conn:
+                conn.execute(sa_text(
+                    f"CREATE INDEX `{index_name}` ON `{table}` ({quoted_cols})"
+                ))
+            app.logger.info("[migrate] %s 已创建性能索引 %s", table, index_name)
+        except Exception as e:
+            # 滚动发布时可能多个实例同时建索引, 或旧库权限不足; 不能影响启动。
+            app.logger.warning("[migrate] 性能索引跳过 %s.%s: %s",
+                               table, index_name, e)
+
+
 # 确保数据表存在（container.config.json 的 executeSQLs 可能未执行）
 from wxcloudrun import model  # noqa: E402
 with app.app_context():
     db.create_all()
     _migrate_student_id()
     _migrate_feedback_reply()
+    _ensure_perf_indexes()
 
 
 # gzip 压缩文本响应（JSON/HTML/JS/CSS, >500 字节）: 移动网络下显著提速

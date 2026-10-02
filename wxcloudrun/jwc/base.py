@@ -13,6 +13,8 @@ class BaseMixin:
         import threading
         self._lock = threading.Lock()
         self._pool_maxsize = pool_maxsize
+        self._jw_http_count = 0
+        self._jw_http_targets = {}
         self.debug_log = []  # 智慧理工 SSO 诊断日志
         self.webvpn = None
         self._logon_base_idx = 0  # 登录入口候选下标（节点不通时自动切换）
@@ -47,6 +49,7 @@ class BaseMixin:
         行为与普通 HTTPAdapter 一致（保留原连接池参数）。
         """
         self.session = requests.Session()
+        self.session.hooks["response"].append(self._count_jw_response)
         self.session.cookies = _DedupCookieJar()
         self.session.headers.update(HEADERS)
         self.webvpn = WebVPNTransport(self.session, base=WEBVPN_BASE,
@@ -58,3 +61,19 @@ class BaseMixin:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
         return self.session
+
+    def _count_jw_response(self, response, *args, **kwargs):
+        """统计实际教务 HTTP（含重定向）；只记录目标路径，不记录查询参数。"""
+        try:
+            from urllib.parse import urlsplit
+            parsed = urlsplit(response.request.url)
+            target = f"{response.request.method} {parsed.netloc}{parsed.path}"
+            self._jw_http_count = int(getattr(self, "_jw_http_count", 0)) + 1
+            targets = getattr(self, "_jw_http_targets", None)
+            if targets is None:
+                targets = {}
+                self._jw_http_targets = targets
+            targets[target] = int(targets.get(target, 0)) + 1
+        except Exception:
+            pass
+        return response

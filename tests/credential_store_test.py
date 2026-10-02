@@ -7,6 +7,7 @@
 import base64
 import os
 import sys
+import time
 
 os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite:///credential_store_test.db")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -36,11 +37,28 @@ def main():
     check("初始取不到", cs.resolve(SID) is None)
     check("保存成功", cs.save(SID, PWD) is True)
     check("能取回原密码", cs.resolve(SID) == PWD, cs.resolve(SID))
+    check("密码校验成功", cs.verify(SID, PWD) is True)
+    check("错误密码校验失败", cs.verify(SID, "wrong") is False)
+    check("新保存凭据处于 24 小时信任期", cs.trusted(SID) is True)
+    check("密码匹配且信任期有效时允许 Cookie 恢复",
+          cs.can_resume(SID, PWD) is True)
     raw = dao.get_user_setting(SID, "credential", "")
     check("库里搜不到明文", PWD not in raw and len(raw) > 20, raw[:24])
     check("换学号解不开(AAD)", cs._load("924101960999") is None)
     cs.save(SID, PWD)
     check("使用成功清零失败计数", cs.mark_used(SID) is True and cs._load(SID)["fail"] == 0)
+    _verified_before = cs._load(SID)["verified_at"]
+    assert cs.mark_used(SID) is True
+    check("本地复用不延长真实认证信任期",
+          cs._load(SID)["verified_at"] == _verified_before)
+    _data = cs._load(SID)
+    _data["verified_at"] = int(time.time()) - cs.CREDENTIAL_TRUST_TTL - 1
+    assert cs._save_payload(SID, _data) is True
+    check("信任期超过 24 小时后失效", cs.trusted(SID) is False)
+    check("信任期失效后禁止 Cookie 恢复",
+          cs.can_resume(SID, PWD) is False)
+    check("真实认证可重新刷新信任期", cs.mark_verified(SID) is True)
+    check("刷新后恢复 Cookie 恢复资格", cs.can_resume(SID, PWD) is True)
     cs.mark_failure(SID, limit=3)
     cs.mark_failure(SID, limit=3)
     check("连续失败未达上限仍保留", cs.resolve(SID) == PWD)

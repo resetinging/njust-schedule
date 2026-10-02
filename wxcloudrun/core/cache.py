@@ -1,13 +1,21 @@
 # -*- coding: utf-8 -*-
-"""查询接口进程内缓存(按用户隔离, 默认 30s)。
+"""查询接口进程内缓存(按用户隔离, 默认与教务会话同为 30 天)。
 
 - 键格式 "{sid}:{kind}:{param}"
-- 数据刷新接口成功后调用 invalidate_user_cache 主动失效
+- 会话重新建立/数据刷新接口成功后调用 invalidate_user_cache 主动失效
 """
+import os
 import threading
 import time
 
-QUERY_CACHE_TTL = 30
+from config import DATA_CACHE_TTL
+
+QUERY_CACHE_TTL = DATA_CACHE_TTL
+try:
+    QUERY_CACHE_MAX_ITEMS = max(
+        100, int(os.environ.get("QUERY_CACHE_MAX_ITEMS", "2000")))
+except (TypeError, ValueError):
+    QUERY_CACHE_MAX_ITEMS = 2000
 _query_cache = {}
 _query_cache_lock = threading.Lock()
 
@@ -23,11 +31,16 @@ def _cache_get(key: str):
 def _cache_set(key: str, value, ttl: float = QUERY_CACHE_TTL):
     with _query_cache_lock:
         _query_cache[key] = (time.time() + ttl, value)
-        # 惰性清理过期条目, 防内存缓慢增长
-        if len(_query_cache) > 500:
+        # 30 天缓存必须同时限制总量，优先清理已过期和最久将过期条目。
+        if len(_query_cache) > QUERY_CACHE_MAX_ITEMS:
             now = time.time()
             for k in [k for k, (ts, _v) in _query_cache.items() if ts <= now]:
                 _query_cache.pop(k, None)
+            overflow = len(_query_cache) - QUERY_CACHE_MAX_ITEMS
+            if overflow > 0:
+                oldest = sorted(_query_cache.items(), key=lambda item: item[1][0])
+                for k, _item in oldest[:overflow]:
+                    _query_cache.pop(k, None)
 
 
 def invalidate_user_cache(sid: str, *kinds):

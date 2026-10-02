@@ -3,7 +3,7 @@
 
 数据源: 教务「教室借用查询」→ 状态=空闲教室清单;
 缓存: 进程内全局缓存, TTL 到下一个大节上课时刻,
-预热线程在各大节刷新今天+明天。
+预热线程在各大节刷新今天; 其它日期首次查询时按需抓取。
 """
 import os
 import threading
@@ -37,6 +37,11 @@ FREE_CLASSROOM_CAMPUSES = ("孝陵卫", "江阴")
 FREE_CLASSROOM_SLOTS = {s[0]: (s[2], s[3]) for s in CLASSROOM_SLOTS}
 WEEKDAY_NAMES = ("", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日")
 JC_MIN, JC_MAX = 1, 13   # 一天最多 13 节(官方大节 1-3/4-5/6-7/8-10/11-13)
+try:
+    FREE_CLASSROOM_PREWARM_DAYS = max(
+        1, min(2, int(os.environ.get("FREE_CLASSROOM_PREWARM_DAYS", "1"))))
+except (TypeError, ValueError):
+    FREE_CLASSROOM_PREWARM_DAYS = 1
 
 
 def _current_teaching_week(first_week_date: str, on=None) -> int:
@@ -227,7 +232,7 @@ def _current_slot_key(now=None) -> str:
 def _freeclass_ttl(now=None) -> float:
     """空教室缓存有效期: 到下一个大节上课时刻 + 120s 缓冲。
 
-    数据由后端预热线程在每天各大节上课时刻统一更新(今天+明天),
+    数据由后端预热线程在每天各大节上课时刻统一更新(默认只补今天),
     用户请求命中缓存即可; 未命中(冷启动/周末等)按需抓取后同样缓存到
     下一个刷新时刻, 取代原先的 120s 短 TTL。
     """
@@ -238,24 +243,20 @@ def _freeclass_ttl(now=None) -> float:
 
 
 def _prewarm_targets(fwd: str, today=None):
-    """预热目标: [(日期, 星期, 周次)...] —— 今天 + 明天, 周次各自按**所属周**计算。
-
-    明天可能跨周(周日→周一): 若沿用"本周"周次, 预热出的缓存键与用户端算出的
-    周次不一致, 周一早上就命中不了缓存。
-    """
+    """预热目标: [(日期, 星期, 周次)...] —— 默认只预热今天, 明天查询时按需缓存。"""
     from datetime import timedelta as _td
     base = today or _beijing_date()
     out = []
-    for offset in (0, 1):
+    for offset in range(FREE_CLASSROOM_PREWARM_DAYS):
         day = base + _td(days=offset)
         out.append((day, day.isoweekday(), _current_teaching_week(fwd, on=day)))
     return out
 
 
 def _prewarm_free_classrooms(slots=None):
-    """预热指定大节(默认全部)在"今天/明天 + 各自周次"的缓存; 返回成功条数。
+    """预热指定大节在指定日期的缓存; 返回成功条数。
 
-    同时预热明天: 晚上/周日"查明天教室"是高频场景, 命中率翻倍。
+    默认只预热今天, 明天首次查询时按需抓取并缓存, 避免后台每天重复访问教务。
     需在 app 上下文中调用(内部读 first_week_date 等设置)。
     """
     semester = _current_semester()

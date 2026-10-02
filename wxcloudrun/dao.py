@@ -39,6 +39,15 @@ def set_user_setting(student_id: str, key: str, value: str):
     set_setting(f"{student_id}:{key}", value)
 
 
+def get_settings(keys: list) -> dict:
+    """批量读取设置键，避免状态接口多次单键查询。"""
+    wanted = [str(k) for k in keys if k]
+    if not wanted:
+        return {}
+    rows = Setting.query.filter(Setting.k.in_(wanted)).all()
+    return {row.k: row.v for row in rows}
+
+
 # ============================================================
 # 课表助手 — 课表（按用户隔离）
 # ============================================================

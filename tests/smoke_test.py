@@ -59,6 +59,7 @@ for path in ["/exams", "/evaluations", "/grades", "/settings", "/gallery"]:
 
 print("== 公开 API (未登录) ==")
 check("/api/status", client.get("/api/status"), 200)
+check("/api/prefetch-status 未登录 401", client.get("/api/prefetch-status"), 401)
 check("/api/settings", client.get("/api/settings"), 200)
 check("/api/semesters", client.get("/api/semesters"), 200)
 check("/api/gallery-images", client.get("/api/gallery-images"), 200)
@@ -260,6 +261,9 @@ assert r1.status_code == 200 and r1.get_json()["courses"] == [], r1.status_code
 check("带 token 访问 /api/courses", r1, 200)
 st = client.get("/api/status", headers=h1).get_json()
 assert st["logged_in"] is True and st["student_id"] == "10001", st
+ps = client.get("/api/prefetch-status", headers=h1)
+check("/api/prefetch-status 登录后 200", ps, 200)
+assert ps.get_json().get("data_refresh", {}).get("state") == "idle", ps.get_json()
 print("  [PASS] /api/status 返回 token 对应用户")
 
 # 用户1 写入课表 → 用户1 可见，用户2 不可见
@@ -419,10 +423,10 @@ assert _current_teaching_week("2026-09-07", on=_d(2026, 9, 13)) == 1     # 周�
 assert _current_teaching_week("2026-09-07", on=_d(2026, 9, 14)) == 2     # 周一进入第2周
 assert _current_teaching_week("", on=_d(2026, 9, 14)) == 1               # 无设置回退 1
 assert isinstance(_beijing_date(), _d)
-# 预热跨周: 周日预热的"明天(周一)"必须用第2周, 否则周一早上命中不了缓存
+# 默认只预热今天; 明天首次查询时按需抓取并缓存, 避免后台重复访问教务
 _tg = [(x[1], x[2]) for x in _prewarm_targets("2026-09-07", today=_d(2026, 9, 13))]
-assert _tg == [(7, 1), (1, 2)], _tg
-print("  [PASS] 时区: 教学周按给定日期算 + 预热跨周取下一周周次")
+assert _tg == [(7, 1)], _tg
+print("  [PASS] 时区: 教学周按给定日期算 + 默认只预热今天")
 
 print("== 管理端仪表盘与反馈(留言板已下线) ==")
 from wxcloudrun import admin as admin_mod  # noqa: E402
@@ -444,15 +448,13 @@ ah = {"X-Admin-Token": _admin_tok}
 from wxcloudrun.core import credential_store as _cred  # noqa: E402
 check("管理员明文凭据查询已下线 404",
       client.post("/api/admin/credentials/reveal", json={"student_id": "10002"}, headers=ah), 404)
-# remember 三态: 缺省保持现状 / false 删除 / true 保存
+# 默认保存密码: 密码校验走本地专用比较, 24 小时信任期由 credential_store 管理
 from wxcloudrun.api import auth as _auth  # noqa: E402
-assert _auth._remember_requested({}) is None
-assert _auth._remember_requested({"remember": False}) is False
-assert _auth._remember_requested({"remember": "true"}) is True
 assert _cred.save("10002", "Keep@1234") is True
-_auth._apply_credential_preference("10002", "", None)
-assert _cred.resolve("10002") == "Keep@1234", "remember 缺省不应删除已有凭据"
-print("  [PASS] remember 三态兼容(缺省保持已有凭据)")
+assert _cred.verify("10002", "Keep@1234") is True
+assert _cred.can_resume("10002", "Keep@1234") is True
+assert _cred.can_resume("10002", "Wrong@1234") is False
+print("  [PASS] 默认保存密码 + 本地信任校验")
 assert _cred.save("10005", "Revoke@1234") is True
 _dt = _cred.issue_delete_token("10005")
 check("仅凭删除 token 也可撤销凭据",
@@ -521,7 +523,7 @@ r = client.get("/api/admin/feedback", headers=ah).get_json()
 assert any(f["content"] == "仪表盘回归测试反馈" for f in r["feedback"]), r
 print("  [PASS] 问题反馈提交/敏感词过滤/管理端可见")
 
-# 用户主动删除服务端凭据 / 退出登录: 服务端保存的密码一并删除
+# 用户主动删除服务端凭据; 退出登录保留密码
 _fc.logout = lambda: None            # 假客户端: 避免真的发网络请求
 assert _cred.save(_fc.student_id, "Smoke@1234") is True
 assert _cred.resolve(_fc.student_id) == "Smoke@1234"
@@ -538,8 +540,8 @@ assert _cred.resolve(_fc.student_id) is None, "主动删除后服务端凭据仍
 print("  [PASS] 用户主动删除服务端保存的密码")
 assert _cred.save(_fc.student_id, "Smoke@1234") is True
 check("/api/logout 退出登录", client.post("/api/logout", headers=_fh), 200)
-assert _cred.resolve(_fc.student_id) is None, "退出登录后服务端凭据未删除"
-print("  [PASS] 退出登录删除服务端保存的密码")
+assert _cred.resolve(_fc.student_id) == "Smoke@1234", "退出登录不应删除服务端密码"
+print("  [PASS] 退出登录保留服务端保存的密码")
 
 # 会话失效: 用户明确保存的服务端凭据可自动重登一次
 _rc = JWCClient()

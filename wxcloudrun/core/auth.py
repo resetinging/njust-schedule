@@ -26,6 +26,7 @@ def _try_credential_relogin(client: JWCClient) -> bool:
     from wxcloudrun.core.pool import _jwc_request_priority
 
     ok = False
+    verified_now = False
     try:
         with _jwc_request_priority(client):
             # 同一会话可能被多个并发预取请求同时判定为失效。
@@ -34,8 +35,10 @@ def _try_credential_relogin(client: JWCClient) -> bool:
                 ok = True
             elif getattr(client, "account_type", "") == "graduate":
                 ok = bool(client.login(sid, password))
+                verified_now = ok
             elif hasattr(client, "login_webvpn"):
                 ok = bool(client.login_webvpn(sid, password))
+                verified_now = ok
     except Exception as exc:  # noqa: BLE001 自动重登失败按未登录处理
         app.logger.warning("[auth] rid=%s 凭据自动重登异常 sid=%s: %s",
                            _rid(), sid, type(exc).__name__)
@@ -43,10 +46,24 @@ def _try_credential_relogin(client: JWCClient) -> bool:
 
     try:
         if ok:
-            credential_store.mark_used(sid)
+            if verified_now:
+                credential_store.mark_verified(sid)
+            else:
+                credential_store.mark_used(sid)
             try:
                 from wxcloudrun.core import session_store
                 session_store.save_session(sid, client.session.cookies)
+            except Exception:
+                pass
+            try:
+                from wxcloudrun.core.cache import invalidate_user_cache
+                invalidate_user_cache(sid)
+                # 主动刷新请求会自行拉取目标数据, 避免与全量预抓重复。
+                is_refresh = (request.method == "POST"
+                              and request.path.startswith("/api/refresh"))
+                if not is_refresh:
+                    from wxcloudrun.api.study import schedule_data_prefetch
+                    schedule_data_prefetch(client, sid)
             except Exception:
                 pass
             app.logger.info("[auth] rid=%s 凭据自动重登成功 sid=%s", _rid(), sid)

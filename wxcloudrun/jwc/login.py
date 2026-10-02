@@ -250,9 +250,8 @@ class LoginMixin:
     def _try_resume_sso_session(self) -> bool:
         """用持久化的 cookie 直接恢复教务会话; 成功则完全不提交密码。
 
-        注意: 登录入口(login_webvpn)已不再调用本方法——复用会掩盖用户提交的
-        错误密码(服务端还有会话时任意密码都会"登录成功")。保留它是为了将来在
-        "明确不需要验证密码"的静默恢复场景中复用。
+        登录入口只会在服务端保存密码匹配且真实认证未超过 24 小时时调用，
+        避免错误密码仅凭旧 Cookie 登录。
         """
         if not self.student_id:
             return False
@@ -298,12 +297,11 @@ class LoginMixin:
         password = 智慧理工密码; jwc_password = 教务密码(可与前者不同,
         未提供时回退为智慧理工密码)。SSO 用前者, 教务登录用后者。
         use_webvpn=True 时强制教务请求走 WebVPN 代理。
-        allow_resume=True 时允许复用持久化会话(仅供无人工密码输入的后台服务账号使用;
-        用户登录入口必须真实验证密码, 否则有会话时任意错误密码都会"登录成功")。
+        allow_resume=True 时允许复用持久化会话; 普通用户仅在服务端密码匹配
+        且 24 小时真实认证信任期有效时启用。
         """
-        # 服务器端保存的凭据**不用于用户登录入口**: 必须真实验证用户输入的密码,
-        # 否则"不填密码也能登录"会成为越权风险。
-        # 凭据仅用于会话失效时自动重登; 用户关闭记住开关或退出登录时删除。
+        # 服务端凭据仅在密码匹配且 24 小时信任期有效时用于 Cookie 恢复;
+        # 信任期过期、密码不匹配或 Cookie 失效时必须回退真实 SSO 认证。
         jwc_pwd = jwc_password or password
         self.student_id = student_id
         self.student_name = None
@@ -320,9 +318,7 @@ class LoginMixin:
             return False
 
         try:
-            # Step 0: 后台服务账号可复用持久化会话(减少智慧理工认证次数);
-            # 用户登录入口必须真实验证密码——前置复用会让"服务端还有会话时,
-            # 输入任何错误密码都登录成功"。
+            # Step 0: 后台服务账号或通过本地密码校验的普通用户可复用持久化会话。
             if allow_resume and self._try_resume_sso_session():
                 return True
 

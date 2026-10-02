@@ -111,6 +111,10 @@ SSO_LOGIN_URL = (
 # 上限与之对齐，避免无谓地重新认证；复用前仍会探测有效性，退出登录会主动删除。
 SSO_SESSION_SETTING_KEY = "jwc_session"
 SSO_SESSION_MAX_AGE = int(os.environ.get("SSO_SESSION_MAX_AGE", str(30 * 24 * 3600)))
+# 教务业务数据缓存与持久会话同周期；会话重新建立或用户主动刷新时更新。
+DATA_CACHE_TTL = int(os.environ.get("DATA_CACHE_TTL", str(30 * 24 * 3600)))
+# 服务端保存密码用于免 SSO 恢复的本地信任期；只有真实 SSO 登录成功才续期。
+CREDENTIAL_TRUST_TTL = int(os.environ.get("CREDENTIAL_TRUST_TTL", str(24 * 3600)))
 # 同一学号认证失败后的冷却秒数（冷却期内不再打智慧理工；只防连点，不长时间拦人）
 SSO_LOGIN_COOLDOWN = int(os.environ.get("SSO_LOGIN_COOLDOWN", "2"))
 # 登录密码提交次数上限：验证码识别偶发失败时换图重试的兜底。

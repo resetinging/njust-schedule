@@ -57,23 +57,41 @@ from wxcloudrun.core.media import _sniff_image_mime  # noqa: E402
 app.register_blueprint(gallery_bp)
 
 
-# 教务连通性探测缓存（导航栏/设置页高频调用，30 秒内复用结果）
+# 教务连通性探测缓存（导航栏/设置页高频调用，5 分钟内复用结果）
 _network_cache = {"ts": 0.0, "ok": False}
-NETWORK_CACHE_TTL = 30
+try:
+    NETWORK_CACHE_TTL = max(30, int(os.environ.get("NETWORK_CACHE_TTL", "300")))
+except (TypeError, ValueError):
+    NETWORK_CACHE_TTL = 300
 
 
 # 教务连通性探测的后台刷新状态(必须在 _check_network 之前定义:
 # 否则万一在模块导入期就被调用, 会 NameError)
 _network_refreshing = {"on": False}
 _network_lock = threading.Lock()
+_network_probe_lock = threading.Lock()
 
 
-def _check_network() -> Tuple[bool, str]:
+def _check_network(force: bool = False) -> Tuple[bool, str]:
     """教务连通性: 只读缓存, 过期交给后台线程刷新 —— 绝不在请求路径里阻塞。
 
     之前是同步探测(timeout=5, TTL=30s), 探测失败时每个请求都要等 5~10s,
     表现为 /api/status 偶发 10s; 现在请求永远毫秒返回上次结果。
+
+    force=True 仅供用户主动点击“连接测试”使用, 会同步刷新一次。
     """
+    if force:
+        with _network_lock:
+            should_probe = not _network_refreshing["on"]
+            if should_probe:
+                _network_refreshing["on"] = True
+        if should_probe:
+            _refresh_network_cache()
+        else:
+            # 已有后台探测: 等它完成并直接复用结果, 不再多打一次教务。
+            with _network_probe_lock:
+                pass
+        return bool(_network_cache["ok"]), ""
     now = time.time()
     age = now - _network_cache["ts"]
     if age >= NETWORK_CACHE_TTL and not _network_refreshing["on"]:
@@ -89,17 +107,18 @@ def _check_network() -> Tuple[bool, str]:
 
 def _refresh_network_cache():
     """后台探测教务连通性(短超时), 结果写入缓存供请求直接读取"""
-    try:
+    with _network_probe_lock:
         try:
-            probe = JWCClient()
-            ok, _msg = probe.test_connection(timeout=3)
-        except Exception:
-            ok = False
-        _network_cache["ok"] = ok
-        _network_cache["ts"] = time.time()
-    finally:
-        # 必须放 finally: 中途抛异常也要把标记放掉, 否则后台刷新会被永久禁用
-        _network_refreshing["on"] = False
+            try:
+                probe = JWCClient()
+                ok, _msg = probe.test_connection(timeout=3)
+            except Exception:
+                ok = False
+            _network_cache["ok"] = ok
+            _network_cache["ts"] = time.time()
+        finally:
+            # 必须放 finally: 中途抛异常也要把标记放掉, 否则后台刷新会被永久禁用
+            _network_refreshing["on"] = False
 
 
 def _current_semester() -> str:

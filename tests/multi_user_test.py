@@ -22,11 +22,13 @@ os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{_db_path}"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from wxcloudrun import app, dao  # noqa: E402
+from wxcloudrun import app, dao, db  # noqa: E402
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 from wxcloudrun import views  # noqa: E402
 
 client = app.test_client()
+_APP_CTX = app.app_context()
+_APP_CTX.push()
 
 PASS, FAIL = 0, 0
 
@@ -191,6 +193,9 @@ check("甲 退出后 401", client.get("/api/courses", headers=hA).status_code ==
 check("乙 不受影响仍可访问", client.get("/api/courses", headers=hB).status_code == 200)
 
 # 清理
+db.session.remove()
+db.engine.dispose()
+_APP_CTX.pop()
 os.remove(_db_path)
 
 print()
