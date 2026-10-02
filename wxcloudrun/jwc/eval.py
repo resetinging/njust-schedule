@@ -102,18 +102,44 @@ class EvalMixin:
         return ok
 
     def test_connection(self, timeout: float = None) -> Tuple[bool, str]:
-        """教务连通性探测（逐个登录入口试, 可指定短超时, 避免阻塞调用方接口响应）
+        """探测智慧理工 SSO 与教务入口连通性。
 
-        实测教务双节点会单独不通(.113 两端口同时超时), 所以这里也按候选逐个探。
-        SSO 直连模式下教务只从 JW_SSO_BASE 进, 不能再去探 8080 登录入口。
+        教务旧 Logon.do 表单登录已下线，默认只探测智慧理工统一认证
+        和 /njlgdx/indexsso.jsp；仅显式开启 JW_ALLOW_FORM_FALLBACK 时
+        才回退旧的 8080 登录入口。
         """
         if self.webvpn is not None and self.webvpn.remap_to:
             try:
                 r = self.session.get(f"{JW_SSO_BASE}{JW_PATH_PREFIX}/framework/main.jsp",
-                                     timeout=timeout or TIMEOUT)
+                                     timeout=timeout or TIMEOUT,
+                                     allow_redirects=True)
                 return (True, "连接正常") if r.status_code == 200 else (False, f"{r.status_code}")
             except Exception as e:  # noqa: BLE001
                 return False, f"{JW_SSO_BASE} 无法连接: {e}"
+
+        sso_checks = (
+            ("智慧理工统一认证", SSO_LOGIN_URL),
+            ("教务 SSO 入口", JW_SSO_ENTRY),
+        )
+        sso_error = ""
+        for label, url in sso_checks:
+            try:
+                r = self.session.get(
+                    url, timeout=timeout or TIMEOUT, allow_redirects=True)
+                if r.status_code == 200:
+                    continue
+                sso_error = f"{label}返回 {r.status_code}"
+            except requests.exceptions.ConnectionError:
+                sso_error = f"{label}无法连接，请确认校园网/VPN"
+            except Exception as e:  # noqa: BLE001
+                sso_error = f"{label}探测失败: {e}"
+            break
+        else:
+            return True, "智慧理工 SSO 与教务入口连接正常"
+
+        if not JW_ALLOW_FORM_FALLBACK:
+            return False, sso_error or "智慧理工 SSO 或教务入口不可达"
+
         bases = JW_LOGON_BASES or [BASE_URL]
         last_err = "无法连接，请确认校园网/VPN"
         for idx, base in enumerate(bases):
@@ -129,4 +155,3 @@ class EvalMixin:
             except Exception as e:  # noqa: BLE001
                 last_err = str(e)
         return False, last_err
-
