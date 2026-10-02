@@ -56,7 +56,6 @@ Component({
     qrFallback: '',
     qrId: '',
     qrHint: '',
-    rememberPwd: true,     // 记住学号与密码（保存在本机）
     showPassword: false,   // 密码明文显示开关
 
     // 校历设置
@@ -103,9 +102,6 @@ Component({
   lifetimes: {
   attached() {
       this.refreshState()
-      // 回读记住密码开关状态
-      const rp = storage.get('remember_pwd', '1') !== '0'
-      if (rp !== this.data.rememberPwd) this.setData({ rememberPwd: rp })
       this.loadSettings()
       this._loadAnnouncement()
     },
@@ -498,64 +494,9 @@ Component({
       })
     },
 
-    /**
-     * 关闭记住密码: 先删服务端凭据, 成功后再清本地密码。
-     * 服务端删除失败时保持开关开启, 避免“界面已关闭但密码仍在服务器”。
-     */
-    async _disableRemember() {
-      if (this._rememberBusy) return false
-      this._rememberBusy = true
-      const sid = storage.getStudentId()
-      const token = storage.get('token', '')
-      if (sid && token) {
-        try {
-          const res = await api.deleteCredential()
-          if (!res || !res.success) {
-            throw new Error((res && res.message) || '服务端密码删除失败')
-          }
-          storage.remove('credential_delete_token')
-        } catch (e) {
-          this.setData({ rememberPwd: true })
-          storage.set('remember_pwd', '1')
-          wx.showToast({ title: '服务端密码删除失败，请检查网络后重试', icon: 'none' })
-          this._rememberBusy = false
-          return false
-        }
-      } else if (sid) {
-        wx.showToast({ title: '当前离线，重新登录后会删除服务端密码', icon: 'none' })
-      }
-      storage.remove('saved_password')
-      storage.set('remember_pwd', '0')
-      this.setData({ rememberPwd: false })
-      this._rememberBusy = false
-      return true
-    },
-
-    /** 记住密码开关(状态持久化) */
-    onToggleRemember(e) {
-      const val = !!e.detail.value
-      if (val) {
-        this.setData({ rememberPwd: true })
-        storage.set('remember_pwd', '1')
-      } else {
-        this._disableRemember()
-      }
-    },
-
-    /** 点击文字切换记住密码 */
-    onTapRemember() {
-      const next = !this.data.rememberPwd
-      if (next) {
-        this.setData({ rememberPwd: true })
-        storage.set('remember_pwd', '1')
-      } else {
-        this._disableRemember()
-      }
-    },
-
     /** 登录：智慧理工 SSO 一步直连教务（免教务密码/验证码） */
     async onLogin() {
-      const { studentId, password, rememberPwd } = this.data
+      const { studentId, password } = this.data
       if (!studentId || !password) {
         wx.showToast({ title: '请填写学号和智慧理工密码', icon: 'none' })
         return
@@ -565,20 +506,19 @@ Component({
       this.setData({ loggingIn: true })
       try {
         wx.showLoading({ title: '智慧理工登录中…' })
-        res = await api.loginWebvpn(studentId, password, rememberPwd)
+        res = await api.loginWebvpn(studentId, password)
         wx.hideLoading()
         this.setData({ loggingIn: false })
 
         if (res.success) {
-          // 仅在用户明确开启“记住学号和密码”时保存本地密码与服务端加密凭据。
-          if (rememberPwd) storage.set('saved_password', password)
-          else storage.remove('saved_password')
+          // 默认保存本机密码; 服务端也会始终加密保存。
+          storage.set('saved_password', password)
           storage.setStudentId(studentId)
           storage.setStudentName(res.student_name || '')
           storage.setSemester(res.semester || '')
           // 账号类型(研究生/本科): 决定课表/成绩页走哪套数据
           storage.set('account_type', res.account_type || 'undergraduate')
-          if (rememberPwd && res.credential_saved === false) {
+          if (res.credential_saved === false) {
             wx.showToast({
               title: '登录成功，但服务端未启用密码保存',
               icon: 'none', duration: 2600
@@ -883,7 +823,7 @@ Component({
     async onRefreshAll() {
       wx.showLoading({ title: '刷新中…' })
       try {
-        const ok = await dataLoader.fetchAllData()
+        const ok = await dataLoader.fetchAllData({ force: true })
         wx.hideLoading()
         wx.showToast({ title: ok > 0 ? '数据已更新' : '刷新失败', icon: ok > 0 ? 'success' : 'none' })
       } catch (e) {

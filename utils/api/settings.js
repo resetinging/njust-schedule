@@ -8,6 +8,11 @@ function getStatus() {
   return request('GET', '/api/status')
 }
 
+/** 登录后全量同步状态(轻量接口: 不查库、不探测教务) */
+function getDataRefreshStatus() {
+  return request('GET', '/api/prefetch-status')
+}
+
 /** 切换学期 */
 
 function setSemester(semester) {
@@ -55,4 +60,11 @@ function saveSettings(data) {
  *  或受返回包 ~1000KB 限制; 直链无这些限制。真机需将 API_BASE 域名加入
  *  downloadFile 合法域名白名单; 开发者工具 urlCheck=false 无需配置。 */
 
-module.exports = { getStatus, setSemester, clearData, getSemesters, saveSettings }
+module.exports = {
+  getStatus,
+  getDataRefreshStatus,
+  setSemester,
+  clearData,
+  getSemesters,
+  saveSettings
+}

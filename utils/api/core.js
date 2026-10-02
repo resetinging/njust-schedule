@@ -16,6 +16,15 @@ const TOKEN_KEY = 'token'
 // 底层请求封装
 // ============================================================
 
+// 相同 GET 在途请求复用: 页面启动、预取与状态轮询经常同时命中同一接口。
+const _inflightGets = Object.create(null)
+
+function _getRequestKey(path, data, token) {
+  let body = ''
+  try { body = JSON.stringify(data || {}) } catch (e) { body = String(data || '') }
+  return [token || '', path || '', body].join('|')
+}
+
 /**
  * 发起 HTTP 请求（通过云托管内网，免域名白名单）
  * 401 自动重登: 非登录接口收到 401 时, 若本地记住了学号密码,
@@ -27,6 +36,19 @@ const TOKEN_KEY = 'token'
  * @returns {Promise<object>} { success, data, message }
  */
 function request(method, path, data = {}, opts) {
+  if (method !== 'GET') return _request(method, path, data, opts)
+  const key = _getRequestKey(path, data, storage.get(TOKEN_KEY, ''))
+  if (_inflightGets[key]) return _inflightGets[key]
+  const promise = _request(method, path, data, opts)
+  _inflightGets[key] = promise
+  const clear = () => {
+    if (_inflightGets[key] === promise) delete _inflightGets[key]
+  }
+  promise.then(clear, clear)
+  return promise
+}
+
+function _request(method, path, data = {}, opts) {
   const timeout = (opts && opts.timeout) || config.REQUEST_TIMEOUT
   // 登录/验证码/登出接口不触发 401 自动重登(登出 401 时重登会白跑一轮 OCR)
   const isLoginPath = /\/api\/(login|logout|sso-qr|get-webvpn-captcha|get-captcha)/.test(path)

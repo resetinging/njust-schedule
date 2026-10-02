@@ -65,7 +65,7 @@ App({
         jc2,
         semester: sem || ''
       }).catch(() => {})
-    }, 900)
+    }, 2500)
 
     // 课表（缓存键带学期）
     const coursesKey = 'cached_courses_' + (sem || 'default')
@@ -188,7 +188,7 @@ App({
 
   /** 退出登录（等待后端登出 + 本地清理完成） */
   async doLogout() {
-    // 只保留上次学号用于登录页回填。密码按隐私承诺随退出删除，不回写。
+    // 保留上次学号与密码用于登录页回填; token/登录态仍会正常清除。
     const lastSid = storage.getStudentId()
     await api.logout()
     try {

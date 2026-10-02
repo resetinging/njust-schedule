@@ -12,7 +12,8 @@ function getCalendar(semester) {
 
 /** 强制刷新教学周历 */
 function refreshCalendar(semester) {
-  return request('POST', '/api/refresh-calendar', semester ? { semester } : {})
+  return request('POST', '/api/refresh-calendar',
+    semester ? { semester } : {}, { force: true })
 }
 
 /** 专业培养方案(整份; 登录后后端会自动预抓一次) */
@@ -22,7 +23,7 @@ function getProgramme() {
 
 /** 强制刷新培养方案 */
 function refreshProgramme() {
-  return request('POST', '/api/refresh-programme')
+  return request('POST', '/api/refresh-programme', {}, { force: true })
 }
 
 module.exports = { getCalendar, refreshCalendar, getProgramme, refreshProgramme }

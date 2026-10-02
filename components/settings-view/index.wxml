@@ -157,12 +157,6 @@
         </view>
       </view>
 
-      <!-- 记住学号密码 -->
-      <view class="remember-row">
-        <switch checked="{{rememberPwd}}" bindchange="onToggleRemember" color="#2563EB" style="transform:scale(0.8);" />
-        <text class="remember-label tap" bindtap="onTapRemember">记住学号和密码</text>
-      </view>
-
       <!-- 登录按钮(不禁用: 空表单点击时 onLogin 校验并提示, 避免"点了没反应") -->
       <button class="btn-primary login-btn" bindtap="onLogin"
               disabled="{{loggingIn}}">

@@ -5,7 +5,7 @@ const { request } = require('./core')
 const storage = require('../storage')
 
 function refreshAll() {
-  return request('POST', '/api/refresh-all').then(res => {
+  return request('POST', '/api/refresh-all', {}, { force: true }).then(res => {
     if (res.success) {
       // 移除带学期后缀的缓存键(旧的裸键无读取方, 已废弃)
       try {

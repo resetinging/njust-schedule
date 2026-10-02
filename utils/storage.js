@@ -8,7 +8,7 @@ const STORAGE_KEYS = {
   SEMESTER: 'semester',
   TOKEN: 'token',           // 后端登录 token（多用户会话标识）
   CREDENTIAL_DELETE_TOKEN: 'credential_delete_token', // 仅用于删除服务端保存的密码
-  SAVED_PASSWORD: 'saved_password',   // 记住的密码（仅本机，退出登录时清除）
+  SAVED_PASSWORD: 'saved_password',   // 本机保存的密码(退出登录后仍保留用于回填)
   COURSES: 'cached_courses',
   EXAMS: 'cached_exams',
   EVALUATIONS: 'cached_evaluations',

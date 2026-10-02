@@ -29,14 +29,16 @@ const LOCAL_BASE = 'http://127.0.0.1:5000'
 // 留空 = 使用真实日期。⚠️ 发版前必须留空。
 const DEBUG_TODAY = ''
 
-// 缓存有效期（毫秒）
+// 业务数据缓存有效期（毫秒）: 与教务持久会话同为 30 天。
+// 新会话建立后由后端全量同步; 其余时间仅在用户主动刷新时更新。
+const DATA_CACHE_TTL = 30 * 24 * 60 * 60 * 1000
 const CACHE_TTL = {
-  courses: 30 * 60 * 1000,    // 课表 30分钟
-  exams: 30 * 60 * 1000,      // 考试 30分钟
-  evaluations: 10 * 60 * 1000, // 评教 10分钟
-  grades: 30 * 60 * 1000,     // 成绩 30分钟
-  cet: 30 * 60 * 1000,        // 四六级 30分钟
-  status: 10 * 60 * 1000      // 校历状态(第一周日期等) 10分钟
+  courses: DATA_CACHE_TTL,
+  exams: DATA_CACHE_TTL,
+  evaluations: DATA_CACHE_TTL,
+  grades: DATA_CACHE_TTL,
+  cet: DATA_CACHE_TTL,
+  status: DATA_CACHE_TTL
 }
 
 // 大节映射（和教务系统一致）
@@ -58,6 +60,7 @@ module.exports = {
   USE_LOCAL,
   LOCAL_BASE,
   DEBUG_TODAY,
+  DATA_CACHE_TTL,
   CACHE_TTL,
   BIG_PERIOD_MAP
 }

@@ -31,6 +31,8 @@ const SLOT_LIST = [
   { key: '11-13', label: '第11-13节', j1: 11, j2: 13 }
 ]
 const CAMPUS_LIST = ['孝陵卫', '江阴']
+const COLLAPSED_HEIGHT_RPX = 156
+const COLLAPSE_FALLBACK_MIN = 30
 const WEEK_LIST = (() => {
   const arr = ['本周']
   for (let i = 1; i <= 30; i++) arr.push('第' + i + '周')   // 教务借用页周次 1-30
@@ -152,7 +154,12 @@ Component({
   _applyResult(res) {
     const groups = groupRooms(res.rooms || [], res.buildings)
       .filter(isMainTeaching)              // 只展示四大教学楼
-      .map(g => Object.assign({}, g, { expanded: false, overflow: false }))
+      // 默认收起为两行; 展开按钮按实际高度判断, 数量兜底防测量失败。
+      .map(g => Object.assign({}, g, {
+        expanded: false,
+        // 高度测量失败时只兜底超大分组, 避免小分组误显示"收起"。
+        overflow: g.rooms.length >= COLLAPSE_FALLBACK_MIN
+      }))
     const count = groups.reduce((n, g) => n + g.rooms.length, 0)
     this.setData({
       searched: true,
@@ -166,20 +173,25 @@ Component({
     }, () => this._markOverflow())
   },
 
-  /** 实测各分组内容高度: 超过折叠高度(两行)的组显示"展开"按钮 */
+  /** 按两行折叠高度测量是否真的溢出; 使用组件作用域查询避免串错分组 */
   _markOverflow() {
-    const q = (typeof wx !== 'undefined' && typeof wx.createSelectorQuery === 'function')
-      ? wx.createSelectorQuery() : null
+    const q = this.createSelectorQuery ? this.createSelectorQuery() : null
     if (!q || typeof q.selectAll !== 'function') return
-    q.selectAll('.group-chips').boundingClientRect()
     q.selectAll('.chips-inner').boundingClientRect()
     q.exec(res => {
-      const outer = (res && res[0]) || []
-      const inner = (res && res[1]) || []
+      const inner = (res && res[0]) || []
+      let windowWidth = 375
+      try {
+        const win = wx.getWindowInfo()
+        windowWidth = win.windowWidth || windowWidth
+      } catch (e) { /* 使用默认宽度 */ }
+      const collapsedHeight = COLLAPSED_HEIGHT_RPX * windowWidth / 750 + 1
       let changed = false
       const groups = this.data.groups.map((g, i) => {
-        if (!outer[i] || !inner[i]) return g
-        const overflow = inner[i].height > outer[i].height + 1
+        const rect = inner[i]
+        // 测量失败时保留数量兜底结果, 不把大分组按钮误删。
+        if (!rect || !(rect.height > 0)) return g
+        const overflow = rect.height > collapsedHeight
         if (g.overflow === overflow) return g
         changed = true
         return Object.assign({}, g, { overflow })

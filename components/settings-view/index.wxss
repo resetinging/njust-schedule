@@ -486,18 +486,6 @@
   padding: 0;
 }
 
-.remember-row {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  margin-bottom: 16rpx;
-}
-
-.remember-label {
-  font-size: 24rpx;
-  color: var(--text-hint);
-}
-
 /* 密码输入行: 输入框 + 明文切换按钮 */
 .pwd-row {
   position: relative;

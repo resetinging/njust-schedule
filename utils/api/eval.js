@@ -10,7 +10,7 @@ function getEvalBatches() {
 /** 刷新评教数据 */
 
 function refreshEvaluations() {
-  return request('POST', '/api/refresh-evaluations')
+  return request('POST', '/api/refresh-evaluations', {}, { force: true })
 }
 
 /** 获取某批次下的课程列表 */

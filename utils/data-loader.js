@@ -111,10 +111,46 @@ async function _queryAll() {
 }
 
 /**
- * 登录成功后调用: 先查询(立即载入) → 刷新教务(最新) → 再查询(更新缓存)
+ * 等待服务端在新会话建立后完成一次全量教务同步。
+ * 旧后端没有 data_refresh 字段时立即返回, 保持兼容。
+ */
+async function _waitForDataRefresh(maxMs = 45000) {
+  const startedAt = Date.now()
+  let delay = 500
+  while (Date.now() - startedAt < maxMs) {
+    let state = ''
+    try {
+      if (typeof api.getDataRefreshStatus === 'function') {
+        const light = await api.getDataRefreshStatus()
+        state = light && light.data_refresh && light.data_refresh.state
+      }
+      // 兼容旧后端: 轻量接口不存在时回退到 /api/status。
+      if (!state) {
+        const res = await api.getStatus()
+        state = res && res.data_refresh && res.data_refresh.state
+      }
+    } catch (e) {
+      return false
+    }
+    if (!state || state === 'idle' || state === 'done' ||
+        state === 'partial' || state === 'failed') {
+      return state !== 'failed'
+    }
+    await new Promise(resolve => setTimeout(resolve, delay))
+    delay = Math.min(3000, Math.round(delay * 1.6))
+  }
+  return false
+}
+
+/**
+ * 读取全部数据到本地缓存。
+ * - 新会话: 等服务端后台同步完成后读取, 不重复刷新教务
+ * - 用户主动刷新(force=true): 立刻刷新教务并重新读取
+ *
  * @returns {Promise<number>} 最终成功载入的数据项数
  */
-async function fetchAllData() {
+async function fetchAllData(options) {
+  const force = !!(options && options.force)
   if (!storage.get('token', '')) {
     // 后端会话可能在重启/部署后失效(本地凭证已被清), 此时直接 return 会让
     // "刷新数据"毫无反应。这里先解除离线态, 有记忆密码就静默重登一次再继续。
@@ -127,10 +163,22 @@ async function fetchAllData() {
   if (storage.get('account_type', '') === 'graduate') {
     let ok = 0
     try { ok = await _queryAll() } catch (e) { /* 静默 */ }
+    if (!force) {
+      await _waitForDataRefresh()
+      try { ok = await _queryAll() } catch (e) { /* 静默 */ }
+    }
     return ok
   }
   // 1) 立即载入现有数据
   try { await _queryAll() } catch (e) { /* 静默 */ }
+
+  if (!force) {
+    // 登录/自动重登由服务端统一刷新一次; 前端只等待并读取结果。
+    await _waitForDataRefresh()
+    let ok = 0
+    try { ok = await _queryAll() } catch (e) { /* 静默 */ }
+    return ok
+  }
 
   // 2) 刷新教务获取最新数据(4 并发, 后端教务限流 4)
   await Promise.all([

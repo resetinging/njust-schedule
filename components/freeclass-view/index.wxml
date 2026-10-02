@@ -13,6 +13,7 @@
     </view>
   </view>
 
+  <scroll-view class="view-scroll" scroll-y enhanced show-scrollbar="{{false}}">
   <view class="page-content">
 
   <!-- ============ 已登录 ============ -->
@@ -127,5 +128,6 @@
   </view>
 
   </view>
+  </scroll-view>
 
 </view>

@@ -3,11 +3,21 @@
 .container {
   height: 100vh;
   min-height: 0;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   box-sizing: border-box;
-  -webkit-overflow-scrolling: touch;
   background: var(--bg-page);
-  padding-bottom: 60rpx;
+}
+
+.view-scroll {
+  flex: 1;
+  min-height: 0;
+  height: 0;
+}
+
+.page-content {
+  padding-bottom: calc(60rpx + env(safe-area-inset-bottom));
 }
 
 .custom-nav {

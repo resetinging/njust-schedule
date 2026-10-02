@@ -53,8 +53,8 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 49 个接口(含服务端凭据删除)', () => {
-    assert.strictEqual(Object.keys(api).length, 49, Object.keys(api).join(','))
+  await check('导出 50 个接口(含服务端凭据删除)', () => {
+    assert.strictEqual(Object.keys(api).length, 50, Object.keys(api).join(','))
   })
   await check('loginWebvpn 成功路径(存 token/学号/授权密码)', async () => {
     const res = await api.loginWebvpn('10001', 'pwd', true)
@@ -64,14 +64,15 @@ async function check(name, fn) {
     assert.strictEqual(store.get('credential_delete_token'), 'del-1')
     assert.strictEqual(store.get('saved_password'), 'pwd')
   })
-  await check('loginWebvpn 未授权时不保存本地密码', async () => {
+  await check('loginWebvpn 默认保存本地密码(旧参数被忽略)', async () => {
     await api.loginWebvpn('10001', 'pwd', false)
-    assert.ok(!store.get('saved_password'), 'saved_password 不应存在')
+    assert.strictEqual(store.get('saved_password'), 'pwd', 'saved_password 应默认保存')
   })
-  await check('logout 清理本地登录态', async () => {
+  await check('logout 清理登录态但保留本地密码', async () => {
     await api.logout()
     assert.ok(!store.get('token'), 'token 应被清除')
     assert.ok(!store.get('credential_delete_token'), '删除 token 应被清除')
+    assert.strictEqual(store.get('saved_password'), 'pwd', '退出登录应保留本地密码')
   })
   await check('deleteCredential 携带独立删除 token', async () => {
     store.set('credential_delete_token', 'del-2')
@@ -121,6 +122,38 @@ async function check(name, fn) {
     })
     await api.loginWebvpn('10001', 'pwd')
     assert.strictEqual(called, 1, '登录类接口应正常请求')
+  })
+  await check('离线模式: 主动刷新可请求并触发重登', async () => {
+    let called = 0
+    stubBoth((o) => {
+      called++
+      return o.success({ statusCode: 200, data: { success: true } })
+    })
+    await api.refreshGrades()
+    assert.strictEqual(called, 1, '主动刷新应绕过离线短路')
+  })
+  await check('相同 GET 在途请求复用一次网络调用', async () => {
+    storage.setOffline(false)
+    storage.set('token', 'tok-dedupe')
+    let called = 0
+    stubBoth((o) => {
+      called++
+      setTimeout(() => o.success({
+        statusCode: 200,
+        data: { success: true, logged_in: true, first_week_date: '2026-08-24' }
+      }), 10)
+    })
+    const [a, b] = await Promise.all([api.getStatus(), api.getStatus()])
+    assert.ok(a && b && a.success && b.success)
+    assert.strictEqual(called, 1, '并发相同 GET 应共用同一个 Promise')
+  })
+  await check('轻量同步状态接口可调用', async () => {
+    stubBoth((o) => o.success({
+      statusCode: 200,
+      data: { success: true, data_refresh: { state: 'running' } }
+    }))
+    const r = await api.getDataRefreshStatus()
+    assert.strictEqual(r.data_refresh.state, 'running')
   })
 
   console.log('\n' + '='.repeat(52))

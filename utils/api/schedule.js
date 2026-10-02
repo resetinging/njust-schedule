@@ -11,7 +11,7 @@ function getCourses(semester) {
 /** 刷新课表（从教务拉取） */
 
 function refreshSchedule() {
-  return request('POST', '/api/refresh-schedule').then(res => {
+  return request('POST', '/api/refresh-schedule', {}, { force: true }).then(res => {
     if (res.success) {
       // 刷新接口不返回课程数据，只确认刷新成功
       // 后续 loadFromServer() 会通过 GET /api/courses 获取最新数据

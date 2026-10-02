@@ -14,7 +14,7 @@ function getGrades(semester, gpaMode) {
 /** 刷新成绩（从教务抓取） */
 
 function refreshGrades() {
-  return request('POST', '/api/refresh-grades')
+  return request('POST', '/api/refresh-grades', {}, { force: true })
 }
 
 /** 获取四六级成绩 */
@@ -26,7 +26,7 @@ function getCetScores() {
 /** 刷新四六级成绩 */
 
 function refreshCet() {
-  return request('POST', '/api/refresh-cet')
+  return request('POST', '/api/refresh-cet', {}, { force: true })
 }
 
 /** 研究生成绩(学分进度 + 明细, 不做绩点计算; 仅研究生账号可用) */

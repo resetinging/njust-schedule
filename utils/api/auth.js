@@ -51,14 +51,19 @@ function cancelSsoQr(qrId) {
   return request('POST', '/api/sso-qr/cancel', { qr_id: qrId || '' })
 }
 
-/** 退出登录（销毁后端会话 + 清空本地） */
+/** 退出登录: 销毁后端 token 会话, 保留本机密码供下次回填 */
 
 function logout() {
-  return request('POST', '/api/logout').then(() => {
+  const savedPassword = storage.get('saved_password', '')
+  const lastSid = storage.getStudentId() || storage.get('last_login_sid', '')
+  const finish = () => {
     storage.clearAll()
-  }).catch(() => {
-    storage.clearAll()
-  })
+    if (savedPassword) {
+      storage.set('saved_password', savedPassword)
+    }
+    if (lastSid) storage.set('last_login_sid', lastSid)
+  }
+  return request('POST', '/api/logout').then(finish).catch(finish)
 }
 
 // ============================================================
@@ -69,11 +74,12 @@ function logout() {
 
 /** 智慧理工一步登录（SSO 直连教务，免教务密码/验证码） */
 
-function loginWebvpn(studentId, password, remember) {
+function loginWebvpn(studentId, password) {
   return request('POST', '/api/login-webvpn', {
     student_id: studentId,
     password: password,
-    remember: !!remember
+    // 兼容旧后端字段; 新后端固定默认保存密码。
+    remember: true
   }).then(res => {
     if (res.success) {
       storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
@@ -84,14 +90,13 @@ function loginWebvpn(studentId, password, remember) {
       if (res.credential_delete_token) {
         storage.set('credential_delete_token', res.credential_delete_token)
       }
-      if (remember) storage.set('saved_password', password)
-      else storage.remove('saved_password')
+      storage.set('saved_password', password)
     }
     return res
   })
 }
 
-/** 删除服务端加密保存的密码(关闭“记住学号和密码”时调用) */
+/** 删除服务端加密保存的密码 */
 function deleteCredential() {
   const deleteToken = storage.get('credential_delete_token', '')
   const headers = deleteToken ? { 'X-Credential-Delete-Token': deleteToken } : {}

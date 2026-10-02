@@ -7,7 +7,7 @@ const storage = require('./storage')
 const CACHE_KEY = 'freeclass_cache_v2'
 const LEGACY_CACHE_KEY = 'freeclass_cache'
 const CACHE_MAX_ITEMS = 20
-const NO_REQUEST_AGE = 60 * 1000
+const NO_REQUEST_AGE = 5 * 60 * 1000
 
 /**
  * 缓存键: 请求条件(含学期, 跨学期必须区分)
