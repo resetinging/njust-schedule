@@ -198,6 +198,7 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; }
 }
 .user-row.clickable { cursor: pointer; }
 .user-row.clickable:hover { background: #23233a; }
+.session-row { grid-template-columns: 1.2fr 1fr .8fr .8fr .6fr; }
 .grade-btn { white-space: nowrap; }
 .grade-btn:hover { color: var(--accent); border-color: var(--accent); }
 .badge {

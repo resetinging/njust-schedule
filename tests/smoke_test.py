@@ -569,6 +569,29 @@ r = client.get("/api/admin/summary?refresh=1", headers=ah)
 assert r.status_code == 200 and r.get_json()["success"], r.status_code
 print("  [PASS] 管理端仪表盘端点(含缓存与强制刷新)")
 
+# 管理员删除应用会话: token 失效, 但持久化教务 Cookie 保留
+from wxcloudrun.core import session_store as _session_store  # noqa: E402
+_dc = JWCClient()
+_dc.logged_in = True
+_dc.student_id = "10009"
+_dc.student_name = "保留Cookie"
+_dc.is_session_valid = lambda: True
+_dc.session.cookies.set("JWX", "keep-cookie",
+                        domain="jw.njust.edu.cn", path="/")
+_delete_token = views._register_session(_dc)
+assert client.get("/api/courses", headers={
+    "X-Auth-Token": _delete_token
+}).status_code == 200
+assert _session_store.load_session("10009") is not None
+_dr = client.delete("/api/admin/sessions/10009", headers=ah)
+assert _dr.status_code == 200 and _dr.get_json()["success"], _dr.get_json()
+assert client.get("/api/courses", headers={
+    "X-Auth-Token": _delete_token
+}).status_code == 401
+assert _session_store.load_session("10009") is not None
+_session_store.clear_session("10009")
+print("  [PASS] 管理员删除会话后 token 失效且保留持久化 Cookie")
+
 # 留言板功能已下线: 相关路由应 404(小程序/管理端均不再提供)
 check("留言板路由已下线 404", client.get("/api/board", headers=ah), 404)
 check("留言板管理端路由已下线 404", client.get("/api/admin/board", headers=ah), 404)

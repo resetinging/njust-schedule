@@ -26,7 +26,8 @@ from wxcloudrun import app, db
 from wxcloudrun.model import Course, Exam, Evaluation, Grade, CetScore, Setting
 from wxcloudrun import dao
 from wxcloudrun.core.rate_limit import client_ip, rate_clear, rate_hit, rate_over
-from wxcloudrun.core.sessions import _sessions, _sessions_lock
+from wxcloudrun.core.sessions import (
+    _sessions, _sessions_lock, delete_user_session)
 import config
 
 
@@ -545,6 +546,25 @@ def admin_sessions():
         })
     out.sort(key=lambda s: s["active_sec"])
     return jsonify({"success": True, "sessions": out})
+
+
+@app.route("/api/admin/sessions/<student_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_session(student_id):
+    """删除用户应用会话，保留持久化教务 Cookie 和业务数据。"""
+    sid = str(student_id or "").strip()
+    if not sid or len(sid) > 50:
+        return jsonify({"success": False, "message": "学号无效"}), 400
+    removed = delete_user_session(sid)
+    app.logger.info(
+        "[admin] rid=%s 删除应用会话 sid=%s removed=%d (保留 Cookie)",
+        _rid(), sid, removed)
+    return jsonify({
+        "success": True,
+        "student_id": sid,
+        "removed": removed,
+        "message": "会话已删除，Cookie 已保留",
+    })
 
 
 @app.route("/api/admin/stats/requests")

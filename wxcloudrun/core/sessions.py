@@ -82,10 +82,18 @@ def _persist_remote_session(token: str, client) -> bool:
         return False
 
 
-def _delete_remote_session(token: str) -> None:
+def _delete_remote_session(token: str, sid: str = "") -> None:
     from wxcloudrun.core import state
     if state.enabled():
         state.delete(_remote_token_key(token))
+        if sid:
+            state.delete(_remote_sid_key(sid))
+
+
+def _delete_remote_sid(sid: str) -> None:
+    from wxcloudrun.core import state
+    if state.enabled() and sid:
+        state.delete(_remote_sid_key(sid))
 
 
 def _load_remote_session(token: str):
@@ -270,7 +278,7 @@ def _register_session(client: JWCClient) -> str:
     except Exception:  # noqa: BLE001
         previous_remote = ""
     if previous_remote and previous_remote != token:
-        _delete_remote_session(previous_remote)
+        _delete_remote_session(previous_remote, client.student_id)
     _persist_remote_session(token, client)
     app.logger.info("[session] rid=%s 登录成功 sid=%s name=%s token=%s… 顶掉旧会话=%d 在线=%d",
                     _rid(), client.student_id, client.student_name, token[:6],
@@ -381,9 +389,39 @@ def _list_undergraduate_clients(limit: int = 50) -> list:
 def _logout_session(token: str):
     with _sessions_lock:
         item = _sessions.pop(token or "", None)
+        sid = str(getattr(item[0], "student_id", "") or "") if item else ""
     if item is not None:
         try:
             item[0].logout()
         except Exception:
             pass
-    _delete_remote_session(token)
+    _delete_remote_session(token, sid)
+
+
+def delete_user_session(student_id: str) -> int:
+    """关闭某学号的应用会话，但保留持久化教务 Cookie 和业务数据。"""
+    sid = str(student_id or "").strip()
+    if not sid:
+        return 0
+    tokens = []
+    with _sessions_lock:
+        for token, (client, _ts) in list(_sessions.items()):
+            if str(getattr(client, "student_id", "") or "") != sid:
+                continue
+            tokens.append(token)
+            _sessions.pop(token, None)
+            _session_ua.pop(token, None)
+    try:
+        from wxcloudrun.core import state
+        if state.enabled():
+            remote_token = state.get_text(_remote_sid_key(sid)) or ""
+            if remote_token and remote_token not in tokens:
+                tokens.append(remote_token)
+    except Exception:  # noqa: BLE001
+        pass
+    for token in tokens:
+        _delete_remote_session(token, sid)
+    # 即使内存里没有活跃会话，也清掉学号到旧 token 的映射；
+    # session_store 中的教务 Cookie 不在这里清理。
+    _delete_remote_sid(sid)
+    return len(tokens)

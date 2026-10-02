@@ -411,12 +411,13 @@ async function loadSessions() {
     const r = await api('/api/admin/sessions');
     if (!r.success) return;
     const box = $('sessionList');
-    box.innerHTML = '<div class="table-head user-row"><span>学号</span><span>姓名</span><span>token</span><span>活跃于</span></div>';
+    box.innerHTML = '<div class="table-head user-row session-row"><span>学号</span><span>姓名</span><span>token</span><span>活跃于</span><span>操作</span></div>';
     r.sessions.forEach(s => {
       const row = document.createElement('div');
-      row.className = 'user-row';
+      row.className = 'user-row session-row';
       const act = s.active_sec < 60 ? '刚刚' : s.active_sec < 3600 ? Math.floor(s.active_sec / 60) + '分钟前' : Math.floor(s.active_sec / 3600) + '小时前';
-      row.innerHTML = `<span class="mono">${esc(s.student_id)}</span><span>${esc(s.name || '-')}</span><span class="mono">${esc(s.token)}</span><span>${act}</span>`;
+      row.innerHTML = `<span class="mono">${esc(s.student_id)}</span><span>${esc(s.name || '-')}</span><span class="mono">${esc(s.token)}</span><span>${act}</span><span><button class="ghost small session-del">删除</button></span>`;
+      row.querySelector('.session-del').addEventListener('click', () => deleteSession(s.student_id));
       box.appendChild(row);
     });
     if (!r.sessions.length) box.innerHTML += '<p class="dim center">当前无在线会话</p>';
@@ -536,6 +537,17 @@ async function loadFreeclassAccount() {
       $('fcStatus').style.color = '#e67e22';
     }
   } catch (e) {}
+}
+
+async function deleteSession(studentId) {
+  if (!confirm('确认删除该登录会话？仅删除应用会话，不删除教务 Cookie、密码或业务数据。')) return;
+  try {
+    const r = await api('/api/admin/sessions/' + encodeURIComponent(studentId), { method: 'DELETE' });
+    if (!r.success) throw new Error(r.message || '删除失败');
+    await loadSessions();
+  } catch (e) {
+    alert(e.message || '删除失败');
+  }
 }
 $('fcSave').addEventListener('click', async () => {
   const sid = $('fcSid').value.trim();
