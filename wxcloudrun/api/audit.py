@@ -18,6 +18,9 @@ audit_bp = Blueprint("audit_api", __name__)
 
 AUDIT_META_PREFIX = "audit_catalog_at"
 AUDIT_TTL = 24 * 3600
+# 临时维护版本: 部署后不启动蹭课同步, 所有蹭课接口在查询数据库前直接返回。
+# 教务表迁移完成后由下一次正常发版移除。
+AUDIT_COURSE_MAINTENANCE = True
 AUDIT_SYNC_STATE_KEY = "wx:audit-catalog-sync:status"
 AUDIT_SYNC_STATE_TTL = 7 * 24 * 3600
 AUDIT_SYNC_MAX_RUNTIME = 3600
@@ -55,6 +58,14 @@ def _updated_at(semester: str) -> int:
 def _needs_refresh(semester: str) -> bool:
     return (dao.count_audit_courses(semester) <= 0
             or time.time() - _updated_at(semester) >= AUDIT_TTL)
+
+
+def _audit_maintenance_response():
+    return jsonify({
+        "success": False,
+        "maintenance": True,
+        "message": "蹭课服务正在维护，请稍后再试",
+    }), 503
 
 
 def _normalize_sync_state(value) -> dict:
@@ -118,6 +129,23 @@ def _store_sync_state(patch: dict) -> dict:
 
 def get_audit_sync_status(semester: str = "") -> dict:
     """返回蹭课目录状态，供管理面板展示和轮询。"""
+    if AUDIT_COURSE_MAINTENANCE:
+        return {
+            "semester": semester,
+            "course_count": 0,
+            "updated_at": 0,
+            "empty": True,
+            "needs_refresh": False,
+            "db_error": "",
+            "running": False,
+            "running_semester": "",
+            "last_started_at": 0,
+            "last_finished_at": 0,
+            "last_success": None,
+            "last_count": 0,
+            "last_error": "",
+            "maintenance": True,
+        }
     semester = semester or _current_semester()
     try:
         count = dao.count_audit_courses(semester)
@@ -182,6 +210,8 @@ def _mark_sync_finished(semester: str, count: int, error: str):
 
 def start_audit_catalog_sync(semester: str = ""):
     """后台启动一次同步并立即返回；真正抓取不在 HTTP 请求线程执行。"""
+    if AUDIT_COURSE_MAINTENANCE:
+        return False, get_audit_sync_status(semester)
     semester = semester or _current_semester()
     started, state = _mark_sync_started(semester)
     if not started:
@@ -298,6 +328,10 @@ def sync_audit_catalog(semester: str = "") -> tuple:
 
 def start_audit_catalog_scheduler() -> None:
     """启动每日 00:00 蹭课目录同步线程。"""
+    if AUDIT_COURSE_MAINTENANCE:
+        app.logger.info("[audit-sync] 临时维护模式, 不启动蹭课目录同步")
+        return
+
     def _run():
         while True:
             try:
@@ -341,6 +375,8 @@ def start_audit_catalog_scheduler() -> None:
 
 @audit_bp.route('/api/audit-courses')
 def api_audit_courses():
+    if AUDIT_COURSE_MAINTENANCE:
+        return _audit_maintenance_response()
     _client, err = _require_login()
     if err:
         return err
@@ -388,6 +424,8 @@ def api_audit_courses():
 
 @audit_bp.route('/api/audit-options')
 def api_audit_options():
+    if AUDIT_COURSE_MAINTENANCE:
+        return _audit_maintenance_response()
     _client, err = _require_login()
     if err:
         return err
@@ -463,6 +501,8 @@ def api_audit_options():
 
 @audit_bp.route('/api/audit-favorites', methods=['GET', 'POST'])
 def api_audit_favorites():
+    if AUDIT_COURSE_MAINTENANCE:
+        return _audit_maintenance_response()
     client, err = _require_login()
     if err:
         return err
@@ -497,6 +537,8 @@ def api_audit_favorites():
 
 @audit_bp.route('/api/audit-favorites/<int:favorite_id>', methods=['DELETE'])
 def api_delete_audit_favorite(favorite_id):
+    if AUDIT_COURSE_MAINTENANCE:
+        return _audit_maintenance_response()
     client, err = _require_login()
     if err:
         return err
