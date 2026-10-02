@@ -137,12 +137,55 @@ def _migrate_audit_class_info():
         with db.engine.begin() as conn:
             conn.execute(sa_text(
                 "ALTER TABLE `audit_courses` "
-                "ADD COLUMN class_info VARCHAR(500) DEFAULT ''"
+                "ADD COLUMN class_info TEXT"
             ))
         app.logger.info("[migrate] audit_courses 已补充 class_info 列")
     except Exception as e:
         # 滚动更新时可能已由其他实例补充，重复列错误不能阻塞启动。
         app.logger.warning("[migrate] audit_courses 补列跳过: %s", e)
+
+
+def _audit_class_info_text_statements(insp):
+    """返回需要执行的 class_info 扩长 DDL，便于单测验证 MySQL 分支。"""
+    from sqlalchemy import String, Text
+
+    statements = []
+    for table in ("audit_courses", "audit_favorites"):
+        if not insp.has_table(table):
+            continue
+        columns = {
+            col.get("name"): col.get("type")
+            for col in insp.get_columns(table)
+        }
+        col_type = columns.get("class_info")
+        type_name = type(col_type).__name__.upper()
+        is_text_family = isinstance(col_type, Text) or "TEXT" in type_name
+        if isinstance(col_type, String) and not is_text_family:
+            statements.append(
+                f"ALTER TABLE `{table}` MODIFY COLUMN class_info TEXT NULL")
+    return statements
+
+
+def _migrate_audit_class_info_text():
+    """MySQL 存量库：把蹭课目录和收藏的 class_info 扩展为 TEXT。"""
+    from sqlalchemy import inspect as sa_inspect, text as sa_text
+
+    if db.engine.dialect.name != "mysql":
+        return
+    insp = sa_inspect(db.engine)
+    statements = _audit_class_info_text_statements(insp)
+    if not statements:
+        return
+    try:
+        with db.engine.begin() as conn:
+            for sql in statements:
+                conn.execute(sa_text(sql))
+        app.logger.info(
+            "[migrate] audit class_info 已扩展为 TEXT: %s",
+            ", ".join(statements))
+    except Exception as e:
+        app.logger.warning("[migrate] audit class_info 扩长跳过: %s", e)
+        raise
 
 
 def _migrate_user_settings():
@@ -277,6 +320,7 @@ _SCHEMA_MIGRATIONS = (
     ("0004_user_settings", _migrate_user_settings),
     ("0005_perf_indexes", _ensure_perf_indexes),
     ("0006_audit_course_rooms", _migrate_audit_course_rooms),
+    ("0007_audit_class_info_text", _migrate_audit_class_info_text),
 )
 
 

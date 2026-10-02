@@ -257,7 +257,7 @@ def save_audit_favorite(student_id: str, semester: str,
 
     favorite_key = _audit_favorite_key({
         "name": name[:200],
-        "class_info": str(course.get("class_info", "") or "")[:500],
+        "class_info": str(course.get("class_info", "") or ""),
         "teacher": str(course.get("teacher", "") or "")[:200],
         "classroom": str(course.get("classroom", "") or "")[:200],
         "schedules": clean_schedules,
@@ -275,7 +275,7 @@ def save_audit_favorite(student_id: str, semester: str,
         )
         db.session.add(row)
     row.course_name = name[:200]
-    row.class_info = str(course.get("class_info", "") or "")[:500]
+    row.class_info = str(course.get("class_info", "") or "")
     row.teacher = str(course.get("teacher", "") or "")[:200]
     row.classroom = str(course.get("classroom", "") or "")[:200]
     row.schedules_json = json.dumps(clean_schedules, ensure_ascii=False)

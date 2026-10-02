@@ -590,12 +590,8 @@ def admin_audit_sync():
     return jsonify({
         "success": True,
         "started": started,
-        "maintenance": bool(status.get("maintenance")),
-        "message": (
-            "蹭课服务临时维护中，暂不刷新目录"
-            if status.get("maintenance")
-            else ("已开始后台刷新，完成后课程目录会自动更新"
-                  if started else "已有同步任务正在运行")),
+        "message": ("已开始后台刷新，完成后课程目录会自动更新"
+                    if started else "已有同步任务正在运行"),
         "status": status,
     }), (202 if started else 200)
 
