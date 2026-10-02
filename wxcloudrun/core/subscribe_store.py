@@ -6,11 +6,13 @@
 - openid: `{sid}:openid`(云托管网关会透传 x-wx-openid, 无需 code2session)。
 """
 import json
+import threading
 import time
 
 KINDS = ("exam",)          # 目前只做考试提醒; 新增类型时在此登记
 KEY = "subscribe"
 OPENID_KEY = "openid"
+_STORE_LOCK = threading.RLock()
 
 
 def _dao():
@@ -59,15 +61,17 @@ def grant(sid: str, kind: str, count: int = 1, openid: str = "") -> dict:
     """记录一次(或多次)授权额度; 返回该类型的当前额度。"""
     if kind not in KINDS or not sid:
         return {}
-    if openid:
-        save_openid(sid, openid)
-    data = _load(sid)
-    item = data.get(kind) or {}
-    item["count"] = int(item.get("count") or 0) + max(1, int(count))
-    item["updated_at"] = int(time.time())
-    data[kind] = item
-    _save(sid, data)
-    return item
+    with _STORE_LOCK:
+        if openid:
+            save_openid(sid, openid)
+        data = _load(sid)
+        item = data.get(kind) or {}
+        # 微信一次性订阅的授权事件一次只能增加 1 条额度。
+        item["count"] = int(item.get("count") or 0) + 1
+        item["updated_at"] = int(time.time())
+        data[kind] = item
+        _save(sid, data)
+        return item
 
 
 def quota(sid: str, kind: str) -> int:
@@ -79,16 +83,17 @@ def consume(sid: str, kind: str) -> bool:
     """扣减一次额度; 有额度返回 True, 无则 False。"""
     if kind not in KINDS or not sid:
         return False
-    data = _load(sid)
-    item = data.get(kind) or {}
-    count = int(item.get("count") or 0)
-    if count <= 0:
-        return False
-    item["count"] = count - 1
-    item["used_at"] = int(time.time())
-    data[kind] = item
-    _save(sid, data)
-    return True
+    with _STORE_LOCK:
+        data = _load(sid)
+        item = data.get(kind) or {}
+        count = int(item.get("count") or 0)
+        if count <= 0:
+            return False
+        item["count"] = count - 1
+        item["used_at"] = int(time.time())
+        data[kind] = item
+        _save(sid, data)
+        return True
 
 
 def status(sid: str) -> dict:

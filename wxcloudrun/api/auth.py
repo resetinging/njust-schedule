@@ -13,6 +13,8 @@ from wxcloudrun import app, dao
 from wxcloudrun.core.auth import _require_login
 from wxcloudrun.core.cache import invalidate_user_cache
 from wxcloudrun.core.pool import _jwc_request_priority
+from wxcloudrun.core.rate_limit import (
+    client_ip, login_fail_key, login_fail_sid_key, rate_over)
 from wxcloudrun.core.sessions import (
     _register_session, _logout_session, _get_session_client,
     _new_qr_client, _get_qr_client, _pop_qr_client,
@@ -64,7 +66,8 @@ def _delete_token_for(student_id: str) -> str:
         return ""
 
 
-def _on_login_success(client: JWCClient, token: str, credential_saved=None):
+def _on_login_success(client: JWCClient, token: str, credential_saved=None,
+                      prefetch_mode: str = "full"):
     """登录成功后的公共处理：签发 token 并返回会话信息。
 
     密码的保存(加密落库)由各调用方在成功分支里完成, 本函数不接触密码;
@@ -78,7 +81,7 @@ def _on_login_success(client: JWCClient, token: str, credential_saved=None):
     # 新教务会话建立: 失效旧数据缓存, 后台全量同步一次; 之后仅用户主动刷新。
     try:
         from wxcloudrun.api.study import schedule_data_prefetch
-        schedule_data_prefetch(client, sid, semester)
+        schedule_data_prefetch(client, sid, semester, mode=prefetch_mode)
     except Exception:
         pass
     return jsonify({
@@ -145,7 +148,9 @@ def api_get_webvpn_captcha():
             credential_saved = _mark_resumed_credential(student_id)
         else:
             credential_saved = _save_login_credential(student_id, raw_password)
-        _on_login_success(client, token, credential_saved)   # 副作用: 初始化学期设置
+        _on_login_success(
+            client, token, credential_saved,
+            prefetch_mode=("if_stale" if client.login_method == "sso-cached" else "full"))
         return jsonify({
             "success": True,
             "already_logged_in": True,
@@ -160,11 +165,13 @@ def api_get_webvpn_captcha():
         })
     app.logger.info("[login] rid=%s 智慧理工登录失败 sid=%s reason=%s",
                     _rid(), student_id, client.last_error)
-    return jsonify({
+    payload = {
         "success": False,
         "message": client.last_error or "智慧理工登录失败",
-        "debug_log": client.debug_log[-20:],
-    }), 400
+    }
+    if config.DEBUG:
+        payload["debug_log"] = client.debug_log[-20:]
+    return jsonify(payload), 400
 
 
 @auth_bp.route('/api/login-webvpn-manual', methods=['POST'])
@@ -183,12 +190,10 @@ def api_login_webvpn():
     data = request.get_json(silent=True) or {}
     student_id = (data.get("student_id") or "").strip()
     # 登录限流: 防止爆破学号密码, 也避免频繁登录触发智慧理工风控
-    from wxcloudrun.views import _rate_limited, _client_ip
     # 只统计"失败次数": 连续失败 3 次才冷却 60 秒, 登录成功立刻清零。
     # 这样正常登录/自动重登永远不会被自己的成功请求挤掉额度。
-    from wxcloudrun.views import _rate_over, _LOGIN_FAIL_KEY, _LOGIN_FAIL_SID_KEY
-    if (_rate_over(_LOGIN_FAIL_KEY(student_id, _client_ip()), 3, 60)
-            or _rate_over(_LOGIN_FAIL_SID_KEY(student_id), 6, 300)):
+    if (rate_over(login_fail_key(student_id, client_ip()), 3, 60)
+            or rate_over(login_fail_sid_key(student_id), 6, 300)):
         return jsonify({"success": False, "message": "登录过于频繁，请稍后再试"}), 429
     password = _resolve_password(student_id, data.get("password") or "")
     # 教务密码可与智慧理工密码不同(见 api_login_webvpn_manual)
@@ -227,12 +232,16 @@ def api_login_webvpn():
         else:
             credential_saved = _save_login_credential(
                 student_id, str((data.get("password") or "")).strip())
-        return _on_login_success(client, token, credential_saved)
-    return jsonify({
+        return _on_login_success(
+            client, token, credential_saved,
+            prefetch_mode=("if_stale" if client.login_method == "sso-cached" else "full"))
+    payload = {
         "success": False,
         "message": client.last_error or "智慧理工登录失败",
-        "debug_log": client.debug_log[-20:],
-    }), 401
+    }
+    if config.DEBUG:
+        payload["debug_log"] = client.debug_log[-20:]
+    return jsonify(payload), 401
 
 
 # ============================================================

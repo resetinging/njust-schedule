@@ -45,7 +45,9 @@
 | 评教抓取 | 批次列表(`.Nsb_r_list`)、课程列表(`#dataList` + `openWindow` 链接)、评价表单(`#table1` 指标 + `pj0601fz_*` 分值 + radio 选项) |
 | 成绩抓取 | `app.do?method=getCjcx` API 优先,降级 HTML(表头列名映射 + 强智常见布局兜底) |
 | 四六级抓取 | `djkscj_list` 页面解析,取 CET4/CET6 各自最高分 |
-| 连通性 | `test_connection()` / 登录重定向链诊断日志(`debug_log`,登录失败时随接口返回) |
+| 连通性 | `test_connection()` / 登录重定向链诊断日志(`debug_log` 仅 DEBUG 模式返回,生产环境只记录服务端日志) |
+| 分布式状态 | 可选 `REDIS_URL`: 跨 worker 会话 Cookie 恢复、限流、查询缓存、后台任务锁 |
+| 健康与指标 | `GET /healthz`、`GET /readyz`、`GET /metrics` (Prometheus 文本格式) |
 
 ### 2. HTTP API — `wxcloudrun/views.py`
 
@@ -63,7 +65,10 @@
 | 数据刷新 | `POST /api/refresh-schedule` / `refresh-exams` / `refresh-all` | 从教务拉取课表/考试/全部 |
 | | `POST /api/refresh-grades` / `refresh-cet` / `refresh-evaluations` | 拉取成绩/四六级/评教批次 |
 | 数据查询 | `GET /api/courses` / `exams` / `grades` / `cet-scores` / `evaluations` | 读 MySQL 缓存的数据;**只返回原始数据,不做业务计算**(GPA/折算由前端算) |
-| 空教室 | `GET /api/free-classrooms` | **数据由后端负责更新**: 服务账号(智慧理工 SSO)在每天各大节上课时刻(08:00/10:10/14:00/16:10/19:00)预热当天+次日、两校区缓存, 容器启动时先补当前大节; 前端只读接口结果(命中缓存约 10ms), 不触发教务抓取。服务账号密码存 `settings.free_classroom_pwd`(管理面板 `/admin → ⚙️ 系统` 录入), 仓库内不留明文 |
+| 蹭课查询 | `GET /api/audit-courses?name=&teacher=&classroom=&names=&teachers=&classrooms=&weekday=&jc1=&jc2=` | 后台每日从教务全校课程课表同步目录; 单值兼容旧前端, `names/teachers/classrooms` 支持 JSON 数组, 同维度 OR、不同维度 AND; 不访问教务 |
+| 蹭课候选 | `GET /api/audit-options?field=name/teacher/classroom&q=` | 从当前学期蹭课目录读取去重候选, 供输入框自动补全; 不访问教务 |
+| 蹭课收藏 | `GET/POST/DELETE /api/audit-favorites` | 账号级收藏蹭课课程组合; 按本人课表与学生隔离, 前端缓存离线副本 |
+| 空教室 | `GET /api/free-classrooms` | **数据由后端负责更新**: 每次刷新随机选择活跃本科 Cookie, 活跃池不可用时使用持久化本科 Cookie, 最后回退服务账号; 同一轮刷新复用同一会话。容器启动补齐当天全部大节, 之后每天 00:00 全量刷新两校区缓存; 前端只读接口结果, 不触发教务抓取。服务账号密码存 `settings.free_classroom_pwd`, 仓库内不留明文 |
 | 评教操作 | `GET /api/eval-courses` / `eval-form` | 解析批次课程列表 / 单课评价表单(解析属网关层,评分由前端算) |
 | | `POST /api/submit-eval` | 单门保存/提交中转(参数按浏览器原生顺序重建) |
 | 网关 | `POST /api/jw-proxy` | 通用教务网关:用已登录会话转发任意 9080 GET/POST,返回原始内容 |
@@ -78,6 +83,8 @@
 | `courses` / `exams` | 课表、考试(按学期先删后插,**按 student_id 隔离**) |
 | `evaluations` | 评教批次(items 存 JSON,**按 student_id 隔离**) |
 | `grades` / `cet_scores` | 成绩(按学年学期)、四六级(全量替换,查询时取最高,**按 student_id 隔离**) |
+| `audit_courses` | 蹭课课程目录(按学期全量同步,前端只读) |
+| `audit_favorites` | 账号级蹭课收藏(课程组合 + 时段 JSON,按 student_id/学期隔离) |
 | `settings` | 全局键值(校历日期/自动刷新等);用户级设置以 `{student_id}:{key}` 前缀存储(如学期切换) |
 
 - **密码安全**:默认加密保存登录密码(AES-256-GCM、AAD 绑学号),仅用于 24 小时内 Cookie 快速恢复和会话失效自动重登;退出登录保留密码。管理员控制台不提供密码明文查询
@@ -117,7 +124,7 @@
 
 | 组件 | 职责 |
 |---|---|
-| `week-grid` | 大节行 × 7 天网格,按重叠小节数计算课程块高度,课程颜色 djb2 hash,单双周角标 |
+| `week-grid` | 大节行 × 7 天网格,按重叠小节数计算课程块高度,课程颜色 djb2 hash,单双周角标; 蹭课收藏以独立虚线样式合并显示 |
 | `captcha-input` | 验证码图片 + 输入框 + 刷新按钮 |
 | `loading-modal` | 加载/进度弹窗(属性:`visible/title/message/showProgress/percent/done`) |
 

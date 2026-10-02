@@ -21,6 +21,11 @@ _query_cache_lock = threading.Lock()
 
 
 def _cache_get(key: str):
+    from wxcloudrun.core import state
+    if state.enabled():
+        value = state.get_json(key)
+        if value is not None:
+            return value
     with _query_cache_lock:
         item = _query_cache.get(key)
         if item and item[0] > time.time():
@@ -29,6 +34,9 @@ def _cache_get(key: str):
 
 
 def _cache_set(key: str, value, ttl: float = QUERY_CACHE_TTL):
+    from wxcloudrun.core import state
+    if state.enabled():
+        state.set_json(key, value, ttl)
     with _query_cache_lock:
         _query_cache[key] = (time.time() + ttl, value)
         # 30 天缓存必须同时限制总量，优先清理已过期和最久将过期条目。
@@ -46,6 +54,9 @@ def _cache_set(key: str, value, ttl: float = QUERY_CACHE_TTL):
 def invalidate_user_cache(sid: str, *kinds):
     """数据刷新后使该用户相关查询缓存失效(kinds 为空则全部)"""
     prefix = f"{sid}:"
+    from wxcloudrun.core import state
+    if state.enabled():
+        state.delete_prefix(prefix)
     with _query_cache_lock:
         for key in list(_query_cache.keys()):
             if not key.startswith(prefix):

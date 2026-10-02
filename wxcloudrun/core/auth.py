@@ -52,7 +52,9 @@ def _try_credential_relogin(client: JWCClient) -> bool:
                 credential_store.mark_used(sid)
             try:
                 from wxcloudrun.core import session_store
-                session_store.save_session(sid, client.session.cookies)
+                session_store.save_session(
+                    sid, client.session.cookies,
+                    account_type=getattr(client, "account_type", "undergraduate"))
             except Exception:
                 pass
             try:

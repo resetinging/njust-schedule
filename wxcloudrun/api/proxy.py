@@ -2,7 +2,10 @@
 """教务请求代理路由(Phase 1b 从 views.py 拆出)。"""
 from flask import Blueprint, Response, request
 
+from wxcloudrun import app
 from wxcloudrun.core.sessions import _get_session_client
+from wxcloudrun.core.eval_warmup import warm_eval_session
+from wxcloudrun.core.urls import UnsafeUrlError, safe_jw_path
 from wxcloudrun.core.web import EVAL_HEADERS
 
 proxy_bp = Blueprint("proxy_api", __name__)
@@ -16,8 +19,7 @@ _PROXY_SECURITY_HEADERS = {
 
 
 def _warm_eval_session(client):
-    from wxcloudrun.views import _warm_eval_session as _impl
-    return _impl(client)
+    return warm_eval_session(client)
 
 
 @proxy_bp.route('/proxy/jw/<path:target_path>', methods=['GET', 'POST'])
@@ -25,7 +27,11 @@ def proxy_jw(target_path):
     client = _get_session_client()
     if client is None or not client.logged_in:
         return "请先登录教务系统", 401
-    target_url = f"http://202.119.81.112:9080/njlgdx/{target_path}"
+    try:
+        target_path = safe_jw_path("/njlgdx/" + target_path)
+    except UnsafeUrlError as e:
+        return str(e), 400
+    target_url = f"http://202.119.81.112:9080{target_path}"
     qs = request.query_string.decode()
     if qs:
         target_url += "?" + qs
@@ -37,7 +43,10 @@ def proxy_jw(target_path):
             _warm_eval_session(client)
             resp = client.session.get(target_url, headers=EVAL_HEADERS, timeout=15)
     except Exception as e:
-        return f"代理请求失败: {e}", 502
+        from wxcloudrun.core.web import _rid
+        app.logger.warning(
+            "[proxy] rid=%s 请求失败: %s", _rid(), type(e).__name__)
+        return "教务请求失败，请稍后重试", 502
     if "text/html" in (resp.headers.get("content-type") or ""):
         content = resp.text
         if "非法访问" in content or "非法操作" in content:

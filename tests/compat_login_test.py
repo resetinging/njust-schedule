@@ -120,6 +120,23 @@ try:
           wrong_response.status_code == 200
           and FakeJWC.instances[-1].allow_resume is False,
           wrong_response.get_json())
+
+    class FailingJWC(FakeJWC):
+        def login_webvpn(self, student_id, password, jwc_password="",
+                         allow_resume=False):
+            self.last_error = "模拟认证失败"
+            self.debug_log = ["internal-login-url"]
+            return False
+
+    auth_api.JWCClient = FailingJWC
+    fail_response = test_client.post("/api/login-webvpn", json={
+        "student_id": SID,
+        "password": PASSWORD,
+    })
+    fail_payload = fail_response.get_json()
+    check("production login errors hide debug log",
+          fail_response.status_code == 401 and "debug_log" not in fail_payload,
+          fail_payload)
 finally:
     _app_ctx.pop()
     auth_api.JWCClient = _orig_client

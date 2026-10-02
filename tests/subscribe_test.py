@@ -15,6 +15,9 @@ from wxcloudrun import app, db, dao  # noqa: E402
 from wxcloudrun.core import mp, reminder, subscribe_store as ss  # noqa: E402
 from wxcloudrun.model import Exam  # noqa: E402
 
+_APP_CTX = app.app_context()
+_APP_CTX.push()
+
 SID = "10001"
 PASS, FAIL, FAILURES = 0, 0, []
 
@@ -48,6 +51,10 @@ check("扣减成功", ss.consume(SID, "exam") is True and ss.quota(SID, "exam") 
       ss.quota(SID, "exam"))
 check("无额度扣减失败", ss.consume(SID, "exam") is False)
 check("未知类型不记录", ss.grant(SID, "unknown", 1) == {})
+_quota_sid = "10001-quota-check"
+ss.grant(_quota_sid, "exam", 999)
+check("单次授权最多只增加 1 条额度", ss.quota(_quota_sid, "exam") == 1,
+      ss.quota(_quota_sid, "exam"))
 
 print("== 模板消息组装 ==")
 data = reminder.build_exam_data(_Exam(), None)

@@ -3,6 +3,7 @@
 ======================================
 （微信云托管模板的 Counters 示例已移除）
 """
+import json
 from datetime import datetime
 from wxcloudrun import db
 
@@ -98,6 +99,24 @@ class Setting(db.Model):
     v = db.Column(db.Text, default='')
 
 
+class UserSetting(db.Model):
+    """按学号隔离的用户设置/缓存/凭据元数据。"""
+    __tablename__ = 'user_settings'
+    __table_args__ = (
+        db.Index('ix_user_settings_student', 'student_id'),
+    )
+    student_id = db.Column(db.String(50), primary_key=True)
+    k = db.Column(db.String(100), primary_key=True)
+    v = db.Column(db.Text, default='')
+    updated_at = db.Column(db.TIMESTAMP, default=datetime.now)
+
+
+class SchemaMigration(db.Model):
+    __tablename__ = 'schema_migrations'
+    version = db.Column(db.String(64), primary_key=True)
+    applied_at = db.Column(db.TIMESTAMP, default=datetime.now)
+
+
 # ============================================================
 # 课表助手 — 成绩
 # ============================================================
@@ -152,6 +171,84 @@ class CetScore(db.Model):
             "type": self.cet_type,
             "score": self.total_score,
             "exam_date": self.exam_date,
+        }
+
+
+class AuditCourse(db.Model):
+    """蹭课目录: 教务课程课表实际可得字段。"""
+    __tablename__ = 'audit_courses'
+    __table_args__ = (
+        db.Index('ix_audit_courses_semester_name',
+                 'semester', 'course_name'),
+        db.Index('ix_audit_courses_semester_teacher',
+                 'semester', 'teacher'),
+    )
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    semester = db.Column(db.String(50), default='', index=True)
+    course_name = db.Column(db.String(200), default='')
+    class_info = db.Column(db.String(500), default='')
+    teacher = db.Column(db.String(200), default='')
+    classroom = db.Column(db.String(200), default='')
+    day_of_week = db.Column(db.Integer, default=0)
+    start_period = db.Column(db.Integer, default=0)
+    end_period = db.Column(db.Integer, default=0)
+    weeks = db.Column(db.String(100), default='')
+    updated_at = db.Column(db.TIMESTAMP, default=datetime.now)
+
+    def to_dict(self):
+        return {
+            "name": self.course_name,
+            "class_info": self.class_info,
+            "teacher": self.teacher,
+            "classroom": self.classroom,
+            "day": self.day_of_week,
+            "start": self.start_period,
+            "end": self.end_period,
+            "weeks": self.weeks,
+        }
+
+
+class AuditFavorite(db.Model):
+    """用户收藏的蹭课课程组合。"""
+    __tablename__ = 'audit_favorites'
+    __table_args__ = (
+        db.UniqueConstraint(
+            'student_id', 'semester', 'favorite_key',
+            name='uq_audit_favorite'),
+        db.Index(
+            'ix_audit_favorites_user_semester',
+            'student_id', 'semester'),
+    )
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.String(50), default='', index=True)
+    semester = db.Column(db.String(50), default='', index=True)
+    favorite_key = db.Column(db.String(64), default='')
+    course_name = db.Column(db.String(200), default='')
+    class_info = db.Column(db.String(500), default='')
+    teacher = db.Column(db.String(200), default='')
+    classroom = db.Column(db.String(200), default='')
+    schedules_json = db.Column(db.Text, default='')
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+    updated_at = db.Column(db.TIMESTAMP, default=datetime.now)
+
+    def to_dict(self):
+        try:
+            schedules = json.loads(self.schedules_json or '[]')
+        except (TypeError, ValueError):
+            schedules = []
+        return {
+            "id": self.id,
+            "semester": self.semester,
+            "favorite_key": self.favorite_key,
+            "name": self.course_name,
+            "class_info": self.class_info,
+            "teacher": self.teacher,
+            "classroom": self.classroom,
+            "schedules": schedules,
+            "created_at": (
+                self.created_at.strftime("%Y-%m-%d %H:%M")
+                if self.created_at else ""
+            ),
         }
 
 

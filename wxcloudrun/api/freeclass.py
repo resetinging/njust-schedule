@@ -2,8 +2,8 @@
 """空教室查询路由与预热(Phase 1b 从 views.py 拆出)。
 
 数据源: 教务「教室借用查询」→ 状态=空闲教室清单;
-缓存: 进程内全局缓存, TTL 到下一个大节上课时刻,
-预热线程在各大节刷新今天; 其它日期首次查询时按需抓取。
+缓存: 进程内全局缓存, TTL 到下一个自然日 00:00,
+启动补齐当天全部大节, 之后每天 00:00 全量刷新。
 """
 import os
 import threading
@@ -15,7 +15,9 @@ import config
 from wxcloudrun import app, dao
 from wxcloudrun.core.auth import _require_login, _retry_with_relogin
 from wxcloudrun.core.cache import _cache_get, _cache_set
+from wxcloudrun.core.jwc_client_pool import JWCClientPool
 from wxcloudrun.core.pool import _jwc_request
+from wxcloudrun.core.semester import current_semester
 from wxcloudrun.core.timeutil import _beijing_date
 from wxcloudrun.core.web import _rid
 from wxcloudrun.jwc_client import JWCClient, CLASSROOM_SLOTS
@@ -24,9 +26,7 @@ freeclass_bp = Blueprint("freeclass_api", __name__)
 
 
 def _current_semester() -> str:
-    """当前学期(views 实现, 延迟导入避免循环)"""
-    from wxcloudrun.views import _current_semester as _impl
-    return _impl()
+    return current_semester()
 
 
 # ============================================================
@@ -63,6 +63,18 @@ def _current_teaching_week(first_week_date: str, on=None) -> int:
 # 实例锁串行保证同一账号 Cookie 一致, 会话失效时自动重登。
 _classroom_service_lock = threading.Lock()
 _classroom_service_client = JWCClient()
+_COOKIE_SOURCE = os.environ.get("FREE_CLASSROOM_COOKIE_SOURCE", "auto").strip().lower()
+try:
+    _CANDIDATE_RETRIES = max(1, int(os.environ.get("FREE_CLASSROOM_CANDIDATE_RETRIES", "5")))
+except (TypeError, ValueError):
+    _CANDIDATE_RETRIES = 5
+try:
+    _PERSISTED_LIMIT = max(1, int(os.environ.get("FREE_CLASSROOM_PERSISTED_LIMIT", "50")))
+except (TypeError, ValueError):
+    _PERSISTED_LIMIT = 50
+_SERVICE_PASSWORD_KEY = "free_classroom_pwd"
+_SERVICE_PASSWORD_PREFIX = "enc:v1:"
+_SERVICE_PASSWORD_AAD = "freeclass-service-account"
 
 
 def _service_credentials():
@@ -73,9 +85,56 @@ def _service_credentials():
     """
     sid = (dao.get_setting("free_classroom_sid", "")
            or config.FREE_CLASSROOM_SID).strip()
-    pwd = (dao.get_setting("free_classroom_pwd", "")
-           or config.FREE_CLASSROOM_PWD).strip()
+    pwd = _read_service_password()
     return sid, pwd
+
+
+def _encrypt_service_password(password: str) -> str:
+    """共享服务账号密码使用与用户凭据相同的 AES-GCM 加密域。"""
+    from wxcloudrun.core import cookie_crypto
+    if not cookie_crypto.enabled():
+        raise RuntimeError("未配置 SESSION_KEY，拒绝保存服务账号密码")
+    blob = cookie_crypto.encrypt(
+        _SERVICE_PASSWORD_AAD, {"pwd": str(password or "")})
+    return _SERVICE_PASSWORD_PREFIX + blob
+
+
+def _decrypt_service_password(value: str) -> str:
+    value = str(value or "")
+    if not value:
+        return ""
+    if not value.startswith(_SERVICE_PASSWORD_PREFIX):
+        return value
+    try:
+        from wxcloudrun.core import cookie_crypto
+        data = cookie_crypto.decrypt(
+            _SERVICE_PASSWORD_AAD,
+            value[len(_SERVICE_PASSWORD_PREFIX):])
+        return str((data or {}).get("pwd") or "")
+    except Exception:
+        return ""
+
+
+def set_service_password(password: str) -> bool:
+    """加密保存服务账号密码；加密不可用时失败关闭。"""
+    if not str(password or "").strip():
+        return False
+    dao.set_setting(_SERVICE_PASSWORD_KEY, _encrypt_service_password(password))
+    return True
+
+
+def _read_service_password() -> str:
+    stored = dao.get_setting(_SERVICE_PASSWORD_KEY, "")
+    if stored:
+        pwd = _decrypt_service_password(stored)
+        # 旧版明文记录首次读取时自动升级；升级失败不阻断读取。
+        if pwd and not stored.startswith(_SERVICE_PASSWORD_PREFIX):
+            try:
+                set_service_password(pwd)
+            except Exception:
+                pass
+        return pwd
+    return str(config.FREE_CLASSROOM_PWD or "").strip()
 
 
 def _reset_service_client():
@@ -85,35 +144,63 @@ def _reset_service_client():
         _classroom_service_client = JWCClient()
 
 
-def _service_free_classrooms(campus, weekday, jc1, jc2, week, semester, building):
-    """服务账号统一查询空闲教室。
-
-    返回 (result_dict, None) 成功 / (None, 错误信息) 失败。
-    """
+def _service_client_provider():
+    """服务账号兜底: 返回 (client, sid, error)。"""
     sid, pwd = _service_credentials()
     if not sid:
-        return None, "未配置空教室服务账号"
+        return None, "", "未配置空教室服务账号"
     if not pwd:
-        return None, "未配置空教室服务账号密码(请在管理面板「系统」中设置)"
+        return None, "", "未配置空教室服务账号密码(请在管理面板「系统」中设置)"
     with _classroom_service_lock:
-        for _attempt in range(2):
-            if not _classroom_service_client.logged_in:
-                # 教务直连已下线: 服务账号改走智慧理工 SSO(含持久化会话复用)
-                ok = _classroom_service_client.login_webvpn(sid, pwd, allow_resume=True)
-                if not ok:
-                    return None, _classroom_service_client.last_error or "服务账号登录失败"
-            res = _classroom_service_client.get_free_classrooms(
-                campus=campus, weekday=weekday, jc1=jc1, jc2=jc2,
-                week=week, semester=semester, building=building)
-            if isinstance(res, dict):
-                return res, None
-            err = _classroom_service_client.last_error or "查询失败"
-            if "登录" in err or "logon" in err.lower():
-                # 会话过期: 标记并重登重试一次
-                _classroom_service_client.logged_in = False
+        if not _classroom_service_client.logged_in:
+            ok = _classroom_service_client.login_webvpn(sid, pwd, allow_resume=True)
+            if not ok:
+                return None, "", (_classroom_service_client.last_error
+                                  or "服务账号登录失败")
+    return _classroom_service_client, sid, ""
+
+
+class _ClassroomQuery(JWCClientPool):
+    """空教室查询适配器: 共享候选池 + 教室借用查询。"""
+
+    def __init__(self):
+        super().__init__(
+            service_provider=_service_client_provider,
+            source=_COOKIE_SOURCE,
+            retries=_CANDIDATE_RETRIES,
+            limit=_PERSISTED_LIMIT)
+
+    def query(self, campus, weekday, jc1, jc2, week, semester, building):
+        last_error = "空教室查询失败"
+        for _attempt in range(_CANDIDATE_RETRIES * 3 + 2):
+            client, source, sid, err = self.next_client()
+            if client is None:
+                return None, err or last_error
+            try:
+                with _jwc_request(client):
+                    res = client.get_free_classrooms(
+                        campus=campus, weekday=weekday, jc1=jc1, jc2=jc2,
+                        week=week, semester=semester, building=building)
+            except Exception as exc:  # noqa: BLE001
+                last_error = f"{type(exc).__name__}: {exc}"
+                self.client = None
                 continue
-            return None, err
-        return None, "服务账号会话异常"
+            if isinstance(res, dict):
+                app.logger.info("[freeclass] source=%s sid=%s query ok",
+                                source, (sid or "-")[:3] + "****")
+                return res, None
+            last_error = client.last_error or "查询失败"
+            if "登录" in last_error or "logon" in last_error.lower():
+                client.logged_in = False
+            self.client = None
+        return None, last_error
+
+
+def _service_free_classrooms(campus, weekday, jc1, jc2, week, semester, building,
+                             query=None):
+    """按候选池查询空闲教室; 返回 (result_dict, None) 或 (None, error)。"""
+    return (query or _ClassroomQuery()).query(
+        campus, weekday, jc1, jc2, week, semester, building)
 
 
 def _freeclass_cache_key(campus, weekday, jc1, jc2, week, semester, building="") -> str:
@@ -146,10 +233,9 @@ def _freeclass_resp(campus, weekday, jc1, jc2, week, semester, result, updated_a
 
 
 # ============================================================
-# 空教室定时预热 — 按每天"上下课"时刻刷新当天缓存
-# 每天在各大节上课时刻用服务账号刷新一次当天数据(教室占用基本按周次固定,
-# 但临时调停课会变化; 上下课边界刷新保证"当前时段"数据新), 用户查询
-# 基本全部命中 120s 全局缓存, 教务请求降到每天十几次。
+# 空教室定时预热 — 启动补齐当天, 之后每天 00:00 刷新
+# 每天零点用共享本科 Cookie 池刷新当天两校区全部大节数据,
+# 用户查询当天只读全局缓存, 避免请求时访问教务。
 # 开关: 环境变量 FREE_CLASSROOM_PREWARM=1(容器 envParams 已默认开启)
 # ============================================================
 # (本地时钟 HH:MM → 官方大节): 两校区上下课时刻(各校以教务为准,
@@ -230,15 +316,14 @@ def _current_slot_key(now=None) -> str:
 
 
 def _freeclass_ttl(now=None) -> float:
-    """空教室缓存有效期: 到下一个大节上课时刻 + 120s 缓冲。
+    """空教室缓存有效期: 到下一个自然日 00:00 + 120s 缓冲。
 
-    数据由后端预热线程在每天各大节上课时刻统一更新(默认只补今天),
-    用户请求命中缓存即可; 未命中(冷启动/周末等)按需抓取后同样缓存到
-    下一个刷新时刻, 取代原先的 120s 短 TTL。
+    数据由后端每天 00:00 全量更新, 当天请求只读缓存。
     """
     from datetime import datetime as _dt
+    from datetime import timedelta as _td
     now = now or _dt.now()
-    nxt, _slot = _next_freeclass_refresh(now)
+    nxt = _dt.combine(now.date(), _dt.min.time()) + _td(days=1)
     return max(120.0, (nxt - now).total_seconds() + 120.0)
 
 
@@ -263,12 +348,14 @@ def _prewarm_free_classrooms(slots=None):
     fwd = dao.get_setting("first_week_date", "")
     slot_keys = slots or [s[0] for s in CLASSROOM_SLOTS]
     ok_n = 0
+    classroom_query = _ClassroomQuery()
     for _day, weekday, week in _prewarm_targets(fwd):
         for campus in FREE_CLASSROOM_CAMPUSES:
             for slot in slot_keys:
                 jc1, jc2 = FREE_CLASSROOM_SLOT_JC.get(slot, (6, 7))
                 result, err = _service_free_classrooms(
-                    campus, weekday, jc1, jc2, week, semester, "")
+                    campus, weekday, jc1, jc2, week, semester, "",
+                    query=classroom_query)
                 if result is None:
                     app.logger.warning("[freeclass][prewarm] %s 星期%s %s 预热失败: %s",
                                        campus, weekday, slot, err)
@@ -285,25 +372,30 @@ def _prewarm_free_classrooms(slots=None):
 
 
 def _prewarm_loop():
-    """后台守护线程: 启动先补当前大节, 之后每到上课时刻预热对应大节"""
-    # 容器重启后缓存为空: 由后端立即补齐"当前大节", 而不是等用户请求触发抓取
+    """后台守护线程: 启动补齐当天全部大节, 之后每天 00:00 全量更新。"""
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+
     try:
         from wxcloudrun import app as _app
-        slot = _current_slot_key()
         with _app.app_context():
-            app.logger.info("[freeclass][prewarm] 启动补缓存: 当前大节 %s", slot)
-            _prewarm_free_classrooms([slot])
+            app.logger.info("[freeclass][prewarm] 启动补当天全量缓存")
+            _prewarm_free_classrooms()
     except Exception as e:  # noqa: BLE001 补缓存失败不影响定时循环
         app.logger.warning("[freeclass][prewarm] 启动补缓存失败: %s", e)
     while True:
         try:
-            from datetime import datetime as _dt
-            nxt, slot = _next_freeclass_refresh(_dt.now())
-            wait = max(10, (nxt - _dt.now()).total_seconds())
+            now = _dt.now()
+            nxt = _dt.combine(now.date(), _dt.min.time()) + _td(days=1)
+            wait = max(10, (nxt - now).total_seconds())
             time.sleep(wait)
             from wxcloudrun import app as _app
             with _app.app_context():
-                _prewarm_free_classrooms([slot])
+                from wxcloudrun.core.state import distributed_lock
+                with distributed_lock(
+                        "wx:lock:freeclass-prewarm", ttl=900) as acquired:
+                    if acquired:
+                        _prewarm_free_classrooms()
         except Exception as e:
             app.logger.warning("[freeclass][prewarm] 线程异常: %s", e)
             time.sleep(300)
@@ -320,7 +412,7 @@ def _start_freeclass_prewarm():
     try:
         threading.Thread(target=_prewarm_loop, daemon=True,
                          name="freeclass-prewarm").start()
-        app.logger.info("[freeclass] 定时预热已启用(启动补当前大节 + 各大节上课时刻刷新)")
+        app.logger.info("[freeclass] 定时预热已启用(启动补当天 + 每日 00:00 全量刷新)")
     except Exception as e:
         app.logger.warning("[freeclass] 预热线程启动失败: %s", e)
 
@@ -332,8 +424,8 @@ def api_free_classrooms():
     + week(周次) + building(教学楼名称, 可选)
 
     服务端用共享服务账号查询教务「教室借用」页(教室状态=空闲), 只保留
-    有楼名映射的教室; 结果缓存到下一个大节刷新时刻(预热线程在每天各大节
-    上课时统一更新今天+明天), 防止频繁查询打爆教务。
+    有楼名映射的教室; 结果缓存到下一个自然日 00:00(启动补齐当天,
+    每天零点全量刷新两校区), 防止频繁查询打爆教务。
     """
     client, err = _require_login()
     if err:
@@ -376,7 +468,7 @@ def api_free_classrooms():
         weekday = _beijing_date().isoweekday()   # 默认今天(周一=1); 按北京时间取, 避免容器 UTC 偏差
     if week < 1:
         # 当前教学周: 学期设置优先, 回退全局(与设置页口径一致)
-        fwd = dao.get_setting(f"{sid}:first_week_date:{semester}", "") \
+        fwd = dao.get_user_setting(sid, f"first_week_date:{semester}", "") \
             or dao.get_setting("first_week_date", "")
         week = _current_teaching_week(fwd)
 

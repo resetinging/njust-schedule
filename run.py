@@ -59,6 +59,10 @@ from wxcloudrun import app
 from wxcloudrun.api.freeclass import _start_freeclass_prewarm  # noqa: E402
 _start_freeclass_prewarm()
 
+# 蹭课目录: 每天 00:00 使用共享本科 Cookie 池更新数据库目录。
+from wxcloudrun.api.audit import start_audit_catalog_scheduler  # noqa: E402
+start_audit_catalog_scheduler()
+
 # 考试订阅提醒: 每天定点扫描"明天开考"的考试并发送服务通知。
 # 未配置 MP_SECRET(无发送能力)或 EXAM_REMINDER=0 时自动跳过。
 from wxcloudrun.core.reminder import start_exam_reminder  # noqa: E402

@@ -241,7 +241,8 @@ class LoginMixin:
             return
         try:
             saved = self._session_store().save_session(self.student_id,
-                                                       self.session.cookies)
+                                                       self.session.cookies,
+                                                       account_type="undergraduate")
             if saved:
                 self._log(f"[SSO-Reuse] 会话已持久化({saved} cookies)")
         except Exception as e:  # noqa: BLE001 持久化失败不应影响登录结果

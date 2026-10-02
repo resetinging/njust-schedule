@@ -30,6 +30,7 @@ PROGRAMME_TTL = DATA_CACHE_TTL      # 培养方案: 与教务持久会话同周�
 PROFILE_TTL = DATA_CACHE_TTL        # 学籍卡片: 与教务持久会话同周期
 PROGRAMME_KEY = "programme"         # settings 用户键: {sid}:programme
 PROFILE_KEY = "profile"             # settings 用户键: {sid}:profile
+DATA_CACHE_AT_KEY = "data_cache_at"  # 完整预抓成功时间(用户级)
 
 
 def _calendar_key(semester: str) -> str:
@@ -72,10 +73,25 @@ def _set_data_refresh_state(client, state: str, **extra) -> None:
     client._data_refresh_state = payload
 
 
+def _data_cache_fresh(sid: str) -> bool:
+    try:
+        ts = int(dao.get_user_setting(sid, DATA_CACHE_AT_KEY, "0") or 0)
+    except Exception:
+        return False
+    return ts > 0 and time.time() - ts < DATA_CACHE_TTL
+
+
+def _mark_data_cache_complete(sid: str) -> None:
+    try:
+        dao.set_user_setting(sid, DATA_CACHE_AT_KEY, str(int(time.time())))
+    except Exception:
+        pass
+
+
 def _sync_first_week(sid: str, data: dict) -> None:
     """教学周历 → 用户 `first_week_date`(课表页定位本周的取值来源; 教务为准)。
 
-    写入 {sid}:first_week_date:{semester}, 与「我的」页手动设置同一键;
+    写入 user_settings 的 first_week_date:{semester}, 与「我的」页手动设置同一键;
     教务同步值会覆盖手动值 —— 这是"以教务为准"的既定口径。
     """
     fm = data.get("first_monday")
@@ -83,7 +99,7 @@ def _sync_first_week(sid: str, data: dict) -> None:
     if not (sid and fm and sem):
         return
     try:
-        dao.set_setting(f"{sid}:first_week_date:{sem}", fm)
+        dao.set_user_setting(sid, f"first_week_date:{sem}", fm)
     except Exception:  # noqa: BLE001 同步失败不影响周历返回
         pass
 
@@ -316,7 +332,7 @@ def _prefetch_undergraduate(client, sid: str, semester: str) -> dict:
 
     cached_calendar = _load_json(_calendar_key(semester))
     calendar = _fetch_calendar(client, sid, semester, cached_calendar)
-    mark("calendar", bool(calendar))
+    mark("calendar", bool(calendar) or not client.last_error)
     if not getattr(client, "logged_in", False):
         result["aborted"] = "session_expired"
         invalidate_user_cache(sid)
@@ -384,7 +400,7 @@ def _prefetch_undergraduate(client, sid: str, semester: str) -> dict:
     if programme:
         programme["fetched_at"] = int(time.time())
         _save_user_json(sid, PROGRAMME_KEY, programme)
-    mark("programme", bool(programme))
+    mark("programme", bool(programme) or not client.last_error)
 
     profile = call(client.fetch_profile)
     if abort_if_logged_out():
@@ -392,16 +408,22 @@ def _prefetch_undergraduate(client, sid: str, semester: str) -> dict:
     if profile:
         profile["fetched_at"] = int(time.time())
         _save_user_json(sid, PROFILE_KEY, profile)
-    mark("profile", bool(profile))
+    mark("profile", bool(profile) or not client.last_error)
 
     invalidate_user_cache(sid)
     return result
 
 
 def schedule_data_prefetch(client, sid: str, semester: str = "",
-                           delay: float = 3.0) -> None:
+                           delay: float = 3.0, mode: str = "full") -> None:
     """会话建立后后台同步全部业务数据（不阻塞登录，失败保留旧缓存）。"""
     if not sid:
+        return
+    if mode == "if_stale" and _data_cache_fresh(sid):
+        _set_data_refresh_state(
+            client, "done", started_at=int(time.time()),
+            fetched_at=int(time.time()), skipped=True,
+            ok=[], failed=[])
         return
     if getattr(client, "_data_prefetch_running", False):
         return
@@ -429,6 +451,8 @@ def schedule_data_prefetch(client, sid: str, semester: str = "",
                 extra = {}
                 if result.get("aborted"):
                     extra["aborted"] = result["aborted"]
+                if state == "done":
+                    _mark_data_cache_complete(sid)
                 _set_data_refresh_state(
                     client, state,
                     started_at=started_at,

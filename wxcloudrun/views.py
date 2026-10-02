@@ -43,6 +43,20 @@ from wxcloudrun.core.pool import (  # noqa: E402
     _jw_semaphore, _jwc_request, _jwc_request_priority)
 from wxcloudrun.core.web import (  # noqa: E402
     SLOW_MS, EVAL_HEADERS, _rid, register_request_logging)
+from wxcloudrun.core.semester import current_semester  # noqa: E402
+from wxcloudrun.core.eval_warmup import warm_eval_session  # noqa: E402
+from wxcloudrun.core.rate_limit import (  # noqa: E402
+    _RATE_BUCKETS, _RATE_LOCK,
+    client_ip as _core_client_ip,
+    login_fail_key as _core_login_fail_key,
+    login_fail_sid_key as _core_login_fail_sid_key,
+    prune_locked as _prune_rate_buckets_locked,
+    rate_clear as _core_rate_clear,
+    rate_hit as _core_rate_hit,
+    rate_limited as _core_rate_limited,
+    rate_over as _core_rate_over,
+)
+from wxcloudrun.core.network import check as check_network  # noqa: E402
 
 # 全局教务客户端：仅用于学期计算等无状态工具方法（不参与业务会话）
 jwc_client = JWCClient()
@@ -57,21 +71,6 @@ from wxcloudrun.core.media import _sniff_image_mime  # noqa: E402
 app.register_blueprint(gallery_bp)
 
 
-# 教务连通性探测缓存（导航栏/设置页高频调用，5 分钟内复用结果）
-_network_cache = {"ts": 0.0, "ok": False}
-try:
-    NETWORK_CACHE_TTL = max(30, int(os.environ.get("NETWORK_CACHE_TTL", "300")))
-except (TypeError, ValueError):
-    NETWORK_CACHE_TTL = 300
-
-
-# 教务连通性探测的后台刷新状态(必须在 _check_network 之前定义:
-# 否则万一在模块导入期就被调用, 会 NameError)
-_network_refreshing = {"on": False}
-_network_lock = threading.Lock()
-_network_probe_lock = threading.Lock()
-
-
 def _check_network(force: bool = False) -> Tuple[bool, str]:
     """教务连通性: 只读缓存, 过期交给后台线程刷新 —— 绝不在请求路径里阻塞。
 
@@ -80,49 +79,17 @@ def _check_network(force: bool = False) -> Tuple[bool, str]:
 
     force=True 仅供用户主动点击“连接测试”使用, 会同步刷新一次。
     """
-    if force:
-        with _network_lock:
-            should_probe = not _network_refreshing["on"]
-            if should_probe:
-                _network_refreshing["on"] = True
-        if should_probe:
-            _refresh_network_cache()
-        else:
-            # 已有后台探测: 等它完成并直接复用结果, 不再多打一次教务。
-            with _network_probe_lock:
-                pass
-        return bool(_network_cache["ok"]), ""
-    now = time.time()
-    age = now - _network_cache["ts"]
-    if age >= NETWORK_CACHE_TTL and not _network_refreshing["on"]:
-        with _network_lock:
-            if not _network_refreshing["on"]:
-                _network_refreshing["on"] = True
-                threading.Thread(target=_refresh_network_cache, daemon=True).start()
-    if _network_cache["ts"] <= 0:
-        # 首次启动还没探测过: 返回"暂不可知", 由前端容错(不阻塞)
-        return False, ""
-    return _network_cache["ok"], ""
+    return check_network(force=force)
 
 
 def _refresh_network_cache():
     """后台探测教务连通性(短超时), 结果写入缓存供请求直接读取"""
-    with _network_probe_lock:
-        try:
-            try:
-                probe = JWCClient()
-                ok, _msg = probe.test_connection(timeout=3)
-            except Exception:
-                ok = False
-            _network_cache["ok"] = ok
-            _network_cache["ts"] = time.time()
-        finally:
-            # 必须放 finally: 中途抛异常也要把标记放掉, 否则后台刷新会被永久禁用
-            _network_refreshing["on"] = False
+    from wxcloudrun.core.network import refresh
+    return refresh()
 
 
 def _current_semester() -> str:
-    return jwc_client._current_semester()
+    return current_semester()
 
 
 # 北京时间工具已下沉到 core/timeutil.py(Phase 1b)
@@ -135,14 +102,7 @@ def _warm_eval_session(client: JWCClient):
     同一用户 60 秒内只预热一次：批量评教逐门提交时，
     每个请求此前都会多打一次预热请求，缓存后教务请求量减半。
     """
-    now = time.time()
-    if now - getattr(client, "_eval_warm_ts", 0.0) < 60:
-        return
-    client._eval_warm_ts = now
-    client.session.get(
-        "http://202.119.81.112:9080/njlgdx/xspj/xspj_find.do",
-        headers={"Referer": "http://202.119.81.112:9080/njlgdx/framework/main.jsp"},
-        timeout=10)
+    return warm_eval_session(client)
 
 
 # ============================================================
@@ -196,69 +156,37 @@ def font_pixel_json():
 
 # 按需子集: 字体里大部分字用不到, 只把"该用户课程文本"涉及的字发给前端,
 # 体积从 966KB 降到几十 KB, 也不用配 downloadFile 白名单(callContainer 能直接收 JSON)。
-_RATE_BUCKETS = {}
-_RATE_LOCK = threading.Lock()
-TRUSTED_PROXY_HOPS = max(1, int(os.environ.get("TRUSTED_PROXY_HOPS", "1")))
-
-
-def _prune_rate_buckets_locked(max_keys: int = 5000) -> None:
-    """上限保护: 淘汰最旧的键, 不能 clear 掉全部限流状态。"""
-    while len(_RATE_BUCKETS) > max_keys:
-        _RATE_BUCKETS.pop(next(iter(_RATE_BUCKETS)), None)
-
-
 def _rate_limited(key: str, limit: int, window: float = 60.0) -> bool:
     """简易滑动窗口限流(进程内): 返回 True 表示超限。
 
     单实例部署下够用; 以后要多实例, 换成 Redis 计数即可。
     """
-    now = time.time()
-    with _RATE_LOCK:
-        hits = [t for t in _RATE_BUCKETS.get(key, []) if now - t < window]
-        if len(hits) >= limit:
-            _RATE_BUCKETS[key] = hits
-            return True
-        hits.append(now)
-        _RATE_BUCKETS[key] = hits
-        _prune_rate_buckets_locked()
-    return False
+    return _core_rate_limited(key, limit, window)
 
 
 def _rate_over(key: str, limit: int, window: float = 60.0) -> bool:
     """只检查是否超限, 不计数(计数交给 _rate_hit)"""
-    now = time.time()
-    with _RATE_LOCK:
-        hits = [t for t in _RATE_BUCKETS.get(key, []) if now - t < window]
-        _RATE_BUCKETS[key] = hits
-        _prune_rate_buckets_locked()
-        return len(hits) >= limit
+    return _core_rate_over(key, limit, window)
 
 
 def _rate_hit(key: str) -> None:
-    with _RATE_LOCK:
-        _RATE_BUCKETS.setdefault(key, []).append(time.time())
+    return _core_rate_hit(key)
 
 
 def _rate_clear(key: str) -> None:
-    with _RATE_LOCK:
-        _RATE_BUCKETS.pop(key, None)
+    return _core_rate_clear(key)
 
 
 def _client_ip() -> str:
-    xff = request.headers.get('X-Forwarded-For') or ''
-    parts = [p.strip() for p in xff.split(',') if p.strip()]
-    if parts:
-        idx = max(0, len(parts) - TRUSTED_PROXY_HOPS)
-        return parts[idx]
-    return request.remote_addr or '-'
+    return _core_client_ip()
 
 
 def _LOGIN_FAIL_KEY(student_id: str, ip: str) -> str:
-    return 'loginfail:%s:%s' % (student_id or '-', ip)
+    return _core_login_fail_key(student_id, ip)
 
 
 def _LOGIN_FAIL_SID_KEY(student_id: str) -> str:
-    return 'loginfail:sid:%s' % (student_id or '-')
+    return _core_login_fail_sid_key(student_id)
 
 
 @app.after_request
@@ -412,9 +340,11 @@ def font_list():
 
 from wxcloudrun.api.proxy import proxy_bp  # noqa: E402
 from wxcloudrun.api.status import status_bp  # noqa: E402
+from wxcloudrun.api.sync import sync_bp  # noqa: E402
 
 app.register_blueprint(proxy_bp)
 app.register_blueprint(status_bp)
+app.register_blueprint(sync_bp)
 
 from wxcloudrun.api.feedback import feedback_bp  # noqa: E402
 from wxcloudrun.api.auth import auth_bp  # noqa: E402
@@ -451,6 +381,10 @@ app.register_blueprint(grades_bp)
 from wxcloudrun.api.study import study_bp  # noqa: E402
 
 app.register_blueprint(study_bp)
+
+from wxcloudrun.api.audit import audit_bp  # noqa: E402
+
+app.register_blueprint(audit_bp)
 
 
 from wxcloudrun.api.subscribe import subscribe_bp  # noqa: E402

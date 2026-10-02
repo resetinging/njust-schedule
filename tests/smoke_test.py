@@ -37,6 +37,9 @@ _APP_CTX.push()
 
 client = app.test_client()
 
+from wxcloudrun.model import SchemaMigration  # noqa: E402
+assert SchemaMigration.query.count() >= 5, "Schema migration registry missing"
+
 PASS, FAIL, FAILURES = 0, 0, []
 
 
@@ -68,6 +71,12 @@ check("/api/gallery-image?name=26-27年校历.png",
 check("/api/gallery-image 路径穿越防护",
       client.get("/api/gallery-image?name=..%2Fconfig.py"), 400)
 check("/api/connect-test", client.get("/api/connect-test"), 200)
+check("/healthz", client.get("/healthz"), 200)
+check("/readyz", client.get("/readyz"), 200)
+_metrics = client.get("/metrics")
+assert _metrics.status_code == 200
+assert "njust_http_requests_total" in _metrics.get_data(as_text=True)
+print("  [PASS] 健康探针与 Prometheus 指标可用")
 check("/api/sso-qr/status 未知 qr_id", client.get("/api/sso-qr/status?qr_id=x"), 400)
 check("/api/sso-qr/cancel", client.post("/api/sso-qr/cancel", json={}), 200)
 
@@ -118,7 +127,10 @@ print("== 参数校验 ==")
 check("login 缺参数", client.post("/api/login", json={}), 400)
 check("login-webvpn 畸形 JSON",
       client.post("/api/login-webvpn", data="{bad", content_type="application/json"), 400)
-check("semester 空值", client.post("/api/semester", json={"semester": ""}), 400)
+check("未登录禁止写全局设置",
+      client.post("/api/settings", json={"first_week_date": "2000-01-01"}), 401)
+check("未登录禁止切换全局学期",
+      client.post("/api/semester", json={"semester": ""}), 401)
 check("eval-form 缺 url", client.get("/api/eval-form"), 400)
 check("404 处理", client.get("/no-such-page"), 404)
 
@@ -266,6 +278,26 @@ check("/api/prefetch-status 登录后 200", ps, 200)
 assert ps.get_json().get("data_refresh", {}).get("state") == "idle", ps.get_json()
 print("  [PASS] /api/status 返回 token 对应用户")
 
+for _bad_url in (
+    "http://169.254.169.254/latest/meta-data",
+    "//evil.example/path",
+    "/njlgdx/../../etc/passwd",
+    "/other/path",
+):
+    r = client.get("/api/eval-courses",
+                   query_string={"url": _bad_url}, headers=h1)
+    assert r.status_code == 400, (_bad_url, r.status_code, r.get_json())
+r = client.post("/api/submit-eval",
+                json={"form_data": {},
+                      "action": "http://169.254.169.254/latest/meta-data"},
+                headers=h1)
+assert r.status_code == 400, r.get_json()
+r = client.post("/api/jw-proxy",
+                json={"method": "GET", "path": "http://evil.example"},
+                headers=h1)
+assert r.status_code == 400, r.get_json()
+print("  [PASS] 评教/代理 URL 白名单阻止 SSRF 与路径穿越")
+
 # 用户1 写入课表 → 用户1 可见，用户2 不可见
 dao.save_courses([{
     "name": "甲的专业课", "teacher": "T1", "classroom": "A101",
@@ -281,9 +313,31 @@ print("  [PASS] API 层数据隔离：用户1 的课表用户2 看不到")
 # 学期按用户独立
 client.post("/api/semester", json={"semester": "2026-2027-1"}, headers=h1)
 client.post("/api/semester", json={"semester": "2025-2026-2"}, headers=h2)
+check("semester 空值", client.post(
+    "/api/semester", json={"semester": ""}, headers=h1), 400)
 assert dao.get_user_setting("10001", "semester") == "2026-2027-1"
 assert dao.get_user_setting("10002", "semester") == "2025-2026-2"
 print("  [PASS] 学期设置按用户隔离")
+
+_global_first_week = dao.get_setting("first_week_date", "")
+r = client.post("/api/settings",
+                json={"first_week_date": "2026-08-24",
+                      "auto_refresh": "true"},
+                headers=h1)
+assert r.status_code == 200 and r.get_json()["success"], r.get_json()
+assert dao.get_user_setting(
+    "10001", "first_week_date:2026-2027-1") == "2026-08-24"
+assert dao.get_user_setting("10001", "auto_refresh") == "true"
+assert dao.get_setting("first_week_date", "") == _global_first_week
+print("  [PASS] 设置写入按用户隔离, 不污染全局配置")
+
+# 旧库 {sid}:{key} 行迁移到 user_settings, 全局 settings 不再承载用户命名空间
+dao.set_setting("legacy-user:semester", "2024-2025-1")
+import wxcloudrun as _wxcloudrun  # noqa: E402
+_wxcloudrun._migrate_user_settings()
+assert dao.get_user_setting("legacy-user", "semester") == "2024-2025-1"
+assert dao.get_setting("legacy-user:semester", "") == ""
+print("  [PASS] 旧用户设置已迁移到 user_settings 表")
 
 # 退出登录：token 失效
 r = client.post("/api/logout", headers=h1)
@@ -399,10 +453,10 @@ _nxt, _slot = _next_freeclass_refresh(_dt(2026, 9, 1, 8, 30))   # 08:30 → 10:1
 assert _nxt.hour == 10 and _nxt.minute == 10 and _slot == "4-5", (_nxt, _slot)
 _nxt2, _slot2 = _next_freeclass_refresh(_dt(2026, 9, 1, 23, 0))  # 23:00 → 次日 08:00
 assert _nxt2.day == 2 and _nxt2.hour == 8 and _slot2 == "1-3", (_nxt2, _slot2)
-# 缓存 TTL: 到下一个大节时刻 + 120s 缓冲(取代固定 120s)
-assert _freeclass_ttl(_dt(2026, 9, 1, 8, 30)) == 100 * 60 + 120
-assert _freeclass_ttl(_dt(2026, 9, 1, 23, 0)) == 9 * 3600 + 120
-print("  [PASS] 预热计划(上下课时刻/跨天) + 缓存 TTL 跟随后端刷新")
+# 缓存 TTL: 到下一个自然日 00:00 + 120s 缓冲
+assert _freeclass_ttl(_dt(2026, 9, 1, 8, 30)) == 15 * 3600 + 30 * 60 + 120
+assert _freeclass_ttl(_dt(2026, 9, 1, 23, 0)) == 1 * 3600 + 120
+print("  [PASS] 预热计划(上下课时刻/跨天) + 每日零点缓存 TTL")
 
 # 响应兼容性: 旧版前端依赖 slot_name/slot; 新版用 time_text/jc1/jc2/updated_at
 from wxcloudrun.views import _freeclass_resp  # noqa: E402
@@ -412,6 +466,20 @@ assert _resp["slot_name"] == _resp["time_text"] == "第1-5节", _resp
 assert "slot" in _resp and "jc1" in _resp and "updated_at" in _resp
 assert _resp["count"] == 1 and _resp["rooms"] == ["东区平房-101"]
 print("  [PASS] 空教室响应兼容字段(slot_name/time_text/jc1/jc2/updated_at)")
+
+# 服务账号密码必须加密落库; 旧明文记录首次读取时自动升级为密文
+from wxcloudrun.api import freeclass as _freeclass_api  # noqa: E402
+assert _freeclass_api.set_service_password("FreeClass@Test")
+_service_blob = dao.get_setting("free_classroom_pwd", "")
+assert _service_blob.startswith("enc:v1:")
+assert "FreeClass@Test" not in _service_blob
+assert _freeclass_api._read_service_password() == "FreeClass@Test"
+dao.set_setting("free_classroom_pwd", "LegacyPlain@Test")
+assert _freeclass_api._read_service_password() == "LegacyPlain@Test"
+_upgraded_blob = dao.get_setting("free_classroom_pwd", "")
+assert _upgraded_blob.startswith("enc:v1:")
+assert "LegacyPlain@Test" not in _upgraded_blob
+print("  [PASS] 空教室服务账号密码加密落库并自动迁移旧明文")
 
 # 时区: 教学周按传入日期计算(修复前用 date.today(), 容器 UTC 时会偏一天)
 from wxcloudrun.views import (  # noqa: E402
@@ -578,7 +646,8 @@ _cc.fetch_calendar = lambda semester="": {
 _cr = client.get("/api/calendar", headers=_ch)
 check("/api/calendar 200", _cr, 200)
 assert _cr.get_json().get("first_monday") == "2026-08-24", _cr.get_json()
-assert dao.get_setting("10001:first_week_date:2026-2027-1") == "2026-08-24", "周历未回写 first_week_date"
+assert dao.get_user_setting(
+    "10001", "first_week_date:2026-2027-1") == "2026-08-24", "周历未回写 first_week_date"
 _cached = client.get("/api/calendar", headers=_ch).get_json()
 assert _cached.get("cached") is True, _cached
 check("/api/refresh-calendar 200", client.post("/api/refresh-calendar", headers=_ch), 200)
@@ -620,6 +689,10 @@ assert "exam" in _sub.get_json()["kinds"], _sub.get_json()
 check("/api/subscribe/grant 200",
       client.post("/api/subscribe/grant", json={"kind": "exam"}, headers=_ch), 200)
 assert client.get("/api/subscribe/status", headers=_ch).get_json()["kinds"]["exam"]["quota"] == 1
+client.post("/api/subscribe/grant",
+            json={"kind": "exam", "count": 999}, headers=_ch)
+assert client.get("/api/subscribe/status",
+                  headers=_ch).get_json()["kinds"]["exam"]["quota"] == 2
 check("/api/subscribe/grant 未知类型 400",
       client.post("/api/subscribe/grant", json={"kind": "nope"}, headers=_ch), 400)
 check("/api/subscribe/test-send 未配置密钥 400",

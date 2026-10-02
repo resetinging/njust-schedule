@@ -22,6 +22,7 @@
   - 排除通识教育选修课、缓考/缺考/免修等非正式成绩
   - 保研模式:四六级成绩按官方公式折算百分制,替换英语模块(8 学分)重算 GPA
 - **登录**:支持智慧理工 SSO 密码登录与微信扫码登录。密码默认由后端 AES-256-GCM 加密保存，用于 24 小时内的 Cookie 快速恢复和会话失效自动重登；退出登录不删除密码，管理员不能查看明文。会话失效时后台全量同步会立即中止，不继续请求后续教务数据域
+- **蹭课查询**:按课程名称、任课教师、地点、星期和节次组合查询教务课程课表; 支持同维度多选、不同维度同时匹配; 只展示课程名、教师、星期、节次、周次和教室等实际可得字段
 
 ## 技术栈
 
@@ -72,11 +73,17 @@
 | `CREDENTIAL_TRUST_TTL` | 服务端保存密码的本地信任期；只有真实 SSO 成功才续期(秒) | `86400`(24小时) |
 | `NETWORK_CACHE_TTL` | `/api/status` 教务连通性结果缓存时间(秒) | `300`(5分钟) |
 | `FREE_CLASSROOM_PREWARM_DAYS` | 空教室后台预热天数(1=仅今天, 2=今天+明天) | `1` |
+| `FREE_CLASSROOM_COOKIE_SOURCE` | 空教室 Cookie 来源: `auto`/`active-only`/`persistent-only`/`service-only` | `auto` |
+| `FREE_CLASSROOM_CANDIDATE_RETRIES` | 每类 Cookie 候选重试上限 | `5` |
+| `FREE_CLASSROOM_PERSISTED_LIMIT` | 单次读取的持久化 Cookie 候选上限 | `50` |
 | `TRUSTED_PROXY_HOPS` | 可信反向代理跳数, 用于安全解析客户端 IP | `1` |
 | `JW_TRY_DEFAULT_PWD` | 是否允许尝试教务初始密码兜底(高风险, 默认关闭) | `false` |
 | `ADMIN_REQUEST_TTL` | 管理端请求监控缓冲留存时间(秒) | `900` |
 | `ADMIN_PASSWORD` | 管理控制面板(/admin)登录口令; 未配置则本次运行随机生成(重启即变) | 随机 |
 | `SESSION_KEY` | 32 字节 base64 密钥: 教务会话/密码加密落库, 并派生 admin token 签名 | 空(相关能力禁用) |
+| `REDIS_URL` | 可选 Redis 地址；启用后会话、限流、缓存和调度锁可跨 worker 共享 | 空(单实例内存模式) |
+| `MIGRATIONS_AUTO` | 是否启动时自动执行幂等迁移；生产建议 `0` 并在发布阶段运行 `python tools/migrate.py` | `1` |
+| `REQUIRE_SECURE_CONFIG` | 是否强制生产密钥配置，缺少 `SESSION_KEY`/`ADMIN_PASSWORD` 时拒绝启动 | `0` |
 | `MP_SECRET` | 小程序 AppSecret: 订阅消息(考试提醒)发送用; 不配置则只记录授权、不发送 | 空(发送禁用) |
 | `SUBSCRIBE_TPL_EXAM` | 考试提醒的订阅消息模板 ID | 已内置 |
 | `EXAM_REMINDER` / `EXAM_REMINDER_HOUR` | 考试提醒开关 / 考前一天开始提醒的小时(北京时间) | `1` / `18` |
@@ -137,7 +144,9 @@ python tools/security_scan.py
 
 - 教务系统需要校园网或 VPN 才能访问;**登录必须显式提供密码**(不接受空密码/仅凭历史会话登录),Session 过期后需重新输入学号与密码。
 - 服务端在配置 `SESSION_KEY` 后**默认加密保存登录密码**(AES-256-GCM, 学号绑定)。密码匹配且距最近一次真实 SSO 认证不超过 24 小时时可优先复用教务 Cookie；退出登录保留密码，管理员控制台不提供明文查询。
-- **多用户**:每位用户独立登录、持有独立的教务会话(以登录签发的 token 标识),课表/考试/成绩/评教/四六级数据按学号隔离、互不可见;会话保存在后端容器内存,容器重启(重新部署/缩容冷启动)后所有用户需重新登录。
+- 空教室刷新优先随机使用活跃本科教务 Cookie，其次使用持久化本科 Cookie，最后回退服务账号；同一轮刷新复用同一教务会话。
+- **多用户**:每位用户独立登录、持有独立的教务会话(以登录签发的 token 标识),课表/考试/成绩/评教/四六级数据按学号隔离、互不可见。未配置 Redis 时会话保存在容器内存;配置 `REDIS_URL` 后会话 Cookie 加密写入 Redis，可由多个 worker 恢复。
+- 生产探针：`GET /healthz`、`GET /readyz`；指标：`GET /metrics`。
 - 批量评教为自动化辅助工具,请仅用于自己的账号,并自行承担使用责任。
 
 ## License

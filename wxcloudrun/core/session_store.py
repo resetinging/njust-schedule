@@ -15,6 +15,7 @@
 导出/载入 cookie 与探测教务会话，不直接接触 dao。
 """
 import logging
+import secrets
 import threading
 import time
 from typing import List, Optional
@@ -43,7 +44,7 @@ def serialize_cookies(cookies) -> List[dict]:
     return out
 
 
-def save_session(student_id: str, cookies) -> int:
+def save_session(student_id: str, cookies, account_type: str = "") -> int:
     """持久化会话 cookie，返回写入条数（0 表示未写入）。"""
     if not student_id:
         return 0
@@ -51,7 +52,11 @@ def save_session(student_id: str, cookies) -> int:
     if not rows:
         return 0
     from wxcloudrun import dao          # 延迟导入，避免包初始化循环
-    payload = {"ts": int(time.time()), "cookies": rows}
+    payload = {
+        "ts": int(time.time()),
+        "cookies": rows,
+        "account_type": str(account_type or ""),
+    }
     try:
         from wxcloudrun.core import cookie_crypto
         if not cookie_crypto.enabled():
@@ -67,6 +72,12 @@ def save_session(student_id: str, cookies) -> int:
 
 def load_session(student_id: str) -> Optional[List[dict]]:
     """读取未过期的会话 cookie；无记录/超期返回 None。"""
+    record = load_session_record(student_id)
+    return (record or {}).get("cookies") or None
+
+
+def load_session_record(student_id: str) -> Optional[dict]:
+    """读取未过期的完整会话记录（cookie + 账号类型）。"""
     if not student_id:
         return None
     from wxcloudrun import dao          # 延迟导入，避免包初始化循环
@@ -84,7 +95,50 @@ def load_session(student_id: str) -> Optional[List[dict]]:
         return None
     if time.time() - int(data.get("ts") or 0) > SSO_SESSION_MAX_AGE:
         return None
-    return data.get("cookies") or None
+    return data if data.get("cookies") else None
+
+
+def list_undergraduate_candidates(limit: int = 50) -> List[dict]:
+    """从全部持久化记录中随机列出本科 Cookie 候选。
+
+    旧记录按学号前缀推断账号类型。随机顺序必须在账号类型过滤前确定，
+    否则研究生学号可能占满排序后的前 N 条，导致本科候选被饿死。
+    """
+    from wxcloudrun import dao
+    sids = dao.list_user_setting_keys(SSO_SESSION_SETTING_KEY, limit=0)
+    secrets.SystemRandom().shuffle(sids)
+    target = max(1, int(limit))
+    out = []
+    for sid in sids:
+        record = load_session_record(sid)
+        if not record:
+            continue
+        account_type = (str(record.get("account_type") or "").strip()
+                        or ("graduate" if sid.startswith("1") else "undergraduate"))
+        if account_type != "undergraduate":
+            continue
+        out.append({"student_id": sid, "account_type": account_type,
+                    "cookies": record.get("cookies") or []})
+        if len(out) >= target:
+            break
+    return out
+
+
+def attach_session(client, record: dict) -> bool:
+    """把持久化 Cookie 装载到临时 JWCClient。"""
+    cookies = (record or {}).get("cookies") or []
+    if not cookies:
+        return False
+    for item in cookies:
+        try:
+            client.session.cookies.set(
+                item.get("name", ""), item.get("value", ""),
+                domain=item.get("domain"), path=item.get("path") or "/")
+        except Exception:
+            continue
+    client.student_id = (record or {}).get("student_id") or getattr(client, "student_id", "")
+    client.logged_in = True
+    return True
 
 
 def clear_session(student_id: str) -> None:

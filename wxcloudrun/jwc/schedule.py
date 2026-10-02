@@ -3,6 +3,7 @@
 from wxcloudrun.jwc.common import *  # noqa: F401,F403
 from wxcloudrun.jwc.common import (  # noqa: F401
     _DedupCookieJar, _encrypt_sso_password, _dedupe_schedule_courses, _HAS_CRYPTO)
+from urllib.parse import urljoin
 
 
 class ScheduleMixin:
@@ -18,6 +19,107 @@ class ScheduleMixin:
         if courses:
             self.last_error = ""   # 成功获取后清除 API 失败的残留错误
         return _dedupe_schedule_courses(courses)
+
+    def fetch_course_schedule(self, semester: str = "", keyword: str = "",
+                              course_type: str = "") -> list[dict]:
+        """全校课程课表查询: 只返回页面实际提供的课程名/教师/周次/教室/时间。"""
+        if not self.logged_in:
+            self.last_error = "未登录"
+            return []
+        try:
+            if not semester:
+                semester = self._current_semester()
+            page_url = f"{BASE_9080}{JW_PATH_PREFIX}/kbcx/kbxx_kc"
+            page_resp = self.session.get(
+                page_url, timeout=TIMEOUT, allow_redirects=True)
+            if self._is_jw_login_page(page_resp):
+                self.logged_in = False
+                self.last_error = "登录状态已失效，请重新登录"
+                return []
+            page_soup = BeautifulSoup(page_resp.text, "lxml")
+            form = page_soup.find("form", id="Form1")
+            if form is None:
+                form = next(
+                    (item for item in page_soup.find_all("form")
+                     if item.find("select", attrs={"name": "xnxqh"})),
+                    None,
+                )
+            if form is None:
+                self.last_error = "课程课表查询未找到 Form1"
+                return []
+            action = urljoin(
+                page_resp.url, form.get("action") or page_resp.url)
+            data = self._course_schedule_form_data(
+                form, semester, keyword, course_type)
+            resp = self.session.post(
+                action, data=data, timeout=TIMEOUT, allow_redirects=True,
+                headers={"Referer": page_resp.url})
+            if self._is_jw_login_page(resp):
+                self.logged_in = False
+                self.last_error = "登录状态已失效，请重新登录"
+                return []
+            soup = BeautifulSoup(resp.text, "lxml")
+            table = soup.find("table", id="kbtable")
+            if table is None:
+                self.last_error = "课程课表查询未找到 kbtable"
+                return []
+            courses = self._parse_kbtable(table, {})
+            seen = set()
+            result = []
+            for course in courses:
+                course["weeks"] = re.sub(
+                    r'[（(]?周[）)]?$', '',
+                    str(course.get("weeks") or "").strip()).strip()
+                key = (course.get("name", ""), course.get("class_info", ""),
+                       course.get("teacher", ""),
+                       course.get("classroom", ""), course.get("day", 0),
+                       course.get("start", 0), course.get("end", 0),
+                       course.get("weeks", ""))
+                if key in seen:
+                    continue
+                seen.add(key)
+                result.append(course)
+            self.last_error = ""
+            return result
+        except Exception as e:  # noqa: BLE001
+            self.last_error = f"课程课表查询失败: {e}"
+            return []
+
+    @staticmethod
+    def _course_schedule_form_data(form, semester: str, keyword: str,
+                                   course_type: str) -> dict:
+        """按查询页 Form1 的真实字段构造提交数据。"""
+        data = {}
+        for item in form.find_all("input"):
+            name = item.get("name", "")
+            if name:
+                data[name] = item.get("value", "")
+        for select in form.find_all("select"):
+            name = select.get("name", "")
+            if not name:
+                continue
+            options = select.find_all("option")
+            if name == "xnxqh":
+                matched = next(
+                    (opt.get("value", "") for opt in options
+                     if opt.get("value", "") == semester), "",
+                )
+                if not matched:
+                    matched = next(
+                        (opt.get("value", "") for opt in options
+                         if semester in opt.get("value", "")), "",
+                    )
+                data[name] = matched or semester
+                continue
+            selected = next(
+                (opt for opt in options if opt.has_attr("selected")),
+                options[0] if options else None,
+            )
+            data[name] = selected.get("value", "") if selected else ""
+        data["kc"] = str(keyword or "").strip()
+        if "zzdKcSX" in data:
+            data["zzdKcSX"] = str(course_type or "")
+        return data
 
     def _schedule_api(self, semester: str, week: int) -> list[dict]:
         try:
@@ -372,15 +474,25 @@ class ScheduleMixin:
         rows = table.find_all("tr")
         if len(rows) < 2:
             return []
+        if self._looks_like_course_catalog(rows):
+            return self._parse_course_catalog_table(rows)
 
         # 表头解析星期列映射
         hdr = rows[0].find_all(["td", "th"])
         day_map = {}
         for i, c in enumerate(hdr):
+            day = 0
             for d, n in enumerate("一二三四五六日", 1):
                 if n in c.get_text():
-                    day_map[i] = d
+                    day = d
                     break
+            if day:
+                try:
+                    colspan = max(1, int(c.get("colspan", "1") or "1"))
+                except ValueError:
+                    colspan = 1
+                for offset in range(colspan):
+                    day_map[i + offset] = day
         logger.debug("[kbtable] 列映射: %s", day_map)
 
         # 大节 → 小节映射（从 th 文本提取）
@@ -388,6 +500,14 @@ class ScheduleMixin:
         # 上午8:00起, 下午14:00起, 晚上19:00起
         # 大节内小节间隔5min, 大节间隔15min
         period_map = BIG_PERIOD_MAP
+        period_code_map = {
+            "010203": (1, 3),
+            "0405": (4, 5),
+            "0607": (6, 7),
+            "080910": (8, 10),
+            "111213": (11, 13),
+            "14": (14, 14),
+        }
 
         for row in rows[1:]:
             cells = row.find_all(["td", "th"])
@@ -402,6 +522,8 @@ class ScheduleMixin:
                     period_range = val
                     break
             if not period_range:
+                period_range = period_code_map.get(period_label.replace(" ", ""))
+            if not period_range:
                 continue
             p_start, p_end = period_range
 
@@ -412,7 +534,10 @@ class ScheduleMixin:
                 day = day_map[ci]
 
                 # 取详细 div（class="kbcontent"，不是 kbcontent1）
-                detail_divs = cell.find_all("div", class_="kbcontent")
+                detail_divs = cell.find_all(
+                    "div",
+                    class_=lambda value: value in ("kbcontent", "kbcontent1"),
+                )
                 for div in detail_divs:
                     # 用 --------------------- 分割多个课程条目
                     raw = str(div)
@@ -445,6 +570,17 @@ class ScheduleMixin:
                                 if not teacher:
                                     teacher = val
 
+                        if not teacher and len(lines) > 1:
+                            teacher = lines[1]
+                        if not weeks:
+                            for line in lines[1:]:
+                                if ScheduleMixin._looks_like_schedule_week(line):
+                                    weeks = re.sub(
+                                        r'[（()）\s]|周$', '', line).strip()
+                                    break
+                        if not classroom and len(lines) > 1:
+                            classroom = lines[-1]
+
                         if name and name != '\xa0':
                             # 从 dataList 获取精确小节号(按大节位置匹配, 支持同课多时段)
                             if period_info:
@@ -468,6 +604,175 @@ class ScheduleMixin:
                             })
 
         return courses
+
+    @staticmethod
+    def _looks_like_course_catalog(rows) -> bool:
+        """识别全校课程目录表: 星期表头 colspan=6, 数据行为 43 列。"""
+        header = rows[0].find_all(["td", "th"])
+        if not any(
+            str(cell.get("colspan", "1")).strip() == "6"
+            for cell in header
+        ):
+            return False
+        data_cells = rows[1].find_all(["td", "th"]) if len(rows) > 1 else []
+        return len(data_cells) > 13
+
+    def _parse_course_catalog_table(self, rows) -> list[dict]:
+        """解析全校课程目录表(行=课程, 列=星期×大节)。"""
+        period_codes = (
+            (1, 3), (4, 5), (6, 7), (8, 10), (11, 13), (14, 14),
+        )
+        courses = []
+        for row in rows[2:]:
+            cells = row.find_all(["td", "th"])
+            if not cells:
+                continue
+            course_name = cells[0].get_text(" ", strip=True).strip()
+            if not course_name:
+                continue
+            for cell_index, cell in enumerate(cells[1:], 1):
+                slot_index = (cell_index - 1) % 6
+                if slot_index >= len(period_codes):
+                    continue
+                day = (cell_index - 1) // 6 + 1
+                if day > 7:
+                    continue
+                detail_divs = cell.find_all(
+                    "div",
+                    class_=lambda value: value in ("kbcontent", "kbcontent1"),
+                )
+                for div in detail_divs:
+                    parsed = self._parse_catalog_course(
+                        div, course_name, day, period_codes[slot_index])
+                    courses.extend(parsed)
+        return courses
+
+    @staticmethod
+    def _parse_catalog_course(div, course_name: str, day: int,
+                              period_range: tuple):
+        soup = BeautifulSoup(str(div), "lxml")
+        lines = [
+            line.strip() for line in soup.get_text("\n", strip=True).split("\n")
+            if line.strip()
+        ]
+        week_re = re.compile(r'[（(]([^()（）]*?\d[^()（）]*?周)[）)]')
+        result = []
+        cursor = 0
+        while cursor < len(lines):
+            week_index = None
+            week_match = None
+            for index in range(cursor, len(lines)):
+                found = week_re.search(lines[index])
+                if found:
+                    week_index = index
+                    week_match = found
+                    break
+            if week_index is None or week_match is None:
+                break
+
+            before = [line.strip() for line in lines[cursor:week_index]
+                      if line.strip()]
+            inline_teacher = lines[week_index][:week_match.start()].strip(
+                " ,，;；")
+            if inline_teacher:
+                before.append(inline_teacher)
+            if not before:
+                cursor = week_index + 1
+                continue
+
+            class_info = before[0].strip()
+            classroom = ""
+            classroom_before_week = ""
+            for value in before[1:]:
+                if ScheduleMixin._looks_like_catalog_classroom(value):
+                    classroom_before_week = value
+                    break
+            teachers = [
+                value.strip(" ,，;；")
+                for value in before[1:]
+                if value.strip(" ,，;；")
+                and value.strip(" ,，;；") != classroom_before_week
+            ]
+            teacher = ",".join(teachers)
+
+            next_index = week_index + 1
+            if next_index < len(lines):
+                candidate = lines[next_index].strip()
+                if (not week_re.search(candidate)
+                        and not ScheduleMixin._looks_like_class_info(candidate)):
+                    classroom = candidate
+                    next_index += 1
+            if not classroom:
+                classroom = classroom_before_week
+
+            result.append({
+                "name": course_name or class_info,
+                "class_info": class_info,
+                "teacher": teacher,
+                "classroom": classroom,
+                "day": day,
+                "start": period_range[0],
+                "end": period_range[1],
+                "weeks": re.sub(
+                    r'[（()）\s]', '', week_match.group(1)
+                ).replace('周', '').strip(),
+                "week_type": 0,
+                "credits": "",
+                "course_type": "",
+                "raw": {},
+            })
+            cursor = max(next_index, week_index + 1)
+        return result
+
+    @staticmethod
+    def _looks_like_class_info(value: str) -> bool:
+        text = str(value or "").strip()
+        if not text:
+            return False
+        if re.fullmatch(r'(?:临班|班)?\s*\d+', text):
+            return True
+        if (re.fullmatch(r'[0-9A-Za-z]{6,}', text)
+                and any(ch.isdigit() for ch in text)):
+            return True
+        values = [part.strip() for part in re.split(r'[,，]', text)
+                  if part.strip()]
+        return (
+            len(values) > 1
+            and all(
+                re.fullmatch(r'[0-9A-Za-z]{4,}', part)
+                and any(ch.isdigit() for ch in part)
+                for part in values
+            )
+        )
+
+    @staticmethod
+    def _looks_like_classroom(value: str) -> bool:
+        text = str(value or "").strip()
+        if not text:
+            return False
+        if any(word in text for word in ("教室", "楼", "校区", "线上", "其它")):
+            return True
+        if text.startswith(("江阴", "孝陵卫", "紫金", "汤山")):
+            return True
+        return bool(
+            re.match(r'^[ⅠⅡⅢⅣIVX]+[-—]?[A-Za-z0-9]', text)
+            or re.fullmatch(r'[A-Za-z]?[-—]?\d{2,4}[A-Za-z]?', text)
+        )
+
+    @staticmethod
+    def _looks_like_schedule_week(value: str) -> bool:
+        return bool(re.search(r'\d[\d,，\-–~至]*\s*周', str(value or "")))
+
+    @staticmethod
+    def _looks_like_catalog_classroom(value: str) -> bool:
+        """识别课程目录单元格中位于周次前的教室写法。"""
+        text = str(value or "").strip()
+        if not text:
+            return False
+        # 设计类外教课程会把教室写成"设传外教01"等场地编号。
+        if re.fullmatch(r'(?:设传外教|设传教室|设传实验)\s*\d+', text):
+            return True
+        return ScheduleMixin._looks_like_classroom(text)
 
     def _parse_schedule(self, items: list) -> list[dict]:
         courses = []
@@ -495,4 +800,3 @@ class ScheduleMixin:
                 "raw": item,
             })
         return courses
-

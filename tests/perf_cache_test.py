@@ -18,6 +18,8 @@ from sqlalchemy import inspect as sa_inspect  # noqa: E402
 
 from wxcloudrun import app, dao, db  # noqa: E402
 from wxcloudrun.api import study  # noqa: E402
+from wxcloudrun.api import freeclass as freeclass_api  # noqa: E402
+from wxcloudrun.core import sessions as sessions_mod  # noqa: E402
 from wxcloudrun.core.cache import (  # noqa: E402
     QUERY_CACHE_MAX_ITEMS, QUERY_CACHE_TTL, _cache_set, _query_cache,
 )
@@ -176,6 +178,122 @@ with app.app_context():
           len(dao.get_courses(semester, sid)) == 1)
     check("prefetched grades are persisted",
           len(dao.get_grades(student_id=sid)) == 1)
+    check("complete prefetch writes cache metadata",
+          int(dao.get_user_setting(sid, "data_cache_at", "0") or 0) > 0)
+
+_schedule_before = client.get_schedule
+_schedule_calls = []
+
+
+def _counted_schedule(sem):
+    _schedule_calls.append(sem)
+    return _schedule_before(sem)
+
+
+client.get_schedule = _counted_schedule
+with app.app_context():
+    study.schedule_data_prefetch(client, sid, semester, delay=0, mode="if_stale")
+state = getattr(client, "_data_refresh_state", {})
+check("fresh cache skips repeated full prefetch",
+      state.get("skipped") is True and _schedule_calls == [], state)
+
+optional_client = JWCClient()
+optional_sid = "10004"
+optional_client.logged_in = True
+optional_client.student_id = optional_sid
+optional_client.student_name = "Optional"
+optional_client.account_type = "undergraduate"
+optional_client.last_error = ""
+optional_client.fetch_calendar = lambda semester="": {
+    "semester": semester,
+    "first_monday": "2026-08-24",
+    "count": 1,
+    "weeks": [],
+}
+optional_client.get_schedule = lambda sem: [
+    {"name": "Course", "day": 1, "start": 1, "end": 2}]
+optional_client.get_exams = lambda sem: []
+optional_client.get_grades = lambda sem: []
+optional_client.get_cet_scores = lambda: []
+optional_client.get_evaluations = lambda sem: []
+optional_client.fetch_programme = lambda: {}
+optional_client.fetch_profile = lambda: {}
+with app.app_context():
+    optional_result = study._prefetch_undergraduate(
+        optional_client, optional_sid, semester)
+check("empty optional data sources still complete prefetch",
+      optional_result["failed"] == [], optional_result)
+
+_orig_source = freeclass_api._COOKIE_SOURCE
+_orig_active = sessions_mod._list_undergraduate_clients
+_orig_get_rooms = JWCClient.get_free_classrooms
+from wxcloudrun.core import session_store  # noqa: E402
+_orig_candidates = session_store.list_undergraduate_candidates
+try:
+    freeclass_api._COOKIE_SOURCE = "active-only"
+    active_ok = JWCClient()
+    active_ok.logged_in = True
+    active_ok.student_id = sid
+    active_ok.account_type = "undergraduate"
+    sessions_mod._list_undergraduate_clients = lambda limit=50: [active_ok]
+    JWCClient.get_free_classrooms = lambda self, **kw: {
+        "rooms": ["A101"], "buildings": [], "jc1": kw.get("jc1"),
+        "jc2": kw.get("jc2"), "building_name": "",
+    }
+    _res, _err = freeclass_api._ClassroomQuery().query(
+        "孝陵卫", 1, 1, 3, 1, semester, "")
+    check("freeclass picks an active undergraduate cookie",
+          _err is None and _res["rooms"] == ["A101"], (_res, _err))
+
+    freeclass_api._COOKIE_SOURCE = "auto"
+    active_bad = JWCClient()
+    active_bad.logged_in = True
+    active_bad.student_id = "10002"
+    active_bad.account_type = "undergraduate"
+
+    def stale_rooms(self, **kw):
+        if self.student_id == "10002":
+            self.last_error = "登录已过期"
+            return []
+        return {"rooms": ["B202"], "buildings": [], "jc1": kw.get("jc1"),
+                "jc2": kw.get("jc2"), "building_name": ""}
+
+    sessions_mod._list_undergraduate_clients = lambda limit=50: [active_bad]
+    session_store.list_undergraduate_candidates = lambda limit=50: [{
+        "student_id": "10003", "account_type": "undergraduate",
+        "cookies": [{"name": "JSESSIONID", "value": "x",
+                     "domain": "bkjw.njust.edu.cn", "path": "/"}],
+    }]
+    JWCClient.get_free_classrooms = stale_rooms
+    _res, _err = freeclass_api._ClassroomQuery().query(
+        "孝陵卫", 1, 1, 3, 1, semester, "")
+    check("freeclass rotates from stale active to persistent cookie",
+          _err is None and _res["rooms"] == ["B202"], (_res, _err))
+
+    freeclass_api._COOKIE_SOURCE = "service-only"
+    service_client = JWCClient()
+    service_client.logged_in = True
+    service_client.student_id = "svc"
+    service_client.get_free_classrooms = lambda **kw: {
+        "rooms": ["C303"], "buildings": [], "jc1": kw.get("jc1"),
+        "jc2": kw.get("jc2"), "building_name": "",
+    }
+    _orig_service = freeclass_api._classroom_service_client
+    _orig_credentials = freeclass_api._service_credentials
+    freeclass_api._classroom_service_client = service_client
+    freeclass_api._service_credentials = lambda: ("svc", "pwd")
+    _res, _err = freeclass_api._ClassroomQuery().query(
+        "孝陵卫", 1, 1, 3, 1, semester, "")
+    check("freeclass keeps service-account fallback",
+          _err is None and _res["rooms"] == ["C303"], (_res, _err))
+finally:
+    session_store.list_undergraduate_candidates = _orig_candidates
+    sessions_mod._list_undergraduate_clients = _orig_active
+    JWCClient.get_free_classrooms = _orig_get_rooms
+    freeclass_api._COOKIE_SOURCE = _orig_source
+    if "_orig_service" in locals():
+        freeclass_api._classroom_service_client = _orig_service
+        freeclass_api._service_credentials = _orig_credentials
 
 try:
     os.remove(_tmp.name)

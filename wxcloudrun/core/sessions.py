@@ -6,7 +6,6 @@
   防止长运行后内存堆积。
 - 验证码临时会话: 登录尝试的客户端, 10 分钟未使用自动回收。
 """
-import os
 import hashlib
 import secrets
 import threading
@@ -15,6 +14,7 @@ from typing import Optional, Tuple
 
 from flask import request
 
+from config import JW_MAX_CONCURRENT, MAX_SESSIONS, SESSION_TTL
 from wxcloudrun.jwc_client import JWCClient
 
 _sessions = {}          # token -> [JWCClient, last_active_ts]
@@ -22,6 +22,104 @@ _session_ua = {}        # token -> ua_hash(首次绑定的客户端指纹; 只�
 _captcha_clients = {}   # captcha_id -> [JWCClient, created_ts]
 _sessions_lock = threading.Lock()
 TOKEN_HEADER = "X-Auth-Token"
+_REMOTE_SESSION_PREFIX = "wx:session:token:"
+_REMOTE_SID_PREFIX = "wx:session:sid:"
+
+
+def _remote_token_key(token: str) -> str:
+    return _REMOTE_SESSION_PREFIX + str(token or "")
+
+
+def _remote_sid_key(sid: str) -> str:
+    return _REMOTE_SID_PREFIX + str(sid or "")
+
+
+def _cookie_rows(cookies) -> list:
+    out = []
+    for item in cookies or []:
+        name = getattr(item, "name", "")
+        if not name:
+            continue
+        out.append({
+            "name": name,
+            "value": getattr(item, "value", ""),
+            "domain": getattr(item, "domain", ""),
+            "path": getattr(item, "path", "") or "/",
+        })
+    return out
+
+
+def _attach_cookie_rows(client, rows) -> None:
+    for item in rows or []:
+        try:
+            client.session.cookies.set(
+                item.get("name", ""), item.get("value", ""),
+                domain=item.get("domain"), path=item.get("path") or "/")
+        except Exception:  # noqa: BLE001
+            continue
+
+
+def _persist_remote_session(token: str, client) -> bool:
+    from wxcloudrun.core import cookie_crypto, state
+    if not (state.enabled() and cookie_crypto.enabled() and token and client):
+        return False
+    try:
+        payload = {
+            "student_id": getattr(client, "student_id", "") or "",
+            "student_name": getattr(client, "student_name", "") or "",
+            "account_type": getattr(client, "account_type", "undergraduate"),
+            "login_method": getattr(client, "login_method", "") or "",
+            "cookies": _cookie_rows(client.session.cookies),
+        }
+        blob = cookie_crypto.encrypt(token, payload)
+        if not state.set_text(_remote_token_key(token), blob, SESSION_TTL):
+            return False
+        sid = payload["student_id"]
+        if sid:
+            state.set_text(_remote_sid_key(sid), token, SESSION_TTL)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _delete_remote_session(token: str) -> None:
+    from wxcloudrun.core import state
+    if state.enabled():
+        state.delete(_remote_token_key(token))
+
+
+def _load_remote_session(token: str):
+    from wxcloudrun.core import cookie_crypto, state
+    if not (state.enabled() and cookie_crypto.enabled() and token):
+        return None
+    try:
+        blob = state.get_text(_remote_token_key(token))
+        if not blob:
+            return None
+        payload = cookie_crypto.decrypt(token, blob)
+        if not isinstance(payload, dict):
+            return None
+        account_type = str(payload.get("account_type") or "undergraduate")
+        if account_type == "graduate":
+            from wxcloudrun.yjs_client import YJSClient
+            client = YJSClient()
+        else:
+            client = JWCClient()
+        _attach_cookie_rows(client, payload.get("cookies") or [])
+        client.student_id = str(payload.get("student_id") or "")
+        client.student_name = str(payload.get("student_name") or "")
+        client.login_method = str(payload.get("login_method") or "")
+        if account_type == "undergraduate":
+            login_method = client.login_method
+            if login_method in ("sso", "sso-cached"):
+                from config import JW_SSO_BASE
+                client.webvpn.enable_sso_direct(JW_SSO_BASE)
+            elif "webvpn" in login_method:
+                client.webvpn.activate()
+        client.logged_in = True
+        return client
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _ua_hash() -> str:
@@ -54,9 +152,6 @@ def _check_ua_locked(token: str) -> None:
         except Exception:
             pass
 
-JW_MAX_CONCURRENT = int(os.environ.get("JW_MAX_CONCURRENT", "4"))
-SESSION_TTL = int(os.environ.get("SESSION_TTL", str(12 * 3600)))  # 默认 12h
-MAX_SESSIONS = int(os.environ.get("MAX_SESSIONS", "200"))
 CAPTCHA_TTL = 10 * 60  # 验证码临时会话 10 分钟
 
 
@@ -155,6 +250,7 @@ def _register_session(client: JWCClient) -> str:
     from wxcloudrun.core.web import _rid
 
     token = secrets.token_urlsafe(32)
+    previous_remote = ""
     with _sessions_lock:
         # 顶掉同学生已有会话(单设备场景; 多设备交替使用会互相顶掉,
         # 旧端 401 后自动重登即可恢复)
@@ -166,6 +262,16 @@ def _register_session(client: JWCClient) -> str:
         _sessions[token] = [client, time.time()]
         _bind_ua_locked(token)
         _prune_sessions_locked()
+    try:
+        from wxcloudrun.core import state
+        if state.enabled() and client.student_id:
+            previous_remote = state.get_text(
+                _remote_sid_key(client.student_id)) or ""
+    except Exception:  # noqa: BLE001
+        previous_remote = ""
+    if previous_remote and previous_remote != token:
+        _delete_remote_session(previous_remote)
+    _persist_remote_session(token, client)
     app.logger.info("[session] rid=%s 登录成功 sid=%s name=%s token=%s… 顶掉旧会话=%d 在线=%d",
                     _rid(), client.student_id, client.student_name, token[:6],
                     len(same_sid), len(_sessions))
@@ -179,7 +285,9 @@ def _register_session(client: JWCClient) -> str:
     try:
         from wxcloudrun.core import session_store
         if client.student_id:
-            session_store.save_session(client.student_id, client.session.cookies)
+            session_store.save_session(
+                client.student_id, client.session.cookies,
+                account_type=getattr(client, "account_type", "undergraduate"))
     except Exception:
         pass
     return token
@@ -194,15 +302,80 @@ def _get_session_client() -> Optional[JWCClient]:
     token = request.headers.get(TOKEN_HEADER) or ""
     with _sessions_lock:
         item = _sessions.get(token)
-        if item is None:
-            return None
-        if time.time() - item[1] > SESSION_TTL:
+        if item is not None and time.time() - item[1] > SESSION_TTL:
             _sessions.pop(token, None)
             _session_ua.pop(token, None)
-            return None
-        item[1] = time.time()  # 更新活动时间
-        _check_ua_locked(token)
-        return item[0]
+            item = None
+        if item is not None:
+            item[1] = time.time()  # 更新活动时间
+            _check_ua_locked(token)
+            client = item[0]
+        else:
+            client = None
+    if client is not None:
+        from wxcloudrun.core import state
+        if state.enabled():
+            state.expire(_remote_token_key(token), SESSION_TTL)
+        return client
+
+    client = _load_remote_session(token)
+    if client is None:
+        return None
+    with _sessions_lock:
+        current = _sessions.get(token)
+        if current is not None:
+            current[1] = time.time()
+            return current[0]
+        _sessions[token] = [client, time.time()]
+        _bind_ua_locked(token)
+        _prune_sessions_locked()
+    return client
+
+
+def _list_undergraduate_clients(limit: int = 50) -> list:
+    """返回当前有效的活跃本科教务客户端快照。"""
+    now = time.time()
+    out = []
+    with _sessions_lock:
+        for client, last_active in _sessions.values():
+            if now - last_active > SESSION_TTL:
+                continue
+            if getattr(client, "account_type", "undergraduate") != "undergraduate":
+                continue
+            if not getattr(client, "student_id", "") or not getattr(client, "logged_in", False):
+                continue
+            out.append(client)
+    secrets.SystemRandom().shuffle(out)
+    target = max(1, int(limit))
+    out = out[:target]
+    if len(out) >= target:
+        return out
+    try:
+        from wxcloudrun.core import state
+        if state.enabled():
+            existing_sids = {
+                getattr(c, "student_id", "") for c in out
+                if getattr(c, "student_id", "")
+            }
+            for key in state.scan_keys(_REMOTE_SESSION_PREFIX, target * 2):
+                token = key[len(_REMOTE_SESSION_PREFIX):]
+                client = _load_remote_session(token)
+                if not client:
+                    continue
+                if getattr(client, "account_type", "undergraduate") != "undergraduate":
+                    continue
+                if not getattr(client, "student_id", "") or not getattr(client, "logged_in", False):
+                    continue
+                if client.student_id in existing_sids:
+                    continue
+                client._remote_token = token
+                existing_sids.add(client.student_id)
+                out.append(client)
+                if len(out) >= target:
+                    break
+    except Exception:  # noqa: BLE001
+        pass
+    return out
 
 
 def _logout_session(token: str):
@@ -213,3 +386,4 @@ def _logout_session(token: str):
             item[0].logout()
         except Exception:
             pass
+    _delete_remote_session(token)

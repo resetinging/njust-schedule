@@ -10,6 +10,7 @@ from wxcloudrun.core.auth import _require_login, _retry_with_relogin
 from wxcloudrun.core.dedupe import dedupe
 from wxcloudrun.core.cache import _cache_get, _cache_set, invalidate_user_cache
 from wxcloudrun.core.pool import _jwc_request
+from wxcloudrun.core.semester import current_semester
 from wxcloudrun.core.stats import _invalidate_stats
 from wxcloudrun.core.web import _rid
 from wxcloudrun.jwc_client import JWCClient
@@ -19,9 +20,7 @@ jwc_client = JWCClient()
 
 
 def _current_semester() -> str:
-    """当前学期(views 实现, 延迟导入避免循环)"""
-    from wxcloudrun.views import _current_semester as _impl
-    return _impl()
+    return current_semester()
 
 
 @grades_bp.route('/api/yjs/grades')

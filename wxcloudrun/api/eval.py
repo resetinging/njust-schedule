@@ -13,7 +13,10 @@ from wxcloudrun import app, dao
 from wxcloudrun.core.auth import _require_login, _retry_with_relogin
 from wxcloudrun.core.cache import _cache_get, _cache_set, invalidate_user_cache
 from wxcloudrun.core.pool import _jwc_request
+from wxcloudrun.core.eval_warmup import warm_eval_session
+from wxcloudrun.core.semester import current_semester
 from wxcloudrun.core.stats import _invalidate_stats
+from wxcloudrun.core.urls import UnsafeUrlError, safe_jw_path
 from wxcloudrun.core.web import EVAL_HEADERS, _rid
 from wxcloudrun.jwc_client import JWCClient
 
@@ -22,15 +25,11 @@ jwc_client = JWCClient()
 
 
 def _current_semester() -> str:
-    """当前学期(views 实现, 延迟导入避免循环)"""
-    from wxcloudrun.views import _current_semester as _impl
-    return _impl()
+    return current_semester()
 
 
 def _warm_eval_session(client):
-    """评教会话预热(views 实现, 延迟引用)"""
-    from wxcloudrun.views import _warm_eval_session as _impl
-    return _impl(client)
+    return warm_eval_session(client)
 
 
 @eval_bp.route('/api/evaluations')
@@ -239,7 +238,7 @@ def _build_ordered_eval_post_data(form_data: dict, batch_hidden_fields=None,
 # ============================================================
 def _fetch_with_client(client: JWCClient, url: str):
     """用用户会话 GET 教务页面，检查非法访问"""
-    target = f"http://202.119.81.112:9080{url}" if url.startswith("/") else url
+    target = f"http://202.119.81.112:9080{safe_jw_path(url)}"
     _warm_eval_session(client)
     resp = client.session.get(target, headers=EVAL_HEADERS, timeout=15)
     if "非法访问" in resp.text or "非法操作" in resp.text:
@@ -259,8 +258,16 @@ def api_eval_courses():
         resp, err_resp, status = _fetch_with_client(client, url)
         if err_resp is not None:
             return err_resp, status
+    except UnsafeUrlError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
-        return jsonify({"success": False, "message": f"请求失败: {e}"}), 500
+        app.logger.warning(
+            "[eval] rid=%s 课程页请求失败: %s", _rid(), type(e).__name__)
+        return jsonify({
+            "success": False,
+            "message": "请求失败，请稍后重试",
+            "rid": _rid(),
+        }), 500
     parsed = _parse_eval_courses_page(resp.text)
     if not parsed or not parsed.get("courses"):
         return jsonify({"success": False, "message": "未找到课程列表"}), 500
@@ -284,8 +291,16 @@ def api_eval_form():
         resp, err_resp, status = _fetch_with_client(client, url)
         if err_resp is not None:
             return err_resp, status
+    except UnsafeUrlError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
-        return jsonify({"success": False, "message": f"请求失败: {e}"}), 500
+        app.logger.warning(
+            "[eval] rid=%s 表单请求失败: %s", _rid(), type(e).__name__)
+        return jsonify({
+            "success": False,
+            "message": "请求失败，请稍后重试",
+            "rid": _rid(),
+        }), 500
     parsed = _parse_eval_form_page(resp.text)
     if not parsed or (not parsed.get("course_name") and not parsed.get("indicators")):
         return jsonify({"success": False, "message": "未找到评价表单"}), 500
@@ -308,16 +323,24 @@ def api_submit_eval():
     submit_type = data.get("submit_type", "0")
     action_path = data.get("action", "/njlgdx/xspj/xspj_save.do")
     form_data["issubmit"] = submit_type
-    target_url = f"http://202.119.81.112:9080{action_path}"
     try:
+        target_url = f"http://202.119.81.112:9080{safe_jw_path(action_path)}"
         _warm_eval_session(client)
         post_data = _build_ordered_eval_post_data(form_data, submit_type=submit_type)
         resp = client.session.post(target_url, data=post_data, headers=EVAL_HEADERS, timeout=15)
         if "评价成功" in resp.text or "提交成功" in resp.text or "保存成功" in resp.text:
             return jsonify({"success": True, "message": "评教提交成功！"})
         return jsonify({"success": True, "message": "已提交（请返回教务确认）"})
+    except UnsafeUrlError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
-        return jsonify({"success": False, "message": f"提交失败: {e}"}), 500
+        app.logger.warning(
+            "[eval] rid=%s 提交失败: %s", _rid(), type(e).__name__)
+        return jsonify({
+            "success": False,
+            "message": "提交失败，请稍后重试",
+            "rid": _rid(),
+        }), 500
 
 
 @eval_bp.route('/api/jw-proxy', methods=['POST'])
@@ -344,9 +367,10 @@ def api_jw_proxy():
         return jsonify({"success": False, "message": "缺少 path"}), 400
     if method not in ("GET", "POST"):
         return jsonify({"success": False, "message": "method 仅支持 GET/POST"}), 400
-    if not path.startswith("/"):
-        path = "/" + path
-
+    try:
+        path = safe_jw_path(path)
+    except UnsafeUrlError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
     target = f"http://202.119.81.112:9080{path}"
     qs = data.get("query")
     if qs and isinstance(qs, str):
@@ -364,7 +388,13 @@ def api_jw_proxy():
             else:
                 resp = client.session.get(target, headers=EVAL_HEADERS, timeout=15)
     except Exception as e:
-        return jsonify({"success": False, "message": f"请求失败: {e}"}), 502
+        app.logger.warning(
+            "[jwpoxy] rid=%s 代理请求失败: %s", _rid(), type(e).__name__)
+        return jsonify({
+            "success": False,
+            "message": "教务请求失败，请稍后重试",
+            "rid": _rid(),
+        }), 502
 
     content_type = resp.headers.get("content-type") or ""
     if content_type.startswith(("text/", "application/json", "application/javascript")):

@@ -49,6 +49,34 @@ def main():
     written = store.save_session(sid, [_Cookie("JWX", "abc123")])
     check("加密落库写入成功", written == 1, written)
     loaded = store.load_session(sid) or []
+    undergrad_candidates = store.list_undergraduate_candidates(limit=10)
+    check("旧本科 Cookie 可按学号前缀进入候选池",
+          any(c["student_id"] == sid for c in undergrad_candidates),
+          undergrad_candidates)
+    graduate_sid = "124101960123"
+    store.save_session(graduate_sid, [_Cookie("JWX", "grad")],
+                       account_type="graduate")
+    undergrad_candidates = store.list_undergraduate_candidates(limit=10)
+    check("研究生 Cookie 不进入本科候选池",
+          all(c["student_id"] != graduate_sid for c in undergrad_candidates),
+          undergrad_candidates)
+    random_sid = "924999999999"
+    store.save_session(random_sid, [_Cookie("JWX", "random")])
+    for index in range(5):
+        padded = f"{index:03d}"
+        store.save_session(f"12410196090{index}", [_Cookie("JWX", padded)],
+                           account_type="graduate")
+    random_candidates = store.list_undergraduate_candidates(limit=1)
+    check("候选池先从完整记录中过滤再随机",
+          len(random_candidates) == 1
+          and random_candidates[0]["student_id"] in (sid, random_sid),
+          random_candidates)
+    from wxcloudrun import dao as _candidate_dao
+    from config import SSO_SESSION_SETTING_KEY as _candidate_key
+    limited_keys = _candidate_dao.list_user_setting_keys(
+        _candidate_key, limit=2)
+    check("设置键正数上限查询仍可执行",
+          len(limited_keys) == 2, limited_keys)
     check("加密落库后能原样读回", loaded == COOKIES)
     from wxcloudrun import dao as _dao
     from config import SSO_SESSION_SETTING_KEY as K

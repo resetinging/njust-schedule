@@ -25,6 +25,8 @@ from sqlalchemy import func
 from wxcloudrun import app, db
 from wxcloudrun.model import Course, Exam, Evaluation, Grade, CetScore, Setting
 from wxcloudrun import dao
+from wxcloudrun.core.rate_limit import client_ip, rate_clear, rate_hit, rate_over
+from wxcloudrun.core.sessions import _sessions, _sessions_lock
 import config
 
 
@@ -167,17 +169,16 @@ def admin_login():
     data = request.get_json(silent=True) or {}
     pwd = str(data.get("password", ""))
     # 失败限流: 只统计失败次数, 成功即清零; 60s 内失败达上限后第 6 次直接 429
-    from wxcloudrun.views import _rate_over, _rate_hit, _rate_clear, _client_ip
-    ip = _client_ip()
+    ip = client_ip()
     fail_key = _admin_login_fail_key(ip)
-    if _rate_over(fail_key, _ADMIN_FAIL_LIMIT, _ADMIN_FAIL_WINDOW):
+    if rate_over(fail_key, _ADMIN_FAIL_LIMIT, _ADMIN_FAIL_WINDOW):
         app.logger.warning("[admin] 登录被限流(失败次数过多) ip=%s", ip)
         return jsonify({"success": False, "message": "尝试次数过多，请稍后再试"}), 429
     if pwd != ADMIN_PASSWORD:
-        _rate_hit(fail_key)
+        rate_hit(fail_key)
         app.logger.warning("[admin] 登录失败(密码错误) ip=%s", ip)
         return jsonify({"success": False, "message": "密码错误"}), 401
-    _rate_clear(fail_key)
+    rate_clear(fail_key)
     token = _issue_admin_token()
     app.logger.info("[admin] 管理员登录成功 ip=%s", ip)
     return jsonify({"success": True, "token": token, "expires_in": ADMIN_TOKEN_TTL})
@@ -228,7 +229,6 @@ def _stats_cache_set(key: str, value, ttl: int):
 @app.route("/api/admin/summary")
 @admin_required
 def admin_summary():
-    from wxcloudrun import views as _v
     force = request.args.get("refresh") == "1"
     cache_key = "summary"
     if not force:
@@ -236,8 +236,8 @@ def admin_summary():
         if cached is not None:
             return jsonify(cached)
     # 在线会话
-    with _v._sessions_lock:
-        sessions = list(_v._sessions.items())
+    with _sessions_lock:
+        sessions = list(_sessions.items())
     online = len(sessions)
     # 用户数(DB distinct)
     user_rows = db.session.query(Grade.student_id).filter(Grade.student_id != "").distinct().all()
@@ -271,7 +271,6 @@ def admin_summary():
 @admin_required
 def admin_users():
     """用户列表: 学号 + 数据量 + 最高绩点 + 最近活跃(带 60s 缓存)"""
-    from wxcloudrun import views as _v
     force = request.args.get("refresh") == "1"
     cache_key = "users"
     if not force:
@@ -279,8 +278,8 @@ def admin_users():
         if cached is not None:
             return jsonify(cached)
     # 在线会话快照
-    with _v._sessions_lock:
-        sess = {sid: [c, ts] for sid, (c, ts) in _v._sessions.items()}
+    with _sessions_lock:
+        sess = {sid: [c, ts] for sid, (c, ts) in _sessions.items()}
     rows = db.session.query(Grade.student_id).filter(Grade.student_id != "").distinct().all()
     sids = sorted({r[0] for r in rows} |
                   {r[0] for r in db.session.query(Course.student_id).filter(Course.student_id != "").distinct().all()} |
@@ -532,11 +531,10 @@ def admin_requests():
 @admin_required
 def admin_sessions():
     """在线会话列表(内存)"""
-    from wxcloudrun import views as _v
     now = time.time()
     out = []
-    with _v._sessions_lock:
-        items = list(_v._sessions.items())
+    with _sessions_lock:
+        items = list(_sessions.items())
     for tok, (client, ts) in items:
         out.append({
             "student_id": client.student_id,
@@ -609,8 +607,11 @@ def admin_get_freeclass_account():
     """空教室服务账号信息(只回是否已配置, 不回传密码明文)"""
     sid = (dao.get_setting("free_classroom_sid", "")
            or config.FREE_CLASSROOM_SID)
-    pwd = (dao.get_setting("free_classroom_pwd", "")
-           or config.FREE_CLASSROOM_PWD)
+    try:
+        from wxcloudrun.api.freeclass import _read_service_password
+        pwd = _read_service_password()
+    except Exception:
+        pwd = ""
     return jsonify({
         "success": True,
         "sid": sid,
@@ -633,7 +634,18 @@ def admin_set_freeclass_account():
     if sid:
         dao.set_setting("free_classroom_sid", sid)
     if pwd:
-        dao.set_setting("free_classroom_pwd", pwd)
+        try:
+            from wxcloudrun.api.freeclass import set_service_password
+            if not set_service_password(pwd):
+                raise RuntimeError("密码为空")
+        except Exception as exc:
+            app.logger.warning(
+                "[admin] rid=%s 保存空教室服务账号密码失败: %s",
+                _rid(), type(exc).__name__)
+            return jsonify({
+                "success": False,
+                "message": "服务账号密码保存失败，请检查 SESSION_KEY 配置",
+            }), 503
         dao.set_setting("free_classroom_pwd_updated",
                         time.strftime("%Y-%m-%d %H:%M:%S"))
         try:

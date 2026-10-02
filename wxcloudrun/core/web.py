@@ -69,6 +69,11 @@ def register_request_logging(app):
                 pass
             line = (f"[req] rid={rid} {request.method} {request.path} "
                     f"status={resp.status_code} sid={_mask_sid(sid)} tok={tok} ip={ip} d={dur_ms:.0f}ms")
+            try:
+                from wxcloudrun.core import metrics
+                metrics.observe_request(request.path, resp.status_code, dur_ms)
+            except Exception:
+                pass
             if dur_ms >= SLOW_MS:
                 app.logger.warning("[slow] %s", line)
             else:

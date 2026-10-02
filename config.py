@@ -5,6 +5,18 @@
 """
 import os
 
+
+def _env_int(name, default, minimum=None, maximum=None):
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        value = int(default)
+    if minimum is not None:
+        value = max(minimum, value)
+    if maximum is not None:
+        value = min(maximum, value)
+    return value
+
 # ============================================================
 # 服务器配置
 # ============================================================
@@ -110,17 +122,20 @@ SSO_LOGIN_URL = (
 # 持久化的是会话 cookie（非密码）；CAS 票据实测有效期 30 天（登录带 rememberMe），
 # 上限与之对齐，避免无谓地重新认证；复用前仍会探测有效性，退出登录会主动删除。
 SSO_SESSION_SETTING_KEY = "jwc_session"
-SSO_SESSION_MAX_AGE = int(os.environ.get("SSO_SESSION_MAX_AGE", str(30 * 24 * 3600)))
+SSO_SESSION_MAX_AGE = _env_int(
+    "SSO_SESSION_MAX_AGE", 30 * 24 * 3600, 60, 365 * 24 * 3600)
 # 教务业务数据缓存与持久会话同周期；会话重新建立或用户主动刷新时更新。
-DATA_CACHE_TTL = int(os.environ.get("DATA_CACHE_TTL", str(30 * 24 * 3600)))
+DATA_CACHE_TTL = _env_int(
+    "DATA_CACHE_TTL", 30 * 24 * 3600, 60, 365 * 24 * 3600)
 # 服务端保存密码用于免 SSO 恢复的本地信任期；只有真实 SSO 登录成功才续期。
-CREDENTIAL_TRUST_TTL = int(os.environ.get("CREDENTIAL_TRUST_TTL", str(24 * 3600)))
+CREDENTIAL_TRUST_TTL = _env_int(
+    "CREDENTIAL_TRUST_TTL", 24 * 3600, 60, 30 * 24 * 3600)
 # 同一学号认证失败后的冷却秒数（冷却期内不再打智慧理工；只防连点，不长时间拦人）
-SSO_LOGIN_COOLDOWN = int(os.environ.get("SSO_LOGIN_COOLDOWN", "2"))
+SSO_LOGIN_COOLDOWN = _env_int("SSO_LOGIN_COOLDOWN", 2, 0, 3600)
 # 登录密码提交次数上限：验证码识别偶发失败时换图重试的兜底。
 # 实测(2026-09)智慧理工 SSO 的 checkNeedCaptcha 恒为 false、登录不需要验证码，
 # 这里只是异常场景保险。1 表示不重试，2 表示最多两次提交。
-SSO_CAPTCHA_RETRY = int(os.environ.get("SSO_CAPTCHA_RETRY", "2"))
+SSO_CAPTCHA_RETRY = _env_int("SSO_CAPTCHA_RETRY", 2, 1, 5)
 # 8080 表单登录（原「教务直连」）已于改版后失效，默认关闭；临时启用设 1
 JW_ALLOW_FORM_FALLBACK = os.environ.get("JW_ALLOW_FORM_FALLBACK", "0") == "1"
 
@@ -150,6 +165,8 @@ JW_TRY_DEFAULT_PWD = os.environ.get("JW_TRY_DEFAULT_PWD", "false").strip().lower
 # 管理员密码(环境变量注入; 未设置时默认 admin123, 生产环境务必修改)
 # 安全: 绝不留已知默认口令 —— 没配环境变量时生成一次性随机口令(重启即变),
 # 并在日志里告警, 而不是退回 "admin123" 这种可被猜到默认值
+ADMIN_PASSWORD_CONFIGURED = bool(
+    os.environ.get("ADMIN_PASSWORD", "").strip())
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 if not ADMIN_PASSWORD:
     import logging as _logging
@@ -171,6 +188,37 @@ if not SESSION_KEY:
         "[config] 未配置 SESSION_KEY, 教务会话持久化(重启后免重登)已禁用; "
         "需要该能力时在云托管环境变量中配置 32 字节 base64 密钥"
     )
+
+# 可选: Redis 分布式状态。未配置时保持单实例兼容模式。
+REDIS_URL = os.environ.get("REDIS_URL", "").strip()
+
+# 生产环境建议关闭自动迁移, 改为发布流程执行 python tools/migrate.py。
+MIGRATIONS_AUTO = os.environ.get(
+    "MIGRATIONS_AUTO", "1").strip().lower() not in ("0", "false", "no")
+REQUIRE_SECURE_CONFIG = os.environ.get(
+    "REQUIRE_SECURE_CONFIG", "0").strip().lower() in ("1", "true", "yes")
+TRUSTED_PROXY_HOPS = _env_int("TRUSTED_PROXY_HOPS", 1, 1, 20)
+SESSION_TTL = _env_int("SESSION_TTL", 12 * 3600, 60, 30 * 24 * 3600)
+MAX_SESSIONS = _env_int("MAX_SESSIONS", 200, 1, 100000)
+JW_MAX_CONCURRENT = _env_int("JW_MAX_CONCURRENT", 4, 1, 64)
+
+
+def validate() -> None:
+    """启动配置校验；生产可设置 REQUIRE_SECURE_CONFIG=1 强制关键密钥。"""
+    errors = []
+    if REQUIRE_SECURE_CONFIG and not SESSION_KEY:
+        errors.append("SESSION_KEY 未配置")
+    if REQUIRE_SECURE_CONFIG and not ADMIN_PASSWORD_CONFIGURED:
+        errors.append("ADMIN_PASSWORD 未配置")
+    if SESSION_KEY:
+        import base64
+        try:
+            if len(base64.b64decode(SESSION_KEY)) != 32:
+                errors.append("SESSION_KEY 必须解码为 32 字节")
+        except Exception:
+            errors.append("SESSION_KEY 不是合法 base64")
+    if errors:
+        raise RuntimeError("生产配置无效: " + ", ".join(errors))
 
 # ============================================================
 # 微信小程序订阅消息(云托管环境变量注入; 模板 ID 非密钥, 可入库)

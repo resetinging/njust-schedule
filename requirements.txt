@@ -22,3 +22,4 @@ lxml==6.1.2
 ddddocr==1.6.1
 Pillow==12.3.0
 pycryptodome==3.23.0
+redis==5.2.1

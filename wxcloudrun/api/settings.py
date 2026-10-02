@@ -6,6 +6,7 @@ from wxcloudrun import app, dao
 from wxcloudrun.core.auth import _require_login
 from wxcloudrun.core.cache import invalidate_user_cache
 from wxcloudrun.core.sessions import _get_session_client
+from wxcloudrun.core.semester import current_semester
 from wxcloudrun.core.stats import _invalidate_stats
 from wxcloudrun.jwc_client import JWCClient
 
@@ -14,9 +15,7 @@ jwc_client = JWCClient()
 
 
 def _current_semester() -> str:
-    """当前学期(views 实现, 延迟导入避免循环)"""
-    from wxcloudrun.views import _current_semester as _impl
-    return _impl()
+    return current_semester()
 
 
 @settings_bp.route('/api/settings', methods=['GET', 'POST'])
@@ -30,32 +29,43 @@ def api_settings():
         cur_sem = (dao.get_user_setting(sid, "semester") if logged_in else "") \
             or dao.get_setting("semester")
         if logged_in and sid and cur_sem:
-            fwd = dao.get_setting(f"{sid}:first_week_date:{cur_sem}", "") or fwd
+            fwd = dao.get_user_setting(
+                sid, f"first_week_date:{cur_sem}", "") or fwd
+        auto_refresh = (
+            dao.get_user_setting(sid, "auto_refresh", "") if logged_in else ""
+        ) or dao.get_setting("auto_refresh", "false")
+        refresh_interval = (
+            dao.get_user_setting(sid, "refresh_interval", "")
+            if logged_in else ""
+        ) or dao.get_setting("refresh_interval", "3600")
         settings = {
             "student_id": sid,
             "student_name": client.student_name if logged_in else "",
             "semester": cur_sem,
-            "auto_refresh": dao.get_setting("auto_refresh", "false"),
-            "refresh_interval": dao.get_setting("refresh_interval", "3600"),
+            "auto_refresh": auto_refresh,
+            "refresh_interval": refresh_interval,
             "first_week_date": fwd,
             "semester_list": jwc_client.get_semester_list(),
             "current_semester": _current_semester(),
         }
         return jsonify(settings)
     else:
+        client, err = _require_login()
+        if err:
+            return err
+        sid = client.student_id or ""
         data = request.get_json(silent=True) or {}
         for key, value in data.items():
             if key in ("auto_refresh", "refresh_interval"):
-                dao.set_setting(key, str(value))
+                dao.set_user_setting(sid, key, str(value))
             elif key == "first_week_date":
-                # 按当前学期存储(登录时), 同时写全局兼容回退
-                dao.set_setting("first_week_date", str(value))
-                if logged_in and sid:
-                    cur_sem = dao.get_user_setting(sid, "semester")
-                    if cur_sem:
-                        dao.set_setting(f"{sid}:first_week_date:{cur_sem}", str(value))
-            elif key == "semester" and logged_in and sid:
+                cur_sem = dao.get_user_setting(sid, "semester")
+                if cur_sem:
+                    dao.set_user_setting(
+                        sid, f"first_week_date:{cur_sem}", str(value))
+            elif key == "semester":
                 dao.set_user_setting(sid, "semester", str(value))
+        client._status_cache_ts = 0
         return jsonify({"success": True, "message": "设置已保存"})
 
 
@@ -73,20 +83,25 @@ def api_get_semesters():
         current = _current_semester()
         return jsonify({"success": True, "semesters": semesters, "current": current})
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        app.logger.warning(
+            "[settings] 获取学期列表失败: %s", type(e).__name__)
+        return jsonify({
+            "success": False,
+            "message": "学期列表获取失败，请稍后重试",
+        }), 500
 
 
 @settings_bp.route('/api/semester', methods=['POST'])
 def api_set_semester():
+    client, err = _require_login()
+    if err:
+        return err
     data = request.get_json(silent=True) or {}
     semester = (data.get("semester") or "").strip()
     if not semester:
         return jsonify({"success": False, "message": "学期不能为空"}), 400
-    client = _get_session_client()
-    if client is not None and client.logged_in and client.student_id:
-        dao.set_user_setting(client.student_id, "semester", semester)
-    else:
-        dao.set_setting("semester", semester)
+    dao.set_user_setting(client.student_id, "semester", semester)
+    client._status_cache_ts = 0
     return jsonify({"success": True, "message": f"已切换到学期: {semester}"})
 
 
@@ -98,7 +113,11 @@ def api_clear_data():
     sid = client.student_id or ""
     semester = dao.get_user_setting(sid, "semester") or _current_semester()
     dao.clear_data(semester, sid)
+    dao.set_user_setting(sid, "data_cache_at", "")
+    invalidate_user_cache(sid)
     _invalidate_stats(sid, semester)
+    if client is not None:
+        client._status_cache_ts = 0
     return jsonify({"success": True, "message": "数据已清除"})
 
 

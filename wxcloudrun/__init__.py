@@ -9,6 +9,8 @@ import os
 import pymysql
 import config
 
+config.validate()
+
 # 适配 Python 3 MySQL 驱动
 pymysql.install_as_MySQLdb()
 
@@ -122,6 +124,91 @@ def _migrate_feedback_reply():
             app.logger.warning("[migrate] feedback 补列跳过(可能已被其他实例补充): %s", e)
 
 
+def _migrate_audit_class_info():
+    """存量库迁移：蹭课目录补充 class_info 列。"""
+    from sqlalchemy import inspect as sa_inspect, text as sa_text
+    insp = sa_inspect(db.engine)
+    if not insp.has_table("audit_courses"):
+        return
+    cols = [c["name"] for c in insp.get_columns("audit_courses")]
+    if "class_info" in cols:
+        return
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(sa_text(
+                "ALTER TABLE `audit_courses` "
+                "ADD COLUMN class_info VARCHAR(500) DEFAULT ''"
+            ))
+        app.logger.info("[migrate] audit_courses 已补充 class_info 列")
+    except Exception as e:
+        # 滚动更新时可能已由其他实例补充，重复列错误不能阻塞启动。
+        app.logger.warning("[migrate] audit_courses 补列跳过: %s", e)
+
+
+def _migrate_user_settings():
+    """把旧 settings 表中的 {sid}:{key} 行迁移到独立 user_settings 表。"""
+    from sqlalchemy import inspect as sa_inspect
+    from wxcloudrun.model import Setting, UserSetting
+
+    insp = sa_inspect(db.engine)
+    if not (insp.has_table("settings") and insp.has_table("user_settings")):
+        return
+    rows = Setting.query.filter(Setting.k.like("%:%")).all()
+    moved = 0
+    for row in rows:
+        sid, key = str(row.k or "").split(":", 1)
+        if not sid or not key:
+            continue
+        current = UserSetting.query.filter(
+            UserSetting.student_id == sid,
+            UserSetting.k == key,
+        ).first()
+        if current is None:
+            db.session.add(UserSetting(student_id=sid, k=key, v=row.v or ""))
+        db.session.delete(row)
+        moved += 1
+        if moved % 500 == 0:
+            db.session.commit()
+    if moved:
+        db.session.commit()
+        app.logger.info("[migrate] user_settings 迁移完成 rows=%d", moved)
+
+
+def _migrate_audit_course_rooms():
+    """修正存量蹭课目录中把教室编号写入教师列的数据。"""
+    import re as _re
+    import time as _time
+    from wxcloudrun.model import AuditCourse, Setting
+
+    pattern = _re.compile(r'(?:设传外教|设传教室|设传实验)\s*\d+$')
+    rows = AuditCourse.query.filter(
+        AuditCourse.classroom == "",
+        AuditCourse.teacher != "",
+    ).all()
+    changed = 0
+    affected_semesters = set()
+    for row in rows:
+        teacher = str(row.teacher or "").strip()
+        if not pattern.fullmatch(teacher):
+            continue
+        row.classroom = teacher
+        row.teacher = ""
+        affected_semesters.add(str(row.semester or ""))
+        changed += 1
+    if changed:
+        for semester in affected_semesters:
+            if not semester:
+                continue
+            key = f"audit_catalog_at:{semester}"
+            setting = Setting.query.filter(Setting.k == key).first()
+            if setting:
+                setting.v = str(int(_time.time()))
+            else:
+                db.session.add(Setting(k=key, v=str(int(_time.time()))))
+        db.session.commit()
+        app.logger.info("[migrate] audit_courses 教室挪列完成 rows=%d", changed)
+
+
 _PERF_INDEXES = (
     ("courses", "ix_courses_user_semester_day",
      ("student_id", "semester", "day_of_week", "start_period")),
@@ -163,13 +250,82 @@ def _ensure_perf_indexes():
                                table, index_name, e)
 
 
-# 确保数据表存在（container.config.json 的 executeSQLs 可能未执行）
 from wxcloudrun import model  # noqa: E402
+from wxcloudrun.model import SchemaMigration  # noqa: E402
+
+
+def _with_migration_lock(fn):
+    """MySQL 下使用命名锁避免多实例同时执行 DDL。"""
+    from sqlalchemy import text as sa_text
+
+    dialect = db.engine.dialect.name
+    if dialect != "mysql":
+        return fn()
+    lock_name = "njust_schedule_schema_migration"
+    with db.engine.connect() as conn:
+        conn.execute(sa_text("SELECT GET_LOCK(:name, 30)"), {"name": lock_name})
+        try:
+            return fn()
+        finally:
+            conn.execute(sa_text("SELECT RELEASE_LOCK(:name)"), {"name": lock_name})
+
+
+_SCHEMA_MIGRATIONS = (
+    ("0001_student_id", _migrate_student_id),
+    ("0002_feedback_reply", _migrate_feedback_reply),
+    ("0003_audit_class_info", _migrate_audit_class_info),
+    ("0004_user_settings", _migrate_user_settings),
+    ("0005_perf_indexes", _ensure_perf_indexes),
+    ("0006_audit_course_rooms", _migrate_audit_course_rooms),
+)
+
+
+def _verify_schema():
+    """自动迁移关闭时只做只读检查, Schema 缺失立即失败。"""
+    from sqlalchemy import inspect as sa_inspect
+    insp = sa_inspect(db.engine)
+    required = {
+        "courses", "exams", "evaluations", "grades", "cet_scores",
+        "settings", "user_settings", "feedback", "audit_courses",
+        "audit_favorites", "schema_migrations",
+    }
+    missing = sorted(t for t in required if not insp.has_table(t))
+    if missing:
+        raise RuntimeError(
+            "数据库 Schema 未迁移: " + ", ".join(missing)
+            + "；请先运行 python tools/migrate.py")
+
+
+def _run_migrations(force: bool = False):
+    """幂等迁移入口。生产可关闭自动迁移并显式执行 tools/migrate.py。"""
+    with app.app_context():
+        db.create_all()
+        if not (force or config.MIGRATIONS_AUTO):
+            _verify_schema()
+            return []
+        applied = []
+
+        def _run():
+            for version, fn in _SCHEMA_MIGRATIONS:
+                existing = SchemaMigration.query.filter(
+                    SchemaMigration.version == version).first()
+                if existing is not None:
+                    continue
+                fn()
+                db.session.add(SchemaMigration(version=version))
+                db.session.commit()
+                applied.append(version)
+                app.logger.info("[migrate] applied %s", version)
+            return applied
+
+        return _with_migration_lock(_run)
+
+
 with app.app_context():
-    db.create_all()
-    _migrate_student_id()
-    _migrate_feedback_reply()
-    _ensure_perf_indexes()
+    if config.MIGRATIONS_AUTO:
+        _run_migrations()
+    else:
+        _verify_schema()
 
 
 # gzip 压缩文本响应（JSON/HTML/JS/CSS, >500 字节）: 移动网络下显著提速

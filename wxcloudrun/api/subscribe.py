@@ -49,8 +49,8 @@ def api_subscribe_grant():
     if kind not in subscribe_store.KINDS:
         return jsonify({"success": False, "message": "未知的提醒类型"}), 400
     openid = subscribe_store.caller_openid()
-    item = subscribe_store.grant(client.student_id or "", kind,
-                                 int(data.get("count") or 1), openid)
+    # 微信一次性订阅一次授权只产生 1 条额度; 客户端 count 不可信。
+    item = subscribe_store.grant(client.student_id or "", kind, 1, openid)
     app.logger.info("[subscribe] rid=%s 授权 kind=%s quota=%s sid=%s openid=%s",
                     _rid(), kind, item.get("count"), client.student_id,
                     "有" if openid else "无")
