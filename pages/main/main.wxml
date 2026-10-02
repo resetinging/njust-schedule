@@ -74,6 +74,13 @@
             </view>
             <text class="tile-name">校历与照片墙</text>
           </view>
+          <view class="feat-tool-tile tool-audit tap" data-page="audit" bindtap="onOpenNavPage">
+            <view class="tile-top">
+              <view class="tile-ico"><icon name="search" size="36" color="#2563EB" /></view>
+              <view class="tile-arrow"><icon name="next" size="24" color="#64748B" /></view>
+            </view>
+            <text class="tile-name">蹭课查询</text>
+          </view>
         </view>
 
       </view>
@@ -81,7 +88,8 @@
 
     <!-- ③ 课表 -->
     <view class="tab-wrap" hidden="{{current !== 1}}">
-      <schedule-view wx:if="{{visited[0]}}" id="tabview0" />
+      <schedule-view wx:if="{{visited[0]}}" id="tabview0"
+                     bind:auditfavorites="onOpenAuditFavorites" />
     </view>
 
     <!-- ④ 我的 -->
@@ -112,16 +120,18 @@
     <gallery-view wx:elif="{{toolPage === 'gallery'}}"
                   embedded="{{true}}"
                   bind:close="onToolClose" />
-    <view wx:elif="{{toolPage === 'exams' || toolPage === 'eval' || toolPage === 'grades' || toolPage === 'credit'}}"
+    <view wx:elif="{{toolPage === 'exams' || toolPage === 'eval' || toolPage === 'grades' || toolPage === 'credit' || toolPage === 'audit'}}"
           class="subject-shell">
       <view class="sub-back tap" aria-label="返回功能" bindtap="onToolClose">
-        <view class="icon-back"><icon name="next" size="28" color="#64748B" /></view>
+        <view class="icon-back"><icon name="back" size="28" color="#64748B" /></view>
         <text>返回</text>
       </view>
       <exams-view wx:if="{{toolPage === 'exams'}}" id="toolExams" />
       <eval-view wx:elif="{{toolPage === 'eval'}}" id="toolEval" />
       <grades-view wx:elif="{{toolPage === 'grades'}}" id="toolGrades" />
       <credit-view wx:elif="{{toolPage === 'credit'}}" id="toolCredit" />
+      <audit-course-view wx:elif="{{toolPage === 'audit'}}" id="toolAudit"
+                         bind:favoritechange="onAuditFavoriteChange" />
     </view>
   </page-container>
 </view>

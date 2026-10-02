@@ -4,8 +4,12 @@
 const { request } = require('./core')
 const config = require('../config')
 
+function baseUrl() {
+  return config.USE_LOCAL ? config.LOCAL_BASE : config.API_BASE
+}
+
 function getGalleryImageUrl(name) {
-  return config.API_BASE + '/static/gallery/' + encodeURIComponent(name)
+  return baseUrl() + '/static/gallery/' + encodeURIComponent(name)
 }
 
 /** 获取校历图片列表 */
@@ -19,7 +23,7 @@ function getGalleryImages() {
 function getGalleryImagesFlex() {
   return new Promise((resolve) => {
     wx.request({
-      url: config.API_BASE + '/api/gallery-images',
+      url: baseUrl() + '/api/gallery-images',
       method: 'GET',
       timeout: 30000,
       success: (res) => {

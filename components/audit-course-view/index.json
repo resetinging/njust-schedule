@@ -1,0 +1,8 @@
+{
+  "component": true,
+  "usingComponents": {
+    "icon": "/components/icon/index",
+    "empty-state": "/components/empty-state/index",
+    "week-grid": "/components/week-grid/week-grid"
+  }
+}

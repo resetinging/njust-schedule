@@ -77,7 +77,6 @@
 
 .icon-back {
   display: inline-flex;
-  transform: rotate(180deg);
 }
 
 /* ============================================================

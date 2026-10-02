@@ -104,6 +104,10 @@ function clearAll() {
       if (key.indexOf('cached_courses_') === 0 ||
           key.indexOf('cached_exams_') === 0 ||
           key.indexOf('cached_status_') === 0 ||
+          key.indexOf('cached_audit_options_') === 0 ||
+          key.indexOf('audit_favorites_') === 0 ||
+          key.indexOf('audit_recent_') === 0 ||
+          key.indexOf('cached_sync_versions_') === 0 ||
           key === 'semester_list' || key === 'cached_gallery_meta') {
         remove(key)
       }

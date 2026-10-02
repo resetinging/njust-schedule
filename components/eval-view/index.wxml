@@ -53,7 +53,7 @@
   <!-- ============================================================ -->
   <view wx:if="{{batchCourses.length > 0 && !showForm}}">
     <view class="summary-bar">
-      <view class="sub-link tap" bindtap="backToBatches"><view class="icon-back"><icon name="next" size="26" color="#64748B" /></view><text>返回</text></view>
+      <view class="sub-link tap" bindtap="backToBatches"><view class="icon-back"><icon name="back" size="26" color="#64748B" /></view><text>返回</text></view>
       <text>{{batchCourses.length}} 门课程</text>
       <text class="batch-btn tap" bindtap="showBatchDialog">一键评教</text>
     </view>
@@ -90,7 +90,7 @@
   <!-- ============================================================ -->
   <view wx:if="{{showForm}}">
     <view class="summary-bar">
-      <view class="sub-link tap" bindtap="backToCourses"><view class="icon-back"><icon name="next" size="26" color="#64748B" /></view><text>返回课程</text></view>
+      <view class="sub-link tap" bindtap="backToCourses"><view class="icon-back"><icon name="back" size="26" color="#64748B" /></view><text>返回课程</text></view>
       <text class="form-course-name">{{formCourseName}}</text>
       <text></text>
     </view>

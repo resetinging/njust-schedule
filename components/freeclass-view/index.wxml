@@ -6,7 +6,7 @@
     <view class="custom-nav-inner"
           style="{{embedded ? 'height:88rpx;' : 'height:' + navBarHeight + 'px;'}}padding-right:{{navRight}}px;">
       <view class="custom-back tap" aria-label="返回" bindtap="goBack">
-        <view class="icon-back"><icon name="next" size="28" color="#64748B" /></view>
+        <view class="icon-back"><icon name="back" size="28" color="#64748B" /></view>
         <text>返回</text>
       </view>
       <text class="custom-nav-title">空教室查询</text>

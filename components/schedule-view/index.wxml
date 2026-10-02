@@ -9,6 +9,10 @@
       <picker mode="selector" range="{{semesters}}" bindchange="onSemesterChange">
         <view class="tb-sem">{{semester || '选择学期'}}<text class="tb-caret">▾</text></view>
       </picker>
+      <view class="tb-fav tap" aria-label="查询蹭课收藏" bindtap="onOpenAuditFavorites">
+        <icon name="award" size="24" color="#B45309" />
+        <text>收藏</text>
+      </view>
       <text class="tb-today" wx:if="{{todayText}}">{{todayText}}</text>
     </view>
 
@@ -86,7 +90,7 @@
             wx:for="{{group.courses}}"
             wx:key="index"
             wx:for-item="c"
-            class="course-card tap"
+            class="course-card tap {{c._audit ? 'audit' : ''}}"
             style="background: {{c._bg || '#E8F1FF'}}; border-left: 10rpx solid {{c._bar || '#2563EB'}};"
             bindtap="onCourseTap"
             data-course="{{c}}"
@@ -103,6 +107,7 @@
                 <text class="card-weeks" style="color: {{c._text}}">{{c.weeks || '1-18周'}}</text>
                 <text class="card-badge" wx:if="{{c.week_type === 1}}">单周</text>
                 <text class="card-badge even" wx:if="{{c.week_type === 2}}">双周</text>
+                <text class="card-badge audit" wx:if="{{c._audit}}">蹭课</text>
               </view>
           </view>
         </view>

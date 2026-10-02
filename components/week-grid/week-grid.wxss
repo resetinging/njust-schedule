@@ -174,6 +174,28 @@
   box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, .18);
 }
 
+.course-block.audit {
+  border-style: dashed;
+}
+
+.course-block.conflict {
+  box-shadow: inset 0 0 0 2rpx rgba(220, 38, 38, .72);
+}
+
+.cb-audit {
+  flex: none;
+  font-size: 17rpx;
+  font-weight: 800;
+  opacity: .75;
+}
+
+.cb-conflict {
+  flex: none;
+  color: #dc2626;
+  font-size: 17rpx;
+  font-weight: 800;
+}
+
 /* 课程名: 占满剩余空间、按块高自然换行 */
 .cb-name {
   flex: 1;

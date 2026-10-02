@@ -125,7 +125,11 @@ Component({
             _clockStart: periodStart(cs),
             _range: cs === ce ? `${cs}节` : `${cs}-${ce}节`,
             _cid: c._cid || '',
-            _custom: !!c._custom
+            _custom: !!c._custom,
+            _audit: !!c._audit,
+            _favoriteId: c._favoriteId || '',
+            _hasConflict: !!c._hasConflict,
+            _conflictWith: c._conflictWith || []
           })
         }
         blocks.sort((a, b) => a._top - b._top)

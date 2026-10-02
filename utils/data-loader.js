@@ -110,6 +110,82 @@ async function _queryAll() {
   return results.reduce((a, b) => a + b, 0)
 }
 
+async function _queryAllChanged(versions) {
+  const sid = storage.getStudentId() || 'guest'
+  const sem = storage.getSemester() || 'default'
+  const versionKey = 'cached_sync_versions_' + sid + '_' + sem
+  const previous = storage.getCached(versionKey) || {}
+  const next = Object.assign({}, previous)
+  const unversioned = []
+
+  const load = (name, cacheKey, loader, save) => {
+    const cached = storage.getCached(cacheKey)
+    const version = versions[name]
+    if (cached && version !== undefined && previous[name] === version) {
+      return Promise.resolve(1)
+    }
+    return loader().then(res => {
+      if (res && res.success) {
+        save(res)
+        if (version !== undefined) next[name] = version
+        return 1
+      }
+      return 0
+    }).catch(() => 0)
+  }
+
+  const tasks = [
+    load('courses', 'cached_courses_' + sem,
+      () => api.getCourses(sem),
+      res => {
+        const cs = res.semester || sem
+        storage.setCached('cached_courses_' + cs, res.courses || [])
+        if (res.semester) storage.setSemester(res.semester)
+      }),
+    load('exams', 'cached_exams_' + sem,
+      () => api.getExams(sem),
+      res => storage.setCached(
+        'cached_exams_' + (res.semester || sem), res.exams || [])),
+    load('evaluations', 'cached_evaluations',
+      () => api.getEvalBatches(),
+      res => storage.setCached('cached_evaluations', res)),
+    load('grades', 'cached_grades',
+      () => api.getGrades('__all__'),
+      res => storage.setCached('cached_grades', res)),
+    load('cet_scores', 'cached_cet_scores',
+      () => api.getCetScores(),
+      res => storage.setCached('cached_cet_scores', res))
+  ]
+
+  unversioned.push(api.getStatus().then(res => {
+    if (res && res.first_week_date) {
+      storage.setCached('cached_status_' + sid + '_' + sem, {
+        t: Date.now(),
+        first_week_date: res.first_week_date
+      })
+      return 1
+    }
+    return 0
+  }).catch(() => 0))
+
+  const results = await Promise.all(tasks.concat(unversioned))
+  storage.setCached(versionKey, next)
+  return results.reduce((a, b) => a + b, 0)
+}
+
+async function _queryAllSmart() {
+  if (typeof api.getSyncVersions !== 'function') return _queryAll()
+  try {
+    const res = await api.getSyncVersions(storage.getSemester())
+    if (res && res.success && res.versions) {
+      return _queryAllChanged(res.versions)
+    }
+  } catch (e) {
+    // 旧后端不支持版本接口时回退全量读取。
+  }
+  return _queryAll()
+}
+
 /**
  * 等待服务端在新会话建立后完成一次全量教务同步。
  * 旧后端没有 data_refresh 字段时立即返回, 保持兼容。
@@ -170,13 +246,13 @@ async function fetchAllData(options) {
     return ok
   }
   // 1) 立即载入现有数据
-  try { await _queryAll() } catch (e) { /* 静默 */ }
+  try { await _queryAllSmart() } catch (e) { /* 静默 */ }
 
   if (!force) {
     // 登录/自动重登由服务端统一刷新一次; 前端只等待并读取结果。
     await _waitForDataRefresh()
     let ok = 0
-    try { ok = await _queryAll() } catch (e) { /* 静默 */ }
+    try { ok = await _queryAllSmart() } catch (e) { /* 静默 */ }
     return ok
   }
 
@@ -190,7 +266,7 @@ async function fetchAllData(options) {
 
   // 3) 重新查询写入最新缓存
   let ok = 0
-  try { ok = await _queryAll() } catch (e) { /* 静默 */ }
+  try { ok = await _queryAllSmart() } catch (e) { /* 静默 */ }
   return ok
 }
 

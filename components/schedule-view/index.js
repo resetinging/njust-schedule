@@ -5,6 +5,7 @@
  */
 
 const api = require('../../utils/api')
+const auditCourseUtil = require('../../utils/audit-course')
 const storage = require('../../utils/storage')
 const config = require('../../utils/config')
 const { courseColors } = require('../../utils/course-color')
@@ -83,6 +84,7 @@ Component({
     attached() {
       // 缓存优先：打开只渲染本地缓存，网络仅在下拉刷新/学期切换时发生
       this._customs = this._readCustoms()
+      this._auditFavorites = this._readAuditFavorites()
       // 顶栏"今天"文案: 不依赖网络, 直接本地计算
       {
         const now = new Date()
@@ -96,6 +98,7 @@ Component({
       })
       this._syncUser()
       this._ensureSemesterData()
+      this._loadAuditFavorites()
     },
     detached() {
       if (this._weekAnimTimer) clearTimeout(this._weekAnimTimer)
@@ -132,6 +135,7 @@ Component({
         this.setData({ semester: app.globalData.semester })
       }
       this._syncUser()
+      this._loadAuditFavorites()
       // 学期/学期列表仍缺失时静默补拉(登录后回到课表即补上)
       this._ensureSemesterData()
       // 从「我的」页设置第一周日期后回到课表, 自动刷新定位本周
@@ -269,6 +273,36 @@ Component({
       return list
     },
 
+    _auditFavoritesCacheKey() {
+      const sid = storage.getStudentId() || 'guest'
+      const semester = storage.getSemester() || 'default'
+      return 'audit_favorites_' + sid + '_' + semester
+    },
+
+    _readAuditFavorites() {
+      const cached = storage.getCached(this._auditFavoritesCacheKey())
+      return Array.isArray(cached) ? cached : []
+    },
+
+    async _loadAuditFavorites() {
+      const cached = this._readAuditFavorites()
+      this._auditFavorites = cached
+      this._composeCourses()
+      if (!storage.isLoggedIn()) return
+      try {
+        const res = await api.listAuditFavorites({
+          semester: storage.getSemester() || ''
+        })
+        if (res && res.success && Array.isArray(res.favorites)) {
+          this._auditFavorites = res.favorites
+          storage.setCached(this._auditFavoritesCacheKey(), res.favorites)
+          this._composeCourses()
+        }
+      } catch (_e) {
+        // 离线时继续使用本地收藏缓存
+      }
+    },
+
     _persistCustoms() {
       // 只持久化原始字段: _bg/_clock/_periodLabel 等派生字段随作息与显示格式变化,
       // 存进本地会在下次启动被当成"已有值"复用 → 一直显示旧钟点
@@ -283,9 +317,28 @@ Component({
       storage.set(CUSTOM_KEY, clean)
     },
 
-    /** 合并并重渲染: 教务课(基础) + 自定义课 */
+    /** 合并并重渲染: 教务课(基础) + 自定义课 + 蹭课收藏 */
     _composeCourses() {
-      const merged = (this._serverCourses || []).concat(this._customs || [])
+      const auditCourses = []
+      const seen = new Set()
+      const ownCourses = (this._serverCourses || [])
+        .concat(this._customs || [])
+      ;(this._auditFavorites || []).forEach(favorite => {
+        const marked = auditCourseUtil.markScheduleConflicts(
+          favorite, ownCourses)
+        auditCourseUtil.flattenFavorite(marked).forEach(course => {
+          const key = [
+            course.name, course.day, course.start, course.end,
+            course.weeks, course.teacher, course.classroom
+          ].join('|')
+          if (seen.has(key)) return
+          seen.add(key)
+          auditCourses.push(course)
+        })
+      })
+      const merged = (this._serverCourses || [])
+        .concat(this._customs || [])
+        .concat(auditCourses)
       this.setData({ courses: merged })
       this.filterByWeek(this.data.currentWeek)
     },
@@ -619,6 +672,7 @@ Component({
             }
             this.loadFirstWeekDate()        // 刷新该学期第一周日期(周次下方日期随学期切换)
             this.loadFromServer(semester)   // 显式传参加载最新数据
+            this._loadAuditFavorites()      // 收藏数据按新学期的缓存/接口重新加载
           } else {
             wx.showToast({ title: (res && res.message) || '切换学期失败', icon: 'none' })
           }
@@ -710,6 +764,11 @@ Component({
           detailCourse: enriched
         })
       }
+    },
+
+    /** 打开蹭课收藏视图。 */
+    onOpenAuditFavorites() {
+      this.triggerEvent('auditfavorites')
     },
 
     /** 关闭课程详情 */

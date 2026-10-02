@@ -1,0 +1,426 @@
+<view class="container">
+  <scroll-view class="view-scroll" scroll-y="{{suggestField ? false : true}}"
+               enhanced show-scrollbar="{{false}}"
+               lower-threshold="240" bindscrolltolower="onLoadMore">
+    <view class="page-content">
+      <view class="filter-card">
+        <view class="filter-head">
+          <view class="filter-title-wrap">
+            <view class="filter-head-ico"><icon name="search" size="28" color="#2563EB" /></view>
+            <text class="filter-title">查询条件</text>
+          </view>
+          <view class="filter-actions">
+            <view class="favorites-filter tap {{showFavoritesOnly ? 'active' : ''}}"
+                  bindtap="toggleFavorites">
+              <text>{{showFavoritesOnly ? '返回查询' : '收藏'}}</text>
+              <text class="favorites-count" wx:if="{{favoriteCount}}">{{favoriteCount}}</text>
+            </view>
+            <view class="explorer-open tap" wx:if="{{!showFavoritesOnly}}" bindtap="openQueryExplorer">
+              <icon name="list" size="24" color="#2563EB" />
+              <text>更多</text>
+            </view>
+            <view class="reset tap"
+                  wx:if="{{courseName || teacher || classroom || weekdayIndex || startPeriodIndex || endPeriodIndex}}"
+                  bindtap="onClear">
+              <icon name="close" size="22" color="#64748B" />
+              <text>重置</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="filter-list">
+          <view class="filter-field">
+            <view class="filter-row">
+              <view class="filter-ico"><icon name="doc" size="26" color="#64748B" /></view>
+              <input class="filter-input" value="{{courseName}}" placeholder="课程名称"
+                     data-field="courseName" confirm-type="search"
+                     bindtouchstart="onFilterTouchStart" bindtap="onFilterTap"
+                     bindfocus="onFilterFocus" bindblur="onFilterBlur"
+                     bindinput="onFilterInput" bindconfirm="onSearch" />
+            </view>
+            <view class="suggest-panel" wx:if="{{suggestField === 'courseName'}}">
+              <view class="suggest-state" wx:if="{{suggestLoading}}">
+                <view class="suggest-spinner"></view>
+                <text>正在加载</text>
+              </view>
+              <scroll-view class="suggest-scroll" wx:elif="{{suggestOptions.length}}"
+                           style="height: {{suggestHeight}}rpx;"
+                           scroll-y enhanced show-scrollbar="{{false}}"
+                           lower-threshold="80"
+                           bindtouchstart="onSuggestTouchStart"
+                           bindtouchmove="onSuggestTouchMove"
+                           bindtouchend="onSuggestTouchEnd"
+                           bindtouchcancel="onSuggestTouchEnd"
+                           bindscrolltolower="onSuggestScrollToLower">
+                <view class="suggest-item tap" wx:for="{{suggestOptions}}" wx:key="*this"
+                      data-field="courseName" data-value="{{item}}" catchtap="onSelectSuggestion">
+                  <icon name="search" size="22" color="#64748B" />
+                  <text>{{item}}</text>
+                </view>
+              </scroll-view>
+              <view class="suggest-state" wx:else>暂无匹配项</view>
+            </view>
+          </view>
+          <view class="filter-field">
+            <view class="filter-row">
+              <view class="filter-ico"><icon name="user" size="26" color="#64748B" /></view>
+              <input class="filter-input" value="{{teacher}}" placeholder="任课教师"
+                     data-field="teacher" confirm-type="search"
+                     bindtouchstart="onFilterTouchStart" bindtap="onFilterTap"
+                     bindfocus="onFilterFocus" bindblur="onFilterBlur"
+                     bindinput="onFilterInput" bindconfirm="onSearch" />
+            </view>
+            <view class="suggest-panel" wx:if="{{suggestField === 'teacher'}}">
+              <view class="suggest-state" wx:if="{{suggestLoading}}">
+                <view class="suggest-spinner"></view>
+                <text>正在加载</text>
+              </view>
+              <scroll-view class="suggest-scroll" wx:elif="{{suggestOptions.length}}"
+                           style="height: {{suggestHeight}}rpx;"
+                           scroll-y enhanced show-scrollbar="{{false}}"
+                           lower-threshold="80"
+                           bindtouchstart="onSuggestTouchStart"
+                           bindtouchmove="onSuggestTouchMove"
+                           bindtouchend="onSuggestTouchEnd"
+                           bindtouchcancel="onSuggestTouchEnd"
+                           bindscrolltolower="onSuggestScrollToLower">
+                <view class="suggest-item tap" wx:for="{{suggestOptions}}" wx:key="*this"
+                      data-field="teacher" data-value="{{item}}" catchtap="onSelectSuggestion">
+                  <icon name="user" size="22" color="#64748B" />
+                  <text>{{item}}</text>
+                </view>
+              </scroll-view>
+              <view class="suggest-state" wx:else>暂无匹配项</view>
+            </view>
+          </view>
+          <view class="filter-field">
+            <view class="filter-row">
+              <view class="filter-ico"><icon name="building" size="26" color="#64748B" /></view>
+              <input class="filter-input" value="{{classroom}}" placeholder="上课地点"
+                     data-field="classroom" confirm-type="search"
+                     bindtouchstart="onFilterTouchStart" bindtap="onFilterTap"
+                     bindfocus="onFilterFocus" bindblur="onFilterBlur"
+                     bindinput="onFilterInput" bindconfirm="onSearch" />
+            </view>
+            <view class="suggest-panel" wx:if="{{suggestField === 'classroom'}}">
+              <view class="suggest-state" wx:if="{{suggestLoading}}">
+                <view class="suggest-spinner"></view>
+                <text>正在加载</text>
+              </view>
+              <scroll-view class="suggest-scroll" wx:elif="{{suggestOptions.length}}"
+                           style="height: {{suggestHeight}}rpx;"
+                           scroll-y enhanced show-scrollbar="{{false}}"
+                           lower-threshold="80"
+                           bindtouchstart="onSuggestTouchStart"
+                           bindtouchmove="onSuggestTouchMove"
+                           bindtouchend="onSuggestTouchEnd"
+                           bindtouchcancel="onSuggestTouchEnd"
+                           bindscrolltolower="onSuggestScrollToLower">
+                <view class="suggest-item tap" wx:for="{{suggestOptions}}" wx:key="*this"
+                      data-field="classroom" data-value="{{item}}" catchtap="onSelectSuggestion">
+                  <icon name="building" size="22" color="#64748B" />
+                  <text>{{item}}</text>
+                </view>
+              </scroll-view>
+              <view class="suggest-state" wx:else>暂无匹配项</view>
+            </view>
+          </view>
+        </view>
+
+        <view class="time-grid">
+          <picker class="time-picker" mode="selector" range="{{weekdayOptions}}"
+                  value="{{weekdayIndex}}" bindchange="onWeekdayChange">
+            <view class="time-cell tap">
+              <text class="time-label">星期</text>
+              <view class="time-value">
+                <text>{{weekdayOptions[weekdayIndex]}}</text>
+                <icon name="next" size="20" color="#64748B" />
+              </view>
+            </view>
+          </picker>
+          <picker class="time-picker" mode="selector" range="{{periodOptions}}"
+                  value="{{startPeriodIndex}}" bindchange="onStartPeriodChange">
+            <view class="time-cell tap">
+              <text class="time-label">开始</text>
+              <view class="time-value">
+                <text>{{periodOptions[startPeriodIndex]}}</text>
+                <icon name="next" size="20" color="#64748B" />
+              </view>
+            </view>
+          </picker>
+          <picker class="time-picker" mode="selector" range="{{periodOptions}}"
+                  value="{{endPeriodIndex}}" bindchange="onEndPeriodChange">
+            <view class="time-cell tap">
+              <text class="time-label">结束</text>
+              <view class="time-value">
+                <text>{{periodOptions[endPeriodIndex]}}</text>
+                <icon name="next" size="20" color="#64748B" />
+              </view>
+            </view>
+          </picker>
+        </view>
+
+        <view class="query-btn tap" bindtap="onSearch">
+          <icon name="search" size="26" color="#FFFFFF" />
+          <text>查询课程</text>
+        </view>
+      </view>
+
+      <view class="active-filters" wx:if="{{activeChips.length}}">
+        <view class="active-chip" wx:for="{{activeChips}}" wx:key="key"
+              data-field="{{item.field}}" data-value="{{item.value}}"
+              bindtap="clearWorkbenchChip">
+          <text>{{item.label}} · {{item.value}}</text>
+          <icon name="close" size="18" color="#2563EB" />
+        </view>
+        <view class="active-edit tap" bindtap="openQueryExplorer">编辑</view>
+      </view>
+
+      <view class="summary" wx:if="{{searched && !loading && !errorMsg}}">
+        <text wx:if="{{showFavoritesOnly}}">收藏 {{total}} 门课程</text>
+        <text wx:else>找到 {{total}} 条课程安排{{updatedAt ? ' · 更新于 ' + updatedAt : ''}}</text>
+      </view>
+
+      <view class="course-list" wx:if="{{courses.length}}">
+        <view class="course-card tap" wx:for="{{courses}}" wx:key="index"
+              data-index="{{index}}" bindtap="onCourseTap">
+          <view class="course-top">
+            <view class="course-title-wrap">
+              <view class="course-card-ico"><icon name="doc" size="30" color="#2563EB" /></view>
+              <text class="course-name">{{item.name}}</text>
+            </view>
+            <view class="course-head-right">
+              <text class="course-day">{{item.scheduleCount}} 个时段</text>
+              <icon name="next" size="22" color="#94A3B8" />
+            </view>
+          </view>
+          <view class="course-status-row">
+            <view class="audit-status {{item._conflict.hasConflict ? 'conflict' : (item._conflict.loading ? 'loading' : 'free')}}">
+              {{item._conflictText}}
+            </view>
+            <view class="favorite-btn tap {{item._isFavorite ? 'on' : ''}}"
+                  data-index="{{index}}" catchtap="onToggleFavorite">
+              <text>{{item._isFavorite ? '★' : '☆'}}</text>
+              <text>{{item._isFavorite ? '已收藏' : '收藏'}}</text>
+            </view>
+          </view>
+          <view class="conflict-detail" wx:if="{{item._conflict.hasConflict}}">
+            {{item._conflict.detailText}}
+          </view>
+          <view class="meta-row">
+            <icon name="clipboard" size="26" color="#64748B" />
+            <text>{{item.class_info || '班级信息未注明'}}</text>
+          </view>
+          <view class="meta-row" wx:if="{{item.teacher}}">
+            <icon name="user" size="26" color="#64748B" />
+            <text>{{item.teacher}}</text>
+          </view>
+          <view class="meta-row">
+            <icon name="calendar" size="26" color="#64748B" />
+            <text>{{item.daySummary || '星期未注明'}}</text>
+          </view>
+          <view class="meta-row">
+            <icon name="clock" size="26" color="#64748B" />
+            <text>{{item.timeSummary}}</text>
+          </view>
+          <view class="meta-row">
+            <icon name="calendar" size="26" color="#64748B" />
+            <text>{{item.weeksSummary}}</text>
+          </view>
+          <view class="meta-row">
+            <icon name="building" size="26" color="#64748B" />
+            <text>{{item.classroom || '教室未注明'}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="load-more tap" wx:if="{{hasMore}}" bindtap="onLoadMore">
+        {{loading ? '加载中…' : '加载更多'}}
+      </view>
+
+      <empty-state wx:if="{{!showFavoritesOnly && searched && !loading && !courses.length && !errorMsg}}"
+                   icon="🔎" title="没有找到课程" desc="换个课程、地点、时间或教师条件试试" />
+      <empty-state wx:if="{{showFavoritesOnly && !loading && !courses.length}}"
+                   icon="award" title="还没有收藏课程"
+                   desc="在查询结果中点击收藏后，课程会显示在这里" />
+
+      <view class="loading-box" wx:if="{{loading && !courses.length}}">
+        <view class="spinner"></view>
+        <text>正在查询课程安排…</text>
+      </view>
+
+      <view class="error" wx:if="{{errorMsg}}">{{errorMsg}}</view>
+
+      <empty-state wx:if="{{!searched && !loading}}"
+                   icon="🔎" title="搜索想旁听的课程"
+                   desc="支持课程、地点、时间和任课教师组合查询" />
+    </view>
+  </scroll-view>
+
+  <view class="explorer-mask" wx:if="{{showQueryExplorer}}">
+    <view class="explorer-backdrop" bindtap="closeQueryExplorer"></view>
+    <view class="explorer-sheet" catchtap="onExplorerSheetTap">
+      <view class="explorer-head">
+        <view>
+          <text class="explorer-title">课程查询</text>
+          <text class="explorer-sub">同维度多选，不同条件同时满足</text>
+        </view>
+        <view class="explorer-close tap" bindtap="closeQueryExplorer">
+          <icon name="close" size="28" color="#64748B" />
+        </view>
+      </view>
+
+      <view class="explorer-tabs">
+        <view class="explorer-tab tap {{explorerTab === 'names' ? 'active' : ''}}"
+              data-tab="names" bindtap="onExplorerTab">课程名</view>
+        <view class="explorer-tab tap {{explorerTab === 'teachers' ? 'active' : ''}}"
+              data-tab="teachers" bindtap="onExplorerTab">教师</view>
+        <view class="explorer-tab tap {{explorerTab === 'classrooms' ? 'active' : ''}}"
+              data-tab="classrooms" bindtap="onExplorerTab">地点</view>
+        <view class="explorer-tab tap {{explorerTab === 'time' ? 'active' : ''}}"
+              data-tab="time" bindtap="onExplorerTab">时间</view>
+      </view>
+
+      <view class="explorer-recent" wx:if="{{recentItems.length}}">
+        <text class="explorer-recent-label">最近</text>
+        <view class="recent-chip tap" wx:for="{{recentItems}}" wx:key="key"
+              data-field="{{item.field}}" data-value="{{item.value}}"
+              bindtap="onRecentTap">
+          {{item.label}} · {{item.value}}
+        </view>
+      </view>
+
+      <view class="explorer-time-grid" wx:if="{{explorerTab === 'time'}}">
+        <picker mode="selector" range="{{weekdayOptions}}"
+                value="{{weekdayIndex}}" bindchange="onWeekdayChange">
+          <view class="explorer-time-cell tap">
+            <text class="explorer-time-label">星期</text>
+            <text>{{weekdayOptions[weekdayIndex]}}</text>
+          </view>
+        </picker>
+        <picker mode="selector" range="{{periodOptions}}"
+                value="{{startPeriodIndex}}" bindchange="onStartPeriodChange">
+          <view class="explorer-time-cell tap">
+            <text class="explorer-time-label">开始</text>
+            <text>{{periodOptions[startPeriodIndex]}}</text>
+          </view>
+        </picker>
+        <picker mode="selector" range="{{periodOptions}}"
+                value="{{endPeriodIndex}}" bindchange="onEndPeriodChange">
+          <view class="explorer-time-cell tap">
+            <text class="explorer-time-label">结束</text>
+            <text>{{periodOptions[endPeriodIndex]}}</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="explorer-selected" wx:if="{{activeChips.length}}">
+        <view class="selected-chip" wx:for="{{activeChips}}" wx:key="key"
+              data-field="{{item.field}}" data-value="{{item.value}}"
+              bindtap="clearWorkbenchChip">
+          <text>{{item.label}}：{{item.value}}</text>
+          <icon name="close" size="18" color="#2563EB" />
+        </view>
+      </view>
+
+      <view class="explorer-search" wx:if="{{explorerTab !== 'time'}}">
+        <icon name="search" size="26" color="#64748B" />
+        <input class="explorer-input" value="{{explorerKeyword}}"
+               placeholder="输入关键字筛选" bindinput="onExplorerInput" />
+        <view class="explorer-clear tap" wx:if="{{explorerKeyword}}" bindtap="onExplorerClear">
+          <icon name="close" size="22" color="#64748B" />
+        </view>
+      </view>
+
+      <view class="explorer-count">
+        <text wx:if="{{explorerTab === 'time'}}">设置星期和节次范围</text>
+        <text wx:else>找到 {{explorerTotal}} 项 · 共 {{explorerAllTotal}} 项</text>
+      </view>
+
+      <view class="explorer-body">
+        <scroll-view class="explorer-scroll" scroll-y enhanced scroll-anchoring
+                     show-scrollbar="{{false}}"
+                     lower-threshold="240"
+                     bindscroll="onExplorerScroll"
+                     bindscrolltolower="onExplorerScrollToLower">
+          <view class="explorer-item tap {{item.selected ? 'selected' : ''}}"
+                wx:for="{{explorerItems}}" wx:key="value"
+                data-value="{{item.value}}" bindtap="onExplorerSelect">
+            <view class="explorer-item-main">
+              <text>{{item.value}}</text>
+              <text class="explorer-item-count">{{item.count}} 个时段</text>
+            </view>
+            <text class="explorer-check" wx:if="{{item.selected}}">✓</text>
+            <icon wx:else name="next" size="22" color="#94A3B8" />
+          </view>
+          <view class="explorer-load-more tap" wx:if="{{explorerHasMore}}"
+                bindtap="onExplorerLoadMore">
+            加载更多
+          </view>
+          <view class="explorer-end" wx:if="{{!explorerHasMore && explorerItems.length}}">
+            已显示全部
+          </view>
+          <view class="explorer-end" wx:if="{{!explorerItems.length}}">
+            没有匹配项
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="explorer-footer">
+        <view class="explorer-footer-meta">
+          <text>已选 {{workbenchSelectedCount}} 项</text>
+          <text wx:if="{{workbenchMatchCount}}">匹配 {{workbenchMatchCount}} 个时段</text>
+        </view>
+        <view class="explorer-query tap" bindtap="applyWorkbenchQuery">
+          <icon name="search" size="24" color="#FFFFFF" />
+          <text>查询课程</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="weekly-mask" wx:if="{{showWeekly}}">
+    <view class="weekly-backdrop" bindtap="closeWeekly"></view>
+    <view class="weekly-sheet" catchtap="onWeeklySheetTap">
+      <view class="weekly-head">
+        <view class="weekly-title-wrap">
+          <text class="weekly-title">{{weeklyName}}</text>
+          <text class="weekly-sub" wx:if="{{weeklyTeacher}}">{{weeklyTeacher}}</text>
+        </view>
+        <view class="weekly-actions">
+          <view class="audit-status {{weeklyConflictClass}}">{{weeklyConflictText}}</view>
+          <view class="favorite-btn tap {{weeklyIsFavorite ? 'on' : ''}}"
+                catchtap="onToggleWeeklyFavorite">
+            <text>{{weeklyIsFavorite ? '★' : '☆'}}</text>
+          </view>
+        </view>
+        <view class="weekly-close tap" bindtap="closeWeekly">
+          <icon name="close" size="28" color="#64748B" />
+        </view>
+      </view>
+
+      <view class="weekly-weekbar">
+        <view class="weekly-arrow tap" bindtap="prevWeeklyWeek">
+          <icon name="prev" size="26" color="#64748B" />
+        </view>
+        <picker mode="selector" range="{{weeklyWeekOptions}}"
+                value="{{weeklyWeekIndex}}" bindchange="onWeeklyWeekChange">
+          <view class="weekly-week-label">{{weeklyWeekOptions[weeklyWeekIndex]}}</view>
+        </picker>
+        <view class="weekly-arrow tap" bindtap="nextWeeklyWeek">
+          <icon name="next" size="26" color="#64748B" />
+        </view>
+      </view>
+
+      <scroll-view class="weekly-grid-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+        <week-grid
+          courses="{{weeklyCourses}}"
+          currentWeek="{{weeklyWeek}}"
+          actualWeek="{{weeklyActualWeek}}"
+          firstWeekDate="{{weeklyFirstWeekDate}}"
+          todayDay="{{weeklyTodayDay}}"
+        />
+      </scroll-view>
+    </view>
+  </view>
+</view>

@@ -14,7 +14,7 @@ const storage = require('../../utils/storage')
 const font = require('../../utils/font')
 
 const MAIN_TITLE = '课表助手'
-const TOOL_TITLES = { freeclass: '空教室查询', gallery: '校园工具' }
+const TOOL_TITLES = { freeclass: '空教室查询', gallery: '校园工具', audit: '蹭课查询' }
 
 Page({
   data: {
@@ -240,16 +240,22 @@ Page({
    * 打开页面内假页。课业组件依赖 activate() 进入激活态并处理研究生分流,
    * 挂载后再查找组件实例激活; 找不到时短暂重试。
    */
-  _openToolPage(page, toolId) {
-    const allowed = ['freeclass', 'gallery', 'exams', 'eval', 'grades', 'credit']
+  _openToolPage(page, toolId, mode) {
+    const allowed = ['freeclass', 'gallery', 'audit', 'exams', 'eval', 'grades', 'credit']
     if (allowed.indexOf(page) < 0 || this.data.toolVisible) return
     if (TOOL_TITLES[page]) this._setNavTitle(TOOL_TITLES[page])
     this.setData({ toolPage: page, toolVisible: true }, () => {
       if (!toolId) return
       const activate = (retry) => {
         const comp = this.selectComponent('#' + toolId)
-        if (comp && typeof comp.activate === 'function') {
-          comp.activate()
+        const canActivate = comp && typeof comp.activate === 'function'
+        const canOpenFavorites = comp &&
+          typeof comp.openFavoritesView === 'function'
+        if (canActivate || canOpenFavorites) {
+          if (canActivate) comp.activate()
+          if (mode === 'favorites' && canOpenFavorites) {
+            comp.openFavoritesView()
+          }
           return
         }
         if (retry < 6) setTimeout(() => activate(retry + 1), 60)
@@ -261,6 +267,19 @@ Page({
   /** 关闭页面内假页(子组件返回按钮触发) */
   onToolClose() {
     if (this.data.toolVisible) this.setData({ toolVisible: false })
+  },
+
+  /** 蹭课收藏变化后同步给已挂载的课表组件。 */
+  onAuditFavoriteChange() {
+    const view = this.selectComponent('#tabview0')
+    if (view && typeof view._loadAuditFavorites === 'function') {
+      view._loadAuditFavorites()
+    }
+  },
+
+  /** 课表页快捷入口: 打开蹭课收藏视图。 */
+  onOpenAuditFavorites() {
+    this._openToolPage('audit', 'toolAudit', 'favorites')
   },
 
   /** 系统返回/右滑关闭假页时, 同步受控状态 */

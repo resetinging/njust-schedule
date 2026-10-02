@@ -56,6 +56,23 @@
   font-family: var(--font-display);
 }
 
+.tb-fav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  flex-shrink: 0;
+  padding: 7rpx 12rpx;
+  border-radius: var(--radius-pill);
+  background: #fff7d6;
+  color: #b45309;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.tb-fav:active {
+  transform: scale(.96);
+}
+
 .weekbar {
   display: flex;
   align-items: center;
@@ -313,6 +330,10 @@
   box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, .14);
 }
 
+.course-card.audit {
+  border-style: dashed;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -363,6 +384,11 @@
 .card-badge.even {
   background: var(--primary-soft);
   color: var(--primary-dark);
+}
+
+.card-badge.audit {
+  background: #e8f7ee;
+  color: #16865b;
 }
 
 /* ============================================================

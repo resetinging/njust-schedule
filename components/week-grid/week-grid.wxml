@@ -29,12 +29,14 @@
         wx:for="{{item.blocks}}"
         wx:key="index"
         wx:for-item="b"
-        class="course-block tap"
+        class="course-block tap {{b._audit ? 'audit' : ''}} {{b._hasConflict ? 'conflict' : ''}}"
         style="top: {{b._top}}rpx; height: {{b._height}}rpx; background: {{b._bg}}; border-left-color: {{b._bar}}; color: {{b._text}}"
         bindtap="onCourseTap"
         data-course="{{b}}"
       >
         <text class="cb-name" style="color: {{b._text}}">{{b.name}}</text>
+        <text class="cb-audit" wx:if="{{b._audit}}" style="color: {{b._text}}">蹭课</text>
+        <text class="cb-conflict" wx:if="{{b._hasConflict}}">冲突</text>
         <!-- 教室(带 @ 前缀) 优先展示; 上课时间由网格位置表达, 不再占块内空间 -->
         <text class="cb-code" wx:if="{{b.classroom}}" style="color: {{b._text}}">@{{b.classroom}}</text>
       </view>

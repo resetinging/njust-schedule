@@ -53,8 +53,14 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 50 个接口(含服务端凭据删除)', () => {
-    assert.strictEqual(Object.keys(api).length, 50, Object.keys(api).join(','))
+  await check('导出 56 个接口(含服务端凭据删除、同步版本与蹭课收藏)', () => {
+    assert.strictEqual(Object.keys(api).length, 56, Object.keys(api).join(','))
+    assert.strictEqual(typeof api.searchAuditCourses, 'function')
+    assert.strictEqual(typeof api.listAuditOptions, 'function')
+    assert.strictEqual(typeof api.listAuditFavorites, 'function')
+    assert.strictEqual(typeof api.saveAuditFavorite, 'function')
+    assert.strictEqual(typeof api.deleteAuditFavorite, 'function')
+    assert.strictEqual(typeof api.getSyncVersions, 'function')
   })
   await check('loginWebvpn 成功路径(存 token/学号/授权密码)', async () => {
     const res = await api.loginWebvpn('10001', 'pwd', true)

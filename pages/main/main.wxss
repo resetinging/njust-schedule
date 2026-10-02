@@ -75,7 +75,8 @@
 .subject-shell > exams-view,
 .subject-shell > eval-view,
 .subject-shell > grades-view,
-.subject-shell > credit-view {
+.subject-shell > credit-view,
+.subject-shell > audit-course-view {
   flex: 1;
   min-height: 0;
 }
@@ -83,7 +84,8 @@
 .subject-shell > exams-view .container,
 .subject-shell > eval-view .container,
 .subject-shell > grades-view .container,
-.subject-shell > credit-view .container {
+.subject-shell > credit-view .container,
+.subject-shell > audit-course-view .container {
   height: 100%;
   min-height: 0;
 }
@@ -145,6 +147,7 @@
 .tile-credit { background: linear-gradient(145deg, #F7F3FF 0%, #FFFFFF 82%); }
 .tool-room { background: linear-gradient(145deg, #F2F8FF 0%, #FFFFFF 82%); }
 .tool-gallery { background: linear-gradient(145deg, #F1F8F5 0%, #FFFFFF 82%); }
+.tool-audit { background: linear-gradient(145deg, #F6F3FF 0%, #FFFFFF 82%); }
 
 .tile-top {
   display: flex;
@@ -245,7 +248,6 @@
 
 .icon-back {
   display: inline-flex;
-  transform: rotate(180deg);
 }
 
 /* 二级视图顶部返回条 */
