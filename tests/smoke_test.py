@@ -14,6 +14,7 @@
 import os
 import sys
 import base64
+import time
 
 # ── 必须在导入应用前设置: 使用独立临时 SQLite 库, 避免污染 schedule.db ──
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -569,6 +570,65 @@ r = client.get("/api/admin/summary?refresh=1", headers=ah)
 assert r.status_code == 200 and r.get_json()["success"], r.status_code
 print("  [PASS] 管理端仪表盘端点(含缓存与强制刷新)")
 
+# 管理员主动刷新蹭课目录: 后台线程执行, 状态接口可观察成功/失败
+from wxcloudrun.api import audit as audit_api  # noqa: E402
+check("蹭课目录状态未授权 401", client.get("/api/admin/audit-status"), 401)
+check("蹭课目录刷新未授权 401", client.post("/api/admin/audit-sync"), 401)
+_audit_semester = audit_api._current_semester()
+_audit_original_sync = audit_api.sync_audit_catalog
+
+
+def _fake_audit_sync(semester=""):
+    sem = semester or _audit_semester
+    count = dao.replace_audit_courses([{
+        "name": "手动刷新测试课",
+        "class_info": "924101960123",
+        "teacher": "测试教师",
+        "classroom": "Ⅰ-101",
+        "day": 1,
+        "start": 1,
+        "end": 2,
+        "weeks": "1-16",
+    }], sem)
+    dao.set_setting(audit_api._meta_key(sem), str(int(time.time())))
+    return count, ""
+
+
+audit_api.sync_audit_catalog = _fake_audit_sync
+try:
+    _ar = client.post("/api/admin/audit-sync", headers=ah)
+    assert _ar.status_code == 202 and _ar.get_json()["started"], _ar.get_json()
+    _ast = client.get("/api/admin/audit-status", headers=ah).get_json()
+    for _ in range(100):
+        if not _ast.get("running"):
+            db.session.remove()
+            _ast = client.get(
+                "/api/admin/audit-status", headers=ah).get_json()
+            break
+        time.sleep(0.05)
+        _ast = client.get("/api/admin/audit-status", headers=ah).get_json()
+    assert (_ast.get("success") and _ast.get("course_count") == 1
+            and _ast.get("last_success") is True
+            and _ast.get("last_count") == 1
+            and not _ast.get("empty")), _ast
+
+    def _failed_audit_sync(semester=""):
+        return 0, "模拟教务抓取失败"
+
+    audit_api.sync_audit_catalog = _failed_audit_sync
+    _fr = client.post("/api/admin/audit-sync", headers=ah)
+    assert _fr.status_code == 202 and _fr.get_json()["started"], _fr.get_json()
+    for _ in range(100):
+        _fst = client.get("/api/admin/audit-status", headers=ah).get_json()
+        if not _fst.get("running"):
+            break
+        time.sleep(0.05)
+    assert (_fst.get("success") and _fst.get("last_success") is False
+            and "模拟教务抓取失败" in _fst.get("last_error", "")), _fst
+finally:
+    audit_api.sync_audit_catalog = _audit_original_sync
+print("  [PASS] 管理员手动刷新蹭课目录(后台执行/状态可观测/失败可读)")
+
 # 管理员删除应用会话: token 失效, 但持久化教务 Cookie 保留
 from wxcloudrun.core import session_store as _session_store  # noqa: E402
 _dc = JWCClient()
@@ -770,8 +830,6 @@ assert _cred.resolve("126000000001") == "Yjs@1234", "研究生登录未保存凭
 print("  [PASS] 研究生登录强制校验密码并保存凭据")
 
 print("== 会话池维护 ==")
-import time  # noqa: E402
-
 # 用户池上限: 注册超过 MAX_SESSIONS(=3) 的会话, 最久未活动者被淘汰
 for i in range(5):
     c = JWCClient()

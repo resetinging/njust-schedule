@@ -18,10 +18,23 @@ audit_bp = Blueprint("audit_api", __name__)
 
 AUDIT_META_PREFIX = "audit_catalog_at"
 AUDIT_TTL = 24 * 3600
+AUDIT_SYNC_STATE_KEY = "wx:audit-catalog-sync:status"
+AUDIT_SYNC_STATE_TTL = 7 * 24 * 3600
+AUDIT_SYNC_MAX_RUNTIME = 3600
 AUDIT_OPTIONS_CHUNK_SIZE = max(
     1, int(os.environ.get("AUDIT_OPTIONS_CHUNK_SIZE", "2000")))
 _OPTIONS_CACHE = {}
 _OPTIONS_CACHE_LOCK = threading.Lock()
+_SYNC_STATE_LOCK = threading.Lock()
+_SYNC_STATE = {
+    "running": False,
+    "semester": "",
+    "started_at": 0,
+    "finished_at": 0,
+    "success": None,
+    "count": 0,
+    "error": "",
+}
 
 
 def _current_semester() -> str:
@@ -42,6 +55,164 @@ def _updated_at(semester: str) -> int:
 def _needs_refresh(semester: str) -> bool:
     return (dao.count_audit_courses(semester) <= 0
             or time.time() - _updated_at(semester) >= AUDIT_TTL)
+
+
+def _normalize_sync_state(value) -> dict:
+    state = dict(_SYNC_STATE)
+    if isinstance(value, dict):
+        state.update(value)
+    try:
+        state["started_at"] = int(state.get("started_at") or 0)
+    except (TypeError, ValueError):
+        state["started_at"] = 0
+    try:
+        state["finished_at"] = int(state.get("finished_at") or 0)
+    except (TypeError, ValueError):
+        state["finished_at"] = 0
+    try:
+        state["count"] = max(0, int(state.get("count") or 0))
+    except (TypeError, ValueError):
+        state["count"] = 0
+    state["running"] = bool(state.get("running"))
+    state["semester"] = str(state.get("semester") or "")[:50]
+    state["error"] = str(state.get("error") or "")[:500]
+    if state.get("success") is not None:
+        state["success"] = bool(state.get("success"))
+    if (state["running"]
+            and time.time() - state["started_at"] > AUDIT_SYNC_MAX_RUNTIME):
+        state["running"] = False
+    return state
+
+
+def _sync_state_snapshot() -> dict:
+    remote = None
+    try:
+        from wxcloudrun.core import state as distributed_state
+        remote = distributed_state.get_json(AUDIT_SYNC_STATE_KEY)
+    except Exception:  # noqa: BLE001 状态展示失败不能影响同步
+        remote = None
+    if isinstance(remote, dict):
+        return _normalize_sync_state(remote)
+    with _SYNC_STATE_LOCK:
+        return _normalize_sync_state(_SYNC_STATE)
+
+
+def _persist_sync_state(state: dict):
+    try:
+        from wxcloudrun.core import state as distributed_state
+        distributed_state.set_json(
+            AUDIT_SYNC_STATE_KEY, state, ttl=AUDIT_SYNC_STATE_TTL)
+    except Exception:  # noqa: BLE001 Redis 不可用时保留进程内状态
+        pass
+
+
+def _store_sync_state(patch: dict) -> dict:
+    with _SYNC_STATE_LOCK:
+        state = _normalize_sync_state(_SYNC_STATE)
+        state.update(patch)
+        state = _normalize_sync_state(state)
+        _SYNC_STATE.update(state)
+    _persist_sync_state(state)
+    return state
+
+
+def get_audit_sync_status(semester: str = "") -> dict:
+    """返回蹭课目录状态，供管理面板展示和轮询。"""
+    semester = semester or _current_semester()
+    try:
+        count = dao.count_audit_courses(semester)
+        db_error = ""
+    except Exception as exc:  # noqa: BLE001 状态接口始终返回可读错误
+        count = 0
+        db_error = f"{type(exc).__name__}: {exc}"
+    updated_at = _updated_at(semester)
+    state = _sync_state_snapshot()
+    return {
+        "semester": semester,
+        "course_count": count,
+        "updated_at": updated_at,
+        "empty": count <= 0,
+        "needs_refresh": bool(
+            db_error or count <= 0
+            or time.time() - updated_at >= AUDIT_TTL),
+        "db_error": db_error,
+        "running": bool(state.get("running")),
+        "running_semester": state.get("semester") or "",
+        "last_started_at": state.get("started_at") or 0,
+        "last_finished_at": state.get("finished_at") or 0,
+        "last_success": state.get("success"),
+        "last_count": state.get("count") or 0,
+        "last_error": state.get("error") or "",
+    }
+
+
+def _mark_sync_started(semester: str):
+    state = _sync_state_snapshot()
+    if state.get("running"):
+        return False, state
+    with _SYNC_STATE_LOCK:
+        state = _normalize_sync_state(_SYNC_STATE)
+        if state.get("running"):
+            return False, state
+        state = _normalize_sync_state({
+            **state,
+            "running": True,
+            "semester": semester,
+            "started_at": int(time.time()),
+            "finished_at": 0,
+            "success": None,
+            "count": 0,
+            "error": "",
+        })
+        _SYNC_STATE.update(state)
+    _persist_sync_state(state)
+    return True, state
+
+
+def _mark_sync_finished(semester: str, count: int, error: str):
+    return _store_sync_state({
+        "running": False,
+        "semester": semester,
+        "finished_at": int(time.time()),
+        "success": not bool(error),
+        "count": max(0, int(count or 0)),
+        "error": str(error or ""),
+    })
+
+
+def start_audit_catalog_sync(semester: str = ""):
+    """后台启动一次同步并立即返回；真正抓取不在 HTTP 请求线程执行。"""
+    semester = semester or _current_semester()
+    started, state = _mark_sync_started(semester)
+    if not started:
+        return False, state
+
+    def _worker():
+        count, error = 0, ""
+        with app.app_context():
+            try:
+                from wxcloudrun.core.state import distributed_lock
+                with distributed_lock(
+                        "wx:lock:audit-catalog", ttl=3600) as acquired:
+                    if not acquired:
+                        error = "已有同步任务正在运行"
+                    else:
+                        count, error = sync_audit_catalog(semester)
+            except Exception as exc:  # noqa: BLE001 后台线程不能静默退出
+                error = f"{type(exc).__name__}: {exc}"
+                app.logger.warning(
+                    "[audit-sync] 管理员手动同步异常: %s", error)
+            _mark_sync_finished(semester, count, error)
+
+    try:
+        threading.Thread(
+            target=_worker, daemon=True,
+            name="audit-catalog-manual-sync").start()
+    except Exception as exc:  # noqa: BLE001 线程创建失败时恢复状态
+        error = f"后台任务启动失败: {type(exc).__name__}"
+        _mark_sync_finished(semester, 0, error)
+        return False, _sync_state_snapshot()
+    return True, state
 
 
 def _all_options(semester: str) -> dict:
@@ -137,7 +308,20 @@ def start_audit_catalog_scheduler() -> None:
                         with distributed_lock(
                                 "wx:lock:audit-catalog", ttl=3600) as acquired:
                             if acquired:
-                                sync_audit_catalog(semester)
+                                started, _state = _mark_sync_started(semester)
+                                if started:
+                                    try:
+                                        count, error = sync_audit_catalog(
+                                            semester)
+                                    except Exception as exc:  # noqa: BLE001
+                                        count = 0
+                                        error = f"{type(exc).__name__}: {exc}"
+                                        app.logger.warning(
+                                            "[audit-sync] 定时同步异常: %s",
+                                            error)
+                                    finally:
+                                        _mark_sync_finished(
+                                            semester, count, error)
                     from datetime import datetime, timedelta
                     now = datetime.now()
                     nxt = datetime.combine(

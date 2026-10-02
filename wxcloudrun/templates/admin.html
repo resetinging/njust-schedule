@@ -175,6 +175,34 @@
         </div>
       </div>
 
+      <div class="card">
+        <h3>📚 蹭课课程目录</h3>
+        <p class="dim" style="margin-bottom:12px">后端每天零点从本科教务刷新一次。部署后目录为空、缓存过期或抓取失败时，可在这里立即触发后台同步；小程序只读取服务器数据。</p>
+        <div class="audit-status-grid">
+          <div class="audit-status-item">
+            <span>当前学期</span>
+            <strong id="auditSemester">-</strong>
+          </div>
+          <div class="audit-status-item">
+            <span>课程数</span>
+            <strong id="auditCount">-</strong>
+          </div>
+          <div class="audit-status-item">
+            <span>最后同步</span>
+            <strong id="auditUpdated">-</strong>
+          </div>
+          <div class="audit-status-item">
+            <span>任务状态</span>
+            <strong id="auditState">-</strong>
+          </div>
+        </div>
+        <p class="dim audit-message" id="auditMessage"></p>
+        <div class="ann-actions">
+          <span class="dim" id="auditHint"></span>
+          <button id="auditSyncBtn" class="primary ann-save">立即刷新蹭课目录</button>
+        </div>
+      </div>
+
     </section>
 
     <section id="panel-feedback" class="panel">

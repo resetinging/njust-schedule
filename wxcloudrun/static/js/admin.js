@@ -10,6 +10,7 @@ let token = localStorage.getItem(TOKEN_KEY) || '';
 let reqPollTimer = null;
 let reqSince = 0;
 let reqCount = 0;
+let auditPollTimer = null;
 
 // ============================================================
 // 通用
@@ -485,7 +486,11 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (t === 'users' && !tabLoaded.users) { tabLoaded.users = true; loadUsers(); }
     if (t === 'grades' && !tabLoaded.grades) { tabLoaded.grades = true; loadGradeStats(); }
     if (t === 'feedback' && !tabLoaded.feedback) { tabLoaded.feedback = true; loadFeedback(); }
-    if (t === 'system' && !tabLoaded.system) { tabLoaded.system = true; loadFreeclassAccount(); }
+    if (t === 'system') {
+      tabLoaded.system = true;
+      loadFreeclassAccount();
+      loadAuditStatus();
+    }
   });
 });
 
@@ -539,6 +544,64 @@ async function loadFreeclassAccount() {
   } catch (e) {}
 }
 
+function fmtEpoch(sec) {
+  const n = Number(sec) || 0;
+  if (!n) return '-';
+  const d = new Date(n * 1000);
+  const p = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} `
+    + `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function stopAuditPoll() {
+  if (auditPollTimer) {
+    clearInterval(auditPollTimer);
+    auditPollTimer = null;
+  }
+}
+
+function startAuditPoll() {
+  if (!auditPollTimer) auditPollTimer = setInterval(loadAuditStatus, 2000);
+}
+
+async function loadAuditStatus() {
+  const btn = $('auditSyncBtn');
+  try {
+    const r = await api('/api/admin/audit-status');
+    if (!r.success) return;
+    $('auditSemester').textContent = r.semester || '-';
+    $('auditCount').textContent = Number(r.course_count || 0).toLocaleString();
+    $('auditUpdated').textContent = fmtEpoch(r.updated_at);
+    $('auditState').textContent = r.running
+      ? '刷新中'
+      : (r.empty ? '目录为空' : (r.needs_refresh ? '等待刷新' : '已就绪'));
+    $('auditState').className = r.running
+      ? 'audit-running'
+      : (r.empty || r.db_error ? 'audit-error' : 'audit-ready');
+
+    const parts = [];
+    if (r.db_error) parts.push('数据库异常: ' + r.db_error);
+    if (r.last_success === true) {
+      parts.push('上次同步成功，写入 ' + Number(r.last_count || 0).toLocaleString() + ' 条');
+    } else if (r.last_success === false) {
+      parts.push('上次同步失败: ' + (r.last_error || '未知错误'));
+    } else if (r.empty) {
+      parts.push('尚无可用课程，请点击右侧按钮立即刷新');
+    }
+    $('auditMessage').textContent = parts.join('；');
+    $('auditHint').textContent = r.running ? '后台抓取中，页面会自动更新' : '';
+    btn.disabled = !!r.running;
+    btn.textContent = r.running ? '正在刷新…' : '立即刷新蹭课目录';
+    if (r.running) startAuditPoll();
+    else stopAuditPoll();
+  } catch (e) {
+    stopAuditPoll();
+    $('auditMessage').textContent = '状态读取失败，可稍后重试或刷新页面';
+    btn.disabled = false;
+    btn.textContent = '立即刷新蹭课目录';
+  }
+}
+
 async function deleteSession(studentId) {
   if (!confirm('确认删除该登录会话？仅删除应用会话，不删除教务 Cookie、密码或业务数据。')) return;
   try {
@@ -566,6 +629,25 @@ $('fcSave').addEventListener('click', async () => {
     alert('已保存。空教室缓存会在下次大节刷新时生效。');
   } else {
     alert('保存失败: ' + (r.message || '未知错误'));
+  }
+});
+
+$('auditSyncBtn').addEventListener('click', async () => {
+  const btn = $('auditSyncBtn');
+  btn.disabled = true;
+  btn.textContent = '正在启动…';
+  try {
+    const r = await api('/api/admin/audit-sync', { method: 'POST' });
+    $('auditMessage').textContent = r.message || '刷新任务已提交';
+    if (r.status) {
+      $('auditState').textContent = r.status.running ? '刷新中' : '等待刷新';
+    }
+    await loadAuditStatus();
+    if (r.started) startAuditPoll();
+  } catch (e) {
+    $('auditMessage').textContent = '启动失败，请查看服务端日志';
+    btn.disabled = false;
+    btn.textContent = '立即刷新蹭课目录';
   }
 });
 

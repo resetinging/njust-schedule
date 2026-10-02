@@ -567,6 +567,35 @@ def admin_delete_session(student_id):
     })
 
 
+@app.route("/api/admin/audit-status")
+@admin_required
+def admin_audit_status():
+    """蹭课目录状态: 课程数、缓存时间、最近同步结果。"""
+    from wxcloudrun.api.audit import get_audit_sync_status
+    payload = get_audit_sync_status()
+    return jsonify({"success": True, **payload})
+
+
+@app.route("/api/admin/audit-sync", methods=["POST"])
+@admin_required
+def admin_audit_sync():
+    """后台触发蹭课目录同步, 立即释放 HTTP 服务线程。"""
+    from wxcloudrun.api.audit import (
+        get_audit_sync_status, start_audit_catalog_sync)
+    started, _state = start_audit_catalog_sync()
+    status = get_audit_sync_status()
+    app.logger.info(
+        "[admin] rid=%s 手动刷新蹭课目录 started=%s semester=%s",
+        _rid(), started, status.get("running_semester") or status.get("semester"))
+    return jsonify({
+        "success": True,
+        "started": started,
+        "message": ("已开始后台刷新，完成后课程目录会自动更新"
+                    if started else "已有同步任务正在运行"),
+        "status": status,
+    }), (202 if started else 200)
+
+
 @app.route("/api/admin/stats/requests")
 @admin_required
 def admin_request_stats():
