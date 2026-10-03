@@ -9,8 +9,8 @@
 const api = require('./api')
 const storage = require('./storage')
 
-// 目前只做考试提醒; 后端新增类型时在这里补一个中文名即可自动显示
-const LABELS = { exam: '考试提醒' }
+// 考试和成绩共用同一个模板时，按业务类型分别显示。
+const LABELS = { exam: '考试提醒', grade: '成绩提醒' }
 
 /** 拉取可用类型(含模板 ID 与剩余额度); 未登录/失败返回 { kinds: [], enabled: false } */
 async function loadStatus() {

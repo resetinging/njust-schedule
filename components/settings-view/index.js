@@ -65,6 +65,9 @@ Component({
     // 消息提醒(订阅消息): 由后端返回可用类型与剩余额度
     subKinds: [],
     subEnabled: false,
+    subSummary: '',
+    subHasQuota: false,
+    showSubscriptions: false,
 
     // 问题反馈弹窗(不另开页面)
     showFeedback: false,
@@ -613,11 +616,34 @@ Component({
     /** 拉取可用提醒类型与剩余额度 */
     async loadSubscribeStatus() {
       if (!storage.isLoggedIn()) {
-        if (this.data.subKinds.length) this.setData({ subKinds: [] })
+        if (this.data.subKinds.length || this.data.subSummary) {
+          this.setData({
+            subKinds: [], subSummary: '', subHasQuota: false,
+            showSubscriptions: false
+          })
+        }
         return
       }
       const res = await subUtil.loadStatus()
-      this.setData({ subKinds: res.kinds || [], subEnabled: !!res.enabled })
+      const kinds = res.kinds || []
+      const summary = kinds.map(item => {
+        return item.label + ' ' + (item.quota > 0 ? item.quota + ' 条' : '未开启')
+      }).join(' · ')
+      this.setData({
+        subKinds: kinds,
+        subEnabled: !!res.enabled,
+        subSummary: summary,
+        subHasQuota: kinds.some(item => item.quota > 0)
+      })
+    },
+
+    onOpenSubscriptions() {
+      if (!this.data.subKinds.length) return
+      this.setData({ showSubscriptions: true })
+    },
+
+    onSubscriptionsClose() {
+      this.setData({ showSubscriptions: false })
     },
 
     /** 点击提醒条目: 请求订阅授权 → 上报额度 */

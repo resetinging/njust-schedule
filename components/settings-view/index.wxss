@@ -1060,6 +1060,18 @@
 /* ============================================================
    常用链接弹窗
    ============================================================ */
+.sub-tip {
+  margin-bottom: 14rpx;
+  color: var(--text-hint);
+  font-size: 21rpx;
+  line-height: 1.6;
+}
+
+.sub-card .notice-card,
+.sub-list {
+  margin: 0 !important;
+}
+
 .link-tip {
   font-size: 21rpx;
   color: var(--text-hint);

@@ -15,6 +15,38 @@
   background: var(--bg-page);
 }
 
+/* 成绩提醒: 与考试页订阅条同一交互层级 */
+.grade-sub {
+  margin: 16rpx 24rpx 0;
+  padding: 18rpx 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1rpx solid var(--hero-border);
+  border-radius: var(--radius-card);
+  background: var(--hero-bg);
+  box-shadow: var(--shadow-card);
+  animation: gradeCardIn 400ms var(--ease-spring) backwards;
+}
+
+.grade-sub-t {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 26rpx;
+  line-height: 1.35;
+}
+
+.grade-sub-btn {
+  flex: none;
+  margin-left: 16rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  background: var(--primary);
+  color: var(--bg-card);
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
 /* ============ 绩点大卡: 浅蓝软底 + 细描边, 数值用墨色/语义色 ============ */
 .gpa-hero {
   margin: 20rpx 24rpx 24rpx;

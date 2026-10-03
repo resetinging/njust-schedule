@@ -9,6 +9,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const gpaUtil = require('../../utils/gpa')
+const subUtil = require('../../utils/subscribe')
 
 // ============================================================
 // 工具
@@ -44,6 +45,7 @@ Component({
     empty: false,
     errorMsg: '',
     semester: '',
+    subGrade: null,
 
     // 统计卡
     stats: {
@@ -84,6 +86,7 @@ Component({
       const isGrad = storage.get('account_type', '') === 'graduate'
       this.setData({ isGraduate: isGrad })
       if (isGrad && storage.isLoggedIn()) {
+        this.setData({ subGrade: null })
         // 研究生: 先渲染本地缓存(不请求), 只有用户主动刷新才打后端
         this.loadYjsCached()
         return
@@ -94,10 +97,43 @@ Component({
         this._checked = {}
         this._folded = {}
         this._mode = ''
-        this.setData({ semGroups: [], empty: true, loading: false })
+        this.setData({ semGroups: [], empty: true, loading: false, subGrade: null })
         return
       }
+      this.loadGradeSubscribe()
       this.loadCached()                // 重新读缓存(登录后/刷新后数据自动生效)
+    },
+
+    /** 成绩提醒订阅状态: 只显示后端已启用的 grade 模板 */
+    async loadGradeSubscribe() {
+      if (!storage.isLoggedIn() || storage.get('account_type', '') === 'graduate') {
+        if (this.data.subGrade) this.setData({ subGrade: null })
+        return
+      }
+      const res = await subUtil.loadStatus()
+      const grade = (res.kinds || []).find(item => item.kind === 'grade') || null
+      this.setData({ subGrade: res.enabled ? grade : null })
+    },
+
+    /** 授权一次成绩提醒并上报额度 */
+    async onSubscribeGradeTap() {
+      const item = this.data.subGrade
+      if (!item || !item.templateId) {
+        wx.showToast({ title: '成绩提醒暂不可用', icon: 'none' })
+        return
+      }
+      const result = await subUtil.requestGrant('grade', item.templateId)
+      if (result.ok) {
+        wx.showToast({
+          title: '成绩提醒已开启（剩余 ' + (result.quota || 1) + ' 条）',
+          icon: 'none'
+        })
+        this.loadGradeSubscribe()
+      } else if (result.reason === 'reject' || result.reason === 'ban') {
+        wx.showToast({ title: '未授权', icon: 'none' })
+      } else {
+        wx.showToast({ title: '授权未完成，请重试', icon: 'none' })
+      }
     },
 
     /** 研究生成绩: 只读本地缓存渲染 */

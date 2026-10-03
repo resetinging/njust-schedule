@@ -4,6 +4,12 @@
   <!-- 滚动内容区(scroll-view 内滚; 刷新走按钮) -->
   <scroll-view class="view-scroll" scroll-y>
 
+    <!-- 成绩提醒(订阅消息): 仅在成绩页激活时拉取状态 -->
+    <view class="grade-sub tap" wx:if="{{!isGraduate && subGrade}}" bindtap="onSubscribeGradeTap">
+      <text class="grade-sub-t">{{subGrade.quota > 0 ? ('成绩发布提醒已开启 · 剩余 ' + subGrade.quota + ' 条') : '成绩发布后提醒我（点一下开启）'}}</text>
+      <text class="grade-sub-btn">{{subGrade.quota > 0 ? '＋1' : '开启'}}</text>
+    </view>
+
     <!-- ============ 研究生成绩: 学分进度 + 明细(不算绩点) ============ -->
     <block wx:if="{{isGraduate && !loading}}">
       <!-- 学分进度大卡（与本科成绩页同款样式） -->
