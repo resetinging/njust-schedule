@@ -2,14 +2,14 @@
 """订阅消息额度与 openid 存储(复用 settings 表, 无需新表)。
 
 - 微信一次性订阅规则: 用户授权一次 = 可发送 1 条; 额度用完需再次授权;
-- 额度: `{sid}:subscribe` = {"exam": {"count": n, "updated_at": ts}, ...}（当前仅考试提醒）
+- 额度: `{sid}:subscribe` = {"exam": {...}, "grade": {...}}
 - openid: `{sid}:openid`(云托管网关会透传 x-wx-openid, 无需 code2session)。
 """
 import json
 import threading
 import time
 
-KINDS = ("exam",)          # 目前只做考试提醒; 新增类型时在此登记
+KINDS = ("exam", "grade")
 KEY = "subscribe"
 OPENID_KEY = "openid"
 _STORE_LOCK = threading.RLock()

@@ -3,14 +3,14 @@
 
 - GET  /api/subscribe/status    : 各提醒类型的模板可用性 + 剩余额度
 - POST /api/subscribe/grant     : 小程序授权成功后上报(记 openid + 额度 +1)
-- POST /api/subscribe/test-send : 发送一条样例考试提醒(消耗 1 次额度, 用于验证配置)
+- POST /api/subscribe/test-send : 发送考试/成绩样例提醒(消耗 1 次额度)
 """
 from flask import Blueprint, jsonify, request
 
 from wxcloudrun import app
 from wxcloudrun.core import mp, subscribe_store
 from wxcloudrun.core.auth import _require_login
-from wxcloudrun.core.reminder import build_exam_data
+from wxcloudrun.core.reminder import build_exam_data, build_grade_data
 from wxcloudrun.core.web import _rid
 from wxcloudrun.model import Exam
 
@@ -51,6 +51,12 @@ def api_subscribe_grant():
     openid = subscribe_store.caller_openid()
     # 微信一次性订阅一次授权只产生 1 条额度; 客户端 count 不可信。
     item = subscribe_store.grant(client.student_id or "", kind, 1, openid)
+    try:
+        from wxcloudrun.core.reminder_lifecycle import sync_user_reminder_tasks
+        sync_user_reminder_tasks(client.student_id or "")
+    except Exception as exc:  # noqa: BLE001 生命周期同步失败不应阻断授权
+        app.logger.warning("[subscribe] 提醒任务同步失败 sid=%s kind=%s: %s",
+                           client.student_id, kind, type(exc).__name__)
     app.logger.info("[subscribe] rid=%s 授权 kind=%s quota=%s sid=%s openid=%s",
                     _rid(), kind, item.get("count"), client.student_id,
                     "有" if openid else "无")
@@ -64,7 +70,11 @@ def api_subscribe_test_send():
     if err:
         return err
     sid = client.student_id or ""
-    tpl = mp.template_id("exam")
+    data = request.get_json(silent=True) or {}
+    kind = str(data.get("kind") or request.args.get("kind") or "exam").strip()
+    if kind not in subscribe_store.KINDS:
+        return jsonify({"success": False, "message": "未知的提醒类型"}), 400
+    tpl = mp.template_id(kind)
     if not (tpl and mp.enabled()):
         return jsonify({"success": False,
                         "message": "订阅消息未配置(缺模板 ID 或 MP_SECRET)"}), 400
@@ -72,7 +82,7 @@ def api_subscribe_test_send():
     if not openid:
         return jsonify({"success": False,
                         "message": "未获取到 openid(需在小程序内触发)"}), 400
-    if subscribe_store.quota(sid, "exam") <= 0:
+    if subscribe_store.quota(sid, kind) <= 0:
         return jsonify({"success": False, "message": "没有可用订阅额度, 请先授权"}), 400
 
     class _Sample:
@@ -81,11 +91,19 @@ def api_subscribe_test_send():
         exam_time = "09:00-11:00"
         location = "I-301"
         exam_type = "期末考试"
+        score = "90"
+        grade_point = 4.0
 
-    exam = Exam.query.filter(Exam.student_id == sid).order_by(Exam.exam_date).first() or _Sample()
-    res = mp.send_subscribe(openid, tpl, build_exam_data(exam, None))
+    if kind == "grade":
+        sample = _Sample()
+        payload = build_grade_data(sample, None)
+    else:
+        sample = (Exam.query.filter(Exam.student_id == sid)
+                  .order_by(Exam.exam_date).first() or _Sample())
+        payload = build_exam_data(sample, None)
+    res = mp.send_subscribe(openid, tpl, payload)
     if res.get("ok"):
-        subscribe_store.consume(sid, "exam")
-    app.logger.info("[subscribe] rid=%s 样例发送 sid=%s ok=%s errcode=%s",
-                    _rid(), sid, res.get("ok"), res.get("errcode"))
+        subscribe_store.consume(sid, kind)
+    app.logger.info("[subscribe] rid=%s 样例发送 sid=%s kind=%s ok=%s errcode=%s",
+                    _rid(), sid, kind, res.get("ok"), res.get("errcode"))
     return jsonify({"success": bool(res.get("ok")), "result": res})

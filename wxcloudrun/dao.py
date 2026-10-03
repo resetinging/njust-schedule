@@ -13,7 +13,7 @@ from sqlalchemy import func, or_
 from wxcloudrun import db
 from wxcloudrun.model import (Course, Exam, Evaluation, Setting, UserSetting,
                               Grade, CetScore, Feedback, AuditCourse,
-                              AuditFavorite)
+                              AuditFavorite, ReminderTask)
 
 
 # ============================================================
@@ -755,6 +755,14 @@ def clear_data(semester: str, student_id: str = ""):
             Exam.semester == semester,
             Exam.student_id == student_id,
         ).delete()
+        reminder_rows = ReminderTask.query.filter(
+            ReminderTask.semester == semester,
+            ReminderTask.student_id == student_id,
+        ).all()
+        for row in reminder_rows:
+            row.status = "disabled"
+            row.stage = "stale"
+            row.next_check_at = None
         db.session.commit()
     except Exception:
         db.session.rollback()

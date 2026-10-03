@@ -30,8 +30,9 @@ def enabled() -> bool:
     return bool(appid() and secret())
 
 
-# 当前只启用考试提醒; 追加新类型时在此登记模板环境变量名
-_TPL_ENV = {"exam": "SUBSCRIBE_TPL_EXAM"}
+# 考试和成绩可以共用同一个模板 ID，服务端仍按类型分别记录额度。
+_TPL_ENV = {"exam": "SUBSCRIBE_TPL_EXAM",
+            "grade": "SUBSCRIBE_TPL_GRADE"}
 
 
 def template_id(kind: str) -> str:

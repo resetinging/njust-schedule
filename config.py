@@ -225,10 +225,12 @@ def validate() -> None:
 # ============================================================
 MP_APPID = os.environ.get("MP_APPID", "wx1d76c0631bdeebac")
 MP_SECRET = os.environ.get("MP_SECRET", "")          # 只从环境变量读取, 绝不写进仓库
-# 订阅消息: 当前只做"考试提醒"; 将来要加成绩/截止提醒, 在此追加模板 ID 并在
-# core/subscribe_store.py 的 KINDS 中登记即可(前端会自动多显示一行)。
+# 订阅消息: 考试和成绩可复用同一模板；两类额度仍由后端分别记录。
 SUBSCRIBE_TPL_EXAM = os.environ.get("SUBSCRIBE_TPL_EXAM",
                                     "ng8fatzWFGkwY5Q5X2QM-BNktLyMLQPaJl2xFi7Z180")
+# 未单独配置成绩模板时复用考试模板；如需独立模板，设置 SUBSCRIBE_TPL_GRADE。
+SUBSCRIBE_TPL_GRADE = (os.environ.get("SUBSCRIBE_TPL_GRADE", "").strip()
+                       or SUBSCRIBE_TPL_EXAM)
 
 # ============================================================
 # 调试开关

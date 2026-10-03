@@ -54,6 +54,13 @@ def api_refresh_schedule():
 
     _invalidate_stats(sid, semester)
 
+    try:
+        from wxcloudrun.core.reminder_lifecycle import sync_user_reminder_tasks
+        sync_user_reminder_tasks(sid, semester)
+    except Exception as exc:  # noqa: BLE001
+        app.logger.warning("[refresh] 提醒任务同步失败 sid=%s: %s",
+                           sid, type(exc).__name__)
+
     app.logger.info("[refresh] rid=%s 课表 sid=%s semester=%s count=%d", _rid(), sid, semester, len(courses))
     return jsonify({
         "success": True,
@@ -126,6 +133,12 @@ def api_refresh_all():
 
     dao.set_user_setting(sid, "semester", semester)
     _invalidate_stats(sid, semester)
+    try:
+        from wxcloudrun.core.reminder_lifecycle import sync_user_reminder_tasks
+        sync_user_reminder_tasks(sid, semester)
+    except Exception as exc:  # noqa: BLE001
+        app.logger.warning("[refresh-all] 提醒任务同步失败 sid=%s: %s",
+                           sid, type(exc).__name__)
     return jsonify({
         "success": True,
         "semester": semester,

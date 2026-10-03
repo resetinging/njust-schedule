@@ -410,6 +410,13 @@ def _prefetch_undergraduate(client, sid: str, semester: str) -> dict:
         _save_user_json(sid, PROFILE_KEY, profile)
     mark("profile", bool(profile) or not client.last_error)
 
+    try:
+        from wxcloudrun.core.reminder_lifecycle import sync_user_reminder_tasks
+        sync_user_reminder_tasks(sid, semester)
+    except Exception as exc:  # noqa: BLE001 提醒任务失败不影响预抓
+        app.logger.warning("[prefetch] 提醒任务同步失败 sid=%s: %s",
+                           sid, type(exc).__name__)
+
     invalidate_user_cache(sid)
     return result
 

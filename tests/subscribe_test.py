@@ -43,9 +43,11 @@ class _Exam:
 
 
 print("== 订阅额度存储 ==")
-check("初始额度为 0(当前仅考试提醒)", ss.status(SID) == {"exam": 0}, ss.status(SID))
+check("初始额度为 0", ss.status(SID) == {"exam": 0, "grade": 0}, ss.status(SID))
 ss.grant(SID, "exam", 1, openid="o_test_openid")
 check("授权后额度 +1", ss.quota(SID, "exam") == 1, ss.quota(SID, "exam"))
+ss.grant(SID, "grade", 1)
+check("成绩提醒额度独立记录", ss.quota(SID, "grade") == 1, ss.quota(SID, "grade"))
 check("openid 已保存", ss.get_openid(SID) == "o_test_openid", ss.get_openid(SID))
 check("扣减成功", ss.consume(SID, "exam") is True and ss.quota(SID, "exam") == 0,
       ss.quota(SID, "exam"))
@@ -58,10 +60,22 @@ check("单次授权最多只增加 1 条额度", ss.quota(_quota_sid, "exam") ==
 
 print("== 模板消息组装 ==")
 data = reminder.build_exam_data(_Exam(), None)
-check("包含 thing/time 字段", set(data.keys()) == {"thing1", "time2", "thing3"}, list(data.keys()))
-check("课程名截断<=20", data["thing1"]["value"] == "高等工程数学I", data["thing1"])
-check("时间格式 yyyy-mm-dd hh:mm", data["time2"]["value"] == "2026-10-08 09:00", data["time2"])
-check("地点进 thing3", data["thing3"]["value"] == "I-301", data["thing3"])
+check("包含模板字段", set(data.keys()) == {"thing1", "thing2", "time3", "thing4", "thing5"},
+      list(data.keys()))
+check("课程名进课程字段", data["thing1"]["value"] == "考试提醒", data["thing1"])
+check("时间格式 yyyy-mm-dd hh:mm", data["time3"]["value"] == "2026-10-08 09:00", data["time3"])
+check("地点进地点字段", data["thing4"]["value"] == "I-301", data["thing4"])
+
+class _Grade:
+    course_name = "高等工程数学I"
+    score = "92"
+    grade_point = 4.0
+
+grade_data = reminder.build_grade_data(_Grade(), None, "2026-10-09 10:30")
+check("成绩主题映射", grade_data["thing1"]["value"] == "成绩发布", grade_data["thing1"])
+check("成绩课程映射", grade_data["thing2"]["value"] == "高等工程数学I", grade_data["thing2"])
+check("成绩时间映射", grade_data["time3"]["value"] == "2026-10-09 10:30", grade_data["time3"])
+check("成绩备注映射", grade_data["thing5"]["value"] == "92 · 4.0绩点", grade_data["thing5"])
 
 print("== 考试提醒(窗口化触发) ==")
 with app.app_context():
@@ -75,7 +89,7 @@ with app.app_context():
 
     dry = reminder.run_exam_reminders(dry_run=True)
     check("dry_run 命中 1 场", dry["total"] == 1 and dry["dry_run"] is True, dry)
-    check("dry_run 含组装数据", dry["details"][0]["data"]["time2"]["value"].startswith(exam_day),
+    check("dry_run 含组装数据", dry["details"][0]["data"]["time3"]["value"].startswith(exam_day),
           dry["details"][0])
 
     # 未配置 MP_SECRET: 跳过且不扣额度

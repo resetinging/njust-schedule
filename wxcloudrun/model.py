@@ -282,3 +282,76 @@ class Feedback(db.Model):
             "reply_read": bool(self.reply_read),
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else "",
         }
+
+
+# ============================================================
+# 课程提醒生命周期(考试 / 成绩)
+# ============================================================
+class ReminderTask(db.Model):
+    """按用户、学期、提醒类型和课程粒度保存后台刷新任务。
+
+    任务只有在用户拥有对应订阅额度时才创建。额度清零后任务会停用，
+    再次授权时重新激活。成绩发送前仍以用户自己的成绩记录为准。
+    """
+    __tablename__ = 'reminder_tasks'
+    __table_args__ = (
+        db.UniqueConstraint(
+            'student_id', 'semester', 'kind', 'course_key', 'teacher_key',
+            name='uq_reminder_task'),
+        db.Index('ix_reminder_due', 'kind', 'status', 'next_check_at'),
+        db.Index('ix_reminder_user', 'student_id', 'semester', 'kind'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    student_id = db.Column(db.String(50), default='', index=True)
+    semester = db.Column(db.String(50), default='', index=True)
+    kind = db.Column(db.String(20), default='grade')
+    course_key = db.Column(db.String(64), default='')
+    course_name = db.Column(db.String(200), default='')
+    teacher_key = db.Column(db.String(64), default='')
+    teacher_snapshot = db.Column(db.String(200), default='')
+    assessment_type = db.Column(db.String(20), default='')
+    stage = db.Column(db.String(30), default='scheduled')
+    course_end_at = db.Column(db.DateTime, nullable=True)
+    exam_wait_started_at = db.Column(db.DateTime, nullable=True)
+    grade_wait_started_at = db.Column(db.DateTime, nullable=True)
+    exam_at = db.Column(db.DateTime, nullable=True)
+    exam_finished_at = db.Column(db.DateTime, nullable=True)
+    grade_first_seen_at = db.Column(db.DateTime, nullable=True)
+    next_check_at = db.Column(db.DateTime, nullable=True)
+    last_check_at = db.Column(db.DateTime, nullable=True)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    fail_count = db.Column(db.Integer, default=0)
+    status = db.Column(db.String(20), default='active')
+    updated_at = db.Column(db.DateTime, default=datetime.now,
+                           onupdate=datetime.now)
+
+    def to_dict(self):
+        def _dt(value):
+            return value.strftime('%Y-%m-%d %H:%M') if value else ''
+        return {
+            "id": self.id,
+            "student_id": self.student_id,
+            "semester": self.semester,
+            "kind": self.kind,
+            "course_key": self.course_key,
+            "course_name": self.course_name,
+            "teacher_key": self.teacher_key,
+            "teacher": self.teacher_snapshot,
+            "assessment_type": self.assessment_type,
+            "stage": self.stage,
+            "course_end_at": _dt(self.course_end_at),
+            "exam_wait_started_at": _dt(self.exam_wait_started_at),
+            "grade_wait_started_at": _dt(self.grade_wait_started_at),
+            "exam_at": _dt(self.exam_at),
+            "exam_finished_at": _dt(self.exam_finished_at),
+            "grade_first_seen_at": _dt(self.grade_first_seen_at),
+            "next_check_at": _dt(self.next_check_at),
+            "last_check_at": _dt(self.last_check_at),
+            "sent_at": _dt(self.sent_at),
+            "expires_at": _dt(self.expires_at),
+            "fail_count": int(self.fail_count or 0),
+            "status": self.status,
+            "updated_at": _dt(self.updated_at),
+        }
