@@ -12,6 +12,7 @@
 const ann = require('../../utils/announcement')
 const storage = require('../../utils/storage')
 const font = require('../../utils/font')
+const analytics = require('../../utils/analytics')
 
 const MAIN_TITLE = '课表助手'
 const TOOL_TITLES = { freeclass: '空教室查询', gallery: '校园工具', audit: '蹭课查询' }
@@ -54,6 +55,9 @@ Page({
       this._pendingFeature = ''
       this.goFeature(sub)
     }
+    analytics.observeSlots(this, [
+      { id: 'slot-feature-bottom', page: 'feature', ad_type: 'native' }
+    ])
   },
 
   onShow() {
@@ -64,8 +68,16 @@ Page({
     this._route()
     // 同步 tabBar 高亮
     this._syncTabBar()
+    this._trackCurrentPage()
     // 刷新公告状态(可能刚从"我的"页标记已读, 或公告刚更新)
     this._loadAnnouncement()
+  },
+
+  _trackCurrentPage() {
+    const page = this.data.current === 0
+      ? 'feature'
+      : (this.data.current === 1 ? 'schedule' : 'profile')
+    analytics.pageView(page)
   },
 
   /** 研究生账号(学号 1 开头)在功能页隐藏"教学评价"入口 */
@@ -205,6 +217,7 @@ Page({
     this.setData({ current: i, visited })
     this._route()
     this._syncTabBar()
+    this._trackCurrentPage()
   },
 
   /** 功能页: 打开课业假页(考试/评教/成绩/学分进度) */
@@ -214,6 +227,7 @@ Page({
     const toolId = {
       exams: 'toolExams', eval: 'toolEval', grades: 'toolGrades', credit: 'toolCredit'
     }[sub]
+    analytics.featureOpen(sub, 'feature')
     this._openToolPage(sub, toolId)
   },
 
@@ -224,6 +238,7 @@ Page({
     this.setData({ current: 0 })
     this._route()
     this._syncTabBar()
+    analytics.featureOpen(sub, 'feature')
     const toolId = {
       exams: 'toolExams', eval: 'toolEval', grades: 'toolGrades', credit: 'toolCredit'
     }[sub]
@@ -233,6 +248,7 @@ Page({
   /** 功能页: 打开页面内假页(空教室 / 校历照片墙) */
   onOpenNavPage(e) {
     const page = e.currentTarget.dataset.page
+    analytics.featureOpen(page, 'feature')
     this._openToolPage(page)
   },
 
@@ -243,6 +259,7 @@ Page({
   _openToolPage(page, toolId, mode) {
     const allowed = ['freeclass', 'gallery', 'audit', 'exams', 'eval', 'grades', 'credit']
     if (allowed.indexOf(page) < 0 || this.data.toolVisible) return
+    analytics.pageView(page)
     if (TOOL_TITLES[page]) this._setNavTitle(TOOL_TITLES[page])
     this.setData({ toolPage: page, toolVisible: true }, () => {
       if (!toolId) return
@@ -266,7 +283,10 @@ Page({
 
   /** 关闭页面内假页(子组件返回按钮触发) */
   onToolClose() {
-    if (this.data.toolVisible) this.setData({ toolVisible: false })
+    if (this.data.toolVisible) {
+      this.setData({ toolVisible: false })
+      this._trackCurrentPage()
+    }
   },
 
   /** 蹭课收藏变化后同步给已挂载的课表组件。 */

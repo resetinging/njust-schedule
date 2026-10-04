@@ -136,6 +136,8 @@
                  action-text="获取课表"
                  bind:action="onRefresh" />
 
+    <view id="slot-schedule-bottom" class="analytics-slot-marker"></view>
+
     </view>
   </scroll-view>
 

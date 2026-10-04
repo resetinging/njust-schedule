@@ -10,6 +10,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const font = require('../../utils/font')
+const analytics = require('../../utils/analytics')
 const { groupRooms, isMainTeaching } = require('../../utils/room-group')
 const { bigSectionIndex } = require('../../utils/period-time')
 const {
@@ -103,12 +104,19 @@ Component({
       this.setData({ loggedIn: false })
       return
     }
+    analytics.observeSlots(this, [
+      { id: 'slot-freeclass-mid', page: 'freeclass', ad_type: 'native' },
+      { id: 'slot-freeclass-bottom', page: 'freeclass', ad_type: 'native' }
+    ])
     storage.remove(LEGACY_CACHE_KEY)    // 清理旧版数据源缓存
     // 默认时段 = 当前时间对应的大节(08:00 前取第1-3节, 19:00 后取第11-13节)
     const slotIdx = bigSectionIndex()
     this.setData({ startIndex: slotIdx, endIndex: slotIdx })
     // 默认条件首查(有缓存则秒开)
       this.search()
+    },
+    detached() {
+      analytics.disconnectSlots(this)
     }
   },
 
@@ -257,6 +265,7 @@ Component({
       .then(res => {
         if (seq !== this._seq) return          // 已有更新的查询: 丢弃过期响应
         if (!res || !res.success) {
+          analytics.refreshResult('freeclass', false, 'freeclass')
           if (fromCache) {
             // 网络失败: 保留缓存展示, 标注离线(附服务端更新时间)
             const srvTime = (hit.data && hit.data.updated_at)
@@ -280,9 +289,11 @@ Component({
         const rk = resolvedKeyOf(res)
         if (rk && rk !== key) writeCache(rk, res)
         this._applyResult(res)
+        analytics.refreshResult('freeclass', true, 'freeclass')
         this.setData({ loading: false, cacheNote: '' })
       })
       .catch(() => {
+        analytics.refreshResult('freeclass', false, 'freeclass')
         if (seq !== this._seq) return          // 过期请求的失败同样忽略
         if (fromCache) {
           const srvTime = (hit.data && hit.data.updated_at)

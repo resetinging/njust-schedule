@@ -90,6 +90,7 @@
           </block>
         </block>
       </view>
+      <view id="slot-exams-bottom" class="analytics-slot-marker"></view>
     </block>
 
   </scroll-view>

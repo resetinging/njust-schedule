@@ -10,6 +10,7 @@ const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const gpaUtil = require('../../utils/gpa')
 const subUtil = require('../../utils/subscribe')
+const analytics = require('../../utils/analytics')
 
 // ============================================================
 // 工具
@@ -75,6 +76,9 @@ Component({
       if (storage.isLoggedIn() && !(cached && cached.grades && cached.grades.length)) {
         this.loadGrades(true)
       }
+    },
+    detached() {
+      analytics.disconnectSlots(this)
     }
   },
 
@@ -82,6 +86,10 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      analytics.observeSlots(this, [
+        { id: 'slot-grades-mid', page: 'grades', ad_type: 'native' },
+        { id: 'slot-grades-bottom', page: 'grades', ad_type: 'native' }
+      ])
       // 研究生账号: 成绩走研究生系统(只有学分进度和成绩明细, 不算绩点)
       const isGrad = storage.get('account_type', '') === 'graduate'
       this.setData({ isGraduate: isGrad })
@@ -124,6 +132,9 @@ Component({
       }
       const result = await subUtil.requestGrant('grade', item.templateId)
       if (result.ok) {
+        analytics.track('reminder_grant', {
+          feature: 'subscription', kind: 'grade', page: 'grades'
+        })
         wx.showToast({
           title: '成绩提醒已开启（剩余 ' + (result.quota || 1) + ' 条）',
           icon: 'none'
@@ -407,12 +418,15 @@ Component({
       try {
         const res = await api.refreshGrades()
         if (res.success) {
+          analytics.refreshResult('grades', true, 'grades')
           wx.showToast({ title: res.message || '刷新成功', icon: 'success' })
           await this.loadGrades()
         } else {
+          analytics.refreshResult('grades', false, 'grades')
           wx.showToast({ title: res.message || '刷新失败', icon: 'none' })
         }
       } catch (e) {
+        analytics.refreshResult('grades', false, 'grades')
         wx.showToast({ title: '刷新失败', icon: 'none' })
       } finally {
         this.setData({ refreshing: false })

@@ -10,6 +10,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const creditUtil = require('../../utils/credit')
+const analytics = require('../../utils/analytics')
 
 const PROGRAMME_CACHE = 'cached_programme'
 const GRADES_CACHE = 'cached_grades'
@@ -44,6 +45,9 @@ Component({
       this.loadCached()
       if (storage.isLoggedIn() && this.data.empty) this.loadFromServer(true)
       if (storage.isLoggedIn()) this._ensureGrades().then(ok => { if (ok) this.loadCached() })
+    },
+    detached() {
+      analytics.disconnectSlots(this)
     }
   },
 
@@ -51,6 +55,9 @@ Component({
     /** 由 main 页面在激活时调用 */
     async activate() {
       this.setData({ active: true })
+      analytics.observeSlots(this, [
+        { id: 'slot-credit-bottom', page: 'credit', ad_type: 'native' }
+      ])
       this.loadCached()
       if (!storage.isLoggedIn()) return
       if (this.data.empty || !this.data.view.planCount) await this.loadFromServer(true)

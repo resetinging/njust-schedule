@@ -9,6 +9,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const font = require('../../utils/font')
+const analytics = require('../../utils/analytics')
 const fs = wx.getFileSystemManager()
 
 const GALLERY_META_KEY = 'cached_gallery_meta'   // {t: 时间戳, names: [文件名]}
@@ -55,6 +56,12 @@ Component({
       navRight
     })
       this.loadImages()
+      analytics.observeSlots(this, [
+        { id: 'slot-gallery-bottom', page: 'gallery', ad_type: 'native' }
+      ])
+    },
+    detached() {
+      analytics.disconnectSlots(this)
     }
   },
 
@@ -256,6 +263,7 @@ Component({
     const idx = e.currentTarget.dataset.index
     const urls = this.data.images.map(i => i.src)
     if (urls.length > 0) {
+      analytics.featureAction('gallery', 'gallery', { source: 'preview' })
       wx.previewImage({ current: urls[idx] || urls[0], urls })
     }
   }

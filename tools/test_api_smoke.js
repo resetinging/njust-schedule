@@ -53,8 +53,8 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 57 个接口(含连接测试、服务端凭据删除、同步版本与蹭课收藏)', () => {
-    assert.strictEqual(Object.keys(api).length, 57, Object.keys(api).join(','))
+  await check('导出 58 个接口(含连接测试、服务端凭据删除、同步版本、蹭课收藏与使用统计)', () => {
+    assert.strictEqual(Object.keys(api).length, 58, Object.keys(api).join(','))
     assert.strictEqual(typeof api.testConnection, 'function')
     assert.strictEqual(typeof api.searchAuditCourses, 'function')
     assert.strictEqual(typeof api.listAuditOptions, 'function')

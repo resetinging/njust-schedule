@@ -11,6 +11,7 @@ const config = require('../../utils/config')
 const dataLoader = require('../../utils/data-loader')
 const ann = require('../../utils/announcement')
 const font = require('../../utils/font')
+const analytics = require('../../utils/analytics')
 const gpaUtil = require('../../utils/gpa')
 const creditUtil = require('../../utils/credit')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
@@ -117,6 +118,7 @@ Component({
       this._stopQrPoll()      // 组件销毁时停止扫码轮询
       if (this._fontTimer) clearTimeout(this._fontTimer)
       if (this._fontDoneTimer) clearTimeout(this._fontDoneTimer)
+      analytics.disconnectSlots(this)
     }
   },
 
@@ -141,6 +143,9 @@ Component({
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
       this.refreshState()
+      analytics.observeSlots(this, [
+        { id: 'slot-profile-bottom', page: 'profile', ad_type: 'banner' }
+      ])
       this.setData({ fontMode: font.getMode() })
       this.loadSubscribeStatus()
       // 回填记住的学号与密码（登录走自动 OCR，无需预取验证码）
@@ -519,6 +524,9 @@ Component({
         this.setData({ loggingIn: false })
 
         if (res.success) {
+          analytics.track('login_success', {
+            feature: 'login', page: 'profile', source: 'password'
+          })
           // 默认保存本机密码; 服务端也会始终加密保存。
           storage.set('saved_password', password)
           storage.setStudentId(studentId)
@@ -903,6 +911,9 @@ Component({
       try {
         const res = await api.submitFeedback(this.data.fbType, text)
         if (res.success) {
+          analytics.track('feedback_submit', {
+            feature: 'feedback', page: 'profile', kind: this.data.fbType
+          })
           this._fbLastTs = Date.now()
           this.setData({ showFeedback: false, fbContent: '' })
           wx.showToast({ title: '已提交，回复见「我的反馈」', icon: 'none', duration: 2500 })

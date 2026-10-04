@@ -7,6 +7,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const subUtil = require('../../utils/subscribe')
+const analytics = require('../../utils/analytics')
 const { timeUntil } = require('../../utils/date')
 
 Component({
@@ -41,6 +42,9 @@ Component({
       if (storage.isLoggedIn() && !(storage.getCached(this._examsCacheKey()) || []).length) {
         this.loadFromServer(true)
       }
+    },
+    detached() {
+      analytics.disconnectSlots(this)
     }
   },
 
@@ -48,6 +52,9 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      analytics.observeSlots(this, [
+        { id: 'slot-exams-bottom', page: 'exams', ad_type: 'native' }
+      ])
       this.loadExamSubscribe()
       // 研究生账号: 考试来自研究生系统, 先渲染本地缓存
       const isGrad = storage.get('account_type', '') === 'graduate'
@@ -98,6 +105,9 @@ Component({
       }
       const r = await subUtil.requestGrant('exam', item.templateId)
       if (r.ok) {
+        analytics.track('reminder_grant', {
+          feature: 'subscription', kind: 'exam', page: 'exams'
+        })
         wx.showToast({ title: '已开启考前提醒（剩余 ' + (r.quota || 1) + ' 条）', icon: 'none' })
         this.loadExamSubscribe()
       } else if (r.reason === 'reject' || r.reason === 'ban') {
@@ -268,13 +278,16 @@ Component({
         const res = await api.refreshExams()
         this.setData({ loading: false })
         if (res.success) {
+          analytics.refreshResult('exams', true, 'exams')
           wx.showToast({ title: `已刷新 ${res.count || 0} 场考试`, icon: 'success' })
           this.loadFromServer()
         } else {
+          analytics.refreshResult('exams', false, 'exams')
           wx.showToast({ title: res.message || '刷新失败', icon: 'none' })
         }
       } catch (e) {
         this.setData({ loading: false })
+        analytics.refreshResult('exams', false, 'exams')
         wx.showToast({ title: '刷新失败', icon: 'none' })
       }
     }

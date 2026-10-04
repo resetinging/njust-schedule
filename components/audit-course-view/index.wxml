@@ -244,6 +244,8 @@
                    icon="award" title="还没有收藏课程"
                    desc="在查询结果中点击收藏后，课程会显示在这里" />
 
+      <view id="slot-audit-bottom" class="analytics-slot-marker"></view>
+
       <view class="loading-box" wx:if="{{loading && !courses.length}}">
         <view class="spinner"></view>
         <text>正在查询课程安排…</text>

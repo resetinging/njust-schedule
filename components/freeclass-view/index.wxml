@@ -80,6 +80,7 @@
         <text class="result-count-unit">间空闲</text>
       </view>
     </view>
+    <view id="slot-freeclass-mid" class="analytics-slot-marker"></view>
 
     <!-- 数据来源提示(缓存秒开/后台更新/离线) -->
     <view class="cache-note" wx:if="{{cacheNote}}">{{cacheNote}}</view>
@@ -111,6 +112,7 @@
     <!-- 无空闲 -->
     <empty-state wx:elif="{{searched && !loading && !errorMsg}}" icon="🏫" title="该时段没有空闲教室"
                  desc="试试放宽时段范围、换个星期或校区" />
+    <view id="slot-freeclass-bottom" class="analytics-slot-marker"></view>
 
     <!-- 查询中 -->
     <view class="loading-box" wx:if="{{loading}}">

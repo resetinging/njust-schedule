@@ -5,6 +5,7 @@ const api = require('../../utils/api')
 const auditCourseUtil = require('../../utils/audit-course')
 const { classClock } = require('../../utils/period-time')
 const storage = require('../../utils/storage')
+const analytics = require('../../utils/analytics')
 const {
   getDefaultFirstWeekDate,
   calcCurrentWeek,
@@ -43,6 +44,12 @@ Component({
       this._loadOwnCourses()
       this._loadFavorites()
       this._loadQueryOptions()
+      analytics.observeSlots(this, [
+        { id: 'slot-audit-bottom', page: 'audit', ad_type: 'native' }
+      ])
+    },
+    detached() {
+      analytics.disconnectSlots(this)
     }
   },
 
@@ -456,6 +463,10 @@ Component({
             res.favorite
           ]))
         }
+        analytics.track('audit_favorite', {
+          feature: 'audit', page: 'audit',
+          result: favorite ? 'removed' : 'added'
+        })
         storage.setCached(this._favoritesCacheKey(), this.data.favorites)
         this.triggerEvent('favoritechange')
         wx.showToast({
@@ -1596,6 +1607,7 @@ Component({
         if (!res || !res.success) {
           throw new Error((res && res.message) || '课程查询失败')
         }
+        analytics.refreshResult('audit', true, 'audit')
         const fresh = (res.courses || []).map(c => this._decorate(c))
         if (token !== this._queryToken) return
         this.setData({
@@ -1612,6 +1624,7 @@ Component({
           loading: false,
           errorMsg: e.message || '课程查询失败'
         })
+        analytics.refreshResult('audit', false, 'audit')
       }
     }
   }

@@ -86,6 +86,7 @@ NON_PRIVACY = {
     'navigateBack': '页面返回',
     'reLaunch': '重启到指定页面',
     'createSelectorQuery': '查询本页节点尺寸/位置用于列表溢出判断, 不涉及个人信息',
+    'createIntersectionObserver': '观察本页广告候选槽位是否可见, 不采集设备或用户信息',
     'loadFontFace': '加载已下载的像素字体文件, 不涉及个人信息',
     'openSetting': '用户主动打开小程序权限设置页, 不读取或采集信息',
     'requestSubscribeMessage': '用户主动授权考试提醒订阅消息, 不采集个人信息',

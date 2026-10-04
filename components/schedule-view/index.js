@@ -10,6 +10,7 @@ const storage = require('../../utils/storage')
 const config = require('../../utils/config')
 const { courseColors } = require('../../utils/course-color')
 const font = require('../../utils/font')
+const analytics = require('../../utils/analytics')
 const { periodStart } = require('../../utils/period-time')
 const { nowDate, calcCurrentWeek, calcTodayDay, isWeekInRange, getDateLabel, getDefaultFirstWeekDate } = require('../../utils/date')
 
@@ -102,6 +103,7 @@ Component({
     },
     detached() {
       if (this._weekAnimTimer) clearTimeout(this._weekAnimTimer)
+      analytics.disconnectSlots(this)
     }
   },
 
@@ -123,6 +125,9 @@ Component({
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      analytics.observeSlots(this, [
+        { id: 'slot-schedule-bottom', page: 'schedule', ad_type: 'native' }
+      ])
       // 退出登录后清空上一用户数据(隐私)
       if (!storage.isLoggedIn()) {
         this.setData({ courses: [], filteredCourses: [], listDayGroups: [], studentName: '', studentId: '' })
@@ -731,13 +736,16 @@ Component({
         const res = await api.refreshSchedule()
         this.setData({ loading: false })
         if (res.success) {
+          analytics.refreshResult('schedule', true, 'schedule')
           wx.showToast({ title: `已刷新 ${res.count || 0} 门课程`, icon: 'success' })
           this.loadFromServer()
         } else {
+          analytics.refreshResult('schedule', false, 'schedule')
           wx.showToast({ title: res.message || '刷新失败', icon: 'none' })
         }
       } catch (e) {
         this.setData({ loading: false })
+        analytics.refreshResult('schedule', false, 'schedule')
         wx.showToast({ title: '刷新失败', icon: 'none' })
       }
     },

@@ -83,6 +83,8 @@
           </view>
         </view>
 
+        <view id="slot-feature-bottom" class="analytics-slot-marker"></view>
+
       </view>
     </view>
 

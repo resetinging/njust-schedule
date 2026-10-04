@@ -1,5 +1,13 @@
 @import "./styles/font-pixel.wxss";
 
+/* 统计槽位标记: 仅用于可见性观测, 不参与视觉与点击。 */
+.analytics-slot-marker {
+  width: 100%;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* 字体档位: 默认像素点阵(ZpixPixel/ZpixFull); 页面根节点挂 .font-system 即回到系统字体 */
 .font-system {
   --font-body: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;

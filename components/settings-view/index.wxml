@@ -131,6 +131,7 @@
       <button class="btn-outline main-btn clear-btn" bindtap="onClearData">清除缓存数据</button>
       <button class="btn-danger-plain main-btn logout-btn" wx:if="{{isLoggedIn}}" bindtap="onLogout">退出登录</button>
     </view>
+    <view id="slot-profile-bottom" class="analytics-slot-marker"></view>
   </view>
 
   <!-- ============================================================ -->
@@ -177,7 +178,7 @@
       <view wx:else class="qr-panel">
         <image class="qr-img tap" src="{{qrSrc}}" mode="widthFix"
                show-menu-by-longpress="{{true}}" binderror="onQrImgError"
-               bindtap="onQrPreview"></image>
+               bindtap="onQrPreview" />
         <view class="qr-panel-hint">{{qrHint}}</view>
         <button class="qr-save-btn" bindtap="onQrSave">保存到相册</button>
         <view class="qr-save-tip">用微信「扫一扫」→ 相册，选择刚保存的二维码</view>

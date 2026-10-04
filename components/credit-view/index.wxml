@@ -97,6 +97,7 @@
       <view class="cr-note">
         数据来源：教务专业培养方案 × 已修成绩（按课程代码匹配，以教务为准）{{updated ? ' · 更新于 ' + updated : ''}}
       </view>
+      <view id="slot-credit-bottom" class="analytics-slot-marker"></view>
     </block>
 
   </scroll-view>

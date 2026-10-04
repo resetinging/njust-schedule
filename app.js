@@ -5,6 +5,7 @@
 const api = require('./utils/api')
 const storage = require('./utils/storage')
 const config = require('./utils/config')
+const analytics = require('./utils/analytics')
 const freeclassCache = require('./utils/freeclass-cache')
 const { BIG_SECTION_START_PERIODS, PERIOD_STARTS, bigSectionIndex } = require('./utils/period-time')
 
@@ -35,6 +36,15 @@ App({
       // 后台预取各 Tab 页数据: 延迟启动不阻塞首屏, 滑动切换时零等待
       setTimeout(() => this._prefetchAll(), 800)
     }
+    analytics.onLaunch()
+  },
+
+  onShow() {
+    analytics.onShow()
+  },
+
+  onHide() {
+    analytics.onHide()
   },
 
   /**

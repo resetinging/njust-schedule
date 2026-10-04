@@ -88,6 +88,7 @@
           <text class="metric-label">平均分</text>
         </view>
       </view>
+      <view id="slot-grades-mid" class="analytics-slot-marker"></view>
 
       <!-- ============ 四六级成绩条(点击刷新) ============ -->
       <view class="sc-cet tap" wx:if="{{stats.cet}}" bindtap="onRefreshCet">
@@ -143,6 +144,7 @@
           </view>
         </block>
       </view>
+      <view id="slot-grades-bottom" class="analytics-slot-marker"></view>
 
     </block>
 

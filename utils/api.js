@@ -16,8 +16,10 @@ const study = require('./api/study')
 const subscribe = require('./api/subscribe')
 const audit = require('./api/audit')
 const sync = require('./api/sync')
+const analytics = require('./api/analytics')
 
 const api = Object.assign({}, core, auth, schedule, exams, grades, evalApi,
-  feedback, settings, freeclass, gallery, refresh, study, subscribe, audit, sync)
+  feedback, settings, freeclass, gallery, refresh, study, subscribe, audit,
+  sync, analytics)
 delete api.TOKEN_KEY   // 内部常量不对外暴露(保持旧版 40 个接口)
 module.exports = api

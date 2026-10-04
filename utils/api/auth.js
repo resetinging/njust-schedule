@@ -26,6 +26,7 @@ function ssoQrStatus(qrId) {
         if (prevSid && res.student_id && prevSid !== res.student_id) {
           storage.clearAll()   // 换号扫码: 清空上一用户本地数据
         }
+        storage.remove('analytics_queue')
         storage.setStudentId(res.student_id || '')
         storage.setStudentName(res.student_name || '')
         storage.setSemester(res.semester || '')
@@ -59,6 +60,7 @@ function logout() {
   const lastSid = storage.getStudentId() || storage.get('last_login_sid', '')
   const finish = () => {
     storage.clearAll()
+    storage.remove('analytics_queue')
     if (savedPassword) {
       storage.set('saved_password', savedPassword)
     }
@@ -85,6 +87,7 @@ function loginWebvpn(studentId, password) {
   }).then(res => {
     if (res.success) {
       storage.clearAll()   // 换号登录：清空上一用户的全部本地数据
+      storage.remove('analytics_queue')
       storage.setStudentId(studentId)
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
