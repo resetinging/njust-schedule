@@ -212,7 +212,7 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; }
 .user-list, .session-list { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .table-head { color: var(--dim); font-size: 12px; background: #23233a; }
 .user-row {
-  display: grid; grid-template-columns: 1.2fr 1fr .6fr .6fr .6fr .7fr 1.2fr .6fr .8fr;
+  display: grid; grid-template-columns: 1.1fr .9fr .5fr .5fr .5fr .7fr .9fr .7fr 1.1fr .6fr .8fr;
   gap: 8px; padding: 8px 14px; border-bottom: 1px solid #26263c; align-items: center;
 }
 .user-row.clickable { cursor: pointer; }
@@ -235,6 +235,29 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; }
 }
 .card h3 { font-size: 14px; margin-bottom: 14px; color: var(--accent); }
 .chart { display: flex; align-items: flex-end; gap: 10px; height: 170px; padding: 0 4px; }
+.analytics-stats { padding: 0 0 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.analytics-chart { height: 190px; gap: 5px; overflow-x: auto; }
+.retention-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.retention-item {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px; text-align: center;
+}
+.retention-item strong { display: block; color: var(--accent); font-size: 22px; }
+.retention-item span { display: block; color: var(--dim); font-size: 12px; margin-top: 4px; }
+.analytics-list { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.analytics-row {
+  display: grid; grid-template-columns: 1.4fr repeat(3, minmax(70px, .6fr));
+  gap: 10px; align-items: center; padding: 9px 12px;
+  border-bottom: 1px solid #26263c; font-size: 12px;
+}
+.analytics-row:last-child { border-bottom: 0; }
+.analytics-row.head { color: var(--dim); background: #23233a; }
+.analytics-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.analytics-value { text-align: right; color: var(--text); }
+@media (max-width: 760px) {
+  .analytics-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .retention-grid { grid-template-columns: 1fr; }
+}
 .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; }
 .bar { width: 70%; border-radius: 4px 4px 0 0; min-height: 2px; }
 .bar-val { font-size: 12px; color: var(--text); }

@@ -129,6 +129,7 @@ python tools/security_scan.py
 | `POST /api/jw-proxy` | 通用教务网关:转发任意 9080 GET/POST 并返回原始内容 |
 | `POST /api/login-webvpn` | 智慧理工 SSO 一步登录(免教务密码/验证码);`get-webvpn-captcha` 为其旧名别名 |
 | `DELETE /api/credentials` | 删除当前用户明确授权保存的服务端密码 |
+| `POST /api/analytics/events` | 小程序去明文使用统计批量上报（强制开启） |
 | `POST /api/sso-qr/start` / `GET /api/sso-qr/status` / `POST /api/sso-qr/cancel` | 微信扫码登录(免密码): 长按二维码→识别图中二维码→确认 |
 | `GET/POST /api/settings`, `POST /api/semester` | 设置与学期切换 |
 | `POST /api/clear-data` | 清除当前学期数据 |

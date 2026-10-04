@@ -66,9 +66,11 @@ register_request_logging(app)
 
 # 图鉴路由蓝图(Phase 1b 拆分)
 from wxcloudrun.api.gallery import gallery_bp  # noqa: E402
+from wxcloudrun.api.analytics import analytics_bp  # noqa: E402
 from wxcloudrun.core.media import _sniff_image_mime  # noqa: E402
 
 app.register_blueprint(gallery_bp)
+app.register_blueprint(analytics_bp)
 
 
 def _check_network(force: bool = False) -> Tuple[bool, str]:

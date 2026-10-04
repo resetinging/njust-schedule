@@ -4,7 +4,7 @@
 （微信云托管模板的 Counters 示例已移除）
 """
 import json
-from datetime import datetime
+from datetime import date, datetime
 from wxcloudrun import db
 
 
@@ -355,3 +355,85 @@ class ReminderTask(db.Model):
             "status": self.status,
             "updated_at": _dt(self.updated_at),
         }
+
+
+# ============================================================
+# 小程序使用统计与广告槽位库存
+# ============================================================
+class UsageEvent(db.Model):
+    """最小化使用事件: 只保留行为上下文, 不保存成绩/课表/凭据原文。"""
+    __tablename__ = 'usage_events'
+    __table_args__ = (
+        db.Index('ix_usage_events_name_time',
+                 'event_name', 'created_at'),
+        db.Index('ix_usage_events_user_time',
+                 'analytics_id', 'created_at'),
+        db.Index('ix_usage_events_slot_time',
+                 'slot_id', 'created_at'),
+        db.Index('ix_usage_events_page_time',
+                 'page', 'created_at'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    event_key = db.Column(db.String(96), unique=True, nullable=False)
+    analytics_id = db.Column(db.String(64), default='', index=True)
+    visitor_hash = db.Column(db.String(64), default='', index=True)
+    session_id = db.Column(db.String(64), default='')
+    event_name = db.Column(db.String(40), default='', index=True)
+    page = db.Column(db.String(40), default='')
+    feature = db.Column(db.String(40), default='')
+    slot_id = db.Column(db.String(64), default='')
+    ad_type = db.Column(db.String(24), default='')
+    visible_ms = db.Column(db.Integer, default=0)
+    properties_json = db.Column(db.Text, default='')
+    app_version = db.Column(db.String(40), default='')
+    platform = db.Column(db.String(24), default='')
+    client_ts = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
+
+
+class UsageUserDaily(db.Model):
+    """按用户按日汇总, 用于 DAU/WAU/MAU、留存和使用时长。"""
+    __tablename__ = 'usage_user_daily'
+    __table_args__ = (
+        db.Index('ix_usage_user_daily_date', 'date'),
+    )
+
+    date = db.Column(db.Date, primary_key=True, default=date.today)
+    analytics_id = db.Column(db.String(64), primary_key=True)
+    open_count = db.Column(db.Integer, default=0)
+    session_count = db.Column(db.Integer, default=0)
+    active_seconds = db.Column(db.Integer, default=0)
+    page_views = db.Column(db.Integer, default=0)
+    event_count = db.Column(db.Integer, default=0)
+    feature_actions = db.Column(db.Integer, default=0)
+    first_seen_at = db.Column(db.DateTime, nullable=True)
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now,
+                           onupdate=datetime.now)
+
+
+class UsageSlotUserDaily(db.Model):
+    """按用户、槽位、广告形式按日汇总, 用于评估广告位价值。"""
+    __tablename__ = 'usage_slot_user_daily'
+    __table_args__ = (
+        db.Index('ix_usage_slot_daily_date', 'date'),
+        db.Index('ix_usage_slot_daily_slot', 'slot_id', 'date'),
+    )
+
+    date = db.Column(db.Date, primary_key=True, default=date.today)
+    analytics_id = db.Column(db.String(64), primary_key=True)
+    slot_id = db.Column(db.String(64), primary_key=True)
+    ad_type = db.Column(db.String(24), primary_key=True, default='')
+    page = db.Column(db.String(40), default='')
+    views = db.Column(db.Integer, default=0)
+    visible_count = db.Column(db.Integer, default=0)
+    visible_ms = db.Column(db.Integer, default=0)
+    requests = db.Column(db.Integer, default=0)
+    impressions = db.Column(db.Integer, default=0)
+    clicks = db.Column(db.Integer, default=0)
+    closes = db.Column(db.Integer, default=0)
+    first_seen_at = db.Column(db.DateTime, nullable=True)
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now,
+                           onupdate=datetime.now)

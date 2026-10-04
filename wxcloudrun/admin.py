@@ -300,6 +300,11 @@ def admin_users():
     name_rows = db.session.query(Setting.k, Setting.v).filter(Setting.k.like("%:name")).all()
     name_map = {k.rsplit(":", 1)[0]: v for k, v in name_rows if v}
     users = []
+    try:
+        from wxcloudrun.core.usage_report import user_usage_map
+        usage_map = user_usage_map(sids, days=30)
+    except Exception:
+        usage_map = {}
     for sid in sids:
         sess_info = sess.get(sid)
         # 姓名: 在线取会话, 离线回退到持久化的 {sid}:name 设置
@@ -320,6 +325,9 @@ def admin_users():
             "semester": sem_map.get(sid, ""),
             "online": bool(sess_info),
             "name": name,
+            "active_days_30": int(
+                (usage_map.get(sid) or {}).get("active_days_30") or 0),
+            "last_active": (usage_map.get(sid) or {}).get("last_active") or "",
         })
     users.sort(key=lambda u: (not u["online"], u["student_id"]))
     resp = {"success": True, "users": users}
@@ -616,6 +624,31 @@ def admin_request_stats():
         "statuses": dict(statuses),
         "top_paths": dict(paths.most_common(10)),
     })
+
+
+@app.route("/api/admin/analytics")
+@admin_required
+def admin_analytics():
+    """小程序使用统计: 活跃、留存、页面、功能和广告槽位库存。"""
+    try:
+        days = int(request.args.get("days", "30") or "30")
+    except ValueError:
+        days = 30
+    days = max(1, min(90, days))
+    force = request.args.get("refresh") == "1"
+    cache_key = f"analytics:{days}"
+    if not force:
+        cached = _stats_cache_get(cache_key)
+        if cached is not None:
+            return jsonify(cached)
+    from wxcloudrun.core.usage_report import build_report
+    try:
+        payload = build_report(days)
+    except Exception as exc:
+        app.logger.warning("[admin] 使用统计聚合失败: %s", exc)
+        return jsonify({"success": False, "message": "统计聚合失败"}), 500
+    _stats_cache_set(cache_key, payload, ttl=300)
+    return jsonify(payload)
 
 
 # ============================================================

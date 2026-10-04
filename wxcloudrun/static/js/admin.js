@@ -323,7 +323,7 @@ function renderUsers() {
     String(u.name || '').toLowerCase().includes(kw));
   const box = $('userList');
   box.innerHTML = '<div class="table-head user-row">' +
-    '<span>学号</span><span>姓名</span><span>课表</span><span>考试</span><span>成绩</span><span>最高GPA</span><span>学期</span><span>状态</span><span>操作</span></div>';
+    '<span>学号</span><span>姓名</span><span>课表</span><span>考试</span><span>成绩</span><span>最高GPA</span><span>学期</span><span>30天活跃</span><span>最近活跃</span><span>状态</span><span>操作</span></div>';
   users.forEach(u => {
     const row = document.createElement('div');
     row.className = 'user-row clickable';
@@ -333,6 +333,8 @@ function renderUsers() {
       `<span>${u.courses}</span><span>${u.exams}</span><span>${u.grades}</span>` +
       `<span>${u.best_gpa != null ? u.best_gpa : '-'}</span>` +
       `<span>${esc(u.semester || '-')}</span>` +
+      `<span>${u.active_days_30 || 0} 天</span>` +
+      `<span>${esc(u.last_active || '-')}</span>` +
       `<span class="badge ${u.online ? 'on' : ''}">${u.online ? '在线' : '离线'}</span>` +
       `<button class="ghost small grade-btn" data-sid="${esc(u.student_id)}">📊 成绩</button>`;
     row.addEventListener('click', () => openUser(u.student_id));
@@ -483,6 +485,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     const t = tab.dataset.tab;
     $('panel-' + t).classList.add('active');
+    if (t === 'analytics' && !tabLoaded.analytics) { tabLoaded.analytics = true; loadAnalytics(); }
     if (t === 'users' && !tabLoaded.users) { tabLoaded.users = true; loadUsers(); }
     if (t === 'grades' && !tabLoaded.grades) { tabLoaded.grades = true; loadGradeStats(); }
     if (t === 'feedback' && !tabLoaded.feedback) { tabLoaded.feedback = true; loadFeedback(); }
@@ -543,6 +546,95 @@ async function loadFreeclassAccount() {
     }
   } catch (e) {}
 }
+
+// ============================================================
+// 小程序使用统计
+// ============================================================
+function fmtDuration(seconds) {
+  const sec = Math.max(0, Number(seconds) || 0);
+  if (sec < 60) return sec + '秒';
+  if (sec < 3600) return Math.floor(sec / 60) + '分' + (sec % 60) + '秒';
+  return Math.floor(sec / 3600) + '时' + Math.floor(sec % 3600 / 60) + '分';
+}
+
+function renderSimpleBars(el, rows, valueKey, labelKey, color) {
+  const values = rows || [];
+  const max = Math.max(1, ...values.map(x => Number(x[valueKey]) || 0));
+  el.innerHTML = values.length ? values.map(x => `
+    <div class="bar-col" title="${esc(x[labelKey])}: ${Number(x[valueKey]) || 0}">
+      <div class="bar-val">${Number(x[valueKey]) || 0}</div>
+      <div class="bar" style="height:${Math.max(2, Math.round((Number(x[valueKey]) || 0) / max * 115))}px;background:${color}"></div>
+      <div class="bar-lbl">${esc(x[labelKey])}</div>
+    </div>`).join('') : '<p class="dim center">暂无统计数据</p>';
+}
+
+function renderAnalyticsList(el, rows, nameFn, valueFn) {
+  if (!rows || !rows.length) {
+    el.innerHTML = '<div class="center dim">暂无数据</div>';
+    return;
+  }
+  el.innerHTML = '<div class="analytics-row head"><span>名称</span><span class="analytics-value">次数</span><span class="analytics-value">用户</span><span class="analytics-value">说明</span></div>'
+    + rows.map(row => {
+      const values = valueFn(row);
+      return '<div class="analytics-row">'
+        + `<span class="analytics-name" title="${esc(nameFn(row))}">${esc(nameFn(row))}</span>`
+        + values.map(v => `<span class="analytics-value">${esc(v)}</span>`).join('')
+        + '</div>';
+    }).join('');
+}
+
+async function loadAnalytics(force) {
+  const days = Number($('analyticsDays').value) || 30;
+  try {
+    const r = await api('/api/admin/analytics?days=' + days + (force ? '&refresh=1' : ''));
+    if (!r.success) return;
+    const o = r.overview || {};
+    $('analyticsStats').innerHTML = `
+      <div class="stat-card"><div class="num">${o.dau || 0}</div><div class="lbl">今日 DAU</div></div>
+      <div class="stat-card"><div class="num">${o.new_users_today || 0}</div><div class="lbl">今日新增</div></div>
+      <div class="stat-card"><div class="num">${o.wau || 0}</div><div class="lbl">WAU</div></div>
+      <div class="stat-card"><div class="num">${o.mau || 0}</div><div class="lbl">MAU</div></div>
+      <div class="stat-card"><div class="num">${o.opens_today || 0}</div><div class="lbl">今日打开</div></div>
+      <div class="stat-card"><div class="num">${o.sessions_today || 0}</div><div class="lbl">今日会话</div></div>
+      <div class="stat-card"><div class="num">${fmtDuration(o.avg_seconds_today)}</div><div class="lbl">人均时长</div></div>
+      <div class="stat-card"><div class="num">${o.total_users || 0}</div><div class="lbl">累计统计用户</div></div>`;
+
+    renderSimpleBars($('dauTrendChart'), (r.trend || []).slice(-30),
+      'dau', 'date', 'linear-gradient(180deg,#7c6be8,#5ad0a8)');
+    const hourly = Object.entries(r.hourly || {}).map(([hour, value]) => ({
+      hour: String(hour).padStart(2, '0'),
+      value
+    }));
+    renderSimpleBars($('hourlyChart'), hourly, 'value', 'hour',
+      'linear-gradient(180deg,#5ad0a8,#2fa882)');
+
+    const ret = r.retention || {};
+    $('retentionGrid').innerHTML = ['d1', 'd7', 'd30'].map(key => {
+      const item = ret[key] || {};
+      return `<div class="retention-item">
+        <strong>${item.rate || 0}%</strong>
+        <span>${key.toUpperCase()} · ${item.retained || 0}/${item.eligible || 0}</span>
+      </div>`;
+    }).join('');
+
+    renderAnalyticsList($('pageRanking'), r.pages || [],
+      x => x.page,
+      x => [x.events, x.users, '']);
+    renderAnalyticsList($('featureRanking'), r.features || [],
+      x => x.feature,
+      x => [x.events, x.users, '']);
+    renderAnalyticsList($('slotRanking'), r.slots || [],
+      x => x.slot_id + (x.ad_type && x.ad_type !== '未指定' ? ' · ' + x.ad_type : ''),
+      x => [
+        x.visible_count,
+        x.users,
+        Math.round((x.visible_ms || 0) / Math.max(1, x.visible_count || 1) / 100) / 10 + '秒'
+      ]);
+  } catch (e) {}
+}
+
+$('refreshAnalyticsBtn').addEventListener('click', () => loadAnalytics(true));
+$('analyticsDays').addEventListener('change', () => loadAnalytics(true));
 
 function fmtEpoch(sec) {
   const n = Number(sec) || 0;

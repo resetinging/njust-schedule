@@ -331,7 +331,8 @@ def _verify_schema():
     required = {
         "courses", "exams", "evaluations", "grades", "cet_scores",
         "settings", "user_settings", "feedback", "audit_courses",
-        "audit_favorites", "schema_migrations",
+        "audit_favorites", "schema_migrations", "usage_events",
+        "usage_user_daily", "usage_slot_user_daily",
     }
     missing = sorted(t for t in required if not insp.has_table(t))
     if missing:

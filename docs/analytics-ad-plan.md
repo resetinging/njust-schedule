@@ -1,6 +1,7 @@
 # 小程序使用统计与广告效果规划
 
-> 状态：仅规划，尚未实现埋点、统计后端或广告 SDK。
+> 状态：第一阶段已实现（用户使用统计 + 广告槽位库存采集）；广告 SDK 尚未接入，
+> 当前只做假名化统计，不基于成绩、课程或教师内容做广告画像。
 
 ## 目标
 
@@ -49,7 +50,7 @@
 建议新增：
 
 ```text
-analytics_events
+usage_events
   id
   analytics_id
   session_id
@@ -67,7 +68,7 @@ analytics_events
 ```
 
 ```text
-analytics_daily
+usage_user_daily
   date
   analytics_id
   open_count
@@ -81,6 +82,9 @@ analytics_daily
   ad_revenue
   retention_day
 ```
+
+广告槽位库存另存 `usage_slot_user_daily`，按“日期 + 用户哈希 + 槽位 +
+广告形式”汇总可见次数、可见时长和后续广告漏斗。
 
 建议事件：
 
@@ -109,15 +113,24 @@ ad_reward_complete
 
 - 当前隐私指引明确写明不接入广告、统计 SDK，也不做用户画像；实施前必须更新。
 - `analytics_id` 使用学号或 openid 的 HMAC 哈希，不直接保存原始身份。
-- 增加“使用统计与广告效果分析”授权开关，支持退出。
+- 使用统计强制开启，不提供小程序内关闭开关。
 - 原始事件建议保留 30 至 90 天，日聚合数据保留 1 年。
 - 删除账号时同步删除用户级统计数据。
 - 不采集密码、Cookie、token、精确成绩、课程原文、聊天、通讯录和精确位置。
 
 ## 推荐实施顺序
 
-1. 活跃、会话、页面和功能统计
+1. 已完成：活跃、会话、页面、功能和广告槽位可见性统计
 2. 广告曝光、点击、eCPM 和收益统计
 3. 年级、校区、活跃度等粗粒度分组
 4. 留存与广告频率联动分析
 5. 在合规授权完成后，再评估个性化广告能力
+
+## 当前实现
+
+- 小程序端：`utils/analytics.js` 负责强制开启、队列、批量上报和槽位可见性观察。
+- 服务端：`wxcloudrun/core/usage.py` 写入原始事件和按日汇总，
+  `wxcloudrun/core/usage_report.py` 生成控制面板统计。
+- 上报接口：`POST /api/analytics/events`，只接受白名单事件和最小字段集。
+- 管理面板：新增「使用统计」页，展示 DAU/WAU/MAU、留存、页面/功能排行和槽位库存。
+- 隐私：使用统计默认且持续开启，不弹出首次授权弹窗，也不提供小程序内关闭开关。

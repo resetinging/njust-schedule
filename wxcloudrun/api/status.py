@@ -123,9 +123,10 @@ def api_status():
         "data_refresh": (getattr(client, "_data_refresh_state", None)
                          if logged_in else {"state": "idle", "updated_at": 0}),
         # 能力协商: 前端可据此判断后端支持哪些能力(以后加接口/改字段时避免静默不兼容)
-        "api_version": 3,
+        "api_version": 4,
         "features": ["yjs", "freeclass", "font_subset", "refresh_dedupe",
-                     "credential_relogin", "prefetch_status"],
+                     "credential_relogin", "prefetch_status",
+                     "usage_analytics"],
     }
     if logged_in and client is not None:
         client._status_cache_payload = payload

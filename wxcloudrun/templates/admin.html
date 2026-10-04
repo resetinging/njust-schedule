@@ -41,6 +41,7 @@
     <!-- Tab 导航 -->
     <nav class="tabs">
       <button class="tab active" data-tab="requests">实时请求</button>
+      <button class="tab" data-tab="analytics">使用统计</button>
       <button class="tab" data-tab="users">用户</button>
       <button class="tab" data-tab="sessions">在线会话</button>
       <button class="tab" data-tab="grades">成绩统计</button>
@@ -88,6 +89,50 @@
         <button id="pgNext" class="ghost small">下一页 ›</button>
       </div>
       <div id="reqList" class="req-list"></div>
+    </section>
+
+    <section id="panel-analytics" class="panel">
+      <div class="panel-tool">
+        <span class="dim">按自然日聚合；原始事件保留 90 天，汇总保留 1 年</span>
+        <div class="btn-group">
+          <select id="analyticsDays">
+            <option value="7">近 7 天</option>
+            <option value="30" selected>近 30 天</option>
+            <option value="90">近 90 天</option>
+          </select>
+          <button id="refreshAnalyticsBtn" class="ghost small">刷新统计</button>
+        </div>
+      </div>
+      <div id="analyticsStats" class="stat-row analytics-stats"></div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>日活趋势</h3>
+          <div id="dauTrendChart" class="chart analytics-chart"></div>
+        </div>
+        <div class="card">
+          <h3>24 小时活跃分布</h3>
+          <div id="hourlyChart" class="chart analytics-chart"></div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>留存</h3>
+          <div id="retentionGrid" class="retention-grid"></div>
+        </div>
+        <div class="card">
+          <h3>页面访问排行</h3>
+          <div id="pageRanking" class="analytics-list"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>功能使用排行</h3>
+        <div id="featureRanking" class="analytics-list"></div>
+      </div>
+      <div class="card">
+        <h3>广告槽位库存</h3>
+        <p class="dim" style="margin-bottom:10px">先统计槽位可见情况；正式广告上线后再比较填充率、点击率和收益。</p>
+        <div id="slotRanking" class="analytics-list"></div>
+      </div>
     </section>
 
     <section id="panel-users" class="panel">
