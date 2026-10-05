@@ -30,6 +30,6 @@ EXPOSE 80
 # 生产启动: gunicorn 单 worker + 多线程（会话在进程内存, 必须单进程;
 # 16 线程: 已移除控制面板 SSE 长连接, 请求监控改为 15s 短轮询,
 # 线程全部用于小程序短请求与教务并发, 足够应对高峰期）
-# 临时维护部署: 先显式完成数据库迁移，成功后再启动常驻 Web 服务。
-# 迁移完成后应恢复为仅启动 gunicorn 的命令，避免每次重启都执行迁移检查。
-CMD ["/bin/sh", "-c", "cd /app && python3 tools/migrate.py && exec python3 -m gunicorn run:app --workers 1 --threads 16 --timeout 60 --bind 0.0.0.0:80"]
+CMD ["python3", "-m", "gunicorn", "run:app", \
+     "--workers", "1", "--threads", "16", \
+     "--timeout", "60", "--bind", "0.0.0.0:80"]
