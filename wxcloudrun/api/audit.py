@@ -9,10 +9,8 @@ from flask import Blueprint, jsonify, request
 
 from wxcloudrun import app, dao
 from wxcloudrun.core.auth import _require_login
-from wxcloudrun.core.jwc_client_pool import JWCClientPool
-from wxcloudrun.core.pool import _jwc_request
 from wxcloudrun.core.semester import current_semester
-from wxcloudrun.core.web import _rid
+from wxcloudrun.services.shared_data_service import sync_audit_catalog as _sync_audit_catalog
 
 audit_bp = Blueprint("audit_api", __name__)
 
@@ -26,6 +24,8 @@ AUDIT_OPTIONS_CHUNK_SIZE = max(
 _OPTIONS_CACHE = {}
 _OPTIONS_CACHE_LOCK = threading.Lock()
 _SYNC_STATE_LOCK = threading.Lock()
+_scheduler_start_lock = threading.Lock()
+_scheduler_thread = None
 _SYNC_STATE = {
     "running": False,
     "semester": "",
@@ -264,40 +264,13 @@ def _list_arg(name: str, limit: int = 50) -> list:
 
 
 def sync_audit_catalog(semester: str = "") -> tuple:
-    """用共享本科 Cookie 池抓取课程课表并替换数据库目录。"""
-    from wxcloudrun.api.freeclass import _service_client_provider
-
-    semester = semester or _current_semester()
-    pool = JWCClientPool(service_provider=_service_client_provider)
-    last_error = "课程目录同步失败"
-    for _attempt in range(10):
-        client, source, sid, err = pool.next_client()
-        if client is None:
-            return 0, err or last_error
-        try:
-            with _jwc_request(client):
-                courses = client.fetch_course_schedule(
-                    semester=semester, keyword="", course_type="")
-        except Exception as exc:  # noqa: BLE001
-            last_error = f"{type(exc).__name__}: {exc}"
-            pool.client = None
-            continue
-        if courses:
-            count = dao.replace_audit_courses(courses, semester)
-            dao.set_setting(_meta_key(semester), str(int(time.time())))
-            app.logger.info(
-                "[audit-sync] rid=%s source=%s sid=%s sem=%s count=%d",
-                _rid(), source, (sid or "-")[:3] + "****", semester, count)
-            return count, ""
-        last_error = client.last_error or "课程目录为空"
-        if "登录" in last_error or "logon" in last_error.lower():
-            client.logged_in = False
-        pool.client = None
-    return 0, last_error
+    """兼容门面：具体同步由共享数据服务负责。"""
+    return _sync_audit_catalog(semester or _current_semester())
 
 
-def start_audit_catalog_scheduler() -> None:
+def start_audit_catalog_scheduler() -> bool:
     """启动每日 00:00 蹭课目录同步线程。"""
+    global _scheduler_thread
     def _run():
         while True:
             try:
@@ -335,8 +308,14 @@ def start_audit_catalog_scheduler() -> None:
                 time.sleep(300)
 
     if app.config.get("AUDIT_SYNC_DISABLED"):
-        return
-    threading.Thread(target=_run, daemon=True, name="audit-catalog-sync").start()
+        return False
+    with _scheduler_start_lock:
+        if _scheduler_thread is not None and _scheduler_thread.is_alive():
+            return False
+        _scheduler_thread = threading.Thread(
+            target=_run, daemon=True, name="audit-catalog-sync")
+        _scheduler_thread.start()
+    return True
 
 
 @audit_bp.route('/api/audit-courses')

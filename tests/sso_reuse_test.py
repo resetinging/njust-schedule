@@ -21,8 +21,10 @@ sys.path.insert(0, _root)
 # 必须在导入应用前指向独立临时库, 避免污染真实数据
 _tmp_db = os.path.join(_here, "_sso_reuse.db").replace("\\", "/")
 os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite:///" + _tmp_db)
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
-from wxcloudrun import app  # noqa: E402
+from wxcloudrun import app, _run_migrations  # noqa: E402
+_run_migrations(force=True)
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 
 SID = os.environ.get("NJUST_SID", "").strip()

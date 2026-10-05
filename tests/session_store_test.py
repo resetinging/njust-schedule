@@ -9,12 +9,14 @@ import os
 import sys
 
 os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite:///session_store_test.db")
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["SESSION_KEY"] = base64.b64encode(os.urandom(32)).decode()
 
 from wxcloudrun.core import cookie_crypto as ss  # noqa: E402
 from wxcloudrun.core import session_store as store  # noqa: E402
-from wxcloudrun import app  # noqa: E402
+from wxcloudrun import app, _run_migrations  # noqa: E402
+_run_migrations(force=True)
 
 _APP_CTX = app.app_context()
 _APP_CTX.push()

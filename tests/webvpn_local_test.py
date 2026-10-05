@@ -28,7 +28,10 @@ sys.path.insert(0, os.path.join(_root, "wxcloudrun"))
 os.environ.setdefault(
     "SQLALCHEMY_DATABASE_URI",
     "sqlite:///" + os.path.join(_here, "webvpn_tmp.db").replace("\\", "/"))
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
+from wxcloudrun import _run_migrations  # noqa: E402
+_run_migrations(force=True)
 from wxcloudrun.webvpn import (  # noqa: E402
     VECTOR_HOST, VECTOR_TOKEN, WEBVPN_BASE, is_jw_url, remap_jw_url,
     to_proxy_url, wengine_token)

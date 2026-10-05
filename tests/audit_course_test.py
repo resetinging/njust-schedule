@@ -13,9 +13,11 @@ sys.path.insert(0, ROOT)
 _tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _tmp.close()
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + _tmp.name.replace("\\", "/")
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 os.environ["AUDIT_OPTIONS_CHUNK_SIZE"] = "2"
 
-from wxcloudrun import app, db, views  # noqa: E402
+from wxcloudrun import app, db, views, _run_migrations  # noqa: E402
+_run_migrations(force=True)
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 from wxcloudrun.model import AuditCourse  # noqa: E402
 

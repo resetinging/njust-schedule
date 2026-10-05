@@ -104,86 +104,30 @@ def list_user_setting_keys(suffix: str, limit: int = 200) -> list:
 # 课表助手 — 课表（按用户隔离）
 # ============================================================
 def save_courses(courses: list, semester: str, student_id: str = ""):
-    rows = [{
-        "student_id": student_id,
-        "name": c.get("name", ""),
-        "teacher": c.get("teacher", ""),
-        "classroom": c.get("classroom", ""),
-        "day_of_week": c.get("day", 0),
-        "start_period": c.get("start", 0),
-        "end_period": c.get("end", 0),
-        "weeks": c.get("weeks", ""),
-        "week_type": c.get("week_type", 0),
-        "semester": semester,
-        "credits": str(c.get("credits", "")),
-        "course_type": c.get("course_type", ""),
-        "raw_data": json.dumps(c.get("raw", {}), ensure_ascii=False),
-    } for c in courses]
-    try:
-        Course.query.filter(
-            Course.semester == semester,
-            Course.student_id == student_id,
-        ).delete()
-        if rows:
-            db.session.bulk_insert_mappings(Course, rows)
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        Course.query.filter(
-            Course.semester == semester,
-            Course.student_id == student_id,
-        ).delete()
-        for row in rows:
-            db.session.add(Course(**row))
-        db.session.commit()
+    """兼容门面: 课表快照写入由 student_data repository 负责。"""
+    from wxcloudrun.repositories.student_data import replace_courses
+    return replace_courses(courses, semester, student_id)
 
 
 def get_courses(semester: str, student_id: str = "") -> list:
-    rows = Course.query.filter(
-        Course.semester == semester,
-        Course.student_id == student_id,
-    ).order_by(Course.day_of_week, Course.start_period).all()
-    return [r.to_dict() for r in rows]
+    from wxcloudrun.repositories.student_data import get_courses as _get
+    return _get(semester, student_id)
 
 
 def count_courses(semester: str, student_id: str = "") -> int:
-    return Course.query.filter(
-        Course.semester == semester,
-        Course.student_id == student_id,
-    ).count()
+    from wxcloudrun.repositories.student_data import count_courses as _count
+    return _count(semester, student_id)
 
 
 def replace_audit_courses(courses: list, semester: str) -> int:
-    """全量替换某学期的蹭课目录, 失败时回退逐条写入。"""
-    now = datetime.now()
-    rows = [{
-        "semester": semester,
-        "course_name": c.get("name", ""),
-        "class_info": c.get("class_info", ""),
-        "teacher": c.get("teacher", ""),
-        "classroom": c.get("classroom", ""),
-        "day_of_week": int(c.get("day", 0) or 0),
-        "start_period": int(c.get("start", 0) or 0),
-        "end_period": int(c.get("end", 0) or 0),
-        "weeks": str(c.get("weeks", "")),
-        "updated_at": now,
-    } for c in courses]
-    try:
-        AuditCourse.query.filter(AuditCourse.semester == semester).delete()
-        if rows:
-            db.session.bulk_insert_mappings(AuditCourse, rows)
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        AuditCourse.query.filter(AuditCourse.semester == semester).delete()
-        for row in rows:
-            db.session.add(AuditCourse(**row))
-        db.session.commit()
-    return len(rows)
+    """兼容门面: 目录快照写入由 audit repository 负责。"""
+    from wxcloudrun.repositories.audit import replace_courses
+    return replace_courses(courses, semester)
 
 
 def count_audit_courses(semester: str) -> int:
-    return AuditCourse.query.filter(AuditCourse.semester == semester).count()
+    from wxcloudrun.repositories.audit import count_courses
+    return count_courses(semester)
 
 
 def _audit_favorite_key(course: dict) -> str:
@@ -645,41 +589,18 @@ def query_audit_course_groups(semester: str, name: str = "",
 # 课表助手 — 考试（按用户隔离）
 # ============================================================
 def save_exams(exams: list, semester: str, student_id: str = ""):
-    try:
-        Exam.query.filter(
-            Exam.semester == semester,
-            Exam.student_id == student_id,
-        ).delete()
-        for e in exams:
-            db.session.add(Exam(
-                student_id=student_id,
-                course_name=e.get("course_name", ""),
-                exam_date=e.get("date", ""),
-                exam_time=e.get("time", ""),
-                location=e.get("location", ""),
-                seat=e.get("seat", ""),
-                exam_type=e.get("type", "期末考试"),
-                semester=semester,
-            ))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
+    from wxcloudrun.repositories.student_data import replace_exams
+    return replace_exams(exams, semester, student_id)
 
 
 def get_exams(semester: str, student_id: str = "") -> list:
-    rows = Exam.query.filter(
-        Exam.semester == semester,
-        Exam.student_id == student_id,
-    ).order_by(Exam.exam_date).all()
-    return [r.to_dict() for r in rows]
+    from wxcloudrun.repositories.student_data import get_exams as _get
+    return _get(semester, student_id)
 
 
 def count_exams(semester: str, student_id: str = "") -> int:
-    return Exam.query.filter(
-        Exam.semester == semester,
-        Exam.student_id == student_id,
-    ).count()
+    from wxcloudrun.repositories.student_data import count_exams as _count
+    return _count(semester, student_id)
 
 
 # ============================================================
@@ -688,23 +609,8 @@ def count_exams(semester: str, student_id: str = "") -> int:
 def save_evaluations(evaluations: list, semester: str, student_id: str = ""):
     """全量保存评教批次（评教是待办事项, 与学期切换无关:
     刷新时按用户全删全插, 批次自身的 semester 字段才是真实归属学期）"""
-    try:
-        Evaluation.query.filter(Evaluation.student_id == student_id).delete()
-        for e in evaluations:
-            db.session.add(Evaluation(
-                student_id=student_id,
-                semester=e.get("semester", ""),
-                category=e.get("category", ""),
-                batch=e.get("batch", ""),
-                start_date=e.get("start_date", ""),
-                end_date=e.get("end_date", ""),
-                is_done=1 if e.get("is_done") else 0,
-                items_json=json.dumps(e.get("items", []), ensure_ascii=False),
-            ))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
+    from wxcloudrun.repositories.student_data import replace_evaluations
+    return replace_evaluations(evaluations, student_id)
 
 
 def get_evaluations(semester: str, student_id: str = "") -> list:
@@ -773,88 +679,27 @@ def clear_data(semester: str, student_id: str = ""):
 # 课表助手 — 成绩（按用户隔离）
 # ============================================================
 def save_grades(grades: list, academic_year: str, semester: str, student_id: str = ""):
-    """保存某学期成绩（先删后插）"""
-    rows = [{
-        "student_id": student_id,
-        "academic_year": g.get("academic_year", academic_year),
-        "semester": g.get("semester", semester),
-        "course_code": g.get("course_code", ""),
-        "course_name": g.get("course_name", ""),
-        "score": str(g.get("score", "")),
-        "credit": float(g.get("credit", 0) or 0),
-        "grade_point": float(g.get("grade_point", 0) or 0),
-        "course_type": g.get("course_type", ""),
-        "course_nature": g.get("course_nature", ""),
-        "exam_type": g.get("exam_type", "正常考试"),
-    } for g in grades]
-    try:
-        Grade.query.filter(
-            Grade.academic_year == academic_year,
-            Grade.semester == semester,
-            Grade.student_id == student_id,
-        ).delete()
-        if rows:
-            db.session.bulk_insert_mappings(Grade, rows)
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        Grade.query.filter(
-            Grade.academic_year == academic_year,
-            Grade.semester == semester,
-            Grade.student_id == student_id,
-        ).delete()
-        for row in rows:
-            db.session.add(Grade(**row))
-        db.session.commit()
+    """兼容门面: 成绩快照写入由 student_data repository 负责。"""
+    from wxcloudrun.repositories.student_data import replace_grades
+    return replace_grades(grades, academic_year, semester, student_id)
 
 
 def get_grades(academic_year: str = "", semester: str = "", student_id: str = "") -> list:
-    """查询成绩，可选按学期过滤（均限定当前用户）"""
-    q = Grade.query
-    if student_id:
-        q = q.filter(Grade.student_id == student_id)
-    if academic_year:
-        q = q.filter(Grade.academic_year == academic_year)
-    if semester:
-        q = q.filter(Grade.semester == semester)
-    rows = q.order_by(
-        Grade.academic_year.desc(), Grade.semester.desc(),
-        Grade.course_type, Grade.course_name,
-    ).all()
-    return [r.to_dict() for r in rows]
+    from wxcloudrun.repositories.student_data import get_grades as _get
+    return _get(academic_year, semester, student_id)
 
 
 def get_grade_semesters(student_id: str = "") -> list:
-    """获取当前用户已有成绩的学期列表"""
-    q = db.session.query(
-        Grade.academic_year, Grade.semester
-    )
-    if student_id:
-        q = q.filter(Grade.student_id == student_id)
-    rows = q.distinct().order_by(
-        Grade.academic_year.desc(), Grade.semester.desc()
-    ).all()
-    return [f"{r[0]}-{r[1]}" for r in rows]
+    from wxcloudrun.repositories.student_data import get_grade_semesters
+    return get_grade_semesters(student_id)
 
 
 # ============================================================
 # 课表助手 — 四六级（按用户隔离）
 # ============================================================
 def save_cet_scores(scores: list, student_id: str = ""):
-    """全量替换当前用户的四六级成绩"""
-    try:
-        CetScore.query.filter(CetScore.student_id == student_id).delete()
-        for s in scores:
-            db.session.add(CetScore(
-                student_id=student_id,
-                cet_type=s.get("type", ""),
-                total_score=float(s.get("score", 0) or 0),
-                exam_date=s.get("exam_date", ""),
-            ))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
+    from wxcloudrun.repositories.student_data import replace_cet_scores
+    return replace_cet_scores(scores, student_id)
 
 
 def get_cet_scores(student_id: str = "") -> list:
@@ -864,23 +709,8 @@ def get_cet_scores(student_id: str = "") -> list:
     MySQL 5.7+ 的 ONLY_FULL_GROUP_BY 会直接报错（SQLite 不检查，本地测不出来）。
     数据量极小，改为全量读取后在 Python 中取最高分。
     """
-    q = CetScore.query
-    if student_id:
-        q = q.filter(CetScore.student_id == student_id)
-    rows = q.all()
-    best = {}
-    for r in rows:
-        if r.cet_type not in best or r.total_score > best[r.cet_type][0]:
-            best[r.cet_type] = (r.total_score, r.exam_date)
-    result = []
-    for t in sorted(best):
-        s, d = best[t]
-        result.append({
-            "type": t,
-            "score": float(s or 0),
-            "exam_date": d or "",
-        })
-    return result
+    from wxcloudrun.repositories.student_data import get_cet_scores as _get
+    return _get(student_id)
 
 
 # ============================================================

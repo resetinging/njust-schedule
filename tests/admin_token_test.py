@@ -23,11 +23,13 @@ os.environ["ADMIN_PASSWORD"] = "tmp-admin-pwd-for-test"
 os.environ["SESSION_KEY"] = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="  # 32B, 与生产配置一致
 os.environ.pop("MYSQL_USERNAME", None)
 os.environ.pop("MYSQL_PASSWORD", None)
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
 _root = os.path.dirname(_here)
 sys.path.insert(0, _root)
 
-from wxcloudrun import app  # noqa: E402
+from wxcloudrun import app, _run_migrations  # noqa: E402
+_run_migrations(force=True)
 from wxcloudrun import admin as admin_mod  # noqa: E402
 
 _client = app.test_client()

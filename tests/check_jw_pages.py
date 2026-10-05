@@ -18,12 +18,15 @@ _root = os.path.dirname(_here)
 sys.path.insert(0, _root)
 sys.path.insert(0, os.path.join(_root, "wxcloudrun"))
 
-# 导入 wxcloudrun 会触发 db.create_all(): 用独立 sqlite 避免连生产 MySQL
+# 使用独立 sqlite，并显式建立测试 Schema，避免探针连生产 MySQL。
 os.environ.setdefault(
     "SQLALCHEMY_DATABASE_URI",
     "sqlite:///" + os.path.join(_here, "smoke_tmp.db").replace("\\", "/"))
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
 import config  # noqa: E402
+from wxcloudrun import _run_migrations  # noqa: E402
+_run_migrations(force=True)
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 
 

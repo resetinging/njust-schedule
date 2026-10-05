@@ -11,9 +11,9 @@
 ┌─────────────────────┐   wx.cloud.callContainer   ┌──────────────────────────┐
 │   微信小程序(前端)    │ ─────────────────────────→ │   云托管 Flask 后端       │
 │                     │   (云托管内网,免域名白名单)   │                          │
-│  pages/ 5个tab+校历页 │ ←───────────────────────── │  views.py 全部 /api/*    │
+│  pages/ 5个tab+校历页 │ ←───────────────────────── │  api/*.py 蓝图 /api/*    │
 │  components/ 3个组件  │        JSON 响应           │  jwc_client.py 教务爬虫   │
-│  utils/ api/storage  │                            │  dao.py + MySQL          │
+│  utils/ api/storage  │                            │  services + repositories │
 └─────────────────────┘                            │  gpa.py 绩点计算          │
                                                     └──────────┬───────────────┘
                                                                │ requests + BeautifulSoup
@@ -49,7 +49,9 @@
 | 分布式状态 | 可选 `REDIS_URL`: 跨 worker 会话 Cookie 恢复、限流、查询缓存、后台任务锁 |
 | 健康与指标 | `GET /healthz`、`GET /readyz`、`GET /metrics` (Prometheus 文本格式) |
 
-### 2. HTTP API — `wxcloudrun/views.py`
+### 2. HTTP API — `wxcloudrun/api/*.py`
+
+各业务蓝图只负责参数解析、鉴权、响应格式和 HTTP 状态码，不直接编排教务访问或批量写库。刷新类接口调用 `services/`，查询类接口优先读取 Repository/缓存；`views.py` 仅保留桌面 Web 页面路由和蓝图装配。
 
 按功能分组:
 
@@ -76,7 +78,19 @@
 | 校历 | `GET /api/gallery-images` / `gallery-image?name=` | 图片文件名列表 / 单张 base64(带路径穿越防护) |
 | 其他 | `GET /api/connect-test`、`GET/POST /proxy/jw/*` | 连通测试、教务页面反向代理(评教用) |
 
-### 3. 数据存储 — `wxcloudrun/model.py` + `dao.py`
+### 3. 业务服务与事务边界 — `wxcloudrun/services/` + `wxcloudrun/core/transactions.py`
+
+| 层 | 职责 |
+|---|---|
+| `services/student_data_service.py` | 统一课表、考试、成绩、四六级刷新；负责教务访问锁、错误映射、缓存失效和提醒任务同步 |
+| `services/shared_data_service.py` | 编排共享蹭课目录抓取，选择 Cookie 来源并触发全量替换 |
+| `repositories/student_data.py` | 用户课表/考试/成绩/四六级/评教快照的查询与原子替换 |
+| `repositories/audit.py` | 全校蹭课目录的查询与原子替换 |
+| `core/transactions.py` | 统一提交/回滚边界；替换失败时保留旧快照 |
+
+全量刷新采用“事务内删除旧快照并插入新快照”。教务请求失败发生在写库前；写库异常则回滚当前事务，避免出现先删后插的半成品数据。`dao.py` 仅保留旧函数签名的兼容门面，新的业务代码不应在 API 层直接拼装 ORM 写操作。
+
+### 4. 数据存储 — `wxcloudrun/model.py` + `wxcloudrun/repositories/`
 
 | 表 | 内容 |
 |---|---|
@@ -92,7 +106,11 @@
 - **认证节流**(防智慧理工风控冻结):普通用户仅在密码匹配且 24 小时信任期内复用教务 Cookie,否则必须真实验证密码;后台服务账号可复用持久化会话(0 次密码提交);验证码换图重试默认 1 次;同一学号认证失败后 2 秒冷却(只防连点);小程序启动不再无条件登录,仅会话失效时自动重登一次
 - 小程序默认保存密码(仅本机),退出登录时保留用于下次登录回填
 
-### 4. 业务计算(方案 A:全部在前端)
+### 5. 后台任务 — `wxcloudrun/jobs/`
+
+`jobs/runner.py` 是唯一的后台任务启动入口，统一启动空教室预热、蹭课目录同步和考试/成绩提醒。各任务模块只保留自己的循环逻辑与 `start()` 适配器；进程内启动注册表防止 Flask 导入、Gunicorn 入口和开发重载重复创建线程。跨实例调度锁仍由各任务使用的共享状态后端负责。
+
+### 6. 业务计算(方案 A:全部在前端)
 
 | 模块 | 位置 | 职责 |
 |---|---|---|
@@ -100,7 +118,7 @@
 | 评教自动评分 | 小程序 `eval.js:_computeAutoFill`、Web `evaluations.js:computeAutoFillSelection` | 贪心分配 + 防"全同列" + 单指标微调,生成 `{seq: value}` |
 | 批量评教 | 小程序/Web 前端顺序 async 循环 | 逐门课「取表单 → 前端评分 → 提交」,直接更新进度 UI;后端不再有后台线程 |
 
-### 5. 静态与 Web 服务(附带)
+### 7. 静态与 Web 服务(附带)
 
 - 校历图片托管(`static/gallery/`)
 - 桌面网页版(课表/考试/评教/校历/设置页 + PWA)——小程序之外的另一套前端,与小程序共用同一套 API
@@ -183,7 +201,7 @@
 
 | 端 | 方式 | 说明 |
 |---|---|---|
-| 后端 | 微信云托管控制台「重新构建/部署」(或 Git 关联自动构建) | 构建时 `pip install -r requirements.txt`(含 `pycryptodome`);建议配置 `PASSWORD_SECRET` 环境变量 |
+| 后端 | 微信云托管控制台「重新构建/部署」(或 Git 关联自动构建) | 构建时 `pip install -r requirements.txt`(含 `pycryptodome`);生产配置 `SESSION_KEY`、`ADMIN_PASSWORD` 等密钥 |
 | 小程序 | 微信开发者工具「上传」→ 体验版/正式版 | 后端先上线更稳妥;顺序颠倒也兼容(新接口 404 时自动降级) |
 
 **发布顺序建议**:先部署后端 → 再上传小程序。

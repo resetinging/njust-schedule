@@ -114,14 +114,11 @@ def _migrate_feedback_reply():
         # SQLite 下 TINYINT(1) 会在反射时报 SAWarning、BOOLEAN 则不会
         stmts.append("ALTER TABLE `feedback` ADD COLUMN reply_read BOOLEAN DEFAULT 0")
     for sql in stmts:
-        try:
-            with db.engine.begin() as conn:
-                conn.execute(sa_text(sql))
-            app.logger.info("[migrate] feedback 已补充列: %s", sql)
-        except Exception as e:
-            # 滚动更新时可能多个容器同时启动, 另一个实例已加过列 → 忽略重复列错误,
-            # 不能让迁移异常冒泡: 它在导入期执行, 抛出会导致容器起不来(崩溃循环)
-            app.logger.warning("[migrate] feedback 补列跳过(可能已被其他实例补充): %s", e)
+        # 显式迁移阶段已经持有数据库命名锁。任何 DDL 异常都必须中止迁移，
+        # 不能在结构未完成时继续登记版本并发布应用。
+        with db.engine.begin() as conn:
+            conn.execute(sa_text(sql))
+        app.logger.info("[migrate] feedback 已补充列: %s", sql)
 
 
 def _migrate_audit_class_info():
@@ -133,16 +130,12 @@ def _migrate_audit_class_info():
     cols = [c["name"] for c in insp.get_columns("audit_courses")]
     if "class_info" in cols:
         return
-    try:
-        with db.engine.begin() as conn:
-            conn.execute(sa_text(
-                "ALTER TABLE `audit_courses` "
-                "ADD COLUMN class_info TEXT"
-            ))
-        app.logger.info("[migrate] audit_courses 已补充 class_info 列")
-    except Exception as e:
-        # 滚动更新时可能已由其他实例补充，重复列错误不能阻塞启动。
-        app.logger.warning("[migrate] audit_courses 补列跳过: %s", e)
+    with db.engine.begin() as conn:
+        conn.execute(sa_text(
+            "ALTER TABLE `audit_courses` "
+            "ADD COLUMN class_info TEXT"
+        ))
+    app.logger.info("[migrate] audit_courses 已补充 class_info 列")
 
 
 def _audit_class_info_text_statements(insp):
@@ -211,9 +204,11 @@ def _migrate_user_settings():
         db.session.delete(row)
         moved += 1
         if moved % 500 == 0:
-            db.session.commit()
+            # 分批 flush 控制内存，不提前提交；迁移版本登记和数据迁移
+            # 必须由 _run_migrations 在同一事务中统一提交。
+            db.session.flush()
     if moved:
-        db.session.commit()
+        db.session.flush()
         app.logger.info("[migrate] user_settings 迁移完成 rows=%d", moved)
 
 
@@ -248,7 +243,7 @@ def _migrate_audit_course_rooms():
                 setting.v = str(int(_time.time()))
             else:
                 db.session.add(Setting(k=key, v=str(int(_time.time()))))
-        db.session.commit()
+        db.session.flush()
         app.logger.info("[migrate] audit_courses 教室挪列完成 rows=%d", changed)
 
 
@@ -267,30 +262,25 @@ _PERF_INDEXES = (
 
 
 def _ensure_perf_indexes():
-    """为高频多用户查询补充复合索引; 幂等, 失败不阻塞容器启动。"""
+    """为高频多用户查询补充复合索引；幂等，失败中止显式迁移。"""
     from sqlalchemy import inspect as sa_inspect, text as sa_text
 
     for table, index_name, columns in _PERF_INDEXES:
-        try:
-            insp = sa_inspect(db.engine)
-            if not insp.has_table(table):
-                continue
-            indexes = insp.get_indexes(table)
-            if any(i.get("name") == index_name for i in indexes):
-                continue
-            wanted = list(columns)
-            if any(list(i.get("column_names") or []) == wanted for i in indexes):
-                continue
-            quoted_cols = ", ".join(f"`{c}`" for c in columns)
-            with db.engine.begin() as conn:
-                conn.execute(sa_text(
-                    f"CREATE INDEX `{index_name}` ON `{table}` ({quoted_cols})"
-                ))
-            app.logger.info("[migrate] %s 已创建性能索引 %s", table, index_name)
-        except Exception as e:
-            # 滚动发布时可能多个实例同时建索引, 或旧库权限不足; 不能影响启动。
-            app.logger.warning("[migrate] 性能索引跳过 %s.%s: %s",
-                               table, index_name, e)
+        insp = sa_inspect(db.engine)
+        if not insp.has_table(table):
+            continue
+        indexes = insp.get_indexes(table)
+        if any(i.get("name") == index_name for i in indexes):
+            continue
+        wanted = list(columns)
+        if any(list(i.get("column_names") or []) == wanted for i in indexes):
+            continue
+        quoted_cols = ", ".join(f"`{c}`" for c in columns)
+        with db.engine.begin() as conn:
+            conn.execute(sa_text(
+                f"CREATE INDEX `{index_name}` ON `{table}` ({quoted_cols})"
+            ))
+        app.logger.info("[migrate] %s 已创建性能索引 %s", table, index_name)
 
 
 from wxcloudrun import model  # noqa: E402
@@ -306,7 +296,11 @@ def _with_migration_lock(fn):
         return fn()
     lock_name = "njust_schedule_schema_migration"
     with db.engine.connect() as conn:
-        conn.execute(sa_text("SELECT GET_LOCK(:name, 30)"), {"name": lock_name})
+        acquired = conn.execute(
+            sa_text("SELECT GET_LOCK(:name, 30)"), {"name": lock_name}
+        ).scalar()
+        if acquired != 1:
+            raise RuntimeError("获取数据库迁移锁失败，请稍后重试")
         try:
             return fn()
         finally:
@@ -324,10 +318,11 @@ _SCHEMA_MIGRATIONS = (
 )
 
 
-def _verify_schema():
-    """自动迁移关闭时只做只读检查, Schema 缺失立即失败。"""
+def _schema_deficiencies(insp=None) -> list:
+    """返回启动前可检测的结构问题；只读，不执行 DDL。"""
     from sqlalchemy import inspect as sa_inspect
-    insp = sa_inspect(db.engine)
+
+    insp = insp or sa_inspect(db.engine)
     required = {
         "courses", "exams", "evaluations", "grades", "cet_scores",
         "settings", "user_settings", "feedback", "audit_courses",
@@ -336,21 +331,57 @@ def _verify_schema():
     }
     missing = sorted(t for t in required if not insp.has_table(t))
     if missing:
+        return ["缺少表 " + ", ".join(missing)]
+
+    required_columns = {
+        "courses": {"student_id"},
+        "exams": {"student_id"},
+        "evaluations": {"student_id"},
+        "grades": {"student_id"},
+        "cet_scores": {"student_id"},
+        "feedback": {"reply", "replied_at", "reply_read"},
+        "audit_courses": {"class_info"},
+        "audit_favorites": {"class_info"},
+    }
+    deficiencies = []
+    for table, columns in required_columns.items():
+        actual = {column["name"] for column in insp.get_columns(table)}
+        absent = sorted(columns - actual)
+        if absent:
+            deficiencies.append(f"{table} 缺少列 {', '.join(absent)}")
+
+    applied = {
+        row[0] for row in SchemaMigration.query.with_entities(
+            SchemaMigration.version).all()
+    }
+    expected = {version for version, _fn in _SCHEMA_MIGRATIONS}
+    missing_versions = sorted(expected - applied)
+    if missing_versions:
+        deficiencies.append("缺少迁移版本 " + ", ".join(missing_versions))
+    return deficiencies
+
+
+def _verify_schema():
+    """只读检查生产 Schema；表、关键列或迁移版本缺失时立即失败。"""
+    deficiencies = _schema_deficiencies()
+    if deficiencies:
         raise RuntimeError(
-            "数据库 Schema 未迁移: " + ", ".join(missing)
+            "数据库 Schema 未迁移: " + "; ".join(deficiencies)
             + "；请先运行 python tools/migrate.py")
 
 
 def _run_migrations(force: bool = False):
     """幂等迁移入口。生产可关闭自动迁移并显式执行 tools/migrate.py。"""
     with app.app_context():
-        db.create_all()
         if not (force or config.MIGRATIONS_AUTO):
             _verify_schema()
             return []
         applied = []
 
         def _run():
+            # 只有显式迁移命令或明确开启自动迁移时才允许建表/执行 DDL。
+            # 放在迁移锁内，避免多个实例并发 create_all/ALTER TABLE。
+            db.create_all()
             for version, fn in _SCHEMA_MIGRATIONS:
                 existing = SchemaMigration.query.filter(
                     SchemaMigration.version == version).first()
@@ -366,10 +397,13 @@ def _run_migrations(force: bool = False):
         return _with_migration_lock(_run)
 
 
-with app.app_context():
-    if config.MIGRATIONS_AUTO:
-        _run_migrations()
-    else:
+# 应用启动只做只读 Schema 检查。DDL 迁移必须由 tools/migrate.py 显式执行，
+# 避免滚动发布时多个容器同时 ALTER TABLE，导致业务被 metadata lock 阻塞。
+# 明确设置 MIGRATIONS_AUTO=1 时保留本地/单实例兼容路径；生产默认值为 0。
+if config.MIGRATIONS_AUTO:
+    _run_migrations()
+elif config.SCHEMA_CHECK_ON_STARTUP:
+    with app.app_context():
         _verify_schema()
 
 

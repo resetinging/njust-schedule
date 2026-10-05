@@ -9,8 +9,11 @@ import sys
 # 避免 import 初始化 Flask app 时连 MySQL(本地无 MySQL): 用临时 SQLite
 _tmp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sem_tmp.db")
 os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{_tmp.replace(os.sep, '/')}"
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
 sys.path.insert(0, ".")
+from wxcloudrun import _run_migrations  # noqa: E402
+_run_migrations(force=True)
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 
 

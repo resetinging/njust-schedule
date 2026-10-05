@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
 """成绩与四六级路由(Phase 1b 从 views.py 拆出)。"""
-from collections import defaultdict
-
 from flask import Blueprint, jsonify, request
 
-import config
 from wxcloudrun import app, dao
-from wxcloudrun.core.auth import _require_login, _retry_with_relogin
+from wxcloudrun.core.auth import _require_login
 from wxcloudrun.core.dedupe import dedupe
 from wxcloudrun.core.cache import _cache_get, _cache_set, invalidate_user_cache
-from wxcloudrun.core.pool import _jwc_request
 from wxcloudrun.core.semester import current_semester
-from wxcloudrun.core.stats import _invalidate_stats
 from wxcloudrun.core.web import _rid
 from wxcloudrun.jwc_client import JWCClient
+from wxcloudrun.services.student_data_service import (
+    StudentDataError, refresh_grades, refresh_cet,
+)
 
 grades_bp = Blueprint("grades_api", __name__)
 jwc_client = JWCClient()
@@ -107,32 +105,17 @@ def api_refresh_grades():
         return err
     sid = client.student_id or ""
 
-    with _jwc_request(client):
-        grades = client.get_grades("")
-
-    if not grades and client.last_error:
-        return jsonify({
-            "success": False,
-            "message": client.last_error or "获取成绩失败",
-        }), 500
-
-    grouped = defaultdict(list)
-    for g in grades:
-        key = (g.get("academic_year", ""), g.get("semester", ""))
-        grouped[key].append(g)
-
-    total_count = 0
-
-    for (ay, s), group in grouped.items():
-        dao.save_grades(group, ay, s, sid)
-        total_count += len(group)
-
-    invalidate_user_cache(sid, "grades")
-    app.logger.info("[refresh] rid=%s 成绩 sid=%s 学期数=%d 总数=%d", _rid(), sid, len(grouped), total_count)
+    try:
+        result = refresh_grades(client)
+    except StudentDataError as exc:
+        return jsonify({"success": False, "message": exc.message}), exc.status_code
+    total_count = result["count"]
+    app.logger.info("[refresh] rid=%s 成绩 sid=%s 学期数=%d 总数=%d", _rid(), sid,
+                    result["semesters"], total_count)
 
     return jsonify({
         "success": True,
-        "message": f"成功获取 {total_count} 条成绩记录（{len(grouped)} 个学期）",
+        "message": f"成功获取 {total_count} 条成绩记录（{result['semesters']} 个学期）",
         "count": total_count,
     })
 
@@ -149,19 +132,11 @@ def api_refresh_cet():
         return err
     sid = client.student_id or ""
 
-    with _jwc_request(client):
-        scores = client.get_cet_scores()
-
-    if not scores:
-        return jsonify({
-            "success": False,
-            "message": "未获取到四六级成绩",
-        }), 404
-
-    dao.save_cet_scores(scores, sid)
-    invalidate_user_cache(sid, "cet")
-
-
+    try:
+        result = refresh_cet(client)
+    except StudentDataError as exc:
+        return jsonify({"success": False, "message": exc.message}), exc.status_code
+    scores = result["scores"]
     app.logger.info("[refresh] rid=%s 四六级 sid=%s count=%d", _rid(), sid, len(scores))
     return jsonify({
         "success": True,

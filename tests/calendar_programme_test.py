@@ -7,8 +7,11 @@ from types import SimpleNamespace
 _here = os.path.dirname(os.path.abspath(__file__))
 os.environ.setdefault("SQLALCHEMY_DATABASE_URI",
                       "sqlite:///" + os.path.join(_here, "calendar_programme_tmp.db").replace("\\", "/"))
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 sys.path.insert(0, os.path.dirname(_here))
 
+from wxcloudrun import _run_migrations  # noqa: E402
+_run_migrations(force=True)
 from wxcloudrun.jwc.calendar import parse_calendar, CalendarMixin  # noqa: E402
 from wxcloudrun.jwc.programme import parse_programme_page, ProgrammeMixin  # noqa: E402
 from wxcloudrun.jwc.profile import parse_profile  # noqa: E402

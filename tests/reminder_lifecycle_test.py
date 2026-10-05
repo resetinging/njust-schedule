@@ -10,9 +10,11 @@ _db_path = os.path.join(_here, "reminder_lifecycle_tmp.db")
 if os.path.exists(_db_path):
     os.remove(_db_path)
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + _db_path.replace("\\", "/")
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 sys.path.insert(0, os.path.dirname(_here))
 
-from wxcloudrun import app, dao, db  # noqa: E402
+from wxcloudrun import app, dao, db, _run_migrations  # noqa: E402
+_run_migrations(force=True)
 from wxcloudrun.core import subscribe_store as ss  # noqa: E402
 from wxcloudrun.core.reminder_lifecycle import (  # noqa: E402
     _course_end_at, grade_expired, grade_next_check, match_programme_course,

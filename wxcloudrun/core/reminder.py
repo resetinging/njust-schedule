@@ -22,6 +22,8 @@ from wxcloudrun.core.timeutil import _beijing_date, _beijing_datetime
 
 LOOP_INTERVAL = 600          # 每 10 分钟检查一次
 _HHMM = re.compile(r"(\d{1,2}):(\d{2})")
+_reminder_start_lock = threading.Lock()
+_reminder_thread = None
 
 
 def _template_content(kind: str = "exam") -> list:
@@ -284,17 +286,24 @@ def _loop() -> None:
         time.sleep(LOOP_INTERVAL)
 
 
-def start_exam_reminder() -> None:
+def start_exam_reminder() -> bool:
     """启动考试提醒线程; 未配置 MP_SECRET 或 EXAM_REMINDER=0 时不启动。"""
+    global _reminder_thread
     if (os.environ.get("EXAM_REMINDER", "1") or "").strip() == "0":
         app.logger.info("[reminder] 考试提醒已关闭(EXAM_REMINDER=0)")
-        return
+        return False
     if not mp.enabled():
         app.logger.info("[reminder] 未配置 MP_SECRET, 考试提醒未启动")
-        return
-    threading.Thread(target=_loop, daemon=True, name="exam-reminder").start()
+        return False
+    with _reminder_start_lock:
+        if _reminder_thread is not None and _reminder_thread.is_alive():
+            return False
+        _reminder_thread = threading.Thread(
+            target=_loop, daemon=True, name="exam-reminder")
+        _reminder_thread.start()
     app.logger.info("[reminder] 考试提醒已启用(考前一天 %s 点起提醒, 当天 06:00 起补发)",
                     os.environ.get("EXAM_REMINDER_HOUR", "18"))
+    return True
 
 
 def _load_persisted_client(sid: str):

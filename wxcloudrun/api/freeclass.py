@@ -63,6 +63,8 @@ def _current_teaching_week(first_week_date: str, on=None) -> int:
 # 实例锁串行保证同一账号 Cookie 一致, 会话失效时自动重登。
 _classroom_service_lock = threading.Lock()
 _classroom_service_client = JWCClient()
+_prewarm_start_lock = threading.Lock()
+_prewarm_thread = None
 _COOKIE_SOURCE = os.environ.get("FREE_CLASSROOM_COOKIE_SOURCE", "auto").strip().lower()
 try:
     _CANDIDATE_RETRIES = max(1, int(os.environ.get("FREE_CLASSROOM_CANDIDATE_RETRIES", "5")))
@@ -379,8 +381,14 @@ def _prewarm_loop():
     try:
         from wxcloudrun import app as _app
         with _app.app_context():
-            app.logger.info("[freeclass][prewarm] 启动补当天全量缓存")
-            _prewarm_free_classrooms()
+            from wxcloudrun.core.state import distributed_lock
+            with distributed_lock(
+                    "wx:lock:freeclass-prewarm", ttl=900) as acquired:
+                if acquired:
+                    app.logger.info("[freeclass][prewarm] 启动补当天全量缓存")
+                    _prewarm_free_classrooms()
+                else:
+                    app.logger.info("[freeclass][prewarm] 已有实例负责启动预热")
     except Exception as e:  # noqa: BLE001 补缓存失败不影响定时循环
         app.logger.warning("[freeclass][prewarm] 启动补缓存失败: %s", e)
     while True:
@@ -406,15 +414,22 @@ def _start_freeclass_prewarm():
 
     关闭方式: 环境变量 FREE_CLASSROOM_PREWARM=0(本地联调时可临时关掉)。
     """
+    global _prewarm_thread
     if os.environ.get("FREE_CLASSROOM_PREWARM", "1").strip() == "0":
         app.logger.info("[freeclass] 定时预热已关闭(FREE_CLASSROOM_PREWARM=0)")
-        return
+        return False
     try:
-        threading.Thread(target=_prewarm_loop, daemon=True,
-                         name="freeclass-prewarm").start()
+        with _prewarm_start_lock:
+            if _prewarm_thread is not None and _prewarm_thread.is_alive():
+                return False
+            _prewarm_thread = threading.Thread(
+                target=_prewarm_loop, daemon=True, name="freeclass-prewarm")
+            _prewarm_thread.start()
         app.logger.info("[freeclass] 定时预热已启用(启动补当天 + 每日 00:00 全量刷新)")
+        return True
     except Exception as e:
         app.logger.warning("[freeclass] 预热线程启动失败: %s", e)
+        return False
 
 
 @freeclass_bp.route('/api/free-classrooms')

@@ -11,10 +11,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def run(env):
     merged = os.environ.copy()
     merged.update(env)
+    # Windows 子进程默认可能使用本地代码页输出配置错误；显式指定 UTF-8，
+    # 并允许异常字符替换，避免测试自身因解码失败掩盖真正的 fail-closed 断言。
+    merged["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(
         [sys.executable, "-c",
          "import config; config.validate(); print('ok')"],
-        cwd=ROOT, env=merged, capture_output=True, text=True)
+        cwd=ROOT, env=merged, capture_output=True, text=True,
+        encoding="utf-8", errors="replace")
 
 
 missing = run({

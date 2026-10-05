@@ -2,7 +2,7 @@
 
 > 目标：优化项目结构与代码架构，**不改变任何对外行为**（URL/参数/响应/页面样式不变）。
 > 方式：分阶段机械拆分 + 每步跑 `tests/smoke_test.py`（关键步骤加跑 `tests/multi_user_test.py`、`node tools/test_freeclass.js`）。
-> 状态：**未推送**（本地检查点）。
+> 状态：**本地完成，待最终 review**。未提交、未推送。
 
 ## 服务端
 
@@ -15,6 +15,17 @@
 | `wxcloudrun/jwc/` | `common`（常量/工具/CookieJar/SSO 加密）+ `base/login/core/schedule/exams/utils/eval/grades/cet/freeclass` 分域 mixin |
 | `wxcloudrun/jwc_client.py` | 门面：组合各 mixin，re-export 旧符号，调用方零改动 |
 | `wxcloudrun/views.py` | 仅保留 6 个页面路由 + 蓝图装配（1832 → 139 行） |
+| `wxcloudrun/services/` | 统一教务刷新编排、错误映射、缓存失效与提醒同步；共享蹭课目录同步与用户数据刷新分离 |
+| `wxcloudrun/repositories/` | 以用户学习数据和全校蹭课目录为边界，集中查询与原子快照替换 |
+| `wxcloudrun/core/transactions.py` | 统一 SQLAlchemy 提交/回滚，刷新失败时保留上一份可用快照 |
+| `wxcloudrun/jobs/` | 后台任务统一启动器与三个任务适配器，避免重复启动线程 |
+
+### 数据库迁移启动策略
+
+- 生产默认 `MIGRATIONS_AUTO=0`，应用启动仅执行只读 Schema 检查，不调用 `db.create_all()`。
+- 发布阶段显式运行 `python tools/migrate.py`；迁移入口使用 MySQL 命名锁，避免多实例同时执行 DDL。
+- 本地测试通过 `_run_migrations(force=True)` 建立临时数据库；迁移脚本通过 `SCHEMA_CHECK_ON_STARTUP=0` 导入应用后显式执行迁移。
+- Schema 的表、关键列或迁移版本不完整时应用启动失败并提示迁移，不以运行时隐式建表掩盖发布遗漏；DDL 失败也不会登记迁移版本。
 
 ### 兼容策略
 
@@ -33,6 +44,7 @@
 
 - 现有测试文件保持原路径与运行方式（`python tests/smoke_test.py` 等），不做目录搬迁，避免破坏文档/习惯命令。
 - 回归覆盖：`smoke_test`（40 项）、`multi_user_test`（29 项）、`node tools/test_freeclass.js`（26 项）、真实样本离线回归。
+- 架构回归：`tests_pytest/test_services_architecture.py` 覆盖服务层入口、Repository 原子替换和任务启动注册；`pytest -q` 与既有脚本测试均需通过。
 
 ## 后续可选
 

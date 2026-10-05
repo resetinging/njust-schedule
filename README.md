@@ -26,7 +26,7 @@
 
 ## 技术栈
 
-- 后端:Python 3.10 / Flask 2.2 / SQLAlchemy 1.4 / MySQL / gunicorn(单 worker 多线程,会话在进程内存)
+- 后端:Python 3.10 / Flask 3.1 / SQLAlchemy 2.0 / MySQL / gunicorn(单 worker 多线程,会话在进程内存)
 - 爬虫:requests + BeautifulSoup(lxml),HTML 解析带多策略降级(API → 查询页表单 → 列表页)
 - OCR:ddddocr(验证码自动识别)
 - 前端:原生 JS + PWA(Service Worker 离线缓存)
@@ -49,7 +49,10 @@
 │   ├── jwc_client.py             教务客户端门面(组合 jwc/ 下各域 mixin)
 │   ├── jwc/                      教务各域 mixin(课表/考试/成绩/评教/周历/培养方案/学籍)
 │   ├── model.py                  ORM 模型(Course/Exam/Evaluation/Grade/CetScore/Setting)
-│   ├── dao.py                    数据访问层
+│   ├── repositories/             按聚合划分的数据访问与快照替换
+│   ├── services/                 教务访问、刷新编排、错误映射与缓存失效
+│   ├── jobs/                     后台任务统一启动入口与任务适配器
+│   ├── dao.py                    兼容门面(旧调用方入口)
 │   ├── templates/                Jinja2 页面模板(课表/考试/成绩/评教/校历/设置)
 │   └── static/                   前端资源(JS/CSS/PWA/图标/校历图片)
 ├── docs/
@@ -82,7 +85,8 @@
 | `ADMIN_PASSWORD` | 管理控制面板(/admin)登录口令; 未配置则本次运行随机生成(重启即变) | 随机 |
 | `SESSION_KEY` | 32 字节 base64 密钥: 教务会话/密码加密落库, 并派生 admin token 签名 | 空(相关能力禁用) |
 | `REDIS_URL` | 可选 Redis 地址；启用后会话、限流、缓存和调度锁可跨 worker 共享 | 空(单实例内存模式) |
-| `MIGRATIONS_AUTO` | 是否启动时自动执行幂等迁移；生产建议 `0` 并在发布阶段运行 `python tools/migrate.py` | `1` |
+| `MIGRATIONS_AUTO` | 是否启动时自动执行幂等迁移；生产建议 `0` 并在发布阶段运行 `python tools/migrate.py` | `0` |
+| `SCHEMA_CHECK_ON_STARTUP` | 启动时是否只读检查必需表；生产保持开启 | `1` |
 | `REQUIRE_SECURE_CONFIG` | 是否强制生产密钥配置，缺少 `SESSION_KEY`/`ADMIN_PASSWORD` 时拒绝启动 | `0` |
 | `MP_SECRET` | 小程序 AppSecret: 订阅消息(考试提醒)发送用; 不配置则只记录授权、不发送 | 空(发送禁用) |
 | `SUBSCRIBE_TPL_EXAM` | 考试提醒的订阅消息模板 ID | 已内置 |
@@ -111,7 +115,13 @@ python tools/security_scan.py
 
 ### 云托管部署
 
-使用微信云托管控制台选择本仓库部署(参考[云托管快速开始](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/basic/guide.html)),数据表由 `container.config.json` 的建表 SQL 与应用启动时的 `db.create_all()` 双保险创建。
+使用微信云托管控制台选择本仓库部署(参考[云托管快速开始](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/basic/guide.html))。生产应用启动默认只读检查 Schema，不执行 `CREATE TABLE` 或 `ALTER TABLE`；发布前在一次性迁移任务/维护容器中显式执行：
+
+```bash
+python tools/migrate.py
+```
+
+迁移脚本使用数据库锁避免多实例重复执行 DDL。迁移成功后再发布应用；若启动检查发现表、关键列或迁移版本缺失，应用会直接失败并提示先执行迁移，避免业务请求在不完整 Schema 上运行。迁移 DDL 出错时脚本也会失败，不会登记对应版本。`MIGRATIONS_AUTO=1` 仅用于本地或明确受控的单实例环境。
 
 **单实例部署**(`minNum`/`maxNum` 已设为 1):教务会话保存在容器内存中,多实例弹性扩容会导致用户登录态被负载均衡随机丢失;单实例 1 核 2G 对几十人规模足够(并发由访问池限流保护),且 `minNum=1` 常驻避免冷启动。
 

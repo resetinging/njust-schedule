@@ -53,20 +53,9 @@ logging.getLogger().addFilter(_PIIMaskFilter())
 
 from wxcloudrun import app
 
-# 空教室定时预热: 由后端在每天各大节上课时刻刷新缓存(前端只读接口结果)。
-# 放在服务入口启动: gunicorn run:app / python run.py 都会执行; 测试只导入
-# wxcloudrun 包, 不会拉起该线程。设 FREE_CLASSROOM_PREWARM=0 可关闭。
-from wxcloudrun.api.freeclass import _start_freeclass_prewarm  # noqa: E402
-_start_freeclass_prewarm()
-
-# 蹭课目录: 每天 00:00 使用共享本科 Cookie 池更新数据库目录。
-from wxcloudrun.api.audit import start_audit_catalog_scheduler  # noqa: E402
-start_audit_catalog_scheduler()
-
-# 考试订阅提醒: 每天定点扫描"明天开考"的考试并发送服务通知。
-# 未配置 MP_SECRET(无发送能力)或 EXAM_REMINDER=0 时自动跳过。
-from wxcloudrun.core.reminder import start_exam_reminder  # noqa: E402
-start_exam_reminder()
+# 所有守护任务统一由 jobs.runner 启动，避免入口散落和重复启动。
+from wxcloudrun.jobs.runner import start_all_jobs  # noqa: E402
+start_all_jobs()
 
 # 启动摘要日志: 确认部署版本与关键配置(云托管控制台日志可见)
 logger = logging.getLogger("startup")

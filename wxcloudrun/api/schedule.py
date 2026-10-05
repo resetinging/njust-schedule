@@ -4,14 +4,16 @@ from flask import Blueprint, jsonify, request
 
 import config
 from wxcloudrun import app, dao
-from wxcloudrun.core.auth import _require_login, _retry_with_relogin
+from wxcloudrun.core.auth import _require_login
 from wxcloudrun.core.cache import _cache_get, _cache_set, invalidate_user_cache
 from wxcloudrun.core.dedupe import dedupe
-from wxcloudrun.core.pool import _jwc_request
 from wxcloudrun.core.semester import current_semester
-from wxcloudrun.core.stats import _invalidate_stats
 from wxcloudrun.core.web import _rid
 from wxcloudrun.jwc_client import JWCClient
+from wxcloudrun.services.student_data_service import (
+    StudentDataError, refresh_schedule, refresh_exams,
+    refresh_schedule_and_exams, resolve_semester,
+)
 
 schedule_bp = Blueprint("schedule_api", __name__)
 jwc_client = JWCClient()
@@ -41,31 +43,18 @@ def api_refresh_schedule():
             "courses": courses, "account_type": "graduate"})
         return jsonify({"success": True, "count": len(courses),
                         "semester": semester})
-    semester = dao.get_user_setting(sid, "semester") or _current_semester()
-    with _jwc_request(client):
-        courses, retry_err = _retry_with_relogin(
-            client, lambda: client.get_schedule(semester), "获取课表失败")
-    if retry_err:
-        return retry_err
-    dao.save_courses(courses, semester, sid)
-    invalidate_user_cache(sid, "courses")
-
-    dao.set_user_setting(sid, "semester", semester)
-
-    _invalidate_stats(sid, semester)
-
     try:
-        from wxcloudrun.core.reminder_lifecycle import sync_user_reminder_tasks
-        sync_user_reminder_tasks(sid, semester)
-    except Exception as exc:  # noqa: BLE001
-        app.logger.warning("[refresh] 提醒任务同步失败 sid=%s: %s",
-                           sid, type(exc).__name__)
+        result = refresh_schedule(client)
+    except StudentDataError as exc:
+        return jsonify({"success": False, "message": exc.message}), exc.status_code
+    semester = result["semester"]
+    courses = result["courses"]
 
     app.logger.info("[refresh] rid=%s 课表 sid=%s semester=%s count=%d", _rid(), sid, semester, len(courses))
     return jsonify({
         "success": True,
         "message": f"成功获取 {len(courses)} 门课程",
-        "count": len(courses),
+        "count": result["count"],
         "semester": semester,
     })
 
@@ -77,16 +66,12 @@ def api_refresh_exams():
     if err:
         return err
     sid = client.student_id or ""
-    semester = dao.get_user_setting(sid, "semester") or _current_semester()
-    with _jwc_request(client):
-        exams, retry_err = _retry_with_relogin(
-            client, lambda: client.get_exams(semester), "获取考试失败")
-    if retry_err:
-        return retry_err
-    dao.save_exams(exams, semester, sid)
-    invalidate_user_cache(sid, "exams")
-
-    _invalidate_stats(sid, semester)
+    try:
+        result = refresh_exams(client)
+    except StudentDataError as exc:
+        return jsonify({"success": False, "message": exc.message}), exc.status_code
+    semester = result["semester"]
+    exams = result["exams"]
 
     app.logger.info("[refresh] rid=%s 考试 sid=%s semester=%s count=%d", _rid(), sid, semester, len(exams))
     if exams:
@@ -107,38 +92,9 @@ def api_refresh_all():
     if err:
         return err
     sid = client.student_id or ""
-    semester = dao.get_user_setting(sid, "semester") or _current_semester()
-    results = {"schedule": None, "exams": None}
-    with _jwc_request(client):
-        courses, sched_err = _retry_with_relogin(
-            client, lambda: client.get_schedule(semester), "获取课表失败")
-        if not sched_err:
-            dao.save_courses(courses, semester, sid)
-            results["schedule"] = {"count": len(courses), "ok": True}
-        else:
-            results["schedule"] = {"count": 0, "ok": False, "error": client.last_error}
-
-        exams, exam_err = _retry_with_relogin(
-            client, lambda: client.get_exams(semester), "获取考试失败")
-        if not exam_err:
-            dao.save_exams(exams, semester, sid)
-            results["exams"] = {"count": len(exams), "ok": True}
-        else:
-            results["exams"] = {"count": 0, "ok": False, "error": client.last_error}
-    # 刷新成功部分即时失效查询缓存(失败部分保持旧缓存)
-    if results["schedule"] and results["schedule"]["ok"]:
-        invalidate_user_cache(sid, "courses")
-    if results["exams"] and results["exams"]["ok"]:
-        invalidate_user_cache(sid, "exams")
-
-    dao.set_user_setting(sid, "semester", semester)
-    _invalidate_stats(sid, semester)
-    try:
-        from wxcloudrun.core.reminder_lifecycle import sync_user_reminder_tasks
-        sync_user_reminder_tasks(sid, semester)
-    except Exception as exc:  # noqa: BLE001
-        app.logger.warning("[refresh-all] 提醒任务同步失败 sid=%s: %s",
-                           sid, type(exc).__name__)
+    semester = resolve_semester(sid)
+    result = refresh_schedule_and_exams(client, semester)
+    results = {"schedule": result["schedule"], "exams": result["exams"]}
     return jsonify({
         "success": True,
         "semester": semester,

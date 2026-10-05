@@ -9,9 +9,11 @@ _db_path = os.path.join(_here, "subscribe_tmp.db")
 if os.path.exists(_db_path):
     os.remove(_db_path)
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + _db_path.replace("\\", "/")
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 sys.path.insert(0, os.path.dirname(_here))
 
-from wxcloudrun import app, db, dao  # noqa: E402
+from wxcloudrun import app, db, dao, _run_migrations  # noqa: E402
+_run_migrations(force=True)
 from wxcloudrun.core import mp, reminder, subscribe_store as ss  # noqa: E402
 from wxcloudrun.model import Exam  # noqa: E402
 

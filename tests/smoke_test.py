@@ -22,6 +22,7 @@ _db_path = os.path.join(_here, "smoke_tmp.db").replace("\\", "/")
 if os.path.exists(_db_path):
     os.remove(_db_path)
 os.environ["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{_db_path}"
+os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 os.environ.pop("MYSQL_USERNAME", None)
 os.environ.pop("MYSQL_PASSWORD", None)
 # 用户池上限调小, 便于测试淘汰逻辑
@@ -31,7 +32,8 @@ os.environ["SESSION_KEY"] = base64.b64encode(b"0123456789abcdef0123456789abcdef"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from wxcloudrun import app, db, dao  # noqa: E402  (导入即触发 db.create_all())
+from wxcloudrun import app, db, dao, _run_migrations  # noqa: E402
+_run_migrations(force=True)
 
 _APP_CTX = app.app_context()
 _APP_CTX.push()
