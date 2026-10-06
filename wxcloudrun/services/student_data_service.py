@@ -65,6 +65,17 @@ def _sync_reminders(student_id: str, semester: str, source: str) -> None:
                            source, student_id, type(exc).__name__)
 
 
+def _invalidate_admin_cache() -> None:
+    """刷新学习数据后让后台用户列表/累计用户数立即重算。"""
+    try:
+        # 延迟导入避免 admin -> sessions -> service 的模块初始化环路。
+        from wxcloudrun.admin import invalidate_admin_cache
+        invalidate_admin_cache("summary", "users")
+    except Exception:
+        # 后台面板缓存失效失败不应影响用户数据已完成的保存。
+        pass
+
+
 def refresh_schedule(client, semester: str = "") -> dict:
     """刷新本科课表并原子替换当前用户快照。"""
     student_id = str(getattr(client, "student_id", "") or "")
@@ -74,6 +85,7 @@ def refresh_schedule(client, semester: str = "") -> dict:
     dao.set_user_setting(student_id, "semester", semester)
     invalidate_user_cache(student_id, "courses")
     _invalidate_stats(student_id, semester)
+    _invalidate_admin_cache()
     _sync_reminders(student_id, semester, "refresh")
     return {"semester": semester, "count": count, "courses": courses}
 
@@ -86,6 +98,7 @@ def refresh_exams(client, semester: str = "") -> dict:
     count = student_data.replace_exams(exams, semester, student_id)
     invalidate_user_cache(student_id, "exams")
     _invalidate_stats(student_id, semester)
+    _invalidate_admin_cache()
     return {"semester": semester, "count": count, "exams": exams}
 
 
@@ -130,6 +143,7 @@ def refresh_schedule_and_exams(client, semester: str = "") -> dict:
         invalidate_user_cache(student_id, "exams")
     dao.set_user_setting(student_id, "semester", semester)
     _invalidate_stats(student_id, semester)
+    _invalidate_admin_cache()
     if result["schedule"]["ok"]:
         _sync_reminders(student_id, semester, "refresh-all")
     return result
@@ -143,6 +157,7 @@ def refresh_grades(client) -> dict:
                     if isinstance(grade, dict)]
     total = student_data.replace_grades_snapshot(valid_grades, student_id)
     invalidate_user_cache(student_id, "grades")
+    _invalidate_admin_cache()
     semesters = {(grade.get("academic_year", ""),
                   grade.get("semester", "")) for grade in valid_grades}
     return {"count": total, "semesters": len(semesters),
@@ -157,4 +172,5 @@ def refresh_cet(client) -> dict:
         raise StudentDataError("未获取到四六级成绩", 404)
     count = student_data.replace_cet_scores(scores, student_id)
     invalidate_user_cache(student_id, "cet")
+    _invalidate_admin_cache()
     return {"count": count, "scores": scores}

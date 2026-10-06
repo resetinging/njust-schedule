@@ -3,6 +3,7 @@
 import pytest
 
 import wxcloudrun as app_module
+from wxcloudrun import admin as admin_module
 from wxcloudrun import app, dao
 from wxcloudrun.jwc_client import JWCClient
 from wxcloudrun.jobs import runner
@@ -41,6 +42,43 @@ def test_student_service_persists_schedule_and_exams_together():
         assert result["exams"] == {"count": 1, "ok": True}
         assert len(dao.get_courses("2026-2027-1", "service-refresh")) == 1
         assert len(dao.get_exams("2026-2027-1", "service-refresh")) == 1
+
+
+def test_admin_users_sees_qr_user_after_schedule_refresh_without_force_reload():
+    """刷新课表后，后台缓存应失效且二维码用户必须出现在用户列表。"""
+    with app.app_context():
+        sid = "qr-admin-visible"
+        semester = "2026-2027-1"
+        admin_module.invalidate_admin_cache()
+
+        # 先建立后台缓存，模拟管理员已经打开过用户列表。
+        client = app.test_client()
+        headers = {"X-Admin-Token": admin_module._issue_admin_token()}
+        before = client.get("/api/admin/users", headers=headers)
+        assert before.status_code == 200
+        assert sid not in {row["student_id"] for row in before.get_json()["users"]}
+
+        qr_client = _client(sid)
+        qr_client.student_name = "扫码用户"
+        # 等价于二维码登录完成后的 _register_session() 姓名持久化。
+        dao.set_user_setting(sid, "name", qr_client.student_name)
+        qr_client.get_schedule = lambda _semester: [{
+            "name": "扫码课程", "teacher": "教师", "classroom": "A101",
+            "day": 1, "start": 1, "end": 2, "weeks": "1-16",
+        }]
+        result = refresh_schedule(qr_client, semester)
+        assert result["count"] == 1
+
+        after = client.get("/api/admin/users", headers=headers)
+        assert after.status_code == 200
+        row = next(item for item in after.get_json()["users"]
+                   if item["student_id"] == sid)
+        assert row["name"] == "扫码用户"
+        assert row["courses"] == 1
+        assert row["semester"] == semester
+
+        summary = client.get("/api/admin/summary", headers=headers).get_json()
+        assert summary["total_users"] >= 1
 
 
 def test_student_service_maps_session_error_to_401():

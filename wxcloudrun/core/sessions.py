@@ -298,6 +298,12 @@ def _register_session(client: JWCClient) -> str:
                 account_type=getattr(client, "account_type", "undergraduate"))
     except Exception:
         pass
+    # 后台用户列表有独立 TTL 缓存；新登录用户应立即可见。
+    try:
+        from wxcloudrun.admin import invalidate_admin_cache
+        invalidate_admin_cache("summary", "users")
+    except Exception:
+        pass
     return token
 
 

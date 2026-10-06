@@ -23,7 +23,8 @@ from flask import request, jsonify, render_template, g
 from sqlalchemy import func
 
 from wxcloudrun import app, db
-from wxcloudrun.model import Course, Exam, Evaluation, Grade, CetScore, Setting
+from wxcloudrun.model import (
+    Course, Exam, Evaluation, Grade, CetScore, Setting, UserSetting)
 from wxcloudrun import dao
 from wxcloudrun.core.rate_limit import client_ip, rate_clear, rate_hit, rate_over
 from wxcloudrun.core.sessions import (
@@ -207,6 +208,43 @@ def admin_logout():
 _admin_cache = {}   # key -> (expires_ts, value)
 
 
+def invalidate_admin_cache(*keys):
+    """清除后台统计缓存。
+
+    用户登录或刷新数据后，后台用户列表和累计用户数必须立即反映新用户。
+    不传 key 时清空全部后台统计缓存，便于维护和测试。
+    """
+    with _admin_lock:
+        if not keys:
+            _admin_cache.clear()
+            return
+        for key in keys:
+            _admin_cache.pop(str(key), None)
+
+
+def _admin_student_ids():
+    """收集所有已注册用户，而不依赖是否已有成绩/课表数据。
+
+    user_settings 是登录、学期、姓名和持久化教务会话的共同落点；业务表
+    作为旧数据兜底，内存会话作为当前实例的最后兜底。所有来源只收集学号，
+    不读取密码、Cookie 或其他敏感字段。
+    """
+    models = (UserSetting, Course, Exam, Evaluation, Grade, CetScore)
+    sids = set()
+    for model in models:
+        rows = (db.session.query(model.student_id)
+                .filter(model.student_id != "")
+                .distinct().all())
+        sids.update(str(row[0]) for row in rows if row[0])
+    with _sessions_lock:
+        sids.update(
+            str(client.student_id)
+            for client, _ts in _sessions.values()
+            if getattr(client, "student_id", "")
+        )
+    return sids
+
+
 def _stats_cache_get(key: str):
     with _admin_lock:
         item = _admin_cache.get(key)
@@ -240,12 +278,8 @@ def admin_summary():
     with _sessions_lock:
         sessions = list(_sessions.items())
     online = len(sessions)
-    # 用户数(DB distinct)
-    user_rows = db.session.query(Grade.student_id).filter(Grade.student_id != "").distinct().all()
-    grade_users = {r[0] for r in user_rows}
-    course_users = {r[0] for r in db.session.query(Course.student_id).filter(Course.student_id != "").distinct().all()}
-    exam_users = {r[0] for r in db.session.query(Exam.student_id).filter(Exam.student_id != "").distinct().all()}
-    all_users = sorted(grade_users | course_users | exam_users)
+    # 用户数: 不能只依赖已产生课表/考试/成绩的用户
+    all_users = sorted(_admin_student_ids())
     counts = {
         "courses": db.session.query(func.count(Course.id)).scalar() or 0,
         "exams": db.session.query(func.count(Exam.id)).scalar() or 0,
@@ -280,11 +314,12 @@ def admin_users():
             return jsonify(cached)
     # 在线会话快照
     with _sessions_lock:
-        sess = {sid: [c, ts] for sid, (c, ts) in _sessions.items()}
-    rows = db.session.query(Grade.student_id).filter(Grade.student_id != "").distinct().all()
-    sids = sorted({r[0] for r in rows} |
-                  {r[0] for r in db.session.query(Course.student_id).filter(Course.student_id != "").distinct().all()} |
-                  {r[0] for r in db.session.query(Exam.student_id).filter(Exam.student_id != "").distinct().all()})
+        sess = {
+            str(client.student_id): [client, ts]
+            for client, ts in _sessions.values()
+            if getattr(client, "student_id", "")
+        }
+    sids = sorted(_admin_student_ids())
     # 性能优化: 聚合查询一次取全量(此前每用户 4-5 次查询, 用户多时 N+1 爆炸)
     g_counts = dict(db.session.query(Grade.student_id, func.count(Grade.id))
                     .filter(Grade.student_id != "").group_by(Grade.student_id).all())
@@ -295,10 +330,26 @@ def admin_users():
     best_gps = dict(db.session.query(Grade.student_id, func.max(Grade.grade_point))
                     .filter(Grade.student_id != "", Grade.grade_point > 0)
                     .group_by(Grade.student_id).all())
-    sem_rows = db.session.query(Setting.k, Setting.v).filter(Setting.k.like("%:semester")).all()
-    sem_map = {k.rsplit(":", 1)[0]: v for k, v in sem_rows}
-    name_rows = db.session.query(Setting.k, Setting.v).filter(Setting.k.like("%:name")).all()
-    name_map = {k.rsplit(":", 1)[0]: v for k, v in name_rows if v}
+    # 新结构使用 user_settings(student_id, k, v)，旧结构的 settings 仍作回退。
+    user_meta_rows = (db.session.query(UserSetting.student_id,
+                                       UserSetting.k, UserSetting.v)
+                      .filter(UserSetting.k.in_(("semester", "name")))
+                      .all())
+    sem_map = {str(sid): value for sid, key, value in user_meta_rows
+               if key == "semester" and value}
+    name_map = {str(sid): value for sid, key, value in user_meta_rows
+                if key == "name" and value}
+    legacy_sem_rows = db.session.query(Setting.k, Setting.v).filter(
+        Setting.k.like("%:semester")).all()
+    legacy_name_rows = db.session.query(Setting.k, Setting.v).filter(
+        Setting.k.like("%:name")).all()
+    for key, value in legacy_sem_rows:
+        sid = key.rsplit(":", 1)[0]
+        sem_map.setdefault(sid, value)
+    for key, value in legacy_name_rows:
+        sid = key.rsplit(":", 1)[0]
+        if value:
+            name_map.setdefault(sid, value)
     users = []
     try:
         from wxcloudrun.core.usage_report import user_usage_map
@@ -338,7 +389,7 @@ def admin_users():
 @app.route("/api/admin/users/<sid>")
 @admin_required
 def admin_user_detail(sid: str):
-    """单个用户详情: 课表(按学期)/考试/成绩(按学期)/评教"""
+    """单个用户详情: 身份元信息 + 课表/考试/成绩/评教。"""
     courses = [c.to_dict() | {"semester": c.semester}
                for c in Course.query.filter(Course.student_id == sid).order_by(Course.semester).all()]
     exams = [e.to_dict() | {"semester": e.semester}
@@ -353,8 +404,41 @@ def admin_user_detail(sid: str):
             items = []
         evals.append({"semester": ev.semester, "batch": ev.batch, "category": ev.category,
                       "is_done": ev.is_done, "end_date": ev.end_date, "items": len(items)})
-    return jsonify({"success": True, "student_id": sid, "courses": courses,
-                    "exams": exams, "grades": grades, "evaluations": evals})
+    meta_rows = UserSetting.query.filter(
+        UserSetting.student_id == sid,
+        UserSetting.k.in_(("name", "semester")),
+    ).all()
+    meta = {row.k: row.v for row in meta_rows}
+    if "name" not in meta:
+        legacy_name = Setting.query.filter(Setting.k == f"{sid}:name").first()
+        if legacy_name and legacy_name.v:
+            meta["name"] = legacy_name.v
+    if "semester" not in meta:
+        legacy_semester = Setting.query.filter(
+            Setting.k == f"{sid}:semester").first()
+        if legacy_semester and legacy_semester.v:
+            meta["semester"] = legacy_semester.v
+    with _sessions_lock:
+        session_info = next(
+            ([client, ts] for client, ts in _sessions.values()
+             if str(getattr(client, "student_id", "")) == str(sid)),
+            None,
+        )
+    client = session_info[0] if session_info else None
+    return jsonify({
+        "success": True,
+        "student_id": sid,
+        "name": (getattr(client, "student_name", "") or
+                 meta.get("name", "") or sid),
+        "semester": meta.get("semester", ""),
+        "online": bool(client),
+        "login_method": getattr(client, "login_method", "") if client else "",
+        "account_type": getattr(client, "account_type", "") if client else "",
+        "courses": courses,
+        "exams": exams,
+        "grades": grades,
+        "evaluations": evals,
+    })
 
 
 def _score_to_num(s: str):
