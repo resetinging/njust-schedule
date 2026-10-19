@@ -92,12 +92,32 @@ func TestUniqueKeyCleanupNormalizesAndDeduplicates(t *testing.T) {
 		"DELETE stale FROM `audit_favorites`",
 		"COALESCE(stale.`student_id`,'')=COALESCE(fresh.`student_id`,'')",
 		"UPDATE `reminder_tasks` SET `student_id`=COALESCE(`student_id`,'')",
-		"DELETE stale FROM `usage_events`",
-		"UPDATE `usage_events` SET `event_key`=COALESCE(`event_key`,'')",
 	} {
 		if !strings.Contains(statements, expected) {
 			t.Fatalf("cleanup statements missing %q:\n%s", expected, statements)
 		}
+	}
+	if strings.Contains(statements, "usage_events") {
+		t.Fatalf("usage_events must use indexed temporary-table cleanup:\n%s", statements)
+	}
+}
+
+func TestUsageEventDedupeUsesIndexedTemporaryTable(t *testing.T) {
+	statements := strings.Join(usageEventDedupeStatements(), "\n")
+	for _, expected := range []string{
+		"DROP TEMPORARY TABLE IF EXISTS `usage_event_key_duplicates`",
+		"SET `event_key`=CONCAT('legacy-',`id`)",
+		"CREATE TEMPORARY TABLE `usage_event_key_duplicates`",
+		"HAVING COUNT(*)>1",
+		"JOIN `usage_event_key_duplicates` fresh",
+		"stale.`id`<fresh.`keep_id`",
+	} {
+		if !strings.Contains(statements, expected) {
+			t.Fatalf("dedupe statements missing %q:\n%s", expected, statements)
+		}
+	}
+	if strings.Contains(statements, "`usage_events` stale JOIN `usage_events` fresh") {
+		t.Fatalf("unsafe unindexed self join returned:\n%s", statements)
 	}
 }
 

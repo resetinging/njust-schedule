@@ -53,11 +53,11 @@ func run(logger *slog.Logger) int {
 
 	migrationErrCh := make(chan error, 1)
 	go func() {
-		if err := application.Migrate(ctx, logger); err != nil {
-			migrationErrCh <- fmt.Errorf("数据库迁移失败: %w", err)
+		if err := application.Initialize(ctx, logger); err != nil {
+			migrationErrCh <- fmt.Errorf("数据库初始化失败: %w", err)
 			return
 		}
-		logger.Info("服务就绪", "migration", "complete")
+		logger.Info("服务就绪", "migrations_auto", cfg.MigrationsAuto)
 	}()
 
 	exitCode := 0

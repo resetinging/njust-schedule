@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"time"
@@ -42,6 +43,23 @@ func (a *App) Listen() (net.Listener, error) {
 
 func (a *App) Serve(listener net.Listener) error {
 	return a.server.Serve(listener)
+}
+
+func (a *App) Initialize(ctx context.Context, logger *slog.Logger) error {
+	if a.cfg.MigrationsAuto {
+		return a.Migrate(ctx, logger)
+	}
+	verifyCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	a.server.SetMigrationStage("verify_schema")
+	if err := migrate.Verify(verifyCtx, a.db); err != nil {
+		return fmt.Errorf("数据库 Schema 校验失败: %w", err)
+	}
+	logger.Info("数据库 Schema 校验完成", "version", migrate.Version)
+	a.server.SetMigrationStage("complete")
+	a.server.MarkReady()
+	a.server.StartJobs()
+	return nil
 }
 
 func (a *App) Migrate(ctx context.Context, logger *slog.Logger) error {

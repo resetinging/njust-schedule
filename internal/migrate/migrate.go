@@ -12,6 +12,8 @@ import (
 
 const Version = "1000_webgo_schema_v1"
 const lockName = "njust_schedule_schema_migration"
+const usageEventDedupeIndex = "ix_usage_events_event_key_dedupe"
+const usageEventDuplicateTable = "usage_event_key_duplicates"
 
 type columnSpec struct {
 	table, name, definition string
@@ -75,7 +77,6 @@ var uniqueKeys = []struct {
 }{
 	{"audit_favorites", []string{"student_id", "semester", "favorite_key"}},
 	{"reminder_tasks", []string{"student_id", "semester", "kind", "course_key", "teacher_key"}},
-	{"usage_events", []string{"event_key"}},
 }
 
 func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error) {
@@ -155,6 +156,19 @@ func RunWithProgress(
 			}
 		}
 	}
+	logStage(logger, progress, "prepare_usage_event_key")
+	needsUsageEventDedupe, err := prepareUsageEventKey(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+	if needsUsageEventDedupe {
+		logStage(logger, progress, "dedupe_usage_events")
+		for _, statement := range usageEventDedupeStatements() {
+			if _, err = conn.ExecContext(ctx, statement); err != nil {
+				return nil, fmt.Errorf("usage_events 历史数据去重失败: %w", err)
+			}
+		}
+	}
 	logStage(logger, progress, "cleanup_unique_keys")
 	for _, statement := range uniqueKeyCleanupStatements() {
 		if _, err = conn.ExecContext(ctx, statement); err != nil {
@@ -177,6 +191,9 @@ func RunWithProgress(
 				return nil, fmt.Errorf("创建索引 %s 失败: %w", index.name, err)
 			}
 		}
+	}
+	if err = dropUsageEventDedupeIndex(ctx, conn); err != nil {
+		return nil, err
 	}
 	logStage(logger, progress, "migrate_data")
 	dataStatements := []string{
@@ -219,6 +236,65 @@ func logStage(logger *slog.Logger, progress func(string), stage string) {
 
 func Verify(ctx context.Context, db *sql.DB) error {
 	return verifyApplied(ctx, db)
+}
+
+func prepareUsageEventKey(ctx context.Context, conn *sql.Conn) (bool, error) {
+	var uniqueCount int
+	if err := conn.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM information_schema.STATISTICS
+		WHERE TABLE_SCHEMA=DATABASE()
+		  AND TABLE_NAME='usage_events'
+		  AND COLUMN_NAME='event_key'
+		  AND SEQ_IN_INDEX=1
+		  AND NON_UNIQUE=0
+	`).Scan(&uniqueCount); err != nil {
+		return false, fmt.Errorf("检查 usage_events.event_key 唯一索引失败: %w", err)
+	}
+	if uniqueCount > 0 {
+		return false, nil
+	}
+	var indexCount int
+	if err := conn.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM information_schema.STATISTICS
+		WHERE TABLE_SCHEMA=DATABASE()
+		  AND TABLE_NAME='usage_events'
+		  AND COLUMN_NAME='event_key'
+		  AND SEQ_IN_INDEX=1
+	`).Scan(&indexCount); err != nil {
+		return false, fmt.Errorf("检查 usage_events.event_key 索引失败: %w", err)
+	}
+	if indexCount == 0 {
+		if _, err := conn.ExecContext(ctx,
+			"CREATE INDEX `"+usageEventDedupeIndex+"` ON `usage_events` (`event_key`)",
+		); err != nil {
+			return false, fmt.Errorf("创建 usage_events 去重索引失败: %w", err)
+		}
+	}
+	return true, nil
+}
+
+func dropUsageEventDedupeIndex(ctx context.Context, conn *sql.Conn) error {
+	var count int
+	if err := conn.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM information_schema.STATISTICS
+		WHERE TABLE_SCHEMA=DATABASE()
+		  AND TABLE_NAME='usage_events'
+		  AND INDEX_NAME=?
+	`, usageEventDedupeIndex).Scan(&count); err != nil {
+		return fmt.Errorf("检查临时去重索引失败: %w", err)
+	}
+	if count == 0 {
+		return nil
+	}
+	if _, err := conn.ExecContext(ctx,
+		"DROP INDEX `"+usageEventDedupeIndex+"` ON `usage_events`",
+	); err != nil {
+		return fmt.Errorf("删除临时去重索引失败: %w", err)
+	}
+	return nil
 }
 
 func verifyApplied(ctx context.Context, db queryer) error {
@@ -348,6 +424,19 @@ func uniqueKeyCleanupStatements() []string {
 		)
 	}
 	return statements
+}
+
+func usageEventDedupeStatements() []string {
+	return []string{
+		"DROP TEMPORARY TABLE IF EXISTS `" + usageEventDuplicateTable + "`",
+		"UPDATE `usage_events` SET `event_key`=CONCAT('legacy-',`id`) WHERE `event_key` IS NULL OR `event_key`=''",
+		"CREATE TEMPORARY TABLE `" + usageEventDuplicateTable + "` ENGINE=InnoDB AS " +
+			"SELECT `event_key`,MAX(`id`) AS `keep_id` FROM `usage_events` GROUP BY `event_key` HAVING COUNT(*)>1",
+		"ALTER TABLE `" + usageEventDuplicateTable + "` ADD PRIMARY KEY (`event_key`)",
+		"DELETE stale FROM `usage_events` stale JOIN `" + usageEventDuplicateTable + "` fresh " +
+			"ON stale.`event_key`=fresh.`event_key` AND stale.`id`<fresh.`keep_id`",
+		"DROP TEMPORARY TABLE `" + usageEventDuplicateTable + "`",
+	}
 }
 
 func quoteColumns(columns string) string {

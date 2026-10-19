@@ -210,7 +210,7 @@ cmd/migrate 是唯一 Schema 写入入口：
 5. 校验必需表、列、关键列类型和迁移版本。
 6. 全部成功后登记 schema_migrations。
 
-服务进程先绑定健康端口，再在后台执行带 MySQL 命名锁的迁移。迁移完成前 `/readyz` 和业务接口返回 503，后台任务不会启动；迁移失败时进程退出，云托管保留旧版本。
+服务进程先绑定健康端口。生产默认 `MIGRATIONS_AUTO=0`，只执行只读 Schema 校验；缺失表、列、索引或迁移版本时进程失败，不自动执行 DDL。维护窗口可显式运行 `cmd/migrate` 或临时设置 `MIGRATIONS_AUTO=1`。迁移完成前 `/readyz` 和业务接口返回 503，后台任务不会启动。
 
 container.config.json 只创建数据库，不重复声明业务表。
 

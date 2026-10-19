@@ -2,7 +2,7 @@
 
 南京理工大学课表助手的微信小程序后端。服务部署在微信云托管，负责智慧理工 SSO、教务数据抓取与解析、用户数据缓存、共享课程目录、空教室、订阅提醒和管理端接口。
 
-当前生产运行时已迁移为 Go/WebGo。旧 Flask 源码暂时保留用于迁移核对和回归测试，但不会复制进生产镜像；验证码识别由 Go 进程内的 ONNX Runtime 完成，生产镜像不包含 Python、Flask 或 SQLAlchemy。
+Go/WebGo 是目标生产运行时。当前生产暂由 Flask 维护版本承接流量，待显式执行并验证 WebGo 迁移后再切换；验证码识别由 Go 进程内的 ONNX Runtime 完成，Go 生产镜像不包含 Python、Flask 或 SQLAlchemy。
 
 ## 核心能力
 
@@ -85,6 +85,7 @@
 | JW_MAX_CONCURRENT | 4 | 同时访问教务的请求上限 |
 | JW_REQUEST_TIMEOUT | 30 | 单次教务 HTTP 请求超时，秒 |
 | TRUSTED_PROXY_HOPS | 1 | 从 X-Forwarded-For 末端计算的可信代理跳数 |
+| MIGRATIONS_AUTO | false | 是否允许服务启动时执行 DDL；生产必须保持关闭 |
 | FREE_CLASSROOM_SID | 924101960123 | 本科服务账号学号 |
 | CAPTCHA_OCR_MODEL_PATH | common.onnx | ddddocr 通用模型路径；文件缺失时自动回退二维码登录 |
 | ONNXRUNTIME_SHARED_LIBRARY_PATH | 空 | ONNX Runtime 动态库路径；空值按可执行文件目录和当前目录探测 |
@@ -147,7 +148,7 @@ Linux 构建需要 CGO 和 C 编译器；ONNX Runtime 在运行时动态加载�
 
     /app/server
 
-服务先绑定健康端口，再在进程内执行带 MySQL 命名锁的迁移。迁移完成前 `/healthz` 可用、`/readyz` 和业务接口返回 503；迁移成功后后台任务才启动。迁移失败时进程退出，云托管保留旧版本，不会让不完整 Schema 接收业务请求。
+服务先绑定健康端口。默认 `MIGRATIONS_AUTO=0`，只执行只读 Schema 校验，不运行 DDL；校验通过后 `/readyz` 才返回 200，后台任务随后启动。维护窗口需要执行迁移时，可临时设置 `MIGRATIONS_AUTO=1` 启动一次，或通过同环境 WebShell 运行 `/app/migrate`。迁移完成后必须恢复 `MIGRATIONS_AUTO=0`。
 
 container.config.json 只负责确保数据库存在，所有表、列、索引和迁移版本统一由 cmd/migrate 管理，避免控制台 SQL 与代码迁移出现双重来源。
 
