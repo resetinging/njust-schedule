@@ -1,4 +1,9 @@
 {
   "component": true,
-  "usingComponents": {}
+  "usingComponents": {
+    "t-button": "/miniprogram_npm/tdesign-miniprogram/button/button",
+    "t-dialog": "/miniprogram_npm/tdesign-miniprogram/dialog/dialog",
+    "t-loading": "/miniprogram_npm/tdesign-miniprogram/loading/loading",
+    "t-progress": "/miniprogram_npm/tdesign-miniprogram/progress/progress"
+  }
 }

@@ -69,6 +69,9 @@ Component({
       if (storage.isLoggedIn() && !(batches && batches.evaluations && batches.evaluations.length)) {
         this.loadFromServer(true)
       }
+    },
+    detached() {
+      this._disableLeaveGuard()
     }
   },
 
@@ -219,11 +222,13 @@ Component({
 
     /** 返回批次列表 */
     backToBatches() {
+      this._disableLeaveGuard()
       this.setData({ batchCourses: [], currentBatch: null, showForm: false })
     },
 
     /** 返回课程列表（保留数据不重新请求） */
     backToCourses() {
+      this._disableLeaveGuard()
       this.setData({ showForm: false, formReadonly: false, indicators: [], selections: {}, liveTotal: 0, maxTotal: 0 })
     },
 
@@ -267,6 +272,9 @@ Component({
             liveTotal: total,
             maxTotal: max,
             autoFillScore: ''
+          }, () => {
+            if (readonly) this._disableLeaveGuard()
+            else this._enableLeaveGuard()
           })
         } else {
           wx.showToast({ title: res.message || '加载失败', icon: 'none' })
@@ -504,6 +512,7 @@ Component({
         const res = await api.submitEval(formData, '1', this.data.formAction)
         wx.hideLoading()
         if (res.success) {
+          this._disableLeaveGuard()
           wx.showToast({ title: '评教提交成功！', icon: 'success' })
           const courses = this.data.batchCourses.map(c => {
             if (c.eval_url === this.data.formCourseUrl) {
@@ -519,6 +528,20 @@ Component({
         wx.hideLoading()
         wx.showToast({ title: '提交失败', icon: 'none' })
       }
+    },
+
+    _enableLeaveGuard() {
+      if (typeof wx === 'undefined' || typeof wx.enableAlertBeforeUnload !== 'function') return
+      try {
+        wx.enableAlertBeforeUnload({ message: '评价内容尚未提交，返回将丢失当前修改' })
+      } catch (e) { /* 低版本基础库忽略 */ }
+    },
+
+    _disableLeaveGuard() {
+      if (typeof wx === 'undefined' || typeof wx.disableAlertBeforeUnload !== 'function') return
+      try {
+        wx.disableAlertBeforeUnload()
+      } catch (e) { /* 低版本基础库忽略 */ }
     },
 
     // ============================================================

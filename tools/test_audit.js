@@ -409,6 +409,60 @@ function makeInstance() {
     })
     assert.strictEqual(instance.data.suggestField, 'courseName')
   })
+  await check('focus 与 tap 连续触发只展开一次', () => {
+    instance.onClear()
+    instance._queryOptionsReady = true
+    const originalOpen = instance._openSuggestions
+    let openCount = 0
+    instance._openSuggestions = function (field) {
+      openCount += 1
+      return originalOpen.call(this, field)
+    }
+    try {
+      instance.onFilterTouchStart({
+        currentTarget: { dataset: { field: 'courseName' } }
+      })
+      instance.onFilterFocus({
+        currentTarget: { dataset: { field: 'courseName' } }
+      })
+      instance.onFilterTap({
+        currentTarget: { dataset: { field: 'courseName' } }
+      })
+    } finally {
+      instance._openSuggestions = originalOpen
+    }
+    assert.strictEqual(openCount, 1)
+    assert.strictEqual(instance.data.suggestField, 'courseName')
+    assert.ok(instance.data.suggestOptions.length > 0)
+    assert.strictEqual(instance.data.suggestLoading, false)
+  })
+  await check('本地候选就绪时打开面板不经过 loading', () => {
+    instance.onClear()
+    instance._queryOptionsReady = true
+    const patches = []
+    const originalSetData = instance.setData
+    instance.setData = function (patch, callback) {
+      patches.push(Object.assign({}, patch))
+      return originalSetData.call(this, patch, callback)
+    }
+    try {
+      instance._openSuggestions('courseName')
+    } finally {
+      instance.setData = originalSetData
+    }
+    assert.ok(patches.length >= 1)
+    assert.ok(patches.every(patch => patch.suggestLoading !== true))
+    assert.ok(instance.data.suggestOptions.length > 0)
+    assert.strictEqual(instance.data.suggestLoading, false)
+  })
+  await check('搜索行使用移动端合成层避免收起闪动', () => {
+    const wxss = fs.readFileSync(
+      path.join(ROOT, 'components', 'audit-course-view', 'index.wxss'),
+      'utf8')
+    assert.ok(wxss.includes('-webkit-backface-visibility: hidden;'))
+    assert.ok(wxss.includes('transform: translateZ(0);'))
+    assert.ok(wxss.includes('will-change: background-color, transform;'))
+  })
   const values = items => (items || []).map(item => item.value)
 
   await check('扩展查询支持多选和三级联动', () => {
@@ -563,9 +617,9 @@ function makeInstance() {
       (wxml.match(/bindtap="onFilterTap"/g) || []).length, 3)
     assert.strictEqual(
       (wxml.match(/bindtouchstart="onFilterTouchStart"/g) || []).length, 3)
-    const inputBlocks = wxml.split('<input').slice(1)
+    const inputBlocks = wxml.split('<t-input').slice(1)
       .map(part => part.slice(0, part.indexOf('/>')))
-      .filter(block => block.includes('class="filter-input"'))
+      .filter(block => block.includes('t-class="filter-input"'))
     assert.strictEqual(inputBlocks.length, 3)
     assert.ok(inputBlocks.every(block => block.includes('bindtap="onFilterTap"')))
     assert.ok(inputBlocks.every(block =>
@@ -719,9 +773,9 @@ function makeInstance() {
   await check('周课表支持切换周次和关闭', () => {
     instance.nextWeeklyWeek()
     assert.strictEqual(instance.data.weeklyWeek, instance.data.weeklyWeekIndex + 1)
-    instance.onWeeklySheetTap()
+    instance.onWeeklyVisibleChange({ detail: { visible: true } })
     assert.strictEqual(instance.data.showWeekly, true)
-    instance.closeWeekly()
+    instance.onWeeklyVisibleChange({ detail: { visible: false } })
     assert.strictEqual(instance.data.showWeekly, false)
   })
   await check('卡片模板展示星期和钟点', () => {
@@ -733,11 +787,15 @@ function makeInstance() {
     assert.ok(wxml.includes('wx:if="{{weeklyTeacher}}"'))
     assert.ok(!wxml.includes('教师未注明'))
   })
-  await check('空状态 emoji 会映射到真实图标', () => {
+  await check('空状态使用 TDesign 图标并兼容旧图标值', () => {
     const emptyWxml = fs.readFileSync(
       path.join(ROOT, 'components', 'empty-state', 'index.wxml'), 'utf8')
-    assert.ok(emptyWxml.includes("name === '🔎'"))
-    assert.ok(emptyWxml.includes('esico.resolve(iconName)'))
+    const emptyJs = fs.readFileSync(
+      path.join(ROOT, 'components', 'empty-state', 'index.js'), 'utf8')
+    assert.ok(emptyWxml.includes('<t-empty icon="{{iconName}}">'))
+    assert.ok(emptyJs.includes("'🔎': 'search'"))
+    assert.ok(emptyJs.includes("'📊': 'chart'"))
+    assert.ok(emptyJs.includes("award: 'star'"))
     const iconWxml = fs.readFileSync(
       path.join(ROOT, 'components', 'icon', 'index.wxml'), 'utf8')
     assert.ok(iconWxml.includes("name === 'list'"))
@@ -745,7 +803,7 @@ function makeInstance() {
   await check('返回和关闭图标使用正式资源', () => {
     const iconWxml = fs.readFileSync(
       path.join(ROOT, 'components', 'icon', 'index.wxml'), 'utf8')
-    assert.ok(iconWxml.includes("name === 'back') return 'back-slate'"))
+    assert.ok(iconWxml.includes("name === 'next' || name === 'prev' || name === 'back'"))
     assert.ok(iconWxml.includes("name === 'close'"))
     assert.ok(!iconWxml.includes("name === 'close') return 'plus-indigo'"))
     const backViews = [
@@ -761,6 +819,22 @@ function makeInstance() {
     ;['back-slate.png', 'close-slate.png', 'close-indigo.png'].forEach(name => {
       assert.ok(fs.existsSync(path.join(ROOT, 'static', 'icons', name)), name)
     })
+  })
+  await check('灰色图标不会请求缺失资源', () => {
+    const iconWxml = fs.readFileSync(
+      path.join(ROOT, 'components', 'icon', 'index.wxml'), 'utf8')
+    assert.ok(iconWxml.includes("name === 'search'"))
+    assert.ok(iconWxml.includes("'search-slate'"))
+    assert.ok(iconWxml.includes("name === 'building'"))
+    assert.ok(iconWxml.includes("'building-slate'"))
+    assert.ok(!iconWxml.includes("'search-grey'"))
+    assert.ok(!iconWxml.includes("'building-grey'"))
+  })
+  await check('广告槽位使用原生 IntersectionObserver', () => {
+    const analytics = fs.readFileSync(
+      path.join(ROOT, 'utils', 'analytics.js'), 'utf8')
+    assert.ok(analytics.includes('ctx.createIntersectionObserver(options)'))
+    assert.ok(analytics.includes('nativeMode: true'))
   })
   await check('过期查询响应不会覆盖最新结果', async () => {
     const original = api.searchAuditCourses

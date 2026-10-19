@@ -15,8 +15,12 @@ VOID = {'image', 'input', 'import', 'include', 'icon', 'progress', 'slider',
 def check(path):
     with io.open(path, encoding='utf-8') as f:
         text = f.read()
-    # 去掉注释
+    # 去掉注释与 WXS 脚本块。WXS 内部是 JavaScript, 其中的比较符号和字符串
+    # 不属于 WXML 标签；保留换行以确保后续错误行号仍与源文件一致。
     clean = re.sub(r'<!--.*?-->', lambda m: ' ' * len(m.group(0)), text, flags=re.S)
+    clean = re.sub(r'<wxs\b[^>]*>.*?</wxs\s*>',
+                   lambda m: ''.join('\n' if c == '\n' else ' ' for c in m.group(0)),
+                   clean, flags=re.S | re.I)
     problems = []
     stack = []
     for m in re.finditer(r'<(/?)([a-zA-Z][\w:-]*)((?:"[^"]*"|\'[^\']*\'|[^>"\'])*?)(/?)>', clean):

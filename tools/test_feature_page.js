@@ -1,0 +1,21 @@
+const assert = require('assert')
+const fs = require('fs')
+const path = require('path')
+
+const ROOT = path.resolve(__dirname, '..')
+const wxml = fs.readFileSync(path.join(ROOT, 'pages', 'main', 'main.wxml'), 'utf8')
+const wxss = fs.readFileSync(path.join(ROOT, 'pages', 'main', 'main.wxss'), 'utf8')
+const mainJs = fs.readFileSync(path.join(ROOT, 'pages', 'main', 'main.js'), 'utf8')
+const scheduleJs = fs.readFileSync(path.join(ROOT, 'components', 'schedule-view', 'index.js'), 'utf8')
+
+assert.strictEqual((wxml.match(/class="feature-tile /g) || []).length, 7)
+assert(!wxml.includes('next-class-summary'))
+assert(!mainJs.includes('nextClass'))
+assert(!scheduleJs.includes('todaychange'))
+assert(wxss.includes('@keyframes featureHeaderIn'))
+assert(wxss.includes('@keyframes tileIn'))
+assert(wxss.includes('.feature-tile:active .feature-icon'))
+assert(wxss.includes('.feature-tile:active .feature-arrow'))
+assert(wxss.includes('prefers-reduced-motion: reduce'))
+
+console.log('Feature page regression test passed [OK]')

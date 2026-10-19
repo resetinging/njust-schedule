@@ -14,10 +14,10 @@
   position: sticky;
   top: 0;
   z-index: 80;
-  background: rgba(243, 246, 244, .82);
-  border-bottom: 1rpx solid rgba(228, 236, 232, .78);
-  -webkit-backdrop-filter: blur(18rpx) saturate(160%);
-  backdrop-filter: blur(18rpx) saturate(160%);
+  background: var(--glass-bg);
+  border-bottom: 1rpx solid var(--line);
+  -webkit-backdrop-filter: blur(22rpx) saturate(150%);
+  backdrop-filter: blur(22rpx) saturate(150%);
 }
 
 .custom-nav.is-embedded {
@@ -40,15 +40,15 @@
   display: inline-flex;
   align-items: center;
   gap: 5rpx;
-  height: 58rpx;
+  height: 54rpx;
   padding: 0 16rpx 0 12rpx;
-  border: 1rpx solid rgba(255, 255, 255, .86);
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, .72);
+  border: 1rpx solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-strong);
   color: var(--text-secondary);
   font-size: 23rpx;
   font-weight: 650;
-  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, .07);
+  box-shadow: var(--shadow-card);
 }
 
 .custom-back:active {
@@ -60,7 +60,7 @@
   left: 50%;
   transform: translateX(-50%);
   color: var(--text-primary);
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 700;
   pointer-events: none;
 }
@@ -76,23 +76,10 @@
   padding: 140rpx 40rpx;
 }
 
-.page-loading .spinner {
-  width: 56rpx;
-  height: 56rpx;
-  border: 6rpx solid var(--line-strong);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
-}
-
 .page-loading .loading-text {
   margin-top: 24rpx;
   font-size: 26rpx;
   color: var(--text-hint);
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .tool-list {
@@ -143,4 +130,57 @@
   background: var(--signal-soft);
   border-radius: var(--radius-ctrl);
   word-break: break-all;
+}
+
+/* Layout pass: a two-column image index keeps the tool page scannable. */
+.page-content {
+  padding-left: 20rpx;
+  padding-right: 20rpx;
+}
+
+.tool-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+  margin: 16rpx 0 0;
+}
+
+.tool-card {
+  margin: 0;
+  border-radius: 18rpx;
+  box-shadow: var(--shadow-soft);
+}
+
+/* Gallery shares the same compact navigation and two-column scan rhythm. */
+.custom-nav {
+  background: rgba(245, 247, 249, .84);
+  border-bottom-color: var(--line);
+  -webkit-backdrop-filter: blur(24rpx) saturate(145%);
+  backdrop-filter: blur(24rpx) saturate(145%);
+}
+
+.custom-back {
+  min-height: 56rpx;
+  height: 56rpx;
+  border-color: var(--line);
+  background: var(--surface-tint-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.tool-card {
+  padding: 16rpx;
+  background: var(--surface-tint-strong);
+  border-color: var(--line);
+  transition: transform var(--motion-base) var(--ease-spring),
+              box-shadow var(--motion-base) var(--ease-standard);
+}
+
+.tool-card:active {
+  transform: scale(.975);
+  box-shadow: 0 5rpx 16rpx rgba(15, 23, 42, .045);
+}
+
+.tool-title {
+  margin-bottom: 12rpx;
+  font-size: 27rpx;
 }

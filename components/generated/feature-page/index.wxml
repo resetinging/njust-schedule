@@ -1,0 +1,45 @@
+<view id="feature-page" class="ui-page ui-surface-page">
+  <view id="academic-section" class="ui-section">
+    <view class="ui-section-title">课业</view>
+    <view id="academic-grid" class="ui-grid ui-grid-2">
+      <view id="exam-entry" class="ui-action-card ui-tone-brand" bind:tap="onAction" data-action="openFeature" data-sub="exams">
+        <view class="ui-action-card-icon"><icon name="doc" size="36" color="#2563EB" /></view>
+        <view class="ui-action-card-title">考试安排</view>
+      </view>
+      <view id="eval-entry" class="ui-action-card ui-tone-violet" bind:tap="onAction" data-action="openFeature" data-sub="eval">
+        <view class="ui-action-card-icon"><icon name="clipboard" size="36" color="#2563EB" /></view>
+        <view class="ui-action-card-title">教学评价</view>
+      </view>
+      <view id="grade-entry" class="ui-action-card ui-tone-success" bind:tap="onAction" data-action="openFeature" data-sub="grades">
+        <view class="ui-action-card-icon"><icon name="chart" size="36" color="#2563EB" /></view>
+        <view class="ui-action-card-title">成绩查询</view>
+      </view>
+      <view id="credit-entry" class="ui-action-card ui-tone-signal" bind:tap="onAction" data-action="openFeature" data-sub="credit">
+        <view class="ui-action-card-icon"><icon name="award" size="36" color="#2563EB" /></view>
+        <view class="ui-action-card-title">学分进度</view>
+      </view>
+    </view>
+  </view>
+  <view id="campus-section" class="ui-section">
+    <view class="ui-section-title">校园工具</view>
+    <view id="campus-grid" class="ui-grid ui-grid-2">
+      <view id="freeclass-entry" class="ui-action-card ui-tone-brand" bind:tap="onAction" data-action="openTool" data-page="freeclass">
+        <view class="ui-action-card-icon"><icon name="building" size="36" color="#2563EB" /></view>
+        <view class="ui-action-card-title">空教室</view>
+      </view>
+      <view id="gallery-entry" class="ui-action-card ui-tone-violet" bind:tap="onAction" data-action="openTool" data-page="gallery">
+        <view class="ui-action-card-icon"><icon name="image" size="36" color="#2563EB" /></view>
+        <view class="ui-action-card-title">校园图鉴</view>
+      </view>
+      <view id="audit-entry" class="ui-action-card ui-tone-signal" bind:tap="onAction" data-action="openTool" data-page="audit">
+        <view class="ui-action-card-icon"><icon name="search" size="36" color="#2563EB" /></view>
+        <view class="ui-action-card-title">蹭课查询</view>
+      </view>
+    </view>
+  </view>
+  <view id="main-tabbar" class="ui-tabbar">
+    <view class="ui-tab is-on"><icon name="grid" size="30" color="#2563EB" /><text>功能</text></view>
+    <view class="ui-tab"><icon name="calendar" size="30" color="#94A3B8" /><text>课表</text></view>
+    <view class="ui-tab"><icon name="user" size="30" color="#94A3B8" /><text>我的</text></view>
+  </view>
+</view>

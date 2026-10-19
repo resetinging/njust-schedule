@@ -90,6 +90,9 @@ NON_PRIVACY = {
     'loadFontFace': '加载已下载的像素字体文件, 不涉及个人信息',
     'openSetting': '用户主动打开小程序权限设置页, 不读取或采集信息',
     'requestSubscribeMessage': '用户主动授权考试提醒订阅消息, 不采集个人信息',
+    'nextTick': '框架回调调度, 不采集任何信息',
+    'enableAlertBeforeUnload': '未提交表单的返回确认提示, 不采集信息',
+    'disableAlertBeforeUnload': '关闭返回确认提示, 不采集信息',
 }
 
 READ_APIS = ['wx.getClipboardData', 'readClipboard', 'Clipboard.getData']

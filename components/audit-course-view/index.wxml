@@ -32,16 +32,15 @@
           <view class="filter-field">
             <view class="filter-row">
               <view class="filter-ico"><icon name="doc" size="26" color="#64748B" /></view>
-              <input class="filter-input" value="{{courseName}}" placeholder="课程名称"
-                     data-field="courseName" confirm-type="search"
-                     bindtouchstart="onFilterTouchStart" bindtap="onFilterTap"
-                     bindfocus="onFilterFocus" bindblur="onFilterBlur"
-                     bindinput="onFilterInput" bindconfirm="onSearch" />
+              <t-input t-class="filter-input" value="{{courseName}}" placeholder="课程名称"
+                       data-field="courseName" confirm-type="search" borderless clearable
+                       bindtouchstart="onFilterTouchStart" bindtap="onFilterTap"
+                       bind:focus="onFilterFocus" bind:blur="onFilterBlur"
+                       bind:change="onFilterInput" bind:enter="onSearch" />
             </view>
             <view class="suggest-panel" wx:if="{{suggestField === 'courseName'}}">
               <view class="suggest-state" wx:if="{{suggestLoading}}">
-                <view class="suggest-spinner"></view>
-                <text>正在加载</text>
+                <t-loading theme="circular" size="32rpx" text="正在加载" />
               </view>
               <scroll-view class="suggest-scroll" wx:elif="{{suggestOptions.length}}"
                            style="height: {{suggestHeight}}rpx;"
@@ -64,16 +63,15 @@
           <view class="filter-field">
             <view class="filter-row">
               <view class="filter-ico"><icon name="user" size="26" color="#64748B" /></view>
-              <input class="filter-input" value="{{teacher}}" placeholder="任课教师"
-                     data-field="teacher" confirm-type="search"
-                     bindtouchstart="onFilterTouchStart" bindtap="onFilterTap"
-                     bindfocus="onFilterFocus" bindblur="onFilterBlur"
-                     bindinput="onFilterInput" bindconfirm="onSearch" />
+              <t-input t-class="filter-input" value="{{teacher}}" placeholder="任课教师"
+                       data-field="teacher" confirm-type="search" borderless clearable
+                       bindtouchstart="onFilterTouchStart" bindtap="onFilterTap"
+                       bind:focus="onFilterFocus" bind:blur="onFilterBlur"
+                       bind:change="onFilterInput" bind:enter="onSearch" />
             </view>
             <view class="suggest-panel" wx:if="{{suggestField === 'teacher'}}">
               <view class="suggest-state" wx:if="{{suggestLoading}}">
-                <view class="suggest-spinner"></view>
-                <text>正在加载</text>
+                <t-loading theme="circular" size="32rpx" text="正在加载" />
               </view>
               <scroll-view class="suggest-scroll" wx:elif="{{suggestOptions.length}}"
                            style="height: {{suggestHeight}}rpx;"
@@ -96,16 +94,15 @@
           <view class="filter-field">
             <view class="filter-row">
               <view class="filter-ico"><icon name="building" size="26" color="#64748B" /></view>
-              <input class="filter-input" value="{{classroom}}" placeholder="上课地点"
-                     data-field="classroom" confirm-type="search"
-                     bindtouchstart="onFilterTouchStart" bindtap="onFilterTap"
-                     bindfocus="onFilterFocus" bindblur="onFilterBlur"
-                     bindinput="onFilterInput" bindconfirm="onSearch" />
+              <t-input t-class="filter-input" value="{{classroom}}" placeholder="上课地点"
+                       data-field="classroom" confirm-type="search" borderless clearable
+                       bindtouchstart="onFilterTouchStart" bindtap="onFilterTap"
+                       bind:focus="onFilterFocus" bind:blur="onFilterBlur"
+                       bind:change="onFilterInput" bind:enter="onSearch" />
             </view>
             <view class="suggest-panel" wx:if="{{suggestField === 'classroom'}}">
               <view class="suggest-state" wx:if="{{suggestLoading}}">
-                <view class="suggest-spinner"></view>
-                <text>正在加载</text>
+                <t-loading theme="circular" size="32rpx" text="正在加载" />
               </view>
               <scroll-view class="suggest-scroll" wx:elif="{{suggestOptions.length}}"
                            style="height: {{suggestHeight}}rpx;"
@@ -128,8 +125,8 @@
         </view>
 
         <view class="time-grid">
-          <picker class="time-picker" mode="selector" range="{{weekdayOptions}}"
-                  value="{{weekdayIndex}}" bindchange="onWeekdayChange">
+          <ui-picker class="time-picker" range="{{weekdayOptions}}"
+                     value="{{weekdayIndex}}" title="选择星期" bind:change="onWeekdayChange">
             <view class="time-cell tap">
               <text class="time-label">星期</text>
               <view class="time-value">
@@ -137,9 +134,9 @@
                 <icon name="next" size="20" color="#64748B" />
               </view>
             </view>
-          </picker>
-          <picker class="time-picker" mode="selector" range="{{periodOptions}}"
-                  value="{{startPeriodIndex}}" bindchange="onStartPeriodChange">
+          </ui-picker>
+          <ui-picker class="time-picker" range="{{periodOptions}}"
+                     value="{{startPeriodIndex}}" title="选择开始节次" bind:change="onStartPeriodChange">
             <view class="time-cell tap">
               <text class="time-label">开始</text>
               <view class="time-value">
@@ -147,9 +144,9 @@
                 <icon name="next" size="20" color="#64748B" />
               </view>
             </view>
-          </picker>
-          <picker class="time-picker" mode="selector" range="{{periodOptions}}"
-                  value="{{endPeriodIndex}}" bindchange="onEndPeriodChange">
+          </ui-picker>
+          <ui-picker class="time-picker" range="{{periodOptions}}"
+                     value="{{endPeriodIndex}}" title="选择结束节次" bind:change="onEndPeriodChange">
             <view class="time-cell tap">
               <text class="time-label">结束</text>
               <view class="time-value">
@@ -157,10 +154,10 @@
                 <icon name="next" size="20" color="#64748B" />
               </view>
             </view>
-          </picker>
+          </ui-picker>
         </view>
 
-        <view class="query-btn tap" bindtap="onSearch">
+      <view class="query-btn tap" bindtap="onSearch">
           <icon name="search" size="26" color="#FFFFFF" />
           <text>查询课程</text>
         </view>
@@ -175,7 +172,6 @@
         </view>
         <view class="active-edit tap" bindtap="openQueryExplorer">编辑</view>
       </view>
-
       <view class="summary" wx:if="{{searched && !loading && !errorMsg}}">
         <text wx:if="{{showFavoritesOnly}}">收藏 {{total}} 门课程</text>
         <text wx:else>找到 {{total}} 条课程安排{{updatedAt ? ' · 更新于 ' + updatedAt : ''}}</text>
@@ -239,7 +235,7 @@
       </view>
 
       <empty-state wx:if="{{!showFavoritesOnly && searched && !loading && !courses.length && !errorMsg}}"
-                   icon="🔎" title="没有找到课程" desc="换个课程、地点、时间或教师条件试试" />
+                   icon="search" title="没有找到课程" desc="换个课程、地点、时间或教师条件试试" />
       <empty-state wx:if="{{showFavoritesOnly && !loading && !courses.length}}"
                    icon="award" title="还没有收藏课程"
                    desc="在查询结果中点击收藏后，课程会显示在这里" />
@@ -247,8 +243,7 @@
       <view id="slot-audit-bottom" class="analytics-slot-marker"></view>
 
       <view class="loading-box" wx:if="{{loading && !courses.length}}">
-        <view class="spinner"></view>
-        <text>正在查询课程安排…</text>
+        <t-loading theme="circular" size="44rpx" text="正在查询课程安排…" />
       </view>
 
       <view class="error" wx:if="{{errorMsg}}">{{errorMsg}}</view>
@@ -259,9 +254,10 @@
     </view>
   </scroll-view>
 
-  <view class="explorer-mask" wx:if="{{showQueryExplorer}}">
-    <view class="explorer-backdrop" bindtap="closeQueryExplorer"></view>
-    <view class="explorer-sheet" catchtap="onExplorerSheetTap">
+  <t-popup t-class="explorer-popup" visible="{{showQueryExplorer}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click
+           bind:visible-change="onQueryExplorerVisibleChange">
+    <view class="explorer-sheet">
       <view class="explorer-head">
         <view>
           <text class="explorer-title">课程查询</text>
@@ -293,27 +289,27 @@
       </view>
 
       <view class="explorer-time-grid" wx:if="{{explorerTab === 'time'}}">
-        <picker mode="selector" range="{{weekdayOptions}}"
-                value="{{weekdayIndex}}" bindchange="onWeekdayChange">
+        <ui-picker range="{{weekdayOptions}}"
+                   value="{{weekdayIndex}}" title="选择星期" bind:change="onWeekdayChange">
           <view class="explorer-time-cell tap">
             <text class="explorer-time-label">星期</text>
             <text>{{weekdayOptions[weekdayIndex]}}</text>
           </view>
-        </picker>
-        <picker mode="selector" range="{{periodOptions}}"
-                value="{{startPeriodIndex}}" bindchange="onStartPeriodChange">
+        </ui-picker>
+        <ui-picker range="{{periodOptions}}"
+                   value="{{startPeriodIndex}}" title="选择开始节次" bind:change="onStartPeriodChange">
           <view class="explorer-time-cell tap">
             <text class="explorer-time-label">开始</text>
             <text>{{periodOptions[startPeriodIndex]}}</text>
           </view>
-        </picker>
-        <picker mode="selector" range="{{periodOptions}}"
-                value="{{endPeriodIndex}}" bindchange="onEndPeriodChange">
+        </ui-picker>
+        <ui-picker range="{{periodOptions}}"
+                   value="{{endPeriodIndex}}" title="选择结束节次" bind:change="onEndPeriodChange">
           <view class="explorer-time-cell tap">
             <text class="explorer-time-label">结束</text>
             <text>{{periodOptions[endPeriodIndex]}}</text>
           </view>
-        </picker>
+        </ui-picker>
       </view>
 
       <view class="explorer-selected" wx:if="{{activeChips.length}}">
@@ -327,8 +323,8 @@
 
       <view class="explorer-search" wx:if="{{explorerTab !== 'time'}}">
         <icon name="search" size="26" color="#64748B" />
-        <input class="explorer-input" value="{{explorerKeyword}}"
-               placeholder="输入关键字筛选" bindinput="onExplorerInput" />
+        <t-input t-class="explorer-input" value="{{explorerKeyword}}" clearable borderless
+                 placeholder="输入关键字筛选" bind:change="onExplorerInput" />
         <view class="explorer-clear tap" wx:if="{{explorerKeyword}}" bindtap="onExplorerClear">
           <icon name="close" size="22" color="#64748B" />
         </view>
@@ -379,11 +375,12 @@
         </view>
       </view>
     </view>
-  </view>
+  </t-popup>
 
-  <view class="weekly-mask" wx:if="{{showWeekly}}">
-    <view class="weekly-backdrop" bindtap="closeWeekly"></view>
-    <view class="weekly-sheet" catchtap="onWeeklySheetTap">
+  <t-popup t-class="weekly-popup" visible="{{showWeekly}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click
+           bind:visible-change="onWeeklyVisibleChange">
+    <view class="weekly-sheet">
       <view class="weekly-head">
         <view class="weekly-title-wrap">
           <text class="weekly-title">{{weeklyName}}</text>
@@ -405,10 +402,10 @@
         <view class="weekly-arrow tap" bindtap="prevWeeklyWeek">
           <icon name="prev" size="26" color="#64748B" />
         </view>
-        <picker mode="selector" range="{{weeklyWeekOptions}}"
-                value="{{weeklyWeekIndex}}" bindchange="onWeeklyWeekChange">
+        <ui-picker range="{{weeklyWeekOptions}}"
+                   value="{{weeklyWeekIndex}}" title="选择周次" bind:change="onWeeklyWeekChange">
           <view class="weekly-week-label">{{weeklyWeekOptions[weeklyWeekIndex]}}</view>
-        </picker>
+        </ui-picker>
         <view class="weekly-arrow tap" bindtap="nextWeeklyWeek">
           <icon name="next" size="26" color="#64748B" />
         </view>
@@ -424,5 +421,5 @@
         />
       </scroll-view>
     </view>
-  </view>
+  </t-popup>
 </view>

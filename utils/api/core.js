@@ -143,7 +143,7 @@ function _request(method, path, data = {}, opts) {
 // 会话失效时自动重登（记住密码的防并发重入）
 let _autoReloginPromise = null
 // 自动重登冷却: 智慧理工侧短时间内频繁登录会触发风控冻结, 失败后先冷静一段时间
-const RELOGIN_COOLDOWN_MS = 60 * 1000
+const RELOGIN_COOLDOWN_MS = 5 * 60 * 1000
 
 /**
  * 用记住的学号和密码自动重新登录（智慧理工 SSO, 服务端自动处理验证码）

@@ -7,5 +7,6 @@
       <image class="tab-ico" src="{{item.key === selected ? item.iconOn : item.icon}}" mode="aspectFit" />
     </view>
     <text class="tab-text">{{item.name}}</text>
+    <view class="tab-active-line" wx:if="{{selected === item.key}}"></view>
   </view>
 </view>

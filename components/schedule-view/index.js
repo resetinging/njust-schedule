@@ -78,6 +78,7 @@ Component({
     weekTypeOptions: WEEK_TYPE_OPTIONS,
     weekOptions: WEEK_OPTIONS,
 
+    entering: false,
     active: false            // 懒渲染: main 激活时才渲染内容
   },
 
@@ -103,6 +104,7 @@ Component({
     },
     detached() {
       if (this._weekAnimTimer) clearTimeout(this._weekAnimTimer)
+      if (this._entranceTimer) clearTimeout(this._entranceTimer)
       analytics.disconnectSlots(this)
     }
   },
@@ -124,7 +126,8 @@ Component({
 
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
-      this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      if (this.data.active) this._playEntrance()
+      else this.setData({ active: true }, () => this._playEntrance())
       analytics.observeSlots(this, [
         { id: 'slot-schedule-bottom', page: 'schedule', ad_type: 'native' }
       ])
@@ -145,6 +148,87 @@ Component({
       this._ensureSemesterData()
       // 从「我的」页设置第一周日期后回到课表, 自动刷新定位本周
       this.loadFirstWeekDate()
+    },
+
+    _playEntrance() {
+      if (this._entranceTimer) clearTimeout(this._entranceTimer)
+      const play = () => {
+        this.setData({ entering: true })
+        this._entranceTimer = setTimeout(() => {
+          this._entranceTimer = null
+          this.setData({ entering: false })
+        }, 620)
+      }
+      if (this.data.entering) this.setData({ entering: false }, play)
+      else play()
+    },
+
+    onWeekSwipeStart(e) {
+      this._weekGesture = null
+      if (this.data.loading || this.data.showDetail || this.data.showCustomForm) return
+      const touches = e.touches || []
+      if (touches.length !== 1) return
+      const t = touches[0]
+      this._weekGesture = {
+        startX: t.clientX,
+        startY: t.clientY,
+        lastX: t.clientX,
+        lastY: t.clientY,
+        startTime: Date.now(),
+        axis: ''
+      }
+    },
+
+    onWeekSwipeMove(e) {
+      const gesture = this._weekGesture
+      if (!gesture) return
+      const touches = e.touches || []
+      if (touches.length !== 1) {
+        gesture.axis = 'multi'
+        return
+      }
+      const t = touches[0]
+      gesture.lastX = t.clientX
+      gesture.lastY = t.clientY
+      if (gesture.axis) return
+      const dx = t.clientX - gesture.startX
+      const dy = t.clientY - gesture.startY
+      const ax = Math.abs(dx)
+      const ay = Math.abs(dy)
+      if (ax < 10 && ay < 10) return
+      if (ay > ax * 1.15) gesture.axis = 'vertical'
+      else if (ax > ay * 1.6) gesture.axis = 'horizontal'
+    },
+
+    onWeekSwipeEnd(e) {
+      const gesture = this._weekGesture
+      this._weekGesture = null
+      if (!gesture || gesture.axis === 'vertical' || gesture.axis === 'multi') return
+      if (this.data.loading || this.data.showDetail || this.data.showCustomForm) return
+
+      const touches = e.changedTouches || []
+      if (touches.length !== 1) return
+      const t = touches[0]
+      const now = Date.now()
+      const dx = t.clientX - gesture.startX
+      const dy = t.clientY - gesture.startY
+      const ax = Math.abs(dx)
+      const ay = Math.abs(dy)
+      const duration = now - gesture.startTime
+      const speed = duration > 0 ? ax / duration : 0
+
+      if (now < (this._weekSwipeLockUntil || 0)) return
+      if (ax < 80 || ay > 28) return
+      if (ax < ay * 2.2) return
+      if (duration < 70 || duration > 700 || speed < 0.18) return
+
+      this._weekSwipeLockUntil = now + 350
+      if (dx < 0) this.nextWeek()
+      else this.prevWeek()
+    },
+
+    onWeekSwipeCancel() {
+      this._weekGesture = null
     },
 
     /** 同步学生姓名/学号到顶部信息卡 */
@@ -384,6 +468,10 @@ Component({
 
     closeCustomForm() {
       this.setData({ showCustomForm: false })
+    },
+
+    onCustomFormVisibleChange(e) {
+      if (!(e.detail && e.detail.visible)) this.closeCustomForm()
     },
 
     onFormName(e) { this.setData({ formName: e.detail.value }) },
@@ -782,6 +870,10 @@ Component({
     /** 关闭课程详情 */
     closeDetail() {
       this.setData({ showDetail: false })
+    },
+
+    onDetailVisibleChange(e) {
+      if (!(e.detail && e.detail.visible)) this.closeDetail()
     }
   }
 })

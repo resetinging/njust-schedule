@@ -132,10 +132,12 @@
 | `wx.getWindowInfo` | 计算 swiper 高度与安全区 | 仅返回窗口尺寸/安全区，不含设备标识 |
 | `wx.getMenuButtonBoundingClientRect` | 自定义导航栏安全区布局 | 仅返回胶囊按钮位置，不含用户信息 |
 | `wx.preloadWebview` | 预加载下一页 WebView | 仅预热渲染外壳，不读取或采集信息 |
-| `wx.createIntersectionObserver` | 观察页面内广告候选位置是否进入可视区 | 只读取当前页面的布局可见性，不采集设备标识或用户敏感信息 |
+| `createIntersectionObserver` | 观察页面内广告候选位置是否进入可视区 | 只读取当前页面的布局可见性，不采集设备标识或用户敏感信息 |
 | `wx.downloadFile` / `getFileSystemManager` / `wx.env.USER_DATA_PATH` | 下载并缓存**校历图片** | 下载对象是学校公开的校历图，不涉及用户相册 |
 | `wx.previewImage` | 全屏预览校历图片 | 预览的是上述本地缓存图片，不读取用户相册 |
 | `wx.showLoading` / `hideLoading` / `showToast` / `showModal` | 界面交互 | 不涉及信息采集 |
+| `wx.nextTick` | 将界面更新推迟到下一次渲染 | 仅调度本地渲染，不采集信息 |
+| `wx.enableAlertBeforeUnload` / `wx.disableAlertBeforeUnload` | 对未提交的评价表单增加返回确认 | 仅提供离开提示，不采集或上传信息 |
 | `wx.setNavigationBarTitle` | 设置页面原生导航栏标题 | 仅界面展示，不涉及信息采集 |
 | `wx.navigateTo` / `navigateBack` / `reLaunch` | 页面跳转 | 不涉及信息采集 |
 

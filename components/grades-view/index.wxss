@@ -193,8 +193,11 @@
 }
 
 .sc-cet-refresh {
-  font-size: 26rpx;
-  color: var(--text-hint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36rpx;
+  height: 36rpx;
 }
 
 .sc-cet-line {
@@ -308,7 +311,14 @@
   padding: 8rpx 0 16rpx;
 }
 
-.sem-ico { font-size: 30rpx; }
+.sem-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36rpx;
+  height: 36rpx;
+  flex: none;
+}
 
 .sem-name {
   flex: 1;
@@ -628,4 +638,100 @@
   0% { transform: scale(.86); }
   65% { transform: scale(1.08); }
   100% { transform: scale(1); }
+}
+
+/* Layout pass: keep the grade page on the same 20rpx edge grid. */
+.grade-sub,
+.gpa-hero,
+.sc-cet,
+.sem-card {
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+}
+
+.gpa-hero,
+.sc-cet,
+.sem-gpa-card,
+.sem-card,
+.metric-card {
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.metric-grid {
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+}
+
+.sem-gpa-section,
+.detail-head {
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+}
+
+.sem-gpa-section .section-title,
+.detail-head .section-title {
+  font-size: 29rpx;
+}
+
+/* 高保真收口: GPA 负责建立视觉焦点, 其余信息退到轻量列表。 */
+.gpa-hero {
+  margin-top: 14rpx;
+  padding: 26rpx 24rpx 20rpx;
+  background: rgba(239, 246, 255, .72);
+}
+
+.hero-gpa {
+  font-size: 92rpx;
+}
+
+.metric-card {
+  min-height: 82rpx;
+  padding-top: 12rpx;
+  padding-bottom: 12rpx;
+  background: rgba(255, 255, 255, .72);
+}
+
+.sem-gpa-card {
+  min-width: 184rpx;
+  padding: 18rpx 22rpx;
+  background: rgba(255, 255, 255, .72);
+}
+
+.sem-card {
+  background: rgba(255, 255, 255, .74);
+}
+
+/* Grade page follows the same hierarchy: one lead number, quiet detail rows. */
+.view-scroll {
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gpa-hero,
+.metric-card,
+.sem-gpa-card,
+.sem-card,
+.grade-sub {
+  border-color: var(--line);
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.gpa-hero {
+  background: rgba(239, 246, 255, .68);
+}
+
+.metric-card,
+.sem-gpa-card,
+.sem-card {
+  background: var(--surface-tint-strong);
+}
+
+.grade-row {
+  transition: background-color var(--motion-fast) var(--ease-standard),
+              transform var(--motion-base) var(--ease-spring);
+}
+
+.grade-row:active {
+  background: var(--bg-hover);
+  transform: scale(.99);
 }

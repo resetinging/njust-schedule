@@ -1,0 +1,10 @@
+:host,
+.ui-picker-trigger {
+  display: block;
+  width: 100%;
+}
+
+.ui-picker-trigger.is-disabled {
+  opacity: .48;
+  pointer-events: none;
+}

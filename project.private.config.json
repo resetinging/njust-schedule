@@ -1,7 +1,18 @@
 {
   "libVersion": "3.16.1",
   "projectname": "miniprogram",
-  "condition": {},
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "UI Preview",
+          "pathName": "pages/ui-preview/ui-preview",
+          "query": "",
+          "scene": null
+        }
+      ]
+    }
+  },
   "setting": {
     "urlCheck": false,
     "coverView": true,

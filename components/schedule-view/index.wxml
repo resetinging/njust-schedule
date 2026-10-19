@@ -1,14 +1,18 @@
 <!-- 课表视图组件 -->
-<view class="container view-root" wx:if="{{active}}">
+<view class="container view-root {{entering ? 'is-entering' : ''}}" wx:if="{{active}}">
 
   <!-- 滚动内容区(scroll-view 内滚; 刷新走右上角手动按钮) -->
-  <scroll-view class="view-scroll" scroll-y>
+  <scroll-view class="view-scroll" scroll-y
+               bindtouchstart="onWeekSwipeStart"
+               bindtouchmove="onWeekSwipeMove"
+               bindtouchend="onWeekSwipeEnd"
+               bindtouchcancel="onWeekSwipeCancel">
 
     <!-- 顶栏第一行: 学期(可点切换) + 今天日期 -->
     <view class="topbar">
-      <picker mode="selector" range="{{semesters}}" bindchange="onSemesterChange">
+      <ui-picker range="{{semesters}}" title="选择学期" bind:change="onSemesterChange">
         <view class="tb-sem">{{semester || '选择学期'}}<text class="tb-caret">▾</text></view>
-      </picker>
+      </ui-picker>
       <view class="tb-fav tap" aria-label="查询蹭课收藏" bindtap="onOpenAuditFavorites">
         <icon name="award" size="24" color="#B45309" />
         <text>收藏</text>
@@ -22,12 +26,12 @@
         <icon class="ctrl-icon prev-icon" name="prev" size="26" color="#64748B" />
       </view>
       <!-- 点周次可快速跳周 -->
-      <picker mode="selector" range="{{weekPickerRange}}" bindchange="onJumpWeek">
+      <ui-picker range="{{weekPickerRange}}" value="{{currentWeek - 1}}" title="跳转周次" bind:change="onJumpWeek">
         <view class="week-label">
           <text class="week-main">{{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周 · 本周' : '第 ' + (currentWeek || 1) + ' 周'}}</text>
           <text class="week-range" wx:if="{{weekRange}}">{{weekRange}}</text>
         </view>
-      </picker>
+      </ui-picker>
       <view class="week-btn tap" bindtap="nextWeek">
         <icon class="ctrl-icon next-icon" name="next" size="26" color="#64748B" />
       </view>
@@ -55,7 +59,7 @@
         <text class="today-title">今天 · {{today.weekday}}</text>
         <text class="today-count">{{today.count > 0 ? (today.count + ' 门课') : '没有课'}}</text>
       </view>
-      <view class="today-empty" wx:if="{{today.count === 0}}">今天没有课，休息一下 🎉</view>
+      <view class="today-empty" wx:if="{{today.count === 0}}">今天没有课，休息一下</view>
       <view class="today-row {{item.isNext ? 'on' : ''}}" wx:for="{{today.courses}}" wx:key="index">
         <view class="today-dot" style="background: {{item.bar}}"></view>
         <view class="today-main">
@@ -113,24 +117,24 @@
         </view>
       </block>
       <empty-state wx:else
-                   icon="🔍"
+                   icon="search"
                    title="本周暂无课程"
                    desc="第 {{currentWeek || 1}} 周暂时没有课程安排" />
     </view>
 
     <!-- 网格视图空结果 -->
     <empty-state wx:if="{{viewMode === 'grid' && filteredCourses.length === 0 && courses.length > 0 && !loading}}"
-                 icon="🔍"
+                 icon="search"
                  title="本周暂无课程"
                  desc="第 {{currentWeek || 1}} 周暂时没有课程安排" />
 
     <!-- 加载中(仅无数据时显示) -->
     <empty-state wx:if="{{loading && courses.length === 0}}"
-                 icon="⏳" title="加载中…" />
+                 icon="hourglass" title="加载中…" />
 
     <!-- 空状态 -->
     <empty-state wx:if="{{!loading && courses.length === 0}}"
-                 icon="📅"
+                 icon="calendar"
                  title="暂无课表数据"
                  desc="{{semester || '当前学期'}} 暂时没有课程，可从教务系统获取"
                  action-text="获取课表"
@@ -141,9 +145,11 @@
     </view>
   </scroll-view>
 
-  <!-- 课程详情弹窗(fixed, 放 scroll-view 外避免随滚动) -->
-  <view class="modal-mask" wx:if="{{showDetail}}" bindtap="closeDetail">
-    <view class="modal-card" catchtap="">
+  <!-- 课程详情底部面板 -->
+  <t-popup t-class="schedule-popup" visible="{{showDetail}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click
+           bind:visible-change="onDetailVisibleChange">
+    <view class="modal-card">
       <view class="modal-title">
         {{detailCourse.name}}
         <text class="modal-badge" wx:if="{{detailCourse.week_type === 1}}">单周</text>
@@ -175,78 +181,82 @@
       </view>
       <!-- 自定义课程: 编辑 / 删除 -->
       <view class="modal-actions" wx:if="{{detailCourse._custom}}">
-        <button class="u-btn u-btn-outline" bindtap="onEditCustom">编辑</button>
-        <button class="u-btn u-btn-danger" data-cid="{{detailCourse._cid}}" bindtap="onDeleteCustom">删除</button>
+        <t-button t-class="u-btn u-btn-outline" theme="primary" variant="outline" bind:tap="onEditCustom">编辑</t-button>
+        <t-button t-class="u-btn u-btn-danger" theme="danger" variant="light"
+                  data-cid="{{detailCourse._cid}}" bind:tap="onDeleteCustom">删除</t-button>
       </view>
-      <button class="u-btn u-btn-primary" style="margin-top:24rpx;width:100%;" bindtap="closeDetail">关闭</button>
+      <t-button t-class="u-btn u-btn-primary" style="margin-top:24rpx;width:100%;"
+                theme="primary" block bind:tap="closeDetail">关闭</t-button>
     </view>
-  </view>
+  </t-popup>
 
   <!-- ============================================================ -->
-  <!-- 自定义课程 添加/编辑弹窗(遮罩点击不关闭, 防误触丢失输入) -->
+  <!-- 自定义课程添加/编辑面板(遮罩点击不关闭, 防误触丢失输入) -->
   <!-- ============================================================ -->
-  <view class="modal-mask" wx:if="{{showCustomForm}}">
-    <view class="modal-card cu-card" catchtap="">
+  <t-popup t-class="schedule-popup" visible="{{showCustomForm}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click="{{false}}"
+           bind:visible-change="onCustomFormVisibleChange">
+    <view class="modal-card cu-card">
       <view class="modal-title">{{formTitle}}</view>
 
       <view class="cu-field">
         <text class="cu-label">课程名 *</text>
-        <input class="cu-input" value="{{formName}}" bindinput="onFormName" maxlength="30"
-               placeholder="如：健身 / 日语自习" placeholder-class="cu-ph" />
+        <t-input t-class="cu-input" value="{{formName}}" bind:change="onFormName" maxlength="30"
+                 placeholder="如：健身 / 日语自习" placeholder-class="cu-ph" />
       </view>
       <view class="cu-field">
         <text class="cu-label">教师</text>
-        <input class="cu-input" value="{{formTeacher}}" bindinput="onFormTeacher" maxlength="20"
-               placeholder="选填" placeholder-class="cu-ph" />
+        <t-input t-class="cu-input" value="{{formTeacher}}" bind:change="onFormTeacher" maxlength="20"
+                 placeholder="选填" placeholder-class="cu-ph" />
       </view>
       <view class="cu-field">
         <text class="cu-label">教室</text>
-        <input class="cu-input" value="{{formClassroom}}" bindinput="onFormClassroom" maxlength="30"
-               placeholder="选填" placeholder-class="cu-ph" />
+        <t-input t-class="cu-input" value="{{formClassroom}}" bind:change="onFormClassroom" maxlength="30"
+                 placeholder="选填" placeholder-class="cu-ph" />
       </view>
 
       <view class="cu-field">
         <text class="cu-label">星期</text>
-        <picker mode="selector" range="{{dayOptions}}" value="{{formDayIdx}}" bindchange="onFormDay">
+        <ui-picker range="{{dayOptions}}" value="{{formDayIdx}}" title="选择星期" bind:change="onFormDay">
           <view class="cu-pick">{{dayOptions[formDayIdx]}} <view class="cu-arrow"><icon name="next" size="24" color="#64748B" /></view></view>
-        </picker>
+        </ui-picker>
       </view>
       <view class="cu-field">
         <text class="cu-label">上课时间</text>
         <view class="cu-range">
-          <picker mode="selector" range="{{periodOptions}}" value="{{formStartIdx}}" bindchange="onFormStart">
+          <ui-picker range="{{periodOptions}}" value="{{formStartIdx}}" title="选择开始节次" bind:change="onFormStart">
             <view class="cu-pick">{{periodOptions[formStartIdx]}}</view>
-          </picker>
+          </ui-picker>
           <text class="cu-dash">—</text>
-          <picker mode="selector" range="{{periodOptions}}" value="{{formEndIdx}}" bindchange="onFormEnd">
+          <ui-picker range="{{periodOptions}}" value="{{formEndIdx}}" title="选择结束节次" bind:change="onFormEnd">
             <view class="cu-pick">{{periodOptions[formEndIdx]}}</view>
-          </picker>
+          </ui-picker>
         </view>
       </view>
       <view class="cu-field">
         <text class="cu-label">周次类型</text>
-        <picker mode="selector" range="{{weekTypeOptions}}" value="{{formTypeIdx}}" bindchange="onFormType">
+        <ui-picker range="{{weekTypeOptions}}" value="{{formTypeIdx}}" title="选择周次类型" bind:change="onFormType">
           <view class="cu-pick">{{weekTypeOptions[formTypeIdx]}} <view class="cu-arrow"><icon name="next" size="24" color="#64748B" /></view></view>
-        </picker>
+        </ui-picker>
       </view>
       <view class="cu-field">
         <text class="cu-label">周次范围</text>
         <view class="cu-range">
-          <picker mode="selector" range="{{weekOptions}}" value="{{formWeekStartIdx}}" bindchange="onFormWeekStart">
+          <ui-picker range="{{weekOptions}}" value="{{formWeekStartIdx}}" title="选择开始周" bind:change="onFormWeekStart">
             <view class="cu-pick">{{weekOptions[formWeekStartIdx]}}</view>
-          </picker>
+          </ui-picker>
           <text class="cu-dash">至</text>
-          <picker mode="selector" range="{{weekOptions}}" value="{{formWeekEndIdx}}" bindchange="onFormWeekEnd">
+          <ui-picker range="{{weekOptions}}" value="{{formWeekEndIdx}}" title="选择结束周" bind:change="onFormWeekEnd">
             <view class="cu-pick">{{weekOptions[formWeekEndIdx]}}</view>
-          </picker>
+          </ui-picker>
         </view>
       </view>
 
       <view class="modal-actions">
-        <button class="u-btn u-btn-outline" bindtap="closeCustomForm">取消</button>
-        <button class="u-btn u-btn-primary" bindtap="onSaveCustom">保存</button>
+        <t-button t-class="u-btn u-btn-outline" theme="primary" variant="outline" block bind:tap="closeCustomForm">取消</t-button>
+        <t-button t-class="u-btn u-btn-primary" theme="primary" block bind:tap="onSaveCustom">保存</t-button>
       </view>
     </view>
-  </view>
+  </t-popup>
 
 </view>

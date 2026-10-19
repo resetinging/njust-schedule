@@ -105,6 +105,7 @@ Component({
     connectionStatus: '',   // '' | ok | fail
     connectionText: '',
 
+    entering: false,
     active: false        // 懒渲染: main 激活时才渲染内容
   },
 
@@ -118,6 +119,7 @@ Component({
       this._stopQrPoll()      // 组件销毁时停止扫码轮询
       if (this._fontTimer) clearTimeout(this._fontTimer)
       if (this._fontDoneTimer) clearTimeout(this._fontDoneTimer)
+      if (this._entranceTimer) clearTimeout(this._entranceTimer)
       analytics.disconnectSlots(this)
     }
   },
@@ -140,8 +142,7 @@ Component({
     },
 
     /** 由 main 页面调用: 每次被激活时触发 */
-    activate() {
-      this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+    activate(done) {
       this.refreshState()
       analytics.observeSlots(this, [
         { id: 'slot-profile-bottom', page: 'profile', ad_type: 'banner' }
@@ -164,6 +165,25 @@ Component({
       this._loadAnnouncement()
       // 我的反馈未读回复(小红点)
       if (this.data.isLoggedIn) this._loadMyFeedback(false)
+      const reveal = () => this._playEntrance(done)
+      // 等登录态、本地指标和字体状态都写入后再显示内容，避免闪现登录态。
+      if (this.data.active) reveal()
+      else this.setData({ active: true }, reveal)
+    },
+
+    _playEntrance(done) {
+      if (this._entranceTimer) clearTimeout(this._entranceTimer)
+      const play = () => {
+        this.setData({ entering: true }, () => {
+          if (typeof done === 'function') done()
+        })
+        this._entranceTimer = setTimeout(() => {
+          this._entranceTimer = null
+          this.setData({ entering: false })
+        }, 680)
+      }
+      if (this.data.entering) this.setData({ entering: false }, play)
+      else play()
     },
 
     /** 拉取公告并展示(有无新公告都常驻显示; 30s 节流) */
@@ -509,6 +529,7 @@ Component({
 
     /** 登录：智慧理工 SSO 一步直连教务（免教务密码/验证码） */
     async onLogin() {
+      if (this.data.loggingIn) return
       const { studentId, password } = this.data
       if (!studentId || !password) {
         wx.showToast({ title: '请填写学号和智慧理工密码', icon: 'none' })
@@ -654,6 +675,10 @@ Component({
       this.setData({ showSubscriptions: false })
     },
 
+    onSubscriptionsVisibleChange(e) {
+      if (!(e.detail && e.detail.visible)) this.onSubscriptionsClose()
+    },
+
     /** 点击提醒条目: 请求订阅授权 → 上报额度 */
     async onSubscribeTap(e) {
       const kind = e.currentTarget.dataset.kind
@@ -697,12 +722,27 @@ Component({
 
     /** 打开空教室查询页 */
     onGoFreeClass() {
+      if (this._openEmbeddedTool('freeclass')) return
       wx.navigateTo({ url: '/pages/freeclass/freeclass' })
     },
 
     /** 打开校历照片墙 */
     onGoGallery() {
+      if (this._openEmbeddedTool('gallery')) return
       wx.navigateTo({ url: '/pages/gallery/gallery' })
+    },
+
+    /** 优先复用主页面内嵌工具页，保证从“功能”和“我的”进入时交互一致。 */
+    _openEmbeddedTool(page) {
+      const pages = getCurrentPages()
+      for (let i = pages.length - 1; i >= 0; i--) {
+        const current = pages[i]
+        if (current && typeof current._openToolPage === 'function') {
+          current._openToolPage(page)
+          return true
+        }
+      }
+      return false
     },
 
     /** 打开常用链接弹窗 */
@@ -838,6 +878,10 @@ Component({
       this.setData({ showLinks: false })
     },
 
+    onLinksVisibleChange(e) {
+      if (!(e.detail && e.detail.visible)) this.onLinksClose()
+    },
+
     /** 点击链接: 复制到剪贴板(小程序无法直接打开外部网页)
      *  复制成功由系统自带"内容已复制"提示, 不再叠加 toast;
      *  "去浏览器粘贴打开"的引导常驻在弹窗顶部提示行 */
@@ -878,8 +922,9 @@ Component({
       this.setData({ showFeedback: false })
     },
 
-    /** 弹窗内点击透传拦截(防止冒泡到遮罩关闭) */
-    noop() {},
+    onFeedbackVisibleChange(e) {
+      if (!(e.detail && e.detail.visible)) this.onFbClose()
+    },
 
     onFbType(e) {
       this.setData({ fbType: e.currentTarget.dataset.type })
@@ -943,6 +988,10 @@ Component({
       this.setData({ showMyFeedback: false })
     },
 
+    onMyFeedbackVisibleChange(e) {
+      if (!(e.detail && e.detail.visible)) this.onMyFbClose()
+    },
+
     // ============================================================
     // 赞赏支持(弹窗显示赞赏码; 长按图片可保存或识别)
     // ============================================================
@@ -953,6 +1002,10 @@ Component({
 
     onCloseAppreciate() {
       this.setData({ showAppreciate: false })
+    },
+
+    onAppreciateVisibleChange(e) {
+      if (!(e.detail && e.detail.visible)) this.onCloseAppreciate()
     },
 
     /** 拉取我的反馈; markRead=true 时把回复标记为已读(清小红点) */

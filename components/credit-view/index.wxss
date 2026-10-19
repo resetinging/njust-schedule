@@ -1,6 +1,5 @@
-/* 学分进度视图 —— 与成绩页保持同一视觉语言(浅蓝卡 + 细进度条) */
+/* 学分进度: 与成绩页保持统一的白卡、细描边和低饱和进度条 */
 
-/* 宿主节点与滚动容器高度链(与成绩/考试视图一致, 缺少会导致无法滚动) */
 :host {
   display: block;
   height: 100%;
@@ -8,7 +7,7 @@
 
 .container {
   padding-bottom: 40rpx;
-  background: var(--bg-page, #F6F7FB);
+  background: var(--bg-page);
 }
 
 .view-root {
@@ -20,135 +19,370 @@
   height: 100%;
 }
 
-.cr-hero {
-  margin: 20rpx 24rpx 8rpx;
-  padding: 30rpx 28rpx 24rpx;
-  border-radius: 22rpx;
-  background: linear-gradient(135deg, #EEF4FF 0%, #F7FAFF 100%);
-  border: 1rpx solid #DCE7FF;
+.credit-hero {
+  margin: 20rpx 24rpx 24rpx;
+  padding: 30rpx 28rpx 22rpx;
+  border: 1rpx solid var(--hero-border);
+  border-radius: var(--radius-card);
+  background: var(--hero-bg);
+  box-shadow: var(--shadow-card);
+  animation: creditCardIn 420ms var(--ease-spring) backwards;
 }
 
-.cr-hero-top {
+.credit-hero-top {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
 }
 
-.cr-hero-num { display: flex; flex-direction: column; }
+.credit-hero-main {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  min-width: 0;
+}
 
-.cr-hero-value {
-  font-size: 64rpx;
-  line-height: 1.1;
+.credit-hero-value {
+  color: var(--hero-title);
+  font-family: var(--font-display);
+  font-size: 88rpx;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.credit-hero-total {
+  margin-left: 8rpx;
+  color: var(--text-muted);
+  font-size: 32rpx;
   font-weight: 600;
-  color: var(--brand, #2563EB);
 }
 
-.cr-hero-label {
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  color: #5B6478;
+.credit-hero-label {
+  width: 100%;
+  margin-top: 4rpx;
+  color: var(--text-muted);
+  font-size: 23rpx;
 }
 
-.cr-hero-refresh {
-  width: 64rpx;
-  height: 64rpx;
+.credit-refresh {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  flex: none;
   border-radius: 50%;
-  background: rgba(37, 99, 235, 0.08);
-}
-
-.cr-hero-sub {
-  display: block;
-  margin-top: 14rpx;
-  font-size: 22rpx;
-  color: #7A8399;
+  background: var(--bg-card);
 }
 
 .cr-bar {
-  margin-top: 16rpx;
   height: 12rpx;
-  border-radius: 8rpx;
-  background: rgba(37, 99, 235, 0.12);
+  margin-top: 22rpx;
   overflow: hidden;
+  border-radius: 999rpx;
+  background: var(--bg-sunken);
 }
 
 .cr-bar-in {
   height: 100%;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #5B8DEF 0%, #2563EB 100%);
-  transition: width 0.3s ease;
+  border-radius: 999rpx;
+  background: var(--primary);
+  transition: width 300ms var(--ease-standard);
 }
 
-.cr-row { padding: 18rpx 0; }
-.cr-row + .cr-row { border-top: 1rpx solid #F0F2F7; }
+.credit-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
 
-.cr-row-top {
+.credit-metric {
+  min-width: 0;
+  padding: 14rpx 8rpx;
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  background: var(--bg-card);
+  text-align: center;
+}
+
+.credit-metric-value {
+  display: block;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 30rpx;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.credit-metric-label {
+  display: block;
+  margin-top: 2rpx;
+  color: var(--text-hint);
+  font-size: 20rpx;
+}
+
+.credit-metric.is-warn .credit-metric-value {
+  color: var(--danger);
+}
+
+.credit-card {
+  margin: 0 24rpx 20rpx;
+  padding: 22rpx 24rpx 10rpx;
+  border: 1rpx solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  animation: creditCardIn 420ms var(--ease-spring) backwards;
+}
+
+.credit-card:nth-child(3) {
+  animation-delay: 40ms;
+}
+
+.credit-section-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10rpx;
+}
+
+.credit-section-title {
+  color: var(--text-primary);
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.credit-section-count {
+  color: var(--text-hint);
+  font-size: 22rpx;
+}
+
+.cr-row {
+  padding: 18rpx 0;
+  border-top: 1rpx solid var(--line-soft);
+}
+
+.credit-section-head + .cr-row {
+  border-top: 0;
+}
+
+.cr-row-top,
+.cr-row-foot {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
 }
 
-.cr-name { font-size: 28rpx; color: #2B3245; font-weight: 500; }
-.cr-val { font-size: 22rpx; color: #7A8399; }
+.cr-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 27rpx;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cr-value-wrap {
+  display: flex;
+  align-items: baseline;
+  flex: none;
+  margin-left: 16rpx;
+}
+
+.cr-val {
+  color: var(--primary);
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.cr-unit {
+  margin-left: 4rpx;
+  color: var(--text-hint);
+  font-size: 20rpx;
+}
+
+.cr-row-foot {
+  margin-top: 8rpx;
+  color: var(--text-hint);
+  font-size: 20rpx;
+}
 
 .cr-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: 48rpx;
 }
 
-.cr-title { font-size: 28rpx; color: #2B3245; font-weight: 500; }
-.cr-toggle { font-size: 24rpx; color: var(--brand, #2563EB); }
+.cr-head-main {
+  flex: 1;
+  min-width: 0;
+}
 
-.cr-sem { margin-top: 18rpx; }
+.cr-title {
+  display: block;
+  color: var(--text-primary);
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.cr-count {
+  display: block;
+  margin-top: 3rpx;
+  color: var(--text-hint);
+  font-size: 21rpx;
+}
+
+.cr-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  flex: none;
+}
+
+.cr-sem {
+  margin-top: 16rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid var(--line-soft);
+}
 
 .cr-sem-name {
   display: block;
-  font-size: 24rpx;
-  color: #5B6478;
-  margin-bottom: 8rpx;
+  margin-bottom: 6rpx;
+  color: var(--text-muted);
+  font-size: 22rpx;
 }
 
 .cr-course {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  padding: 8rpx 0;
+  gap: 16rpx;
+  padding: 10rpx 0;
 }
 
-.cr-c-name { font-size: 26rpx; color: #2B3245; }
-.cr-c-meta { font-size: 22rpx; color: #99A1B3; }
-
-.cr-note {
-  margin: 10rpx 28rpx 0;
-  font-size: 22rpx;
-  color: #99A1B3;
-  line-height: 1.5;
+.cr-c-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 25rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 学分进度统一卡片: 浅底 + 细描边 + 低饱和进度条 */
-.cr-hero {
-  background: var(--hero-bg) !important;
-  border: 1rpx solid var(--hero-border) !important;
-  box-shadow: var(--shadow-card) !important;
-  animation: creditCardIn 420ms var(--ease-spring) backwards;
+.cr-c-meta {
+  flex: none;
+  color: var(--text-hint);
+  font-size: 21rpx;
 }
 
-.cr-bar {
-  background: #E8EFEC !important;
+.credit-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin: 0 28rpx 4rpx;
 }
 
-.cr-bar-in {
-  background: #7BA5E8 !important;
+.credit-chip {
+  padding: 7rpx 14rpx;
+  border: 1rpx solid var(--line);
+  border-radius: 999rpx;
+  background: var(--bg-card);
+  color: var(--text-hint);
+  font-size: 20rpx;
 }
 
-.card {
-  animation: creditCardIn 420ms var(--ease-spring) backwards;
+.credit-updated {
+  display: block;
+  margin: 12rpx 28rpx 0;
+  color: var(--text-hint);
+  font-size: 20rpx;
+  text-align: right;
 }
 
 @keyframes creditCardIn {
-  from { opacity: 0; transform: translateY(18rpx) scale(.982); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(18rpx) scale(.982);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Layout pass: progress numbers lead, detail cards stay secondary. */
+.credit-hero,
+.credit-card {
+  box-shadow: var(--shadow-soft);
+}
+
+.credit-hero {
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+}
+
+.credit-card {
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+  border-radius: 18rpx;
+}
+
+.credit-foot,
+.credit-updated {
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+}
+
+/* 高保真收口: 进度数字突出, 分类明细保持轻量。 */
+.credit-hero {
+  margin-top: 14rpx;
+  padding: 26rpx 24rpx 20rpx;
+  background: rgba(239, 246, 255, .72);
+}
+
+.credit-card {
+  padding-left: 20rpx;
+  padding-right: 20rpx;
+  background: rgba(255, 255, 255, .74);
+}
+
+.credit-section-title {
+  font-size: 29rpx;
+}
+
+.cr-row {
+  padding-top: 15rpx;
+  padding-bottom: 15rpx;
+}
+
+/* Credit progress uses the same restrained metric/detail contrast as grades. */
+.view-scroll {
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.credit-hero,
+.credit-card {
+  border-color: var(--line);
+  box-shadow: var(--shadow-soft);
+}
+
+.credit-hero {
+  background: rgba(239, 246, 255, .68);
+}
+
+.credit-card {
+  background: var(--surface-tint-strong);
+}
+
+.credit-metric {
+  background: rgba(245, 247, 249, .72);
+  border-color: var(--line-soft);
 }

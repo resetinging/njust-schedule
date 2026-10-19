@@ -1,4 +1,5 @@
 @import "./styles/font-pixel.wxss";
+@import "./styles/design-system.wxss";
 
 /* 统计槽位标记: 仅用于可见性观测, 不参与视觉与点击。 */
 .analytics-slot-marker {
@@ -7,7 +8,6 @@
   opacity: 0;
   pointer-events: none;
 }
-
 /* 字体档位: 默认像素点阵(ZpixPixel/ZpixFull); 页面根节点挂 .font-system 即回到系统字体 */
 .font-system {
   --font-body: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -19,144 +19,7 @@
   font-family: var(--font-body);
 }
 
-
-/* ============================================================
-   课表助手 — 全局样式
-   清透课堂: 白底 + 明快蓝(交互) + 信号橙(今天/待办) + 粉彩课程块。
-   颜色/圆角/描边/投影/字体全部走下面的语义变量, 方便整体调色与换字体。
-   ============================================================ */
-
-page {
-  /* --- 主色: 交互(按钮 / 链接 / 选中态) --- */
-  --primary: #2563EB;
-  --primary-light: #3B82F6;
-  --primary-dark: #1D4ED8;
-  --primary-soft: #EFF6FF;
-  --primary-line: #DBEAFE;
-
-  /* --- 信号色: 今天 / 待办 --- */
-  --signal: #F97316;
-  --signal-soft: #FFF7ED;
-  --signal-line: #FED7AA;
-  --signal-deep: #B45309;
-
-  /* --- 状态色 --- */
-  --success: #16A34A;
-  --success-soft: #ECFDF5;
-  --success-deep: #15803D;
-  --warning: #F59E0B;
-  --warning-light: #FBBF24;
-  --warning-soft: #FFFBEB;
-  --warning-line: #FDE68A;
-  --danger: #DC2626;
-  --danger-soft: #FEF2F2;
-  --danger-deep: #B91C1C;
-
-  /* --- 文字: 墨 → 正文 → 次要 → 弱 --- */
-  --text-primary: #0F172A;
-  --text-strong: #1E293B;
-  --text-secondary: #334155;
-  --text-muted: #64748B;
-  --text-hint: #94A3B8;
-  --icon-faint: #CBD5E1;
-  --ink: #0F172A;
-
-  /* --- 背景与描边 --- */
-  --bg-page: #F3F6F4;
-  --bg-card: #FFFFFF;
-  --bg-sunken: #EDF3F0;
-  --bg-hover: #F4F8F6;
-  --line: #E4ECE8;
-  --line-soft: #EFF4F2;
-  --line-strong: #DCE7E2;
-  --border: #E4ECE8;
-  --overlay: rgba(15, 23, 42, 0.45);
-
-  /* --- Apple 风格玻璃材质(不支持毛玻璃时仍有半透明底色) --- */
-  --glass-bg: rgba(255, 255, 255, .68);
-  --glass-bg-strong: rgba(255, 255, 255, .86);
-  --glass-line: rgba(255, 255, 255, .72);
-  --glass-shadow: 0 18rpx 52rpx rgba(15, 23, 42, .10);
-
-  /* --- 今天 --- */
-  --today-chip-bg: #F97316;
-  --today-chip-fg: #FFFFFF;
-  --today-col-bg: #FFFDFA;
-  --today-ring: #FFEDD9;
-
-  /* --- 时间轴(浅→深表示一天的推进) --- */
-  /* 左侧时间列: 统一的极浅蓝, 不做"上浅下深"的渐变 */
-  --tcol-start: #F4F8FF;
-  --tcol-mid: #F4F8FF;
-  --tcol-end: #F4F8FF;
-  --grid-line: rgba(15, 23, 42, 0.07);
-
-  /* --- 页面头部 --- */
-  --hero-bg: #EFF5F2;
-  --hero-border: #DDE8E3;
-  --hero-title: #2563EB;
-  --hero-sub: #64748B;
-
-  /* 绩点大数字: 浅底用语义色, 渐变底(初版)用白色 */
-  --gpa-high: #15803D;
-  --gpa-mid: #B45309;
-  --gpa-low: #B91C1C;
-
-  /* --- 形状 / 描边 / 投影 --- */
-  --radius-chip: 10rpx;
-  --radius-ctrl: 16rpx;
-  --radius-card: 20rpx;
-  --radius-pill: 999rpx;
-  --bw-card: 1rpx;
-  --bw-ctrl: 2rpx;
-  --shadow-card: 0 6rpx 24rpx rgba(15, 23, 42, .045);
-  --shadow-btn: 0 8rpx 24rpx rgba(37, 99, 235, .14);
-  --shadow-pop: 0 16rpx 44rpx rgba(15, 23, 42, 0.18);
-  --shadow-sheet: 0 -8rpx 32rpx rgba(15, 23, 42, 0.12);
-
-  /* --- 节奏 / 动效 --- */
-  --space-page: 20rpx;
-  --space-section: 20rpx;
-  --motion-fast: 120ms;
-  --motion-base: 200ms;
-  --motion-slow: 360ms;
-  --ease-standard: cubic-bezier(.2, .8, .2, 1);
-  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
-
-  /* --- 课程块 --- */
-  --co-radius: 10rpx;
-  --co-bar-w: 6rpx;
-  --co-border-w: 0rpx;
-
-  /* --- 字体: 像素主题只把"标题/数字"换成点阵字 --- */
-  /* 全站字体: 像素点阵字(ZpixPixel, 子集内联); 字体里没有的字自动回退系统字 */
-  /* ZpixFull = 后端按需拉取的完整字库(冷僻字也能像素化); ZpixPixel = 内联子集兜底 */
-  --font-body: "ZpixFull", "ZpixPixel", "PingFang SC", "Microsoft YaHei", monospace;
-  --font-num: "ZpixFull", "ZpixPixel", "DIN Alternate", "PingFang SC", monospace;
-  --font-display: "ZpixFull", "ZpixPixel", "PingFang SC", "Microsoft YaHei", monospace;
-  /* 公告等长文本用系统字: 点阵字读长句较累 */
-  --font-plain: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
-  /* 公告等文本也跟随当前档位(只有"我的"页字体列表本身用各自字体做预览) */
-  --font-ann: var(--font-body);
-
-  /* --- 课程色板(10 组: 粉彩底 / 深色字 / 明快左边条) --- */
-  --c1-bg: #F2F7FF;  --c1-fg: #3D6FB8;  --c1-bar: #7BA5E8;
-  --c2-bg: #F0FAF7;  --c2-fg: #327B70;  --c2-bar: #68B8AA;
-  --c3-bg: #FFF9F1;  --c3-fg: #9A6A27;  --c3-bar: #DDB36D;
-  --c4-bg: #FFF3F7;  --c4-fg: #A54D71;  --c4-bar: #D99AB4;
-  --c5-bg: #F6F2FF;  --c5-fg: #6756A5;  --c5-bar: #A99AE0;
-  --c6-bg: #F1F9FC;  --c6-fg: #3D7E92;  --c6-bar: #72B6C8;
-  --c7-bg: #F2F4FF;  --c7-fg: #5362A8;  --c7-bar: #929DD8;
-  --c8-bg: #F5FAEC;  --c8-fg: #62823B;  --c8-bar: #A3C876;
-  --c9-bg: #FFF3F4;  --c9-fg: #A75664;  --c9-bar: #DD9AA5;
-  --c10-bg: #F5F7FA; --c10-fg: #667386; --c10-bar: #9BA6B5;
-
-  font-family: var(--font-body);
-  font-size: 28rpx;
-  color: var(--text-primary);
-  background: var(--bg-page);
-  box-sizing: border-box;
-}
+/* 颜色、圆角、投影、字体与 TDesign 映射统一维护在 design-system.wxss。 */
 
 /* ============================================================
    通用: 卡片 / 分隔线 / 标题 / 徽标 / 空态

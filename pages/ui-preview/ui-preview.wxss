@@ -1,0 +1,8 @@
+page {
+  background: #eef4f1;
+}
+
+.preview-page {
+  min-height: 100vh;
+  background: #eef4f1;
+}

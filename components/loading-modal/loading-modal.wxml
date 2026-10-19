@@ -1,24 +1,11 @@
-<!-- 加载/进度弹窗组件 -->
-<view class="modal-mask" wx:if="{{visible}}">
-  <view class="modal-card">
-    <text class="title">{{title}}</text>
-
-    <view class="progress-bar" wx:if="{{showProgress}}">
-      <progress class="progress-el" percent="{{percent}}" stroke-width="6"
-                activeColor="#4338CA" backgroundColor="#E2E8F0" />
-    </view>
-
-    <text class="message">{{message}}</text>
-
-    <view class="spinner" wx:if="{{spinning}}">
-      <view class="dot"></view>
-      <view class="dot"></view>
-      <view class="dot"></view>
-    </view>
-
+<t-dialog visible="{{visible}}" title="{{title}}" close-on-overlay-click="{{false}}">
+  <view slot="content" class="loading-content">
+    <t-progress wx:if="{{showProgress}}" percentage="{{percent}}" color="var(--primary)" />
+    <t-loading wx:if="{{spinning}}" class="loading-indicator" theme="dots" size="44rpx" />
+    <text class="message" wx:if="{{message}}">{{message}}</text>
     <slot></slot>
-
-    <button class="u-btn u-btn-primary" wx:if="{{done}}"
-            style="margin-top:24rpx;min-width:280rpx;" bindtap="onClose">{{doneText}}</button>
   </view>
-</view>
+  <view slot="actions" class="loading-actions" wx:if="{{done}}">
+    <t-button theme="primary" block bind:tap="onClose">{{doneText}}</t-button>
+  </view>
+</t-dialog>

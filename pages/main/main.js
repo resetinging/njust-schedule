@@ -1,5 +1,5 @@
 /**
- * 主页面 — 5 个 Tab(课表/考试/评教/成绩/我的)
+ * 主页面 — 3 个主 Tab(功能/课表/我的), 课业功能由功能页进入
  * - 无 swiper: 横滑不再切换页面, 翻页只由底部 tabBar 触发;
  * - 横滑手势在课表页切换周次(左滑下一周 / 右滑上一周);
  * - 组件懒渲染: 首次进入才挂载, 之后保留挂载(hidden 隐藏), 保留滚动/周次状态;
@@ -21,7 +21,9 @@ Page({
   data: {
     current: 1,        // 底栏选中项: 0=功能 1=课表 2=我的
     toolPage: '',      // 页面内假页: '' | freeclass | gallery | exams | eval | grades | credit
+    toolRendered: false, // 二级固定层是否挂载
     toolVisible: false,
+    toolClosing: false,
     isGraduate: false, // 研究生账号在功能页隐藏"教学评价"
     fontClass: '',     // 字体档位: '' 像素 | 'font-system' 系统字体
     swiperHeight: 600, // 内容区高度(px), 自适应计算(公告条可见时扣除其高度)
@@ -32,6 +34,9 @@ Page({
   },
 
   onLoad(options) {
+    if (options && options.tab === 'profile') {
+      this._pendingProfile = true
+    }
     this._syncAccountType()
     this._calcHeight()
     // 首屏停在"课表"(底栏中间项)
@@ -49,6 +54,10 @@ Page({
     // 页面渲染完成后确保当前 Tab 已激活(此时 selectComponent 必可拿到组件,
     // 解决慢设备上首屏激活重试超时导致页面空白)
     this._route()
+    if (this._pendingProfile) {
+      this._pendingProfile = false
+      this._applyTabTap(2)
+    }
     // 落地页参数: 首帧渲染完再切二级视图(组件此时可被 selectComponent 拿到)
     if (this._pendingFeature) {
       const sub = this._pendingFeature
@@ -71,6 +80,19 @@ Page({
     this._trackCurrentPage()
     // 刷新公告状态(可能刚从"我的"页标记已读, 或公告刚更新)
     this._loadAnnouncement()
+  },
+
+  onHide() {
+    // 主页面被其他原生页覆盖时释放 page-container，避免多页面实例并存。
+    this._cancelProfilePreparation()
+    this._resetToolState()
+  },
+
+  onUnload() {
+    this._cancelProfilePreparation()
+    this._resetToolState()
+    if (this._toolSwitchTimer) clearTimeout(this._toolSwitchTimer)
+    if (this._toolCloseTimer) clearTimeout(this._toolCloseTimer)
   },
 
   _trackCurrentPage() {
@@ -126,7 +148,7 @@ Page({
     const a = this.data.ann
     if (!a.visible) return
     wx.showModal({
-      title: '📢 公告',
+      title: '公告',
       content: a.text,
       showCancel: false,
       confirmText: '知道了',
@@ -168,46 +190,90 @@ Page({
   },
 
   /** 激活索引 i 的视图(懒渲染 + 生命周期模拟); 组件未就绪时延迟重试 */
-  _activate(i, retry) {
+  _activate(i, retry, done) {
     const v = this._view(i)
     if (v && v.activate) {
-      v.activate()
+      if (typeof done !== 'function') {
+        v.activate()
+        return
+      }
+      let settled = false
+      let fallback = null
+      const finish = () => {
+        if (settled) return
+        settled = true
+        if (fallback) clearTimeout(fallback)
+        done()
+      }
+      fallback = setTimeout(finish, 600)
+      try {
+        v.activate(finish)
+      } catch (e) {
+        finish()
+      }
       return
     }
     // 页面首帧渲染未完成时 selectComponent 拿不到实例, 延迟重试(最多 2 秒)
     const r = retry || 0
-    if (r < 20) setTimeout(() => this._activate(i, r + 1), 100)
-  },
-
-  /** 横滑手势起点(仅课表页用于周次切换) */
-  onSwipeTouchStart(e) {
-    const t = e.touches && e.touches[0]
-    if (!t) return
-    this._swipeStart = { x: t.clientX, y: t.clientY }
-  },
-
-  /**
-   * 横滑手势结束: 课表页左滑下一周 / 右滑上一周。
-   * 页面翻页已由 disable-touch 关闭, 此手势不再切换 Tab。
-   */
-  onSwipeTouchEnd(e) {
-    const s = this._swipeStart
-    this._swipeStart = null
-    if (!s || this.data.current !== 1) return
-    const t = e.changedTouches && e.changedTouches[0]
-    if (!t) return
-    const dx = t.clientX - s.x
-    const dy = t.clientY - s.y
-    // 横向位移足够大, 且明显大于纵向(避开上下滚动)
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2) return
-    const view = this.selectComponent('#tabview0')
-    if (!view) return
-    if (dx < 0 && typeof view.nextWeek === 'function') view.nextWeek()
-    if (dx > 0 && typeof view.prevWeek === 'function') view.prevWeek()
+    if (r < 20) {
+      setTimeout(() => this._activate(i, r + 1, done), 100)
+    } else if (typeof done === 'function') {
+      done()
+    }
   },
 
   /** tabBar 点击(自定义 tabBar 组件回调): 切换当前 Tab(首次进入时挂载) */
   onTabTap(i) {
+    if (this.data.toolRendered || this.data.toolVisible || this.data.toolClosing) {
+      this._closeTool(() => this._applyTabTap(i))
+      return
+    }
+    this._applyTabTap(i)
+  },
+
+  _applyTabTap(i) {
+    if (i === 2 && !this._isProfileActive()) {
+      this._prepareProfileThenSwitch()
+      return
+    }
+    this._cancelProfilePreparation()
+    this._switchTab(i)
+  },
+
+  _isProfileActive() {
+    const profile = this._view(4)
+    return !!(profile && profile.data && profile.data.active)
+  },
+
+  /**
+   * “我的”首次挂载时先在隐藏状态完成内容渲染，再切换 Tab。
+   * 这样不会先显示一个没有内容的 profile 外壳。
+   */
+  _prepareProfileThenSwitch() {
+    if (this._profilePreparing) return
+    this._profilePreparing = true
+    this._profilePrepareSeq = (this._profilePrepareSeq || 0) + 1
+    const seq = this._profilePrepareSeq
+    const visited = this.data.visited.slice()
+    visited[4] = true
+
+    this.setData({ visited }, () => {
+      if (seq !== this._profilePrepareSeq) return
+      this._activate(4, 0, () => {
+        if (seq !== this._profilePrepareSeq) return
+        this._profilePreparing = false
+        this._switchTab(2, true)
+      })
+    })
+  },
+
+  _cancelProfilePreparation() {
+    if (!this._profilePreparing) return
+    this._profilePreparing = false
+    this._profilePrepareSeq = (this._profilePrepareSeq || 0) + 1
+  },
+
+  _switchTab(i, alreadyActivated) {
     const visited = this.data.visited.slice()
     // 底栏三项 → 组件索引: 1(课表)→0, 2(我的)→4; 0(功能)是一级列表, 不挂组件
     const VIEW_OF_TAB = { 1: 0, 2: 4 }
@@ -215,7 +281,7 @@ Page({
     if (v !== undefined) visited[v] = true
     // 点底栏一律回到一级界面(功能页的二级视图收起)
     this.setData({ current: i, visited })
-    this._route()
+    if (!alreadyActivated) this._route()
     this._syncTabBar()
     this._trackCurrentPage()
   },
@@ -258,35 +324,93 @@ Page({
    */
   _openToolPage(page, toolId, mode) {
     const allowed = ['freeclass', 'gallery', 'audit', 'exams', 'eval', 'grades', 'credit']
-    if (allowed.indexOf(page) < 0 || this.data.toolVisible) return
+    if (allowed.indexOf(page) < 0 || this.data.toolVisible ||
+        this.data.toolClosing || this.data.toolRendered) return
     analytics.pageView(page)
     if (TOOL_TITLES[page]) this._setNavTitle(TOOL_TITLES[page])
-    this.setData({ toolPage: page, toolVisible: true }, () => {
-      if (!toolId) return
-      const activate = (retry) => {
-        const comp = this.selectComponent('#' + toolId)
-        const canActivate = comp && typeof comp.activate === 'function'
-        const canOpenFavorites = comp &&
-          typeof comp.openFavoritesView === 'function'
-        if (canActivate || canOpenFavorites) {
-          if (canActivate) comp.activate()
-          if (mode === 'favorites' && canOpenFavorites) {
-            comp.openFavoritesView()
+    const resolvedToolId = toolId || this._toolComponentId(page)
+    this._toolTransitionSeq = (this._toolTransitionSeq || 0) + 1
+    const seq = this._toolTransitionSeq
+    this.setData({
+      toolPage: page,
+      toolRendered: true,
+      toolVisible: false,
+      toolClosing: false
+    }, () => {
+      const show = () => {
+        if (seq !== this._toolTransitionSeq || !this.data.toolRendered) return
+        this.setData({ toolVisible: true }, () => {
+          if (!resolvedToolId) return
+          const activate = (retry) => {
+            if (seq !== this._toolTransitionSeq) return
+            const comp = this.selectComponent('#' + resolvedToolId)
+            const canActivate = comp && typeof comp.activate === 'function'
+            const canOpenFavorites = comp &&
+              typeof comp.openFavoritesView === 'function'
+            if (canActivate || canOpenFavorites) {
+              if (canActivate) comp.activate()
+              if (mode === 'favorites' && canOpenFavorites) {
+                comp.openFavoritesView()
+              }
+              return
+            }
+            if (retry < 6) setTimeout(() => activate(retry + 1), 60)
           }
-          return
-        }
-        if (retry < 6) setTimeout(() => activate(retry + 1), 60)
+          activate(0)
+        })
       }
-      activate(0)
+      if (typeof wx.nextTick === 'function') wx.nextTick(show)
+      else setTimeout(show, 0)
     })
   },
 
   /** 关闭页面内假页(子组件返回按钮触发) */
   onToolClose() {
-    if (this.data.toolVisible) {
-      this.setData({ toolVisible: false })
-      this._trackCurrentPage()
+    this._closeTool()
+  },
+
+  _closeTool(afterClose) {
+    if (!this.data.toolRendered) {
+      if (typeof afterClose === 'function') afterClose()
+      return
     }
+    if (this.data.toolClosing) {
+      if (typeof afterClose === 'function') this._toolCloseCallback = afterClose
+      return
+    }
+    this._toolTransitionSeq = (this._toolTransitionSeq || 0) + 1
+    this._toolCloseCallback = typeof afterClose === 'function' ? afterClose : null
+    if (this._toolCloseTimer) clearTimeout(this._toolCloseTimer)
+    this.setData({ toolVisible: false, toolClosing: true })
+    this._trackCurrentPage()
+    // 固定层没有 afterleave 事件，关闭动画由主页面统一收口。
+    this._toolCloseTimer = setTimeout(() => {
+      this._toolCloseTimer = null
+      this.onToolAfterLeave()
+    }, 280)
+  },
+
+  _resetToolState() {
+    this._toolTransitionSeq = (this._toolTransitionSeq || 0) + 1
+    this._toolCloseCallback = null
+    if (this._toolCloseTimer) clearTimeout(this._toolCloseTimer)
+    this._toolCloseTimer = null
+    this.setData({
+      toolPage: '',
+      toolRendered: false,
+      toolVisible: false,
+      toolClosing: false
+    })
+  },
+
+  _toolComponentId(page) {
+    return {
+      exams: 'toolExams',
+      eval: 'toolEval',
+      grades: 'toolGrades',
+      credit: 'toolCredit',
+      audit: 'toolAudit'
+    }[page] || ''
   },
 
   /** 蹭课收藏变化后同步给已挂载的课表组件。 */
@@ -304,15 +428,23 @@ Page({
 
   /** 系统返回/右滑关闭假页时, 同步受控状态 */
   onToolBeforeLeave() {
-    if (this.data.toolVisible) this.setData({ toolVisible: false })
+    if (this.data.toolVisible) {
+      this._closeTool()
+    }
   },
 
   /** 退出动画结束后卸载组件, 避免常驻占用 */
   onToolAfterLeave() {
-    if (!this.data.toolVisible && this.data.toolPage) {
-      this.setData({ toolPage: '' })
-    }
+    if (this.data.toolVisible) return
+    const callback = this._toolCloseCallback
+    this._toolCloseCallback = null
+    this.setData({ toolPage: '', toolRendered: false, toolClosing: false })
     this._setNavTitle(MAIN_TITLE)
+    this._trackCurrentPage()
+    if (typeof callback === 'function') {
+      if (this._toolSwitchTimer) clearTimeout(this._toolSwitchTimer)
+      this._toolSwitchTimer = setTimeout(callback, 0)
+    }
   },
 
   /** 假页使用主页面原生导航栏标题, 不再重复绘制组件标题 */
@@ -325,8 +457,7 @@ Page({
 
   /** 假页内提示登录: 关闭假页并切到"我的" */
   onToolLogin() {
-    this.setData({ toolVisible: false })
-    setTimeout(() => this.onTabTap(2), 340)
+    this._closeTool(() => this._applyTabTap(2))
   },
 
   /**

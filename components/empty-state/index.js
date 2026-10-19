@@ -6,9 +6,12 @@
  * (旧调用传 emoji 时会自动映射成线性图标, 见 EMOJI_MAP)
  */
 const EMOJI_MAP = {
-  '📝': 'doc', '📋': 'clipboard', '⏳': 'hourglass', '🖼️': 'image', '🖼': 'image',
-  '🏫': 'building', '🔐': 'lock', '🎓': 'award', '📢': 'megaphone',
-  '✏️': 'edit', '✏': 'edit', '👤': 'user', '⏰': 'clock', '📅': 'calendar'
+  '📝': 'file', '📋': 'file', '⏳': 'hourglass', '🖼️': 'image', '🖼': 'image',
+  '🔎': 'search', '📊': 'chart',
+  '🏫': 'building', '🔐': 'secured', '🎓': 'certificate', '📢': 'notification',
+  '✏️': 'edit', '✏': 'edit', '👤': 'user', '⏰': 'time', '📅': 'calendar',
+  doc: 'file', clipboard: 'file', lock: 'secured', award: 'star',
+  megaphone: 'notification', clock: 'time'
 }
 
 Component({

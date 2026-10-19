@@ -149,6 +149,9 @@ Component({
         return
       }
       delete touchState[field]
+      // 手机端通常先触发 focus，再触发 tap。focus 已打开同一字段时，
+      // 后续 tap 不再重复打开，避免“正常 → 加载中 → 正常”的闪动。
+      if (this.data.suggestField === field) return
       this._suggestClosedAt = 0
       this._openSuggestions(field)
     },
@@ -165,14 +168,24 @@ Component({
       this._suggestTouching = false
       this._suggestClosedAt = 0
       this._suggestOpenedAt = Date.now()
-      const patch = { suggestField: field, suggestLoading: true }
-      if (this.data.suggestField !== field) {
-        patch.suggestOptions = []
-        patch.suggestHeight = 0
-        patch.suggestVisibleCount = 50
+      if (this._queryOptionsReady) {
+        const allOptions = this._optionsForField(
+          field, this.data[field] || '')
+        this._suggestOptionsAll = allOptions
+        this.setData(Object.assign(
+          { suggestField: field },
+          this._suggestRenderState(allOptions, 50)
+        ))
+        return
       }
-      this.setData(patch)
-      this._applyLocalSuggestions(field, this.data[field] || '')
+      this.setData({
+        suggestField: field,
+        suggestOptions: [],
+        suggestHeight: 0,
+        suggestVisibleCount: 50,
+        suggestLoading: true
+      })
+      this._loadQueryOptions()
     },
 
     _coursesCacheKey() {
@@ -653,6 +666,10 @@ Component({
       }, () => this._refreshWorkbenchMeta())
     },
 
+    onQueryExplorerVisibleChange(e) {
+      if (!(e.detail && e.detail.visible)) this.closeQueryExplorer()
+    },
+
     onExplorerTab(e) {
       this.setData({
         explorerTab: e.currentTarget.dataset.tab || 'names',
@@ -755,10 +772,6 @@ Component({
           explorerVisibleCount: 80
         }, () => this._refreshExplorer())
       })
-    },
-
-    onExplorerSheetTap() {
-      // 拦截扩展查询面板内部点击，避免冒泡关闭。
     },
 
     onRecentTap(e) {
@@ -1184,8 +1197,8 @@ Component({
       this.setData({ showWeekly: false })
     },
 
-    onWeeklySheetTap() {
-      // 拦截课表内部点击，避免冒泡到遮罩层关闭周课表。
+    onWeeklyVisibleChange(e) {
+      if (!(e.detail && e.detail.visible)) this.closeWeekly()
     },
 
     onWeeklyWeekChange(e) {
@@ -1469,23 +1482,27 @@ Component({
       }
       const allOptions = this._optionsForField(field, keyword)
       this._suggestOptionsAll = allOptions
-      this.setData({ suggestVisibleCount: 50 }, () => {
-        this._renderSuggestOptions(allOptions)
-      })
+      this.setData(this._suggestRenderState(allOptions, 50))
     },
 
-    _renderSuggestOptions(allOptions) {
+    _suggestRenderState(allOptions, visibleCount) {
       const all = Array.isArray(allOptions) ? allOptions : []
-      const visibleCount = Number(this.data.suggestVisibleCount || 50)
-      const options = all.slice(0, visibleCount)
+      const count = Math.max(1, Number(visibleCount || 50))
+      const options = all.slice(0, count)
       const suggestHeight = options.length > 5
         ? 360
         : options.length * 68
-      this.setData({
+      return {
         suggestOptions: options,
         suggestHeight,
+        suggestVisibleCount: count,
         suggestLoading: false
-      })
+      }
+    },
+
+    _renderSuggestOptions(allOptions) {
+      this.setData(this._suggestRenderState(
+        allOptions, this.data.suggestVisibleCount || 50))
     },
 
     _decorate(course) {

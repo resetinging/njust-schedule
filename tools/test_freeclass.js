@@ -1,6 +1,6 @@
 /**
  * 空教室页逻辑测试 — 在 Node 中用桩件模拟小程序运行时,
- * 真实加载 pages/freeclass/freeclass.js 并驱动它的 search()。
+ * 真实加载 components/freeclass-view/index.js 并驱动它的 search()。
  *
  * 覆盖本次修复:
  *   1. 请求竞态: 快速切换筛选时, 先发的慢响应不得覆盖后发的结果
@@ -32,8 +32,8 @@ global.wx = new Proxy({}, {
 global.getCurrentPages = () => []
 global.getApp = () => ({ globalData: {} })
 
-let pageCfg = null
-global.Page = (cfg) => { pageCfg = cfg }
+let componentCfg = null
+global.Component = (cfg) => { componentCfg = cfg }
 
 let pass = 0
 const failures = []
@@ -55,7 +55,7 @@ function deferred() {
 }
 
 ;(async () => {
-  // ---------------- 装载 api 桩件 + 页面 ----------------
+  // ---------------- 装载 api 桩件 + 组件 ----------------
   const api = require(path.join(ROOT, 'utils', 'api'))
   const calls = []
   let nextDeferred = null
@@ -65,14 +65,23 @@ function deferred() {
     nextDeferred = null
     return d ? d.promise : Promise.resolve(null)
   }
-  require(path.join(ROOT, 'pages', 'freeclass', 'freeclass.js'))
+  require(path.join(ROOT, 'components', 'freeclass-view', 'index.js'))
 
-  const inst = Object.assign({}, pageCfg, {
-    data: JSON.parse(JSON.stringify(pageCfg.data)),
-    setData(patch) { Object.assign(this.data, patch) }
+  assert.ok(componentCfg && componentCfg.methods, '未加载空教室组件配置')
+  const componentData = typeof componentCfg.data === 'function'
+    ? componentCfg.data()
+    : componentCfg.data
+  const makeInstance = () => Object.assign({}, componentCfg.methods, {
+    data: JSON.parse(JSON.stringify(componentData || {})),
+    setData(patch, callback) {
+      Object.assign(this.data, patch || {})
+      if (typeof callback === 'function') callback()
+    }
   })
 
-  console.log('加载页面: ' + path.join(ROOT, 'pages/freeclass/freeclass.js') + '\n')
+  const inst = makeInstance()
+
+  console.log('加载组件: ' + path.join(ROOT, 'components/freeclass-view/index.js') + '\n')
   const { bigSectionIndex } = require(path.join(ROOT, 'utils', 'period-time'))
   check('大节默认: 按当前时间取对应大节', () => {
     assert.strictEqual(bigSectionIndex(new Date(2026, 8, 20, 7, 30)), 0)   // 08:00 前 → 第1-3节
@@ -82,13 +91,14 @@ function deferred() {
     assert.strictEqual(bigSectionIndex(new Date(2026, 8, 20, 16, 0)), 3)   // 第8-10节
     assert.strictEqual(bigSectionIndex(new Date(2026, 8, 20, 21, 0)), 4)   // 第11-13节
   })
-  check('onLoad 默认时段按当前大节设置', () => {
-    const inst2 = Object.assign({}, pageCfg, {
-      data: JSON.parse(JSON.stringify(pageCfg.data)),
-      setData(patch) { Object.assign(this.data, patch) },
+  check('attached 默认时段按当前大节设置', () => {
+    const inst2 = makeInstance()
+    Object.assign(inst2, {
       search() { this._searched = true }
     })
-    inst2.onLoad()
+    assert.ok(componentCfg.lifetimes && typeof componentCfg.lifetimes.attached === 'function',
+      '空教室组件缺少 attached 生命周期')
+    componentCfg.lifetimes.attached.call(inst2)
     const expect = bigSectionIndex()
     assert.strictEqual(inst2.data.startIndex, expect)
     assert.strictEqual(inst2.data.endIndex, expect)

@@ -40,12 +40,12 @@
         </view>
         <view class="yjs-hint" wx:if="{{!yjsRows.length}}">暂无成绩记录</view>
       </view>
-      <view class="yjs-note">研究生成绩不含绩点计算；点右上角 🔄 从研究生系统获取</view>
+      <view class="yjs-note">研究生成绩不含绩点计算；点右上角刷新</view>
     </block>
 
     <!-- 空状态（卡片式） -->
     <empty-state wx:if="{{!loading && empty && !isGraduate}}"
-                 icon="📋"
+                 icon="clipboard"
                  title="{{errorMsg || '暂无成绩数据'}}"
                  desc="{{semester || '当前学期'}} 暂时没有成绩，可从教务系统获取"
                  action-text="{{refreshing ? '刷新中…' : '从教务获取成绩'}}"
@@ -95,7 +95,7 @@
         <view class="sc-cet-top">
           <text class="sc-cet-title">四六级成绩</text>
           <text class="sc-cet-date">{{stats.cet.date}}</text>
-          <text class="sc-cet-refresh">🔄</text>
+        <view class="sc-cet-refresh"><icon name="refresh" size="24" color="#3157D5" /></view>
         </view>
         <view class="sc-cet-line">{{stats.cet.line}}</view>
       </view>
@@ -123,7 +123,7 @@
       <view class="sem-card" wx:for="{{semGroups}}" wx:key="sem" wx:for-item="grp">
         <!-- 学期头 -->
         <view class="sem-head tap" data-sem="{{grp.sem}}" bindtap="onFold">
-          <text class="sem-ico">🎓</text>
+          <view class="sem-ico"><icon name="award" size="24" color="#3157D5" /></view>
           <text class="sem-name">{{grp.sem}}</text>
           <text class="sem-gpa-tag {{grp.gpaClass}}">GPA {{grp.gpa}}</text>
           <text class="sem-count">{{grp.count}} 门</text>

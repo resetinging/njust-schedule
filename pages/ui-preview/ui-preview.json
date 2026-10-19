@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "UI Preview",
+  "usingComponents": {
+    "feature-page": "/components/generated/feature-page/index"
+  }
+}

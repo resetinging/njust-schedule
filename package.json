@@ -1,0 +1,9 @@
+{
+  "name": "njust-schedule-miniapp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "课表助手微信小程序",
+  "dependencies": {
+    "tdesign-miniprogram": "1.17.0"
+  }
+}

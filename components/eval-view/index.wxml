@@ -2,15 +2,15 @@
 <view class="container view-root">
 
   <!-- 滚动内容区(scroll-view 内滚; 刷新走顶部按钮) -->
-  <scroll-view class="view-scroll" scroll-y>
+  <view class="view-scroll">
 
   <!-- 加载中 -->
   <empty-state wx:if="{{loading && batches.length === 0}}"
-               icon="⏳" title="加载中…" />
+               icon="hourglass" title="加载中…" />
 
   <!-- 空状态 -->
   <empty-state wx:if="{{!loading && batches.length === 0 && !batchCourses.length}}"
-               icon="📋"
+               icon="clipboard"
                title="{{errorMsg || '暂无待评价课程'}}"
                desc="{{semester || '当前学期'}} 没有需要评价的课程"
                action-text="获取评教数据"
@@ -19,7 +19,7 @@
   <!-- ============================================================ -->
   <!-- 评教批次列表 -->
   <!-- ============================================================ -->
-  <view wx:if="{{!batchCourses.length && !showForm}}">
+  <scroll-view class="batch-scroll" scroll-y wx:if="{{!batchCourses.length && !showForm}}">
     <view class="page-hero" wx:if="{{batches.length > 0}}">
       <view class="ph-main">
         <text class="ph-title">教学评价</text>
@@ -46,7 +46,7 @@
         </view>
       </view>
     </block>
-  </view>
+  </scroll-view>
 
   <!-- ============================================================ -->
   <!-- 批次课程列表 -->
@@ -74,12 +74,14 @@
           </view>
         </view>
         <view class="course-actions">
-          <button class="btn-outline small-btn" wx:if="{{!item.submitted}}" bindtap="openEvalForm" data-index="{{index}}">
+          <t-button t-class="btn-outline small-btn" theme="primary" variant="outline" size="small"
+                    wx:if="{{!item.submitted}}" bind:tap="openEvalForm" data-index="{{index}}">
             {{item.evaluated ? '继续评价' : '开始评价'}}
-          </button>
-          <button class="btn-outline small-btn view-btn" wx:if="{{item.submitted}}" bindtap="viewScores" data-index="{{index}}">
+          </t-button>
+          <t-button t-class="btn-outline small-btn view-btn" theme="primary" variant="outline" size="small"
+                    wx:if="{{item.submitted}}" bind:tap="viewScores" data-index="{{index}}">
             查看评分
-          </button>
+          </t-button>
         </view>
       </view>
     </scroll-view>
@@ -104,11 +106,11 @@
       <!-- 自动填写工具栏（非只读模式） -->
       <view class="autofill-bar" wx:if="{{!formReadonly}}">
         <text class="autofill-label">期望分数:</text>
-        <input class="autofill-input" type="digit" placeholder="如 85"
-               value="{{autoFillScore}}" bindinput="onAutoFillScoreInput"
-               confirm-type="done" bindconfirm="onAutoFill"/>
+        <t-input t-class="autofill-input" type="digit" placeholder="如 85" borderless
+                 value="{{autoFillScore}}" bind:change="onAutoFillScoreInput"
+                 confirm-type="done" bind:enter="onAutoFill"/>
         <text class="autofill-hint">（满分 {{maxTotal}}）</text>
-        <button class="btn-primary autofill-btn" bindtap="onAutoFill">自动填写</button>
+        <t-button t-class="btn-primary autofill-btn" theme="primary" size="small" bind:tap="onAutoFill">自动填写</t-button>
         <text class="live-score" wx:if="{{liveTotal > 0}}"><text class="live-score-num">{{liveTotal}}</text> 分</text>
       </view>
 
@@ -129,39 +131,39 @@
 
     <!-- 操作按钮（非只读模式） -->
     <view class="form-actions" wx:if="{{!formReadonly}}">
-      <button class="btn-outline" bindtap="onSaveEval">保存</button>
-      <button class="btn-primary" bindtap="onSubmitEval">提交评价</button>
+      <t-button t-class="btn-outline" theme="primary" variant="outline" block bind:tap="onSaveEval">保存</t-button>
+      <t-button t-class="btn-primary" theme="primary" block bind:tap="onSubmitEval">提交评价</t-button>
     </view>
     <!-- 操作按钮（只读模式） -->
     <view class="form-actions" wx:else>
-      <button class="btn-outline" bindtap="backToCourses">返回课程列表</button>
+      <t-button t-class="btn-outline" theme="primary" variant="outline" block bind:tap="backToCourses">返回课程列表</t-button>
     </view>
   </view>
 
-  </scroll-view>
+  </view>
 
   <!-- ============================================================ -->
-  <!-- 一键评教目标分数弹窗(fixed, 放 scroll-view 外避免随滚动) -->
+  <!-- 一键评教目标分数对话框 -->
   <!-- ============================================================ -->
-  <view class="modal-mask" wx:if="{{showBatchDialog}}">
-    <view class="modal-card">
-      <view class="modal-title">一键评教 · 目标分数</view>
+  <t-dialog t-class="batch-dialog" visible="{{showBatchDialog}}"
+            title="一键评教 · 目标分数" close-btn close-on-overlay-click
+            bind:close="closeBatchDialog">
+    <view slot="content" class="batch-dialog-content">
       <view class="slider-wrapper">
         <text class="slider-value">{{targetScore}}%</text>
-        <slider min="50" max="100" value="{{targetScore}}"
-                activeColor="#3B82F6" block-size="24"
-                bindchange="onScoreChange" />
+        <t-slider min="50" max="100" value="{{targetScore}}" label="${value}%"
+                  bind:change="onScoreChange" />
         <view class="slider-labels">
           <text>50%</text>
           <text>100%</text>
         </view>
       </view>
-      <view class="modal-buttons">
-        <button class="btn-outline" bindtap="closeBatchDialog">取消</button>
-        <button class="btn-primary" bindtap="startBatchEval">开始评教</button>
-      </view>
     </view>
-  </view>
+    <view slot="actions" class="modal-buttons">
+        <t-button t-class="btn-outline" theme="primary" variant="outline" block bind:tap="closeBatchDialog">取消</t-button>
+        <t-button t-class="btn-primary" theme="primary" block bind:tap="startBatchEval">开始评教</t-button>
+    </view>
+  </t-dialog>
 
   <!-- ============================================================ -->
   <!-- 批量评教进度弹窗(fixed, 放 scroll-view 外) -->
@@ -179,7 +181,10 @@
   >
     <scroll-view scroll-y class="batch-results" wx:if="{{batchResults.length > 0}}">
       <view class="result-item" wx:for="{{batchResults}}" wx:key="index">
-        <text class="result-icon">{{item.status === 'success' ? '✅' : '❌'}}</text>
+        <view class="result-icon">
+          <icon name="{{item.status === 'success' ? 'check' : 'close'}}" size="24"
+                color="{{item.status === 'success' ? '#1F9D82' : '#D75C62'}}" />
+        </view>
         <text class="result-name">{{item.course}}</text>
         <text class="result-error" wx:if="{{item.error}}">{{item.error}}</text>
       </view>

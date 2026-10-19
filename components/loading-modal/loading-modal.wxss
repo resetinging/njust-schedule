@@ -1,50 +1,26 @@
-.title {
-  padding-left: 20rpx;
-  border-left: 6rpx solid var(--primary);
-  font-size: 34rpx;
-  font-weight: bold;
-  display: block;
-  margin-bottom: 24rpx;
-}
-
-.progress-bar {
-  margin: 16rpx 0;
-}
-
 .message {
   font-size: 26rpx;
   color: var(--text-muted);
   display: block;
-  margin-top: 12rpx;
+  text-align: center;
+  line-height: 1.6;
 }
 
-.spinner {
+.loading-content {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: center;
-  gap: 12rpx;
-  margin-top: 24rpx;
+  gap: 24rpx;
+  min-height: 112rpx;
 }
 
-.dot {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 50%;
-  background: var(--primary);
-  animation: bounce 0.6s infinite alternate;
+.loading-indicator {
+  align-self: center;
+  color: var(--primary);
 }
 
-.dot:nth-child(2) { animation-delay: 0.2s; }
-.dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes bounce {
-  from { opacity: 0.3; transform: scale(0.8); }
-  to { opacity: 1; transform: scale(1.2); }
+.loading-actions {
+  width: 100%;
 }
-
-.modal-mask .modal-card {
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
-
-.progress-bar .progress-el { border-radius: var(--radius-pill); overflow: hidden; }
 

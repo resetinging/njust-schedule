@@ -7,6 +7,7 @@ const storage = require('./utils/storage')
 const config = require('./utils/config')
 const analytics = require('./utils/analytics')
 const freeclassCache = require('./utils/freeclass-cache')
+const dataLoader = require('./utils/data-loader')
 const { BIG_SECTION_START_PERIODS, PERIOD_STARTS, bigSectionIndex } = require('./utils/period-time')
 
 App({
@@ -57,8 +58,6 @@ App({
     // 有学号但无 token(会话已失效/已退出)时不预取, 否则后端只会返回一串 401
     if (!sid || !storage.get('token', '')) return
     const sem = storage.getSemester()
-    const ttl = config.CACHE_TTL
-    const tasks = []
 
     // 空教室默认条件后台预热: 用户进入功能页后通常先看当天/本周,
     // 提前把查询结果写入本地缓存, 页面 onLoad 可直接渲染, 不再等网络。
@@ -77,64 +76,12 @@ App({
       }).catch(() => {})
     }, 2500)
 
-    // 课表（缓存键带学期）
-    const coursesKey = 'cached_courses_' + (sem || 'default')
-    if (storage.getCacheAge(coursesKey) > ttl.courses) {
-      tasks.push(api.getCourses(sem).then((res) => {
-        if (res && res.success && res.courses) {
-          const cs = res.semester || sem || 'default'
-          storage.setCached('cached_courses_' + cs, res.courses)
-          storage.setSemester(cs)
-          this.globalData.semester = cs
-        }
-      }))
-    }
-
-    // 考试（缓存键带学期）
-    const examsKey = 'cached_exams_' + (sem || 'default')
-    if (storage.getCacheAge(examsKey) > ttl.exams) {
-      tasks.push(api.getExams(sem).then((res) => {
-        if (res && res.success && res.exams) {
-          storage.setCached('cached_exams_' + (res.semester || sem || 'default'), res.exams)
-        }
-      }))
-    }
-
-    // 评教
-    if (storage.getCacheAge('cached_evaluations') > ttl.evaluations) {
-      tasks.push(api.getEvalBatches().then((res) => {
-        if (res && res.success && res.evaluations) storage.setCached('cached_evaluations', res)
-      }))
-    }
-
-    // 成绩
-    if (storage.getCacheAge('cached_grades') > ttl.grades) {
-      tasks.push(api.getGrades('__all__').then((res) => {
-        if (res && res.success) storage.setCached('cached_grades', res)
-      }))
-    }
-
-    // 四六级
-    if (storage.getCacheAge('cached_cet_scores') > ttl.cet) {
-      tasks.push(api.getCetScores().then((res) => {
-        if (res && res.success) storage.setCached('cached_cet_scores', res)
-      }))
-    }
-
-    // 校历状态（第一周日期等, 课表页定位本周用; 后端按学期存储）
-    const statusKey = 'cached_status_' + sid + '_' + (sem || 'default')
-    if (storage.getCacheAge(statusKey) > ttl.status) {
-      tasks.push(api.getStatus().then((res) => {
-        if (res && res.first_week_date) {
-          storage.setCached(statusKey, { t: Date.now(), first_week_date: res.first_week_date })
-        }
-      }))
-    }
-
-    if (tasks.length) {
-      // 全部静默: 任一失败不影响其他
-      Promise.all(tasks.map(p => p.catch(() => {})))
-    }
+    // 先比较 /api/sync/versions 再拉取变化域；服务端登录后预抓完成时再复查一次。
+    // 这样不会因为本地缓存仍在 30 天 TTL 内而长期显示旧课表/旧成绩。
+    dataLoader.fetchAllData().then(() => {
+      const nextSemester = storage.getSemester()
+      if (nextSemester) this.globalData.semester = nextSemester
+    }).catch(() => {})
   },
 
   /** 静默校验后端会话: 失效时先尝试自动重登(记住密码), 失败才提示 */

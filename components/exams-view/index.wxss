@@ -224,6 +224,9 @@
   gap: 12rpx;
 }
 .collapse-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 3rpx;
   font-size: 20rpx;
   color: var(--text-hint);
   padding: 4rpx 8rpx;
@@ -536,4 +539,57 @@
 @keyframes examCardIn {
   from { opacity: 0; transform: translateY(16rpx) scale(.982); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Layout pass: align the exam page with the shared glass surface rhythm. */
+.top-bar {
+  padding: 12rpx 20rpx;
+  background: transparent;
+}
+
+.countdown-scroll,
+.exam-list {
+  padding-left: 20rpx;
+  padding-right: 20rpx;
+}
+
+.countdown-card,
+.exam-card {
+  border-radius: 18rpx;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.exam-card:active,
+.countdown-card:active {
+  transform: scale(.985);
+}
+
+/* Keep urgency in the type and border, while all cards share one material. */
+.view-scroll {
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.top-bar {
+  border-bottom-color: var(--line-soft);
+}
+
+.countdown-card,
+.exam-card,
+.exam-sub {
+  background: var(--surface-tint-strong) !important;
+  border-color: var(--line) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.countdown-card.urgent,
+.exam-card.exam-urgent {
+  background: rgba(255, 247, 237, .82) !important;
+  border-color: var(--signal-line) !important;
+}
+
+.countdown-card.warning,
+.exam-card.exam-warning {
+  background: rgba(255, 251, 235, .84) !important;
+  border-color: var(--warning-line) !important;
 }

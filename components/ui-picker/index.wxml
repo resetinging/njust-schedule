@@ -1,0 +1,8 @@
+<view class="ui-picker-trigger {{disabled ? 'is-disabled' : ''}}" bind:tap="open">
+  <slot></slot>
+</view>
+<t-picker visible="{{visible}}" value="{{pickerValue}}" title="{{title}}"
+          bind:confirm="onConfirm" bind:cancel="onCancel"
+          bind:visible-change="onVisibleChange">
+  <t-picker-item options="{{options}}" />
+</t-picker>

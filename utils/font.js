@@ -22,7 +22,9 @@ const MODES = {
 }
 
 function getMode() {
-  const m = storage.get(MODE_KEY, 'pixel')
+  // System font is the readable default for the rebuilt interface. Existing
+  // users who explicitly selected pixel mode keep their stored preference.
+  const m = storage.get(MODE_KEY, 'system')
   return MODES[m] ? m : 'pixel'
 }
 

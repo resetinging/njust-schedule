@@ -12,6 +12,10 @@ const CONSENT_KEY = 'analytics_consent'
 const VISITOR_KEY = 'analytics_visitor_id'
 const QUEUE_KEY = 'analytics_queue'
 const MAX_QUEUE = 120
+const SLOT_VISIBLE_RATIO = 0.5
+const SLOT_MIN_VISIBLE_MS = 1000
+const SLOT_REENTRY_COOLDOWN_MS = 10000
+const SLOT_REARM_DEDUPE_MS = 500
 
 let queue = _readQueue()
 let flushTimer = null
@@ -21,6 +25,7 @@ let sessionStart = 0
 let currentPage = ''
 let currentPageStart = 0
 let consentInitialized = false
+const slotStates = new Set()
 
 function _readQueue() {
   try {
@@ -155,6 +160,7 @@ function onShow() {
 }
 
 function onHide() {
+  _finalizeAllSlots()
   _endForeground()
 }
 
@@ -191,49 +197,175 @@ function track(name, extra) {
   _enqueue(name, extra || {})
 }
 
+function _clearSlotTimers(state) {
+  if (!state) return
+  if (state.timer) clearTimeout(state.timer)
+  if (state.retryTimer) clearTimeout(state.retryTimer)
+  state.timer = null
+  state.retryTimer = null
+}
+
+function _scheduleSlotQualification(state) {
+  if (!state || state.cancelled || !state.visible || !state.armed ||
+      state.countedInActivation) return
+  if (state.timer) clearTimeout(state.timer)
+  const now = Date.now()
+  const cooldownDelay = Math.max(0, (state.cooldownUntil || 0) - now)
+  const delay = cooldownDelay > 0 ? cooldownDelay : SLOT_MIN_VISIBLE_MS
+  state.timer = setTimeout(() => {
+    state.timer = null
+    if (state.cancelled || !state.visible || !state.armed ||
+        state.countedInActivation) return
+    if (Date.now() < (state.cooldownUntil || 0)) {
+      _scheduleSlotQualification(state)
+      return
+    }
+    state.countedInActivation = true
+    state.segmentCounted = true
+    state.countedAt = Date.now()
+    _enqueue('slot_view', {
+      slot_id: state.slotId,
+      page: state.page,
+      ad_type: state.adType
+    })
+    _enqueue('slot_visible', {
+      slot_id: state.slotId,
+      page: state.page,
+      ad_type: state.adType,
+      visible_ms: SLOT_MIN_VISIBLE_MS
+    })
+  }, delay)
+}
+
+function _finalizeSlot(state, now) {
+  if (!state || !state.visible) return
+  if (state.timer) clearTimeout(state.timer)
+  state.timer = null
+  const endedAt = now || Date.now()
+  if (state.segmentCounted) {
+    const remainder = Math.max(0, endedAt - (state.countedAt || endedAt))
+    if (remainder > 0) {
+      _enqueue('slot_leave', {
+        slot_id: state.slotId,
+        page: state.page,
+        ad_type: state.adType,
+        visible_ms: remainder
+      })
+    }
+    state.cooldownUntil = endedAt + SLOT_REENTRY_COOLDOWN_MS
+  }
+  state.visible = false
+  state.segmentCounted = false
+  state.countedAt = 0
+}
+
+function _armSlot(state, now) {
+  if (!state || state.cancelled) return
+  if (now - (state.lastArmedAt || 0) < SLOT_REARM_DEDUPE_MS) return
+  state.lastArmedAt = now
+  if (state.visible) {
+    _finalizeSlot(state, now)
+    state.visible = true
+    state.visibleSince = now
+    state.countedAt = 0
+  }
+  state.armed = true
+  state.countedInActivation = false
+  if (state.visible) _scheduleSlotQualification(state)
+}
+
+function _finalizeAllSlots() {
+  const now = Date.now()
+  slotStates.forEach((state) => {
+    _finalizeSlot(state, now)
+  })
+}
+
 function observeSlot(ctx, slotId, page, adType) {
-  if (!ctx || !slotId || typeof wx === 'undefined' ||
-      typeof wx.createIntersectionObserver !== 'function') return
+  if (!ctx || !slotId || typeof wx === 'undefined') return
+  const hasContextObserver = typeof ctx.createIntersectionObserver === 'function'
+  const hasGlobalObserver = typeof wx.createIntersectionObserver === 'function'
+  if (!hasContextObserver && !hasGlobalObserver) return
   if (!ctx._usageSlots) ctx._usageSlots = {}
-  if (ctx._usageSlots[slotId]) return
-  const state = { visible: false, enteredAt: 0, timer: null }
+  if (ctx._usageSlots[slotId]) {
+    _armSlot(ctx._usageSlots[slotId], Date.now())
+    return
+  }
+  const state = {
+    slotId,
+    page,
+    adType,
+    visible: false,
+    visibleSince: 0,
+    countedAt: 0,
+    segmentCounted: false,
+    countedInActivation: false,
+    armed: true,
+    cooldownUntil: 0,
+    lastArmedAt: Date.now(),
+    timer: null,
+    retryTimer: null,
+    observer: null,
+    cancelled: false,
+    retries: 0
+  }
   ctx._usageSlots[slotId] = state
-  let observer = null
-  try {
-    observer = wx.createIntersectionObserver(ctx, { thresholds: [0.5] })
-    observer.relativeToViewport({ bottom: 0 }).observe('#' + slotId, (res) => {
-      const visible = !!(res && res.intersectionRatio >= 0.5)
+  slotStates.add(state)
+  const handleIntersection = (res) => {
+    if (state.cancelled) return
+    try {
+      const visible = !!(res && res.intersectionRatio >= SLOT_VISIBLE_RATIO)
       if (visible && !state.visible) {
         state.visible = true
-        state.enteredAt = Date.now()
-        _enqueue('slot_view', { slot_id: slotId, page, ad_type: adType })
-        state.timer = setTimeout(() => {
-          if (state.visible) {
-            _enqueue('slot_visible', {
-              slot_id: slotId,
-              page,
-              ad_type: adType,
-              visible_ms: Math.max(0, Date.now() - state.enteredAt)
-            })
-          }
-        }, 1000)
+        state.visibleSince = Date.now()
+        _scheduleSlotQualification(state)
       } else if (!visible && state.visible) {
-        state.visible = false
-        if (state.timer) clearTimeout(state.timer)
-        state.timer = null
-        _enqueue('slot_leave', {
-          slot_id: slotId,
-          page,
-          ad_type: adType,
-          visible_ms: Math.max(0, Date.now() - state.enteredAt - 1000)
-        })
+        _finalizeSlot(state, Date.now())
       }
-    })
-    state.observer = observer
-  } catch (e) {
-    if (observer && observer.disconnect) observer.disconnect()
-    delete ctx._usageSlots[slotId]
+    } catch (e) { /* 统计异常不影响页面 */ }
   }
+
+  const attach = () => {
+    if (state.cancelled || !ctx._usageSlots || ctx._usageSlots[slotId] !== state) return
+    if (typeof ctx.createSelectorQuery !== 'function') return
+    let query = null
+    try {
+      query = ctx.createSelectorQuery()
+    } catch (e) {
+      return
+    }
+    if (!query || typeof query.select !== 'function') return
+    query.select('#' + slotId).boundingClientRect((rect) => {
+      if (state.cancelled || !ctx._usageSlots ||
+          ctx._usageSlots[slotId] !== state) return
+      if (!rect) {
+        state.retries += 1
+        if (state.retries <= 16) {
+          state.retryTimer = setTimeout(attach, 120)
+        } else {
+          delete ctx._usageSlots[slotId]
+          slotStates.delete(state)
+        }
+        return
+      }
+      try {
+        const options = { thresholds: [0.5], nativeMode: true }
+        const observer = hasContextObserver
+          ? ctx.createIntersectionObserver(options)
+          : wx.createIntersectionObserver(ctx, options)
+        state.observer = observer
+        observer.relativeToViewport({ bottom: 0 })
+          .observe('#' + slotId, handleIntersection)
+      } catch (e) {
+        if (state.observer && state.observer.disconnect) {
+          state.observer.disconnect()
+        }
+        delete ctx._usageSlots[slotId]
+        slotStates.delete(state)
+      }
+    }).exec()
+  }
+  setTimeout(attach, 0)
 }
 
 function observeSlots(ctx, slots) {
@@ -245,11 +377,15 @@ function observeSlots(ctx, slots) {
 
 function disconnectSlots(ctx) {
   if (!ctx || !ctx._usageSlots) return
+  const now = Date.now()
   Object.keys(ctx._usageSlots).forEach((key) => {
     const state = ctx._usageSlots[key]
     if (!state) return
-    if (state.timer) clearTimeout(state.timer)
+    _finalizeSlot(state, now)
+    state.cancelled = true
+    _clearSlotTimers(state)
     if (state.observer && state.observer.disconnect) state.observer.disconnect()
+    slotStates.delete(state)
   })
   ctx._usageSlots = {}
 }

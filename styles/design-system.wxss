@@ -1,0 +1,327 @@
+/* Shared visual foundation for the rebuilt mini program. */
+page {
+  --primary: #3157D5;
+  --primary-light: #5D79E0;
+  --primary-strong: #2544B5;
+  --primary-dark: var(--primary-strong);
+  --primary-soft: #EEF2FF;
+  --primary-line: #D9E1FF;
+  --brand: var(--primary);
+  --brand-soft: var(--primary-soft);
+  --signal: #D99025;
+  --signal-soft: #FFF6E5;
+  --signal-line: #F1E2C5;
+  --signal-deep: #A66A0B;
+  --success: #1F9D82;
+  --success-soft: #E9F7F3;
+  --warning: #D99025;
+  --warning-soft: #FFF6E5;
+  --danger: #D75C62;
+  --danger-soft: #FCEEEF;
+  --danger-deep: #B84750;
+  --success-deep: #157A67;
+  --warning-light: #E6AC4A;
+  --warning-line: #F1E2C5;
+
+  --bg-page: #F5F7FA;
+  --bg-card: #FFFFFF;
+  --bg-sunken: #EDF1F5;
+  --bg-hover: #F0F3F8;
+  --line: #E3E8EF;
+  --line-soft: #EDF0F4;
+  --line-strong: #D3DBE6;
+  --border: var(--line);
+  --bw-card: 1rpx;
+  --bw-ctrl: 1rpx;
+  --text-primary: #182230;
+  --text-strong: #263448;
+  --text-secondary: #536174;
+  --text-muted: #748196;
+  --text-hint: #9AA6B6;
+  --icon-faint: #C4CCD7;
+  --ink: var(--text-primary);
+  --overlay: rgba(24, 34, 48, .44);
+
+  --glass-bg: rgba(255, 255, 255, .76);
+  --glass-bg-strong: rgba(255, 255, 255, .91);
+  --glass-line: rgba(255, 255, 255, .88);
+  --surface-tint: var(--glass-bg);
+  --surface-tint-strong: var(--glass-bg-strong);
+  --glass-shadow: 0 16rpx 44rpx rgba(24, 34, 48, .10);
+  --shadow-soft: 0 8rpx 24rpx rgba(24, 34, 48, .045);
+  --shadow-card: 0 4rpx 16rpx rgba(24, 34, 48, .04);
+  --shadow-btn: 0 8rpx 20rpx rgba(49, 87, 213, .14);
+  --shadow-pop: 0 20rpx 64rpx rgba(24, 34, 48, .16);
+  --shadow-sheet: 0 -12rpx 40rpx rgba(24, 34, 48, .13);
+
+  --radius-xs: 10rpx;
+  --radius-chip: var(--radius-xs);
+  --radius-control: 14rpx;
+  --radius-ctrl: var(--radius-control);
+  --radius-card: 18rpx;
+  --radius-panel: 24rpx;
+  --radius-pill: 999rpx;
+
+  --today-chip-bg: var(--signal);
+  --today-chip-fg: #FFFFFF;
+  --today-col-bg: #FFFCF5;
+  --today-ring: #F7E8C9;
+  --tcol-start: #F5F7FC;
+  --tcol-mid: #F5F7FC;
+  --tcol-end: #F5F7FC;
+  --grid-line: rgba(24, 34, 48, .07);
+  --co-radius: 10rpx;
+  --co-bar-w: 6rpx;
+  --co-border-w: 0rpx;
+
+  --hero-bg: #F3F5FF;
+  --hero-border: #DCE4FF;
+  --hero-title: var(--primary);
+  --hero-sub: var(--text-muted);
+  --gpa-high: var(--success);
+  --gpa-mid: var(--signal);
+  --gpa-low: var(--danger);
+
+  --space-page: 20rpx;
+  --space-section: 28rpx;
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 280ms;
+  --ease-standard: cubic-bezier(.22, .75, .22, 1);
+  --ease-spring: cubic-bezier(.22, 1.2, .36, 1);
+
+  --font-body: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-num: "DIN Alternate", "Avenir Next", "Helvetica Neue", sans-serif;
+  --font-plain: var(--font-body);
+  --font-ann: var(--font-body);
+
+  /* TDesign 与业务组件共享同一组语义令牌。 */
+  --td-brand-color-1: #F4F6FF;
+  --td-brand-color-2: #E3E8FF;
+  --td-brand-color-3: #C7D1FF;
+  --td-brand-color-4: #A4B5F5;
+  --td-brand-color-5: #7892EA;
+  --td-brand-color-6: #5272DF;
+  --td-brand-color-7: var(--primary);
+  --td-brand-color-8: var(--primary-strong);
+  --td-brand-color-9: #1D3695;
+  --td-brand-color-10: #142866;
+  --td-primary-color-1: var(--td-brand-color-1);
+  --td-primary-color-2: var(--td-brand-color-2);
+  --td-primary-color-3: var(--td-brand-color-3);
+  --td-primary-color-4: var(--td-brand-color-4);
+  --td-primary-color-5: var(--td-brand-color-5);
+  --td-primary-color-6: var(--td-brand-color-6);
+  --td-primary-color-7: var(--td-brand-color-7);
+  --td-primary-color-8: var(--td-brand-color-8);
+  --td-primary-color-9: var(--td-brand-color-9);
+  --td-primary-color-10: var(--td-brand-color-10);
+  --td-brand-color: var(--primary);
+  --td-brand-color-active: var(--primary-strong);
+  --td-brand-color-disabled: var(--td-brand-color-3);
+  --td-brand-color-focus: var(--primary-soft);
+  --td-brand-color-light: var(--primary-soft);
+  --td-brand-color-light-active: var(--td-brand-color-2);
+  --td-success-color: var(--success);
+  --td-success-color-light: var(--success-soft);
+  --td-warning-color: var(--warning);
+  --td-warning-color-light: var(--warning-soft);
+  --td-error-color: var(--danger);
+  --td-error-color-light: var(--danger-soft);
+  --td-bg-color-page: var(--bg-page);
+  --td-bg-color-container: var(--bg-card);
+  --td-bg-color-container-active: var(--bg-hover);
+  --td-bg-color-secondarycontainer: var(--bg-sunken);
+  --td-bg-color-secondarycontainer-active: var(--line);
+  --td-bg-color-component: var(--line-soft);
+  --td-bg-color-component-active: var(--line-strong);
+  --td-text-color-primary: var(--text-primary);
+  --td-text-color-secondary: var(--text-secondary);
+  --td-text-color-placeholder: var(--text-hint);
+  --td-text-color-disabled: #B8C1CD;
+  --td-text-color-brand: var(--primary);
+  --td-text-color-link: var(--primary);
+  --td-border-level-1-color: var(--line-soft);
+  --td-border-level-2-color: var(--line);
+  --td-component-stroke: var(--line-soft);
+  --td-component-border: var(--line);
+  --td-radius-small: var(--radius-xs);
+  --td-radius-default: var(--radius-control);
+  --td-radius-large: var(--radius-card);
+  --td-radius-extraLarge: var(--radius-panel);
+  --td-radius-round: var(--radius-pill);
+  --td-font-family: var(--font-body);
+  --td-font-family-medium: var(--font-body);
+  --td-shadow-1: var(--shadow-card);
+  --td-shadow-2: var(--shadow-pop);
+
+  /* 课程色板保留领域辨识度，避免基础组件品牌色淹没课表。 */
+  --c1-bg: #F2F7FF;  --c1-fg: #3D6FB8;  --c1-bar: #7BA5E8;
+  --c2-bg: #F0FAF7;  --c2-fg: #327B70;  --c2-bar: #68B8AA;
+  --c3-bg: #FFF9F1;  --c3-fg: #9A6A27;  --c3-bar: #DDB36D;
+  --c4-bg: #FFF3F7;  --c4-fg: #A54D71;  --c4-bar: #D99AB4;
+  --c5-bg: #F6F2FF;  --c5-fg: #6756A5;  --c5-bar: #A99AE0;
+  --c6-bg: #F1F9FC;  --c6-fg: #3D7E92;  --c6-bar: #72B6C8;
+  --c7-bg: #F2F4FF;  --c7-fg: #5362A8;  --c7-bar: #929DD8;
+  --c8-bg: #F5FAEC;  --c8-fg: #62823B;  --c8-bar: #A3C876;
+  --c9-bg: #FFF3F4;  --c9-fg: #A75664;  --c9-bar: #DD9AA5;
+  --c10-bg: #F5F7FA; --c10-fg: #667386; --c10-bar: #9BA6B5;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  background: var(--bg-page);
+  box-sizing: border-box;
+}
+
+page,
+view,
+scroll-view,
+swiper,
+swiper-item {
+  box-sizing: border-box;
+}
+
+button::after {
+  border: 0;
+}
+
+button,
+.tap,
+.pressable {
+  -webkit-tap-highlight-color: transparent;
+  transform-origin: center;
+  transition: background-color var(--motion-fast) var(--ease-standard),
+              border-color var(--motion-fast) var(--ease-standard),
+              color var(--motion-fast) var(--ease-standard),
+              opacity var(--motion-fast) var(--ease-standard),
+              transform var(--motion-base) var(--ease-spring),
+              box-shadow var(--motion-base) var(--ease-standard);
+}
+
+button:active,
+.tap:active,
+.pressable:active {
+  opacity: .88;
+  transform: scale(.985);
+}
+
+button[disabled],
+.tap.is-disabled,
+.pressable.is-disabled {
+  opacity: .48;
+  pointer-events: none;
+}
+
+.surface-panel,
+.card,
+.tool-card,
+.setting-card,
+.course-card,
+.exam-card,
+.countdown-card,
+.batch-card,
+.indicator-card,
+.sem-card,
+.sem-gpa-card,
+.sc-cet,
+.login-card {
+  background: var(--glass-bg-strong);
+  border: 1rpx solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.glass-panel,
+.glass {
+  background: var(--glass-bg);
+  border: 1rpx solid var(--glass-line);
+  -webkit-backdrop-filter: blur(24rpx) saturate(150%);
+  backdrop-filter: blur(24rpx) saturate(150%);
+  box-shadow: var(--glass-shadow);
+}
+
+.page-shell,
+.container,
+.main-page,
+.subject-shell {
+  color: var(--text-primary);
+  background: var(--bg-page);
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-height: 44rpx;
+  margin: 0 0 12rpx;
+}
+
+.section-heading__title {
+  color: var(--text-primary);
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.section-heading__meta {
+  color: var(--text-muted);
+  font-size: 22rpx;
+  line-height: 1.4;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  padding: 0;
+  border: 1rpx solid var(--line);
+  border-radius: 50%;
+  background: var(--glass-bg-strong);
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+.state-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 360rpx;
+  padding: 48rpx 32rpx;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.state-view__title {
+  margin-top: 20rpx;
+  color: var(--text-secondary);
+  font-size: 28rpx;
+  font-weight: 650;
+}
+
+.state-view__hint {
+  margin-top: 8rpx;
+  color: var(--text-muted);
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+
+.safe-bottom {
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .tap,
+  .pressable,
+  .sub-shell,
+  .main-page,
+  .container,
+  .page-shell {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

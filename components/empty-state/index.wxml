@@ -1,24 +1,12 @@
-<wxs module="esico">
-module.exports.resolve = function (name) {
-  if (name === '🔎' || name === '🔍') return 'search'
-  if (name === '⏳') return 'hourglass'
-  if (name === '📝' || name === '📋') return 'clipboard'
-  if (name === '📊') return 'chart'
-  if (name === '📅') return 'calendar'
-  if (name === '🖼️') return 'image'
-  if (name === '🏫') return 'building'
-  if (name === '🔐') return 'lock'
-  return name || 'search'
-}
-</wxs>
-<!-- 卡片式空状态: 淡蓝图标圆底 + 标题 + 副文案 + 操作按钮 -->
 <view class="es-wrap">
   <view class="es-card">
-    <view class="es-icon-wrap">
-    <icon name="{{esico.resolve(iconName)}}" size="76" color="#2563EB" />
-    </view>
-    <view class="es-title">{{title}}</view>
-    <text class="es-desc" wx:if="{{desc}}">{{desc}}</text>
-    <button class="es-btn" wx:if="{{showAction && actionText}}" bindtap="onAction">{{actionText}}</button>
+    <t-empty icon="{{iconName}}">
+      <view slot="description" class="es-copy">
+        <view class="es-title">{{title}}</view>
+        <text class="es-desc" wx:if="{{desc}}">{{desc}}</text>
+      </view>
+      <t-button wx:if="{{showAction && actionText}}" slot="action" theme="primary"
+                variant="base" size="medium" bind:tap="onAction">{{actionText}}</t-button>
+    </t-empty>
   </view>
 </view>

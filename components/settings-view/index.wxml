@@ -1,5 +1,5 @@
 <!-- 设置/登录视图组件 — 原 pages/settings 页面改造（方案A 合页 swiper） -->
-<view class="container view-root {{fontSwitching ? 'font-switching' : ''}}" wx:if="{{active}}">
+<view class="container view-root {{fontSwitching ? 'font-switching' : ''}} {{entering ? 'is-entering' : ''}}" wx:if="{{active}}">
 
   <!-- 滚动内容区(scroll-view 内滚, 无下拉刷新) -->
   <scroll-view class="view-scroll" scroll-y>
@@ -22,7 +22,7 @@
   <!-- ============================================================ -->
   <view wx:if="{{isLoggedIn}}">
 
-    <!-- 身份面板: 姓名与学号 + 关键数据 -->
+    <!-- 身份面板: 只保留身份信息, 指标与校历单独分层 -->
     <view class="user-card card">
       <view class="user-top">
         <view class="avatar"><icon name="user" size="40" color="#2563EB" /></view>
@@ -32,6 +32,10 @@
         </view>
         <text class="user-semester">{{semester || '未知学期'}}</text>
       </view>
+    </view>
+
+    <!-- 关键指标行 -->
+    <view class="profile-metrics card">
       <view class="user-overview">
         <view class="user-overview-item">
           <text class="user-overview-value">{{gradeCount}}</text>
@@ -48,7 +52,10 @@
           <text class="user-overview-label">学分进度</text>
         </view>
       </view>
+    </view>
 
+    <!-- 校历校准 -->
+    <view class="profile-calibration card">
       <view class="user-calibration">
         <picker class="calibration-picker" mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
           <view class="calibration-inline tap">
@@ -68,6 +75,7 @@
     </view>
 
     <!-- 界面字体: 紧凑分段选择 -->
+    <view class="profile-section-label">偏好</view>
     <view class="setting-card card">
       <view class="group-title">界面字体</view>
       <view class="font-seg">
@@ -81,6 +89,7 @@
     </view>
 
     <!-- 消息提醒(订阅消息): 授权一次可发一条; 服务端未配置时不显示 -->
+    <view class="profile-section-label service-label">服务</view>
     <view class="notice-card" wx:if="{{subKinds.length > 0}}">
       <view class="act-row tap" bindtap="onOpenSubscriptions">
         <view class="notice-dot {{subHasQuota ? 'on' : ''}}"></view>
@@ -128,8 +137,9 @@
 
     <!-- 底部操作: 清除缓存 / 退出登录(放在最下方, 危险操作标红) -->
     <view class="btn-group">
-      <button class="btn-outline main-btn clear-btn" bindtap="onClearData">清除缓存数据</button>
-      <button class="btn-danger-plain main-btn logout-btn" wx:if="{{isLoggedIn}}" bindtap="onLogout">退出登录</button>
+      <t-button t-class="btn-outline main-btn clear-btn" theme="primary" variant="outline" block bind:tap="onClearData">清除缓存数据</t-button>
+      <t-button t-class="btn-danger-plain main-btn logout-btn" theme="danger" variant="text" block
+                wx:if="{{isLoggedIn}}" bind:tap="onLogout">退出登录</t-button>
     </view>
     <view id="slot-profile-bottom" class="analytics-slot-marker"></view>
   </view>
@@ -148,17 +158,17 @@
       <!-- 学号 -->
       <view class="form-group">
         <text class="form-label">学号</text>
-        <input class="form-input" placeholder="请输入学号"
-               value="{{studentId}}" bindinput="onStudentIdInput" />
+        <t-input t-class="form-input" placeholder="请输入学号" clearable
+                 value="{{studentId}}" bind:change="onStudentIdInput" />
       </view>
 
       <!-- 密码 -->
       <view class="form-group">
         <text class="form-label">智慧理工密码</text>
         <view class="pwd-row">
-          <input class="form-input pwd-input" placeholder="请输入智慧理工密码"
-                 password="{{!showPassword}}" value="{{password}}"
-                 bindinput="onPasswordInput" />
+          <t-input t-class="form-input pwd-input" placeholder="请输入智慧理工密码"
+                   type="{{showPassword ? 'text' : 'password'}}" value="{{password}}"
+                   bind:change="onPasswordInput" />
           <view class="pwd-toggle tap" bindtap="onTogglePassword">
             <view class="pwd-eye {{showPassword ? 'pwd-eye-on' : ''}}"></view>
           </view>
@@ -166,10 +176,10 @@
       </view>
 
       <!-- 登录按钮(不禁用: 空表单点击时 onLogin 校验并提示, 避免"点了没反应") -->
-      <button class="btn-primary login-btn" bindtap="onLogin"
-              disabled="{{loggingIn}}">
+      <t-button t-class="btn-primary login-btn" theme="primary" block bind:tap="onLogin"
+                loading="{{loggingIn}}" disabled="{{loggingIn}}">
         {{loggingIn ? '登录中…' : '登录'}}
-      </button>
+      </t-button>
 
       <!-- 微信扫码登录(免密码): 长按二维码 → 识别图中二维码 → 确认登录 -->
       <view wx:if="{{!qrMode}}" class="qr-entry">
@@ -180,7 +190,7 @@
                show-menu-by-longpress="{{true}}" binderror="onQrImgError"
                bindtap="onQrPreview" />
         <view class="qr-panel-hint">{{qrHint}}</view>
-        <button class="qr-save-btn" bindtap="onQrSave">保存到相册</button>
+        <t-button t-class="qr-save-btn" theme="primary" variant="outline" size="small" bind:tap="onQrSave">保存到相册</t-button>
         <view class="qr-save-tip">用微信「扫一扫」→ 相册，选择刚保存的二维码</view>
         <view class="qr-panel-actions">
           <text class="qr-link tap" bindtap="onStartQr">刷新</text>
@@ -202,13 +212,15 @@
   </scroll-view>
 
   <!-- ============================================================ -->
-  <!-- 问题反馈弹窗(不另开页面, 点击遮罩关闭) -->
+  <!-- 问题反馈底部面板 -->
   <!-- ============================================================ -->
-  <view class="fb-mask" wx:if="{{showFeedback}}" bindtap="onFbClose">
-    <view class="fb-card" catchtap="noop">
+  <t-popup t-class="settings-popup" visible="{{showFeedback}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click
+           bind:visible-change="onFeedbackVisibleChange">
+    <view class="fb-card">
       <view class="fb-head">
         <text class="fb-title">问题反馈</text>
-        <text class="fb-close tap" bindtap="onFbClose">×</text>
+        <view class="fb-close tap" bindtap="onFbClose"><icon name="close" size="26" color="#64748B" /></view>
       </view>
 
       <view class="fb-label">反馈类型</view>
@@ -219,25 +231,28 @@
       </view>
 
       <view class="fb-label">反馈内容</view>
-      <textarea class="fb-textarea" placeholder="请描述您遇到的问题或建议（500 字内）"
-                value="{{fbContent}}" bindinput="onFbInput" maxlength="500"
-                cursor-spacing="120" />
+      <t-textarea t-class="fb-textarea" placeholder="请描述您遇到的问题或建议（500 字内）"
+                  value="{{fbContent}}" bind:change="onFbInput" maxlength="500" indicator
+                  cursor-spacing="120" />
       <view class="fb-count">{{fbContent.length}} / 500</view>
 
-      <button class="btn-primary fb-submit" bindtap="onFbSubmit" disabled="{{fbSending}}">
+      <t-button t-class="btn-primary fb-submit" theme="primary" block bind:tap="onFbSubmit"
+                loading="{{fbSending}}" disabled="{{fbSending}}">
         {{fbSending ? '提交中…' : '提交反馈'}}
-      </button>
+      </t-button>
     </view>
-  </view>
+  </t-popup>
 
   <!-- ============================================================ -->
-  <!-- 我的反馈弹窗: 查看官方回复(有新回复时入口带小红点) -->
+  <!-- 我的反馈面板: 查看官方回复(有新回复时入口带小红点) -->
   <!-- ============================================================ -->
-  <view class="fb-mask" wx:if="{{showMyFeedback}}" bindtap="onMyFbClose">
-    <view class="fb-card" catchtap="noop">
+  <t-popup t-class="settings-popup" visible="{{showMyFeedback}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click
+           bind:visible-change="onMyFeedbackVisibleChange">
+    <view class="fb-card">
       <view class="fb-head">
         <text class="fb-title">我的反馈</text>
-        <text class="fb-close tap" bindtap="onMyFbClose">×</text>
+        <view class="fb-close tap" bindtap="onMyFbClose"><icon name="close" size="26" color="#64748B" /></view>
       </view>
 
       <view class="myfb-list">
@@ -258,24 +273,26 @@
           <view class="myfb-noreply" wx:else>尚无回复，我们会尽快处理</view>
         </view>
 
-        <view class="myfb-empty" wx:if="{{fbLoading}}"><text>加载中…</text></view>
+        <view class="myfb-empty" wx:if="{{fbLoading}}"><t-loading theme="circular" size="36rpx" text="加载中…" /></view>
         <view class="myfb-empty" wx:if="{{!fbLoading && myFeedback.length === 0}}">
           <text>还没有提交过反馈</text>
         </view>
       </view>
 
-      <button class="btn-primary fb-submit" bindtap="onMyFbClose">关闭</button>
+      <t-button t-class="btn-primary fb-submit" theme="primary" block bind:tap="onMyFbClose">关闭</t-button>
     </view>
-  </view>
+  </t-popup>
 
   <!-- ============================================================ -->
-  <!-- 常用链接弹窗(点击复制; 小程序无法直接打开外部网页) -->
+  <!-- 常用链接面板(点击复制; 小程序无法直接打开外部网页) -->
   <!-- ============================================================ -->
-  <view class="fb-mask" wx:if="{{showLinks}}" bindtap="onLinksClose">
-    <view class="fb-card" catchtap="noop">
+  <t-popup t-class="settings-popup" visible="{{showLinks}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click
+           bind:visible-change="onLinksVisibleChange">
+    <view class="fb-card">
       <view class="fb-head">
         <text class="fb-title">常用链接</text>
-        <text class="fb-close tap" bindtap="onLinksClose">×</text>
+        <view class="fb-close tap" bindtap="onLinksClose"><icon name="close" size="26" color="#64748B" /></view>
       </view>
 
       <view class="link-tip">点击复制链接，在浏览器粘贴打开 · 长按查看完整网址</view>
@@ -299,14 +316,16 @@
 
       <view class="link-foot">共 {{linkTotal}} 个常用链接</view>
     </view>
-  </view>
+  </t-popup>
 
-  <!-- 消息提醒管理弹窗: 考试/成绩分别授权，额度独立 -->
-  <view class="fb-mask" wx:if="{{showSubscriptions}}" bindtap="onSubscriptionsClose">
-    <view class="fb-card sub-card" catchtap="noop">
+  <!-- 消息提醒管理面板: 考试/成绩分别授权，额度独立 -->
+  <t-popup t-class="settings-popup" visible="{{showSubscriptions}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click
+           bind:visible-change="onSubscriptionsVisibleChange">
+    <view class="fb-card sub-card">
       <view class="fb-head">
         <text class="fb-title">消息提醒</text>
-        <text class="fb-close tap" bindtap="onSubscriptionsClose">×</text>
+        <view class="fb-close tap" bindtap="onSubscriptionsClose"><icon name="close" size="26" color="#64748B" /></view>
       </view>
       <view class="sub-tip">微信每次授权可发送一条；勾选“总是保持以上选择”后，可继续点击累积额度。</view>
       <view class="notice-card sub-list">
@@ -321,20 +340,22 @@
         </view>
       </view>
     </view>
-  </view>
+  </t-popup>
 
-  <!-- 赞赏支持弹窗: 显示赞赏码(长按可保存/识别, 点击可放大) -->
-  <view class="fb-mask" wx:if="{{showAppreciate}}" bindtap="onCloseAppreciate">
-    <view class="fb-card appreciate-card" catchtap="noop">
+  <!-- 赞赏支持面板: 显示赞赏码(长按可保存/识别, 点击可放大) -->
+  <t-popup t-class="settings-popup" visible="{{showAppreciate}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click
+           bind:visible-change="onAppreciateVisibleChange">
+    <view class="fb-card appreciate-card">
       <view class="fb-head">
         <text class="fb-title">赞赏支持</text>
-        <text class="fb-close tap" bindtap="onCloseAppreciate">×</text>
+        <view class="fb-close tap" bindtap="onCloseAppreciate"><icon name="close" size="26" color="#64748B" /></view>
       </view>
       <image class="appreciate-img" src="/static/appreciate.jpg" mode="widthFix"
              show-menu-by-longpress="{{true}}" />
-      <view class="appreciate-tip">如果这个小工具帮到了你，欢迎请我喝杯奶茶 ☕</view>
+      <view class="appreciate-tip">如果这个小工具帮到了你，欢迎支持后续维护</view>
       <view class="appreciate-sub">长按图片可保存或识别</view>
     </view>
-  </view>
+  </t-popup>
 
 </view>

@@ -26,11 +26,11 @@
 
     <!-- 加载中 -->
     <empty-state wx:if="{{loading && exams.length === 0 && !isGraduate}}"
-                 icon="⏳" title="加载中…" />
+                 icon="hourglass" title="加载中…" />
 
     <!-- 空状态 -->
     <empty-state wx:if="{{!loading && exams.length === 0 && !isGraduate}}"
-                 icon="📝"
+                 icon="doc"
                  title="{{errorMsg || '暂无考试安排'}}"
                  desc="{{semester || '当前学期'}} 暂时没有考试安排"
                  action-text="获取考试安排"
@@ -69,9 +69,10 @@
             <text class="date-title">{{group.date}} {{group.weekday}}</text>
             <view class="date-right">
               <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>
-              <text wx:if="{{group.urgency === 'done'}}" class="collapse-arrow">
-                {{collapsedDates[group.date] ? '展开 ▾' : '折叠 ▴'}}
-              </text>
+              <view wx:if="{{group.urgency === 'done'}}" class="collapse-arrow">
+                <text>{{collapsedDates[group.date] ? '展开' : '折叠'}}</text>
+                <icon name="{{collapsedDates[group.date] ? 'next' : 'prev'}}" size="18" color="#748196" />
+              </view>
             </view>
           </view>
 

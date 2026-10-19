@@ -2,17 +2,35 @@
   "pages": [
     "pages/main/main",
     "pages/gallery/gallery",
-    "pages/freeclass/freeclass"
+    "pages/freeclass/freeclass",
+    "pages/ui-preview/ui-preview"
   ],
   "window": {
     "navigationBarTitleText": "课表助手",
-    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarBackgroundColor": "#F5F7FA",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#FFFFFF",
+    "backgroundColor": "#F5F7FA",
     "backgroundTextStyle": "dark"
   },
   "style": "v2",
   "cloud": true,
   "lazyCodeLoading": "requiredComponents",
+  "usingComponents": {
+    "t-button": "/miniprogram_npm/tdesign-miniprogram/button/button",
+    "t-dialog": "/miniprogram_npm/tdesign-miniprogram/dialog/dialog",
+    "t-empty": "/miniprogram_npm/tdesign-miniprogram/empty/empty",
+    "t-icon": "/miniprogram_npm/tdesign-miniprogram/icon/icon",
+    "t-input": "/miniprogram_npm/tdesign-miniprogram/input/input",
+    "t-loading": "/miniprogram_npm/tdesign-miniprogram/loading/loading",
+    "t-picker": "/miniprogram_npm/tdesign-miniprogram/picker/picker",
+    "t-picker-item": "/miniprogram_npm/tdesign-miniprogram/picker-item/picker-item",
+    "t-popup": "/miniprogram_npm/tdesign-miniprogram/popup/popup",
+    "t-progress": "/miniprogram_npm/tdesign-miniprogram/progress/progress",
+    "t-search": "/miniprogram_npm/tdesign-miniprogram/search/search",
+    "t-slider": "/miniprogram_npm/tdesign-miniprogram/slider/slider",
+    "t-tag": "/miniprogram_npm/tdesign-miniprogram/tag/tag",
+    "t-textarea": "/miniprogram_npm/tdesign-miniprogram/textarea/textarea",
+    "ui-picker": "/components/ui-picker/index"
+  },
   "sitemapLocation": "sitemap.json"
 }

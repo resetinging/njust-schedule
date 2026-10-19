@@ -20,19 +20,16 @@
   align-items: center;
 }
 
-.es-icon-wrap {
-  width: 112rpx;
-  height: 112rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary-soft);
-  border: 1rpx solid var(--primary-line);
-  border-radius: 28rpx;
+.es-card {
+  --td-empty-icon-color: var(--primary);
+  --td-empty-description-margin-top: 20rpx;
+  --td-empty-action-margin-top: 28rpx;
 }
 
-.es-icon {
-  font-size: 60rpx;
+.es-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .es-title {
@@ -51,24 +48,6 @@
 }
 
 /* 操作按钮: 纯色主色 */
-.es-btn {
-  margin-top: 32rpx;
-  width: auto;
-  min-width: 300rpx;
-  height: 80rpx;
-  line-height: 80rpx;
-  padding: 0 48rpx;
-  background: var(--primary);
-  color: var(--bg-card);
-  font-size: 28rpx;
-  font-weight: 600;
-  border-radius: var(--radius-ctrl);
-  border: none;
-  box-sizing: border-box;
-}
-
-.es-btn::after { border: none; }
-
 :host {
   display: block;
 }

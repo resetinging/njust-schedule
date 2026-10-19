@@ -134,6 +134,10 @@
   padding: 0 18rpx;
   border-radius: 18rpx;
   background: var(--bg-sunken);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: background-color, transform;
   transition: background-color var(--motion-fast) var(--ease-standard),
               transform var(--motion-fast) var(--ease-spring);
 }
@@ -186,15 +190,6 @@
   font-size: 24rpx;
 }
 
-.suggest-spinner {
-  width: 24rpx;
-  height: 24rpx;
-  border: 4rpx solid var(--line-strong);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-
 .filter-row:focus-within {
   background: var(--primary-soft);
 }
@@ -210,6 +205,7 @@
   flex: 1;
   min-width: 0;
   height: 68rpx;
+  background: transparent;
   color: var(--text-primary);
   font-size: 27rpx;
 }
@@ -487,16 +483,6 @@
   font-size: 25rpx;
 }
 
-.spinner {
-  width: 52rpx;
-  height: 52rpx;
-  margin-bottom: 20rpx;
-  border: 5rpx solid var(--line-strong);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin .9s linear infinite;
-}
-
 .error {
   margin-top: 24rpx;
   padding: 20rpx;
@@ -507,25 +493,13 @@
   font-size: 25rpx;
 }
 
-.explorer-mask {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 1600;
-  display: flex;
-  align-items: stretch;
-  background: rgba(15, 23, 42, .48);
-  animation: weeklyMaskIn 180ms var(--ease-standard) both;
-}
-
-.explorer-backdrop {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+.explorer-popup {
+  width: 100%;
+  height: 100vh;
+  max-height: 100vh;
+  --td-popup-bg-color: var(--bg-page);
+  --td-popup-border-radius: 0;
+  --td-popup-transition: all var(--motion-slow) var(--ease-standard);
 }
 
 .explorer-sheet {
@@ -541,7 +515,6 @@
   background: var(--bg-page);
   box-shadow: var(--shadow-sheet);
   overflow: hidden;
-  animation: weeklySheetIn 320ms var(--ease-spring) both;
 }
 
 .explorer-head {
@@ -867,25 +840,10 @@
   font-size: 23rpx;
 }
 
-.weekly-mask {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 1500;
-  display: flex;
-  align-items: flex-end;
-  background: rgba(15, 23, 42, .48);
-  animation: weeklyMaskIn 180ms var(--ease-standard) both;
-}
-
-.weekly-backdrop {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+.weekly-popup {
+  --td-popup-bg-color: var(--bg-page);
+  --td-popup-border-radius: var(--radius-panel);
+  --td-popup-transition: all var(--motion-slow) var(--ease-standard);
 }
 
 .weekly-sheet {
@@ -901,7 +859,6 @@
   background: var(--bg-page);
   box-shadow: var(--shadow-sheet);
   overflow: hidden;
-  animation: weeklySheetIn 320ms var(--ease-spring) both;
 }
 
 .weekly-head {
@@ -1002,16 +959,130 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-@keyframes weeklyMaskIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* Layout pass: search and result cards share the same 20rpx content edge. */
+.page-content {
+  padding-left: 20rpx;
+  padding-right: 20rpx;
 }
 
-@keyframes weeklySheetIn {
-  from { opacity: 0; transform: translateY(70rpx) scale(.985); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+.filter-card,
+.result-bar,
+.course-card {
+  margin-left: 0;
+  margin-right: 0;
+  border-radius: 18rpx;
+  box-shadow: var(--shadow-soft);
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* 高保真收口: 查询页以搜索和结果为主, 颜色只承担状态提示。 */
+.filter-card {
+  margin-top: 12rpx;
+  padding: 16rpx;
+  background: rgba(255, 255, 255, .76);
+  -webkit-backdrop-filter: blur(22rpx) saturate(155%);
+  backdrop-filter: blur(22rpx) saturate(155%);
+}
+
+.filter-title {
+  font-size: 26rpx;
+}
+
+.filter-row {
+  height: 64rpx;
+  border-radius: 16rpx;
+}
+
+.query-btn,
+.explorer-query {
+  background: var(--primary);
+  box-shadow: var(--shadow-btn);
+}
+
+.audit-status {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.audit-status.conflict {
+  background: var(--signal-soft);
+  color: var(--signal-deep);
+}
+
+.favorite-btn.on {
+  background: var(--warning-soft);
+  color: var(--signal-deep);
+}
+
+.conflict-detail {
+  background: var(--signal-soft);
+  color: var(--signal-deep);
+}
+
+.summary {
+  margin-top: 16rpx;
+  margin-bottom: 8rpx;
+  font-size: 22rpx;
+}
+
+.course-card {
+  padding: 20rpx;
+  background: rgba(255, 255, 255, .76);
+}
+
+.course-name {
+  font-size: 29rpx;
+}
+
+.meta-row {
+  min-height: 38rpx;
+  font-size: 23rpx;
+}
+
+/* Query controls remain fixed while only the result stream scrolls. */
+.container,
+.view-root {
+  min-height: 0;
+}
+
+.view-scroll {
+  height: 100%;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-card,
+.result-bar,
+.course-card {
+  border-color: var(--line);
+  box-shadow: var(--shadow-soft);
+}
+
+.filter-card {
+  background: var(--surface-tint-strong);
+}
+
+.filter-row {
+  min-height: 64rpx;
+  border-radius: 14rpx;
+  background: rgba(245, 247, 249, .70);
+}
+
+.suggest-panel {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, .96);
+  box-shadow: var(--shadow-pop);
+}
+
+.suggest-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+.course-card {
+  background: var(--surface-tint-strong);
+  transition: transform var(--motion-base) var(--ease-spring),
+              box-shadow var(--motion-base) var(--ease-standard);
+}
+
+.course-card:active {
+  transform: scale(.985);
 }

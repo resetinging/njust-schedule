@@ -1,0 +1,9 @@
+<view class="preview-page">
+  <feature-page
+    state="{{state}}"
+    page-data="{{pageData}}"
+    computed="{{computed}}"
+    env="{{env}}"
+    bind:action="onAction"
+  />
+</view>

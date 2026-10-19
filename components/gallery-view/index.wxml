@@ -17,8 +17,7 @@
 
   <!-- 首帧只显示轻量加载态；真正开始下载图片时才弹出带毛玻璃的进度层。 -->
   <view class="page-loading" wx:if="{{loading && !showDownloadProgress}}">
-    <view class="spinner"></view>
-    <text class="loading-text">正在准备校历…</text>
+    <t-loading theme="circular" size="44rpx" text="正在准备校历…" />
   </view>
 
   <!-- 诊断信息(仅出错时显示) -->
@@ -26,7 +25,7 @@
 
   <!-- 空状态 / 错误 -->
   <empty-state wx:if="{{!loading && errorMsg}}"
-               icon="🖼️"
+               icon="image"
                title="{{errorMsg}}"
                desc="网络异常，请稍后再试"
                action-text="重新加载"
