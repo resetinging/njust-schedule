@@ -1,21 +1,57 @@
-# Go/WebGo 镜像采用构建上下文白名单，避免上传旧 Flask 源码、测试数据和本地素材。
-**
+# Git
+.git
+.gitignore
 
-!.dockerignore
-!Dockerfile
-!Dockerfile.development
-!.air.toml
-!go.mod
-!go.sum
+# 桌面程序（云托管不需要）
+main.py
+run.bat
+setup.bat
+build.bat
+njust_schedule.spec
 
-!cmd
-!cmd/**
-!internal
-!internal/**
+# 构建产物
+dist/
+build/
+*.spec
+*.db
 
-# Go 服务仍复用现有管理后台静态资源与 HTML 模板。
-!wxcloudrun
-!wxcloudrun/static
-!wxcloudrun/static/**
-!wxcloudrun/templates
-!wxcloudrun/templates/admin.html
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 调试文件
+debug_*.json
+
+# 文档
+README.md
+PLAN.md
+AGENTS.md
+CLAUDE.md
+docs/
+tests/
+.github/
+requirements-dev.txt
+
+# 小程序前端与素材工作区
+.miniapp/
+poster/
+apk_work/
+
+# 临时文件
+nul
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Python 虚拟环境与本地工具链（构建上下文不应包含）
+.venv/
+.uvbin/
+tests/
+docs/
+.claude/
