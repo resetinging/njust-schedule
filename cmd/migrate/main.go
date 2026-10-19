@@ -8,11 +8,12 @@ import (
 
 	"github.com/resetinging/njust-schedule/internal/config"
 	"github.com/resetinging/njust-schedule/internal/database"
+	"github.com/resetinging/njust-schedule/internal/logging"
 	"github.com/resetinging/njust-schedule/internal/migrate"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: config.LogLevel(os.Getenv("LOG_LEVEL"))}))
+	logger := logging.New(os.Stdout, config.LogLevel(os.Getenv("LOG_LEVEL")))
 	os.Exit(run(logger))
 }
 

@@ -212,10 +212,27 @@ func middleware(logger *slog.Logger, server *Server, next http.Handler) http.Han
 			if err := compressed.close(); err != nil {
 				logger.Warn("响应压缩写入失败", "rid", rid, "error", err)
 			}
-			logger.Info("请求完成", "rid", rid, "method", r.Method,
-				"path", r.URL.Path, "status", sw.status,
-				"duration_ms", time.Since(started).Milliseconds())
-			server.recordRequest(r, sw.status, time.Since(started))
+			status := sw.status
+			if status == 0 {
+				status = http.StatusOK
+			}
+			elapsed := time.Since(started)
+			level := slog.LevelDebug
+			message := "请求完成"
+			switch {
+			case status >= http.StatusInternalServerError:
+				level = slog.LevelError
+				message = "请求失败"
+			case status >= http.StatusBadRequest:
+				level = slog.LevelWarn
+				message = "请求异常"
+			case elapsed >= 2*time.Second && !startupProbePath(r.URL.Path):
+				level = slog.LevelInfo
+				message = "慢请求完成"
+			}
+			logger.Log(r.Context(), level, message, "rid", rid, "method", r.Method,
+				"path", r.URL.Path, "status", status, "duration_ms", elapsed.Milliseconds())
+			server.recordRequest(r, status, elapsed)
 		}()
 
 		if !server.IsReady() && !startupProbePath(r.URL.Path) {
