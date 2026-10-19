@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -34,14 +35,30 @@ func run(logger *slog.Logger) int {
 		return 1
 	}
 
-	errCh := make(chan error, 1)
-	go func() {
-		logger.Info("服务启动", "address", cfg.Address, "runtime", "webgo")
-		errCh <- application.ListenAndServe()
-	}()
+	listener, err := application.Listen()
+	if err != nil {
+		logger.Error("监听端口失败", "address", cfg.Address, "error", err)
+		return 1
+	}
+	logger.Info("健康端口已监听", "address", cfg.Address, "runtime", "webgo")
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("服务启动", "address", cfg.Address, "runtime", "webgo")
+		errCh <- application.Serve(listener)
+	}()
+
+	migrationErrCh := make(chan error, 1)
+	go func() {
+		if err := application.Migrate(ctx, logger); err != nil {
+			migrationErrCh <- fmt.Errorf("数据库迁移失败: %w", err)
+			return
+		}
+		logger.Info("服务就绪", "migration", "complete")
+	}()
 
 	exitCode := 0
 	select {
@@ -51,6 +68,9 @@ func run(logger *slog.Logger) int {
 			logger.Error("服务异常退出", "error", err)
 			exitCode = 1
 		}
+	case err = <-migrationErrCh:
+		logger.Error("服务初始化失败", "error", err)
+		exitCode = 1
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

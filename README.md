@@ -145,9 +145,9 @@ Linux 构建需要 CGO 和 C 编译器；ONNX Runtime 在运行时动态加载�
 
 微信云托管只运行常驻服务，因此生产 Docker 命令采用以下顺序：
 
-    /app/migrate && exec /app/server
+    /app/server
 
-迁移器使用 MySQL 命名锁，避免多个实例同时执行 DDL。迁移失败时服务不会启动；服务进程本身只执行只读 Schema 校验，不在接收流量后修改表结构。
+服务先绑定健康端口，再在进程内执行带 MySQL 命名锁的迁移。迁移完成前 `/healthz` 可用、`/readyz` 和业务接口返回 503；迁移成功后后台任务才启动。迁移失败时进程退出，云托管保留旧版本，不会让不完整 Schema 接收业务请求。
 
 container.config.json 只负责确保数据库存在，所有表、列、索引和迁移版本统一由 cmd/migrate 管理，避免控制台 SQL 与代码迁移出现双重来源。
 

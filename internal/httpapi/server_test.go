@@ -70,6 +70,40 @@ func TestHealthContract(t *testing.T) {
 	}
 }
 
+func TestStartupGateAllowsOnlyProbesBeforeReady(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	server := &Server{
+		db: &sql.DB{}, logger: logger, bootPending: true,
+	}
+	handler := testHandler(t, server)
+
+	health := httptest.NewRecorder()
+	handler.ServeHTTP(health, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if health.Code != http.StatusOK {
+		t.Fatalf("health status = %d, body = %s", health.Code, health.Body.String())
+	}
+
+	ready := httptest.NewRecorder()
+	handler.ServeHTTP(ready, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	if ready.Code != http.StatusServiceUnavailable || !bytes.Contains(ready.Body.Bytes(), []byte(`"migration":false`)) {
+		t.Fatalf("ready status = %d, body = %s", ready.Code, ready.Body.String())
+	}
+
+	blocked := httptest.NewRecorder()
+	handler.ServeHTTP(blocked, httptest.NewRequest(http.MethodPost, "/api/login", nil))
+	if blocked.Code != http.StatusServiceUnavailable || blocked.Header().Get("Retry-After") != "5" {
+		t.Fatalf("blocked status = %d, retry = %q, body = %s",
+			blocked.Code, blocked.Header().Get("Retry-After"), blocked.Body.String())
+	}
+
+	server.MarkReady()
+	allowed := httptest.NewRecorder()
+	handler.ServeHTTP(allowed, httptest.NewRequest(http.MethodPost, "/api/login", nil))
+	if allowed.Code == http.StatusServiceUnavailable {
+		t.Fatalf("ready server still blocked: status=%d body=%s", allowed.Code, allowed.Body.String())
+	}
+}
+
 func TestAPIDisablesResponseCaching(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	server := &Server{db: &sql.DB{}, logger: logger}

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"net"
+	"time"
 
 	"github.com/resetinging/njust-schedule/internal/config"
 	"github.com/resetinging/njust-schedule/internal/database"
@@ -22,9 +24,6 @@ func New(cfg config.Config, logger *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = migrate.Verify(context.Background(), db); err != nil {
-		return nil, errors.Join(err, db.Close())
-	}
 	server, err := httpapi.New(cfg, db, logger)
 	if err != nil {
 		return nil, errors.Join(err, db.Close())
@@ -34,6 +33,29 @@ func New(cfg config.Config, logger *slog.Logger) (*App, error) {
 
 func (a *App) ListenAndServe() error {
 	return a.server.ListenAndServe()
+}
+
+func (a *App) Listen() (net.Listener, error) {
+	return a.server.Listen()
+}
+
+func (a *App) Serve(listener net.Listener) error {
+	return a.server.Serve(listener)
+}
+
+func (a *App) Migrate(ctx context.Context, logger *slog.Logger) error {
+	migrationCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	applied, err := migrate.Run(migrationCtx, a.db, logger)
+	if err != nil {
+		return err
+	}
+	if len(applied) == 0 {
+		logger.Info("数据库迁移校验完成", "version", migrate.Version)
+	}
+	a.server.MarkReady()
+	a.server.StartJobs()
+	return nil
 }
 
 func (a *App) Shutdown(ctx context.Context) error {

@@ -218,6 +218,12 @@ func middleware(logger *slog.Logger, server *Server, next http.Handler) http.Han
 			server.recordRequest(r, sw.status, time.Since(started))
 		}()
 
+		if !server.IsReady() && !startupProbePath(r.URL.Path) {
+			w.Header().Set("Retry-After", "5")
+			writeError(sw, http.StatusServiceUnavailable, "服务正在初始化，请稍后重试")
+			return
+		}
+
 		if values, exists := r.URL.Query()["semester"]; exists {
 			allowAll := r.URL.Path == "/api/grades"
 			if len(values) != 1 || strings.TrimSpace(values[0]) != "" && !validSemester(values[0], allowAll) {
@@ -228,6 +234,10 @@ func middleware(logger *slog.Logger, server *Server, next http.Handler) http.Han
 
 		next.ServeHTTP(sw, r.WithContext(ctx))
 	})
+}
+
+func startupProbePath(path string) bool {
+	return path == "/healthz" || path == "/readyz"
 }
 
 func randomID() string {

@@ -210,7 +210,7 @@ cmd/migrate 是唯一 Schema 写入入口：
 5. 校验必需表、列、关键列类型和迁移版本。
 6. 全部成功后登记 schema_migrations。
 
-服务进程启动时只调用 Verify。生产 Docker 命令先运行 migrate，再 exec server；迁移失败时实例不会接收流量。
+服务进程先绑定健康端口，再在后台执行带 MySQL 命名锁的迁移。迁移完成前 `/readyz` 和业务接口返回 503，后台任务不会启动；迁移失败时进程退出，云托管保留旧版本。
 
 container.config.json 只创建数据库，不重复声明业务表。
 

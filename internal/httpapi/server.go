@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/naughtygopher/webgo/v7"
@@ -32,9 +34,13 @@ type Server struct {
 	jwcSlots   chan struct{}
 	captcha    *captcha.Solver
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+	migrated atomic.Bool
+
+	bootPending bool
+	jobsOnce    sync.Once
 
 	qrMu sync.Mutex
 	qrs  map[string]*qrSession
@@ -110,7 +116,7 @@ func New(cfg config.Config, db *sql.DB, logger *slog.Logger) (*Server, error) {
 		captcha: captcha.NewSolver(cfg.CaptchaOCRModelPath, cfg.CaptchaOCRRuntimePath),
 		ctx:     ctx, cancel: cancel, qrs: map[string]*qrSession{}, cache: map[string]cacheEntry{},
 		dedupe: map[string]*inflight{}, rates: map[string][]time.Time{}, adminStarted: time.Now(),
-		adminRevoked: map[[32]byte]int64{},
+		adminRevoked: map[[32]byte]int64{}, bootPending: true,
 	}
 	writeTimeout := serverWriteTimeout(cfg.JWCRequestTimeout)
 	router := webgo.NewRouter(&webgo.Config{
@@ -121,7 +127,6 @@ func New(cfg config.Config, db *sql.DB, logger *slog.Logger) (*Server, error) {
 		ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second,
 		WriteTimeout: writeTimeout, IdleTimeout: 90 * time.Second,
 	}
-	s.startJobs()
 	return s, nil
 }
 
@@ -130,6 +135,24 @@ func serverWriteTimeout(jwcTimeout time.Duration) time.Duration {
 }
 
 func (s *Server) ListenAndServe() error { return s.httpServer.ListenAndServe() }
+
+func (s *Server) Listen() (net.Listener, error) {
+	return net.Listen("tcp", s.httpServer.Addr)
+}
+
+func (s *Server) Serve(listener net.Listener) error {
+	return s.httpServer.Serve(listener)
+}
+
+func (s *Server) MarkReady() { s.migrated.Store(true) }
+
+func (s *Server) IsReady() bool {
+	return !s.bootPending || s.migrated.Load()
+}
+
+func (s *Server) StartJobs() {
+	s.jobsOnce.Do(s.startJobs)
+}
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.cancel()
@@ -183,9 +206,17 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
+	checks := map[string]any{
+		"migration": s.IsReady(),
+		"database":  true,
+		"redis":     "disabled",
+	}
+	if !s.IsReady() {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "checks": checks})
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	checks := map[string]any{"database": true, "redis": "disabled"}
 	if err := s.db.PingContext(ctx); err != nil {
 		checks["database"] = false
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "checks": checks})

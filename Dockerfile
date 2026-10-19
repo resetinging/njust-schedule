@@ -70,6 +70,6 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
     CMD wget -q -O /dev/null http://127.0.0.1/healthz || exit 1
 
-# 微信云托管只提供常驻服务。启动脚本先执行带 MySQL 命名锁的显式迁移，
-# 迁移成功后再用 exec 启动 WebGo 服务；迁移失败会阻止不完整版本接收流量。
-CMD ["/bin/sh", "-c", "/app/migrate && exec /app/server"]
+# 先监听健康端口，再在进程内执行带 MySQL 命名锁的迁移。
+# 迁移完成前业务接口返回 503；迁移失败时进程退出，云托管保留旧版本。
+CMD ["/app/server"]
