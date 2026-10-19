@@ -56,13 +56,19 @@ func (a *App) Migrate(ctx context.Context, logger *slog.Logger) error {
 			logger.Warn("关闭迁移数据库连接失败", "error", closeErr)
 		}
 	}()
-	applied, err := migrate.Run(migrationCtx, migrationDB, logger)
+	applied, err := migrate.RunWithProgress(
+		migrationCtx,
+		migrationDB,
+		logger,
+		a.server.SetMigrationStage,
+	)
 	if err != nil {
 		return err
 	}
 	if len(applied) == 0 {
 		logger.Info("数据库迁移校验完成", "version", migrate.Version)
 	}
+	a.server.SetMigrationStage("complete")
 	a.server.MarkReady()
 	a.server.StartJobs()
 	return nil

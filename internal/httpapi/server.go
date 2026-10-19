@@ -38,6 +38,7 @@ type Server struct {
 	cancel   context.CancelFunc
 	wg       sync.WaitGroup
 	migrated atomic.Bool
+	stage    atomic.Value
 
 	bootPending bool
 	jobsOnce    sync.Once
@@ -118,6 +119,7 @@ func New(cfg config.Config, db *sql.DB, logger *slog.Logger) (*Server, error) {
 		dedupe: map[string]*inflight{}, rates: map[string][]time.Time{}, adminStarted: time.Now(),
 		adminRevoked: map[[32]byte]int64{}, bootPending: true,
 	}
+	s.stage.Store("booting")
 	writeTimeout := serverWriteTimeout(cfg.JWCRequestTimeout)
 	router := webgo.NewRouter(&webgo.Config{
 		Host: "", Port: "", ReadTimeout: 15 * time.Second, WriteTimeout: writeTimeout,
@@ -145,6 +147,19 @@ func (s *Server) Serve(listener net.Listener) error {
 }
 
 func (s *Server) MarkReady() { s.migrated.Store(true) }
+
+func (s *Server) SetMigrationStage(stage string) {
+	if stage != "" {
+		s.stage.Store(stage)
+	}
+}
+
+func (s *Server) MigrationStage() string {
+	if value, ok := s.stage.Load().(string); ok {
+		return value
+	}
+	return ""
+}
 
 func (s *Server) IsReady() bool {
 	return !s.bootPending || s.migrated.Load()
@@ -208,6 +223,7 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
 	checks := map[string]any{
 		"migration": s.IsReady(),
+		"stage":     s.MigrationStage(),
 		"database":  true,
 		"redis":     "disabled",
 	}

@@ -79,6 +79,15 @@ var uniqueKeys = []struct {
 }
 
 func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error) {
+	return RunWithProgress(ctx, db, logger, nil)
+}
+
+func RunWithProgress(
+	ctx context.Context,
+	db *sql.DB,
+	logger *slog.Logger,
+	progress func(string),
+) ([]string, error) {
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		return nil, err
@@ -89,6 +98,7 @@ func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error)
 		}
 	}()
 	var acquired sql.NullInt64
+	logStage(logger, progress, "waiting_lock")
 	if err = conn.QueryRowContext(ctx, "SELECT GET_LOCK(?, 60)", lockName).Scan(&acquired); err != nil || !acquired.Valid || acquired.Int64 != 1 {
 		if err == nil {
 			err = fmt.Errorf("获取数据库迁移锁超时")
@@ -102,7 +112,7 @@ func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error)
 			logger.Warn("释放数据库迁移锁失败", "error", releaseErr)
 		}
 	}()
-	logStage(logger, "acquired_lock")
+	logStage(logger, progress, "acquired_lock")
 
 	if _, err = conn.ExecContext(ctx, createTables[0]); err != nil {
 		return nil, err
@@ -114,13 +124,13 @@ func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error)
 	if exists > 0 {
 		return nil, verifyApplied(ctx, conn)
 	}
-	logStage(logger, "create_tables")
+	logStage(logger, progress, "create_tables")
 	for _, statement := range createTables {
 		if _, err = conn.ExecContext(ctx, statement); err != nil {
 			return nil, fmt.Errorf("建表失败: %w", err)
 		}
 	}
-	logStage(logger, "align_columns")
+	logStage(logger, progress, "align_columns")
 	for _, column := range requiredColumns {
 		var count int
 		if err = conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?`, column.table, column.name).Scan(&count); err != nil {
@@ -139,19 +149,19 @@ func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error)
 			return nil, err
 		}
 		if !strings.Contains(strings.ToLower(dataType), "text") {
-			logStage(logger, "extend_class_info:"+table)
+			logStage(logger, progress, "extend_class_info:"+table)
 			if _, err = conn.ExecContext(ctx, fmt.Sprintf("ALTER TABLE `%s` MODIFY COLUMN class_info TEXT NULL", table)); err != nil {
 				return nil, fmt.Errorf("扩展 %s.class_info 失败: %w", table, err)
 			}
 		}
 	}
-	logStage(logger, "cleanup_unique_keys")
+	logStage(logger, progress, "cleanup_unique_keys")
 	for _, statement := range uniqueKeyCleanupStatements() {
 		if _, err = conn.ExecContext(ctx, statement); err != nil {
 			return nil, fmt.Errorf("唯一键历史数据清理失败: %w", err)
 		}
 	}
-	logStage(logger, "create_indexes")
+	logStage(logger, progress, "create_indexes")
 	for _, index := range indexes {
 		var count int
 		if err = conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=?`, index.table, index.name).Scan(&count); err != nil {
@@ -168,7 +178,7 @@ func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error)
 			}
 		}
 	}
-	logStage(logger, "migrate_data")
+	logStage(logger, progress, "migrate_data")
 	dataStatements := []string{
 		`INSERT IGNORE INTO settings(k,v) VALUES ('student_id',''),('student_name',''),('semester',''),('auto_refresh','false'),('refresh_interval','3600')`,
 		`INSERT IGNORE INTO user_settings(student_id,k,v,updated_at) SELECT SUBSTRING_INDEX(k,':',1),SUBSTRING(k,LOCATE(':',k)+1),COALESCE(v,''),NOW() FROM settings WHERE k REGEXP '^[0-9]{8,20}:'`,
@@ -182,7 +192,7 @@ func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error)
 			return nil, fmt.Errorf("数据迁移失败: %w", err)
 		}
 	}
-	logStage(logger, "verify_schema")
+	logStage(logger, progress, "verify_schema")
 	if err = verifySchema(ctx, conn); err != nil {
 		return nil, err
 	}
@@ -198,7 +208,10 @@ func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error)
 	return []string{Version}, nil
 }
 
-func logStage(logger *slog.Logger, stage string) {
+func logStage(logger *slog.Logger, progress func(string), stage string) {
+	if progress != nil {
+		progress(stage)
+	}
 	if logger != nil {
 		logger.Info("数据库迁移阶段", "stage", stage)
 	}
