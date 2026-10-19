@@ -498,35 +498,206 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 
 // ============================================================
-// 公告管理
+// 信息中心
 // ============================================================
-async function loadAnnouncement() {
+let contentBoardState = {
+  updated: '',
+  announcements: [],
+  community: { name: '', qq: '', note: '' }
+};
+
+function boardDate() {
   try {
-    const r = await api('/api/admin/announcement');
-    if (!r.success) return;
-    $('annText').value = r.text || '';
-    $('annEnabled').checked = r.enabled;
-    $('annUpdated').textContent = r.updated ? '上次修改: ' + r.updated : '';
-    updateAnnCount();
-  } catch (e) {}
-}
-function updateAnnCount() {
-  $('annCount').textContent = ($('annText').value.length || 0) + ' / 500';
-}
-$('annText').addEventListener('input', updateAnnCount);
-$('annSave').addEventListener('click', async () => {
-  const text = $('annText').value.trim();
-  const enabled = $('annEnabled').checked;
-  const r = await api('/api/admin/announcement', {
-    method: 'POST',
-    body: JSON.stringify({ text, enabled })
-  });
-  if (r.success) {
-    loadAnnouncement();
-    alert('公告已保存，小程序端即时生效');
-  } else {
-    alert('保存失败: ' + (r.message || '未知错误'));
+    return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' })
+      .format(new Date());
+  } catch (e) {
+    return new Date().toISOString().slice(0, 10);
   }
+}
+
+function boardID(prefix) {
+  return prefix + '-' + Date.now() + '-' + Math.random().toString(16).slice(2, 8);
+}
+
+const ANNOUNCEMENT_TYPES = [
+  ['notice', '一般公告'],
+  ['maintenance', '维护通知'],
+  ['feature', '功能更新'],
+  ['deadline', '重要期限'],
+  ['issue', '已知问题']
+];
+const ANNOUNCEMENT_PRIORITIES = [
+  ['normal', '普通'],
+  ['important', '重要'],
+  ['urgent', '紧急']
+];
+function boardOptions(items, selected) {
+  return items.map(([value, label]) =>
+    `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`
+  ).join('');
+}
+
+function normalizeAnnouncementItem(item) {
+  return Object.assign({
+    id: boardID('ann'),
+    title: '',
+    body: '',
+    type: 'notice',
+    priority: 'normal',
+    audience: '',
+    action: '',
+    published_at: boardDate(),
+    effective_at: '',
+    expires_at: '',
+    pinned: false,
+    enabled: true
+  }, item || {});
+}
+
+function normalizeBoard(board) {
+  const value = board || {};
+  return {
+    updated: value.updated || '',
+    announcements: (Array.isArray(value.announcements) ? value.announcements : [])
+      .map(normalizeAnnouncementItem),
+    community: Object.assign({ name: '', qq: '', note: '' }, value.community || {})
+  };
+}
+
+function renderAnnouncementEditor(item, index) {
+  return `
+    <article class="bc-editor-item" data-type="announcement" data-index="${index}">
+      <div class="bc-item-head">
+        <strong>公告 ${index + 1}</strong>
+        <button class="ghost tiny" data-action="remove">删除</button>
+      </div>
+      <div class="bc-fields two">
+        <label>标题<input class="bc-input" data-field="title" maxlength="80"
+          value="${esc(item.title || '')}" placeholder="公告标题"></label>
+        <label>日期<input class="bc-input" data-field="published_at" type="date"
+          value="${esc(String(item.published_at || '').slice(0, 10))}"></label>
+      </div>
+      <div class="bc-fields three">
+        <label>类型<select class="bc-input" data-field="type">
+          ${boardOptions(ANNOUNCEMENT_TYPES, item.type || 'notice')}
+        </select></label>
+        <label>优先级<select class="bc-input" data-field="priority">
+          ${boardOptions(ANNOUNCEMENT_PRIORITIES, item.priority || 'normal')}
+        </select></label>
+        <label>影响范围<input class="bc-input" data-field="audience" maxlength="40"
+          value="${esc(item.audience || '')}" placeholder="例如：全部本科生"></label>
+      </div>
+      <div class="bc-fields two">
+        <label>生效日期<input class="bc-input" data-field="effective_at" type="date"
+          value="${esc(String(item.effective_at || '').slice(0, 10))}"></label>
+        <label>失效日期<input class="bc-input" data-field="expires_at" type="date"
+          value="${esc(String(item.expires_at || '').slice(0, 10))}"></label>
+      </div>
+      <label>正文<textarea class="ann-input bc-body" data-field="body" maxlength="3000"
+        placeholder="公告正文">${esc(item.body || '')}</textarea></label>
+      <label>用户需要做什么<textarea class="ann-input bc-action" data-field="action" maxlength="200"
+        placeholder="例如：请暂停刷新课表，恢复后重新登录">${esc(item.action || '')}</textarea></label>
+      <div class="bc-flags">
+        <label class="chk-label"><input type="checkbox" data-field="enabled" ${item.enabled ? 'checked' : ''}> 显示</label>
+        <label class="chk-label"><input type="checkbox" data-field="pinned" ${item.pinned ? 'checked' : ''}> 置顶</label>
+      </div>
+    </article>`;
+}
+
+function renderContentBoardEditors() {
+  $('bcAnnouncements').innerHTML = contentBoardState.announcements
+    .map(renderAnnouncementEditor).join('') ||
+    '<p class="bc-empty">暂无公告，点击“新增公告”开始编辑。</p>';
+  $('bcQQName').value = contentBoardState.community.name || '';
+  $('bcQQ').value = contentBoardState.community.qq || '';
+  $('bcQQNote').value = contentBoardState.community.note || '';
+  $('bcUpdated').textContent = contentBoardState.updated
+    ? '上次修改: ' + contentBoardState.updated
+    : '';
+}
+
+function bindBoardEditor(containerId, listName) {
+  const container = $(containerId);
+  container.addEventListener('change', (event) => {
+    const field = event.target.dataset.field;
+    const card = event.target.closest('[data-index]');
+    if (!field || !card) return;
+    const item = contentBoardState[listName][Number(card.dataset.index)];
+    if (!item) return;
+    item[field] = event.target.type === 'checkbox'
+      ? event.target.checked
+      : event.target.value;
+  });
+  container.addEventListener('input', (event) => {
+    const field = event.target.dataset.field;
+    const card = event.target.closest('[data-index]');
+    if (!field || !card || event.target.type === 'checkbox') return;
+    const item = contentBoardState[listName][Number(card.dataset.index)];
+    if (!item) return;
+    item[field] = event.target.value;
+  });
+  container.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="remove"]');
+    const card = event.target.closest('[data-index]');
+    if (!button || !card) return;
+    contentBoardState[listName].splice(Number(card.dataset.index), 1);
+    renderContentBoardEditors();
+  });
+}
+
+bindBoardEditor('bcAnnouncements', 'announcements');
+
+async function loadContentBoard() {
+  try {
+    const response = await api('/api/admin/content-board');
+    if (!response.success) throw new Error(response.message || '读取失败');
+    contentBoardState = normalizeBoard(response.board);
+    renderContentBoardEditors();
+  } catch (error) {
+    alert('信息中心读取失败: ' + error.message);
+  }
+}
+
+// 保留旧调用名，登录和 Tab 切换无需额外分支。
+function loadAnnouncement() {
+  return loadContentBoard();
+}
+
+$('bcAddAnnouncement').addEventListener('click', () => {
+  contentBoardState.announcements.push({
+    id: boardID('ann'),
+    title: '',
+    body: '',
+    type: 'notice',
+    priority: 'normal',
+    audience: '',
+    action: '',
+    published_at: boardDate(),
+    effective_at: '',
+    expires_at: '',
+    pinned: false,
+    enabled: true
+  });
+  renderContentBoardEditors();
+});
+
+$('bcSave').addEventListener('click', async () => {
+  contentBoardState.community = {
+    name: $('bcQQName').value.trim(),
+    qq: $('bcQQ').value.trim(),
+    note: $('bcQQNote').value.trim()
+  };
+  const response = await api('/api/admin/content-board', {
+    method: 'POST',
+    body: JSON.stringify({ board: contentBoardState })
+  });
+  if (!response.success) {
+    alert('保存失败: ' + (response.message || '未知错误'));
+    return;
+  }
+  contentBoardState = normalizeBoard(response.board);
+  renderContentBoardEditors();
+  alert('信息中心已保存，小程序端即时生效');
 });
 
 // ============================================================

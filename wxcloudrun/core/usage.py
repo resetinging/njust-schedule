@@ -34,12 +34,12 @@ EVENT_NAMES = {
 
 PAGE_NAMES = {
     '', 'main', 'schedule', 'feature', 'exams', 'eval', 'grades',
-    'credit', 'freeclass', 'gallery', 'audit', 'profile', 'login',
+    'credit', 'freeclass', 'gallery', 'audit', 'notice', 'profile', 'login',
 }
 
 FEATURE_NAMES = {
     '', 'schedule', 'exams', 'eval', 'grades', 'credit',
-    'freeclass', 'gallery', 'audit', 'subscription', 'feedback',
+    'freeclass', 'gallery', 'audit', 'notice', 'subscription', 'feedback',
     'settings', 'profile', 'login',
 }
 

@@ -255,8 +255,8 @@ func (s *Server) subscribeTestSend(w http.ResponseWriter, r *http.Request) {
 }
 
 var usageEventNames = setOf("app_open", "app_background", "session_start", "session_end", "page_view", "page_leave", "feature_open", "feature_action", "refresh_success", "refresh_fail", "login_success", "reminder_grant", "audit_favorite", "feedback_submit", "slot_view", "slot_visible", "slot_leave", "ad_request", "ad_loaded", "ad_failed", "ad_impression", "ad_click", "ad_close", "ad_reward_complete")
-var usagePages = setOf("", "main", "schedule", "feature", "exams", "eval", "grades", "credit", "freeclass", "gallery", "audit", "profile", "login")
-var usageFeatures = setOf("", "schedule", "exams", "eval", "grades", "credit", "freeclass", "gallery", "audit", "subscription", "feedback", "settings", "profile", "login")
+var usagePages = setOf("", "main", "schedule", "feature", "exams", "eval", "grades", "credit", "freeclass", "gallery", "audit", "notice", "profile", "login")
+var usageFeatures = setOf("", "schedule", "exams", "eval", "grades", "credit", "freeclass", "gallery", "audit", "notice", "subscription", "feedback", "settings", "profile", "login")
 var usageAdTypes = setOf("", "native", "banner", "interstitial", "rewarded")
 var usagePlatforms = setOf("", "ios", "android", "devtools", "other")
 var usagePropertyKeys = setOf("duration_s", "visible_ms", "result", "kind", "has_data", "items", "tab", "source")

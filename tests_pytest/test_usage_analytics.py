@@ -8,6 +8,7 @@ os.environ.setdefault(
 
 from wxcloudrun import app, db
 from wxcloudrun.admin import _issue_admin_token
+from wxcloudrun.core.usage import _normalize_event
 from wxcloudrun.model import UsageEvent, UsageSlotUserDaily, UsageUserDaily
 
 
@@ -84,6 +85,18 @@ def test_usage_requires_consent_and_rejects_unknown_events():
     response = c.post("/api/analytics/events", json=invalid)
     assert response.status_code == 200
     assert response.get_json()["rejected"] == 1
+
+
+def test_notice_page_and_feature_are_accepted():
+    event = _normalize_event({
+        "id": "notice-1",
+        "name": "page_view",
+        "session_id": "session-1",
+        "page": "notice",
+        "feature": "notice",
+    })
+    assert event["page"] == "notice"
+    assert event["feature"] == "notice"
 
 
 def test_admin_analytics_report_reads_daily_rollups():

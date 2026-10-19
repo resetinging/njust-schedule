@@ -132,13 +132,25 @@ func (s *Server) readFeedback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) announcement(w http.ResponseWriter, r *http.Request) {
-	settings, err := s.store.Settings(r.Context(), "announcement_text", "announcement_enabled", "announcement_updated")
+	board, err := s.loadContentBoard(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取公告失败")
 		return
 	}
-	text, enabled, updated := settings["announcement_text"], settings["announcement_enabled"], settings["announcement_updated"]
-	writeJSON(w, http.StatusOK, map[string]any{"success": true, "enabled": enabled != "0" && strings.TrimSpace(text) != "", "text": strings.TrimSpace(text), "updated": updated})
+	public := publicContentBoard(board)
+	if len(public.Announcements) == 0 {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "enabled": false, "text": "", "updated": public.Updated,
+		})
+		return
+	}
+	latest := public.Announcements[0]
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"enabled": true,
+		"text":    latest.Body,
+		"updated": public.Updated,
+	})
 }
 
 func (s *Server) galleryDir() string { return filepath.Join(s.cfg.StaticDir, "gallery") }

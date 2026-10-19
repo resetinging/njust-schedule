@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>课表助手 · 控制面板</title>
-  <link rel="stylesheet" href="/static/css/admin.css">
+  <link rel="stylesheet" href="/static/css/admin.css?v=20261020-2">
 </head>
 <body>
 
@@ -45,7 +45,7 @@
       <button class="tab" data-tab="users">用户</button>
       <button class="tab" data-tab="sessions">在线会话</button>
       <button class="tab" data-tab="grades">成绩统计</button>
-      <button class="tab" data-tab="announce">📢 公告</button>
+      <button class="tab" data-tab="announce">📢 信息中心</button>
       <button class="tab" data-tab="feedback">✉️ 反馈</button>
       <button class="tab" data-tab="system">⚙️ 系统</button>
     </nav>
@@ -184,19 +184,37 @@
 
     <section id="panel-announce" class="panel">
       <div class="card">
-        <h3>📢 小程序公告栏管理</h3>
-        <p class="dim" style="margin-bottom:12px">公告在小程序出现两处：① 主页面顶部横幅（有新公告时显示，点开看全文后不再提示）②「我的」页公告栏（常驻，带"新"标记，可随时查看）。保存后小程序端自动生效。</p>
-        <div class="announce-row">
-          <label class="chk-label"><input type="checkbox" id="annEnabled" checked> 显示公告</label>
-          <span id="annUpdated" class="dim"></span>
-        </div>
-        <textarea id="annText" class="ann-input"
-                  placeholder="输入公告内容（建议 1~2 句，如：期末考试成绩已发布，请同学们查收…）"
-                  maxlength="500"></textarea>
-        <p class="dim" style="margin-top:8px">顶部横幅只显示一行，超过约 14 字会以省略号截断（会出现「查看 ›」提示）；「我的」页超过 24 字默认折叠，点击展开。</p>
+        <h3>📢 小程序信息中心</h3>
+        <p class="dim" style="margin-bottom:14px">公告按优先级排序，过期后自动隐藏。更新记录由小程序代码内置，不在此处维护。</p>
+
+        <section class="bc-section">
+          <div class="bc-head">
+            <div>
+              <strong>公告</strong>
+              <span class="dim">最多 20 条，紧急内容建议只保留一条</span>
+            </div>
+            <button id="bcAddAnnouncement" class="ghost small">新增公告</button>
+          </div>
+          <div id="bcAnnouncements" class="bc-editor-list"></div>
+        </section>
+
+        <section class="bc-section bc-community">
+          <div class="bc-head">
+            <div>
+              <strong>QQ 群</strong>
+              <span class="dim">小程序内提供一键复制群号</span>
+            </div>
+          </div>
+          <div class="bc-fields three">
+            <label>群名称<input id="bcQQName" class="bc-input" maxlength="50" placeholder="例如：课表助手交流群"></label>
+            <label>群号<input id="bcQQ" class="bc-input" maxlength="15" inputmode="numeric" placeholder="5 到 15 位数字"></label>
+            <label>加群说明<input id="bcQQNote" class="bc-input" maxlength="200" placeholder="例如：有问题优先在群内反馈"></label>
+          </div>
+        </section>
+
         <div class="ann-actions">
-          <span id="annCount" class="dim">0 / 500</span>
-          <button id="annSave" class="primary ann-save">保存公告</button>
+          <span id="bcUpdated" class="dim"></span>
+          <button id="bcSave" class="primary ann-save">保存信息中心</button>
         </div>
       </div>
     </section>
@@ -275,6 +293,6 @@
     <div id="drawerBody" class="drawer-body"></div>
   </div>
 
-  <script src="/static/js/admin.js"></script>
+  <script src="/static/js/admin.js?v=20261020-2"></script>
 </body>
 </html>

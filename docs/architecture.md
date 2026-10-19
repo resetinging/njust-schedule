@@ -165,7 +165,7 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 | 蹭课 | /api/audit-courses、/api/audit-options、/api/audit-favorites |
 | 同步 | /api/sync/versions |
 | 订阅 | /api/subscribe/status、/api/subscribe/grant、/api/subscribe/test-send |
-| 内容 | /api/feedback、/api/my-feedback、/api/announcement、/api/gallery-*、/api/font/* |
+| 内容 | /api/feedback、/api/my-feedback、/api/content-board、/api/announcement、/api/gallery-*、/api/font/* |
 | 统计 | /api/analytics/events |
 | 管理 | /admin、/api/admin/* |
 
@@ -181,6 +181,7 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 - 成绩列表没有“绩点”列时 grade_point 写 0，由小程序按成绩计算，不能使用行号兜底。
 - 蹭课目录使用“一行一门课、列=星期×大节”的 43 列课程目录结构，并按旧版规则拆分多教师、多班级、多教室和多周次。
 - 空列表统一返回 [] 而不是 null，包括收藏、管理端用户详情和考试安排。
+- 信息中心使用 settings.content_board_v1 保存公告和 QQ 群信息；公告包含类型、优先级、影响范围、处理提示和生效/失效日期。/api/announcement 从最新有效公告派生，兼容旧前端。更新记录由小程序 utils/changelog.js 代码内置，不依赖后端配置。
 - 小程序启动预取通过 /api/sync/versions 比较数据版本，不能只依赖本地 30 天 TTL。
 
 ## 八、并发与可靠性
