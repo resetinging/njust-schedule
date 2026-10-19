@@ -24,9 +24,9 @@ RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simpl
 # 再拷贝项目代码（.dockerignore 中文件除外）
 COPY . /app
 
-# 临时维护模式：先恢复服务可用性，禁止容器启动时执行 DDL 或阻断启动的 Schema 校验。
+# 生产默认不在容器启动时执行 DDL；迁移完成后恢复启动期只读 Schema 校验。
 ENV MIGRATIONS_AUTO=0 \
-    SCHEMA_CHECK_ON_STARTUP=0
+    SCHEMA_CHECK_ON_STARTUP=1
 
 # 暴露端口。必须与 container.config.json 中的 containerPort 一致
 EXPOSE 80

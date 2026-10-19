@@ -13,7 +13,7 @@
     "envParams": {
         "FREE_CLASSROOM_PREWARM": "1",
         "MIGRATIONS_AUTO": "0",
-        "SCHEMA_CHECK_ON_STARTUP": "0"
+        "SCHEMA_CHECK_ON_STARTUP": "1"
     },
     "customLogs": "stdout",
     "initialDelaySeconds": 10,
