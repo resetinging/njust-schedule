@@ -157,7 +157,7 @@ container.config.json 只负责确保数据库存在，所有表、列、索引�
 - ddddocr 通用模型与 ONNX Runtime 1.23.2 动态库
 - wxcloudrun/static
 - wxcloudrun/templates/admin.html
-- CA 证书和时区数据
+- CA 证书、时区数据和仅授予 server 的低端口绑定能力
 
 建议保持单实例运行。当前共享缓存、定时任务锁和部分限流状态位于进程内；需要水平扩容时，应先把这些状态迁移到 Redis 或数据库。
 

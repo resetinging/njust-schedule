@@ -45,7 +45,7 @@ FROM debian:bookworm-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates libgomp1 libstdc++6 tzdata wget \
+    && apt-get install -y --no-install-recommends ca-certificates libcap2-bin libgomp1 libstdc++6 tzdata wget \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system app \
     && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
@@ -64,6 +64,9 @@ COPY --from=runtime-assets /assets/libonnxruntime_providers_shared.so /app/libon
 COPY --chown=app:app internal/captcha/*.txt /app/licenses/
 COPY --chown=app:app wxcloudrun/static /app/wxcloudrun/static
 COPY --chown=app:app wxcloudrun/templates/admin.html /app/wxcloudrun/templates/admin.html
+
+# 云托管固定使用 80 端口；保留非 root 运行，仅授予绑定低端口能力。
+RUN setcap 'cap_net_bind_service=+ep' /app/server
 
 USER app
 EXPOSE 80

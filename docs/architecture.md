@@ -216,6 +216,6 @@ container.config.json 只创建数据库，不重复声明业务表。
 
 ## 十、生产镜像
 
-Dockerfile 使用 Go 1.26.9 Debian 多阶段构建。最终镜像以非 root 用户运行，包含两个 CGO Go 二进制、ddddocr 通用模型、ONNX Runtime 1.23.2 动态库、静态资源、管理端模板、CA 证书和时区数据。
+Dockerfile 使用 Go 1.26.9 Debian 多阶段构建。最终镜像以非 root 用户运行，并通过文件能力仅授予 server 绑定 80 端口的权限；镜像包含两个 CGO Go 二进制、ddddocr 通用模型、ONNX Runtime 1.23.2 动态库、静态资源、管理端模板、CA 证书和时区数据。
 
 旧 wxcloudrun 下的 Flask 源码、requirements 文件和 Python 测试不会进入最终镜像。OCR 由 Go 进程内的 ONNX Runtime 完成，不依赖 Python。旧代码只用于迁移比对，新增业务应进入 internal 下的 Go 分层。
