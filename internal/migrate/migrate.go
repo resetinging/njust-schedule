@@ -177,11 +177,26 @@ func RunWithProgress(
 	}
 	logStage(logger, progress, "create_indexes")
 	for _, index := range indexes {
-		var count int
-		if err = conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=?`, index.table, index.name).Scan(&count); err != nil {
-			return nil, err
+		exists, matches, inspectErr := indexDefinition(
+			ctx, conn, index.table, index.name, index.columns,
+			strings.HasPrefix(index.name, "uq_"),
+		)
+		if inspectErr != nil {
+			return nil, inspectErr
 		}
-		if count == 0 {
+		if exists && !matches {
+			if logger != nil {
+				logger.Warn("索引定义不匹配，准备重建",
+					"table", index.table, "index", index.name)
+			}
+			if _, err = conn.ExecContext(ctx,
+				fmt.Sprintf("DROP INDEX `%s` ON `%s`", index.name, index.table),
+			); err != nil {
+				return nil, fmt.Errorf("删除错误索引 %s 失败: %w", index.name, err)
+			}
+			exists = false
+		}
+		if !exists {
 			kind := "INDEX"
 			if strings.HasPrefix(index.name, "uq_") {
 				kind = "UNIQUE INDEX"
@@ -242,12 +257,15 @@ func prepareUsageEventKey(ctx context.Context, conn *sql.Conn) (bool, error) {
 	var uniqueCount int
 	if err := conn.QueryRowContext(ctx, `
 		SELECT COUNT(*)
-		FROM information_schema.STATISTICS
-		WHERE TABLE_SCHEMA=DATABASE()
-		  AND TABLE_NAME='usage_events'
-		  AND COLUMN_NAME='event_key'
-		  AND SEQ_IN_INDEX=1
-		  AND NON_UNIQUE=0
+		FROM (
+			SELECT INDEX_NAME
+			FROM information_schema.STATISTICS
+			WHERE TABLE_SCHEMA=DATABASE()
+			  AND TABLE_NAME='usage_events'
+			  AND NON_UNIQUE=0
+			GROUP BY INDEX_NAME
+			HAVING GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX)='event_key'
+		) exact_unique
 	`).Scan(&uniqueCount); err != nil {
 		return false, fmt.Errorf("检查 usage_events.event_key 唯一索引失败: %w", err)
 	}
@@ -273,6 +291,50 @@ func prepareUsageEventKey(ctx context.Context, conn *sql.Conn) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+func indexDefinition(
+	ctx context.Context,
+	db queryer,
+	table, name, columns string,
+	expectUnique bool,
+) (bool, bool, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT COLUMN_NAME,NON_UNIQUE
+		FROM information_schema.STATISTICS
+		WHERE TABLE_SCHEMA=DATABASE()
+		  AND TABLE_NAME=?
+		  AND INDEX_NAME=?
+		ORDER BY SEQ_IN_INDEX
+	`, table, name)
+	if err != nil {
+		return false, false, fmt.Errorf("读取索引 %s.%s 定义失败: %w", table, name, err)
+	}
+	defer rows.Close()
+	var actual []string
+	actualUnique := true
+	for rows.Next() {
+		var column string
+		var nonUnique int
+		if err = rows.Scan(&column, &nonUnique); err != nil {
+			return false, false, err
+		}
+		actual = append(actual, column)
+		actualUnique = actualUnique && nonUnique == 0
+	}
+	if err = rows.Err(); err != nil {
+		return false, false, err
+	}
+	if len(actual) == 0 {
+		return false, false, nil
+	}
+	expected := strings.Split(columns, ",")
+	for i := range expected {
+		expected[i] = strings.TrimSpace(expected[i])
+	}
+	matches := strings.Join(actual, ",") == strings.Join(expected, ",") &&
+		actualUnique == expectUnique
+	return true, matches, nil
 }
 
 func dropUsageEventDedupeIndex(ctx context.Context, conn *sql.Conn) error {

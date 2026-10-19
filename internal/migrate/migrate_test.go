@@ -121,6 +121,56 @@ func TestUsageEventDedupeUsesIndexedTemporaryTable(t *testing.T) {
 	}
 }
 
+func TestIndexDefinitionDetectsMismatchedDefinition(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("SELECT COLUMN_NAME,NON_UNIQUE").
+		WithArgs("usage_events", "uq_usage_events_event_key").
+		WillReturnRows(sqlmock.NewRows([]string{"COLUMN_NAME", "NON_UNIQUE"}).
+			AddRow("event_key", 1).
+			AddRow("event_name", 1))
+
+	exists, matches, err := indexDefinition(
+		context.Background(), db, "usage_events",
+		"uq_usage_events_event_key", "event_key", true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists || matches {
+		t.Fatalf("exists=%v matches=%v, want existing mismatch", exists, matches)
+	}
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIndexDefinitionAcceptsExpectedUniqueIndex(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("SELECT COLUMN_NAME,NON_UNIQUE").
+		WithArgs("usage_events", "uq_usage_events_event_key").
+		WillReturnRows(sqlmock.NewRows([]string{"COLUMN_NAME", "NON_UNIQUE"}).
+			AddRow("event_key", 0))
+
+	exists, matches, err := indexDefinition(
+		context.Background(), db, "usage_events",
+		"uq_usage_events_event_key", "event_key", true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists || !matches {
+		t.Fatalf("exists=%v matches=%v, want matching unique index", exists, matches)
+	}
+}
+
 func TestVerifyRejectsNarrowClassInfo(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

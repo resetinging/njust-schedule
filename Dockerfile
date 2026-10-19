@@ -52,7 +52,8 @@ RUN apt-get update \
 ENV TZ=Asia/Shanghai \
     STATIC_DIR=/app/wxcloudrun/static \
     CAPTCHA_OCR_MODEL_PATH=/app/common.onnx \
-    ONNXRUNTIME_SHARED_LIBRARY_PATH=/app/libonnxruntime.so
+    ONNXRUNTIME_SHARED_LIBRARY_PATH=/app/libonnxruntime.so \
+    MIGRATIONS_AUTO=0
 WORKDIR /app
 
 COPY --from=build /out/server /app/server
