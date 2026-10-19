@@ -70,6 +70,22 @@ func TestHealthContract(t *testing.T) {
 	}
 }
 
+func TestAdminTrailingSlashRedirects(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	server := &Server{logger: logger}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/admin/?tab=feedback", nil)
+
+	testHandler(t, server).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusPermanentRedirect {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if location := recorder.Header().Get("Location"); location != "/admin?tab=feedback" {
+		t.Fatalf("location = %q", location)
+	}
+}
+
 func TestStartupGateAllowsOnlyProbesBeforeReady(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	server := &Server{

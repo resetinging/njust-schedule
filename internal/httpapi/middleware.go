@@ -224,6 +224,15 @@ func middleware(logger *slog.Logger, server *Server, next http.Handler) http.Han
 			return
 		}
 
+		if (r.Method == http.MethodGet || r.Method == http.MethodHead) && r.URL.Path == "/admin/" {
+			target := "/admin"
+			if r.URL.RawQuery != "" {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(sw, r, target, http.StatusPermanentRedirect)
+			return
+		}
+
 		if values, exists := r.URL.Query()["semester"]; exists {
 			allowAll := r.URL.Path == "/api/grades"
 			if len(values) != 1 || strings.TrimSpace(values[0]) != "" && !validSemester(values[0], allowAll) {
