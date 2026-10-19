@@ -17,6 +17,7 @@ import (
 type App struct {
 	server *httpapi.Server
 	db     *sql.DB
+	cfg    config.Config
 }
 
 func New(cfg config.Config, logger *slog.Logger) (*App, error) {
@@ -28,7 +29,7 @@ func New(cfg config.Config, logger *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, errors.Join(err, db.Close())
 	}
-	return &App{server: server, db: db}, nil
+	return &App{server: server, db: db, cfg: cfg}, nil
 }
 
 func (a *App) ListenAndServe() error {
@@ -46,7 +47,16 @@ func (a *App) Serve(listener net.Listener) error {
 func (a *App) Migrate(ctx context.Context, logger *slog.Logger) error {
 	migrationCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	applied, err := migrate.Run(migrationCtx, a.db, logger)
+	migrationDB, err := database.OpenForMigration(migrationCtx, a.cfg)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := migrationDB.Close(); closeErr != nil {
+			logger.Warn("关闭迁移数据库连接失败", "error", closeErr)
+		}
+	}()
+	applied, err := migrate.Run(migrationCtx, migrationDB, logger)
 	if err != nil {
 		return err
 	}
