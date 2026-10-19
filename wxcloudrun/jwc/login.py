@@ -457,6 +457,10 @@ class LoginMixin:
 
             execution_val = _form_val("execution")
             salt_val = _form_val("pwdEncryptSalt")
+            if not salt_val:
+                salt_input = soup.find("input", id="pwdEncryptSalt")
+                salt_val = ((salt_input.get("value") or "").strip()
+                            if salt_input else "")
             lt_val = _form_val("lt")
 
             if not execution_val or not salt_val:

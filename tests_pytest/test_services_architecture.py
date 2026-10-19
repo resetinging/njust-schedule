@@ -81,6 +81,21 @@ def test_admin_users_sees_qr_user_after_schedule_refresh_without_force_reload():
         assert summary["total_users"] >= 1
 
 
+def test_admin_user_aggregates_normalize_student_id_keys():
+    """后台聚合键必须与规范化后的用户列表学号保持一致。"""
+    rows = [
+        (" 924101960123 ", 7),
+        (924101960124, 8),
+        (None, 9),
+        ("", 10),
+    ]
+
+    assert admin_module._aggregate_by_student(rows) == {
+        "924101960123": 7,
+        "924101960124": 8,
+    }
+
+
 def test_student_service_maps_session_error_to_401():
     with app.app_context():
         client = _client("service-expired")

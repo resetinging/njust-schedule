@@ -100,3 +100,8 @@ def test_admin_analytics_report_reads_daily_rollups():
     assert payload["overview"]["dau"] >= 1
     assert payload["pages"]
     assert payload["slots"]
+    slot = payload["slots"][0]
+    assert slot["visible_per_user"] == 1.0
+    assert slot["avg_visible_seconds"] == 1.2
+    assert slot["fill_rate"] is None
+    assert slot["ctr"] is None

@@ -235,14 +235,30 @@ def _admin_student_ids():
         rows = (db.session.query(model.student_id)
                 .filter(model.student_id != "")
                 .distinct().all())
-        sids.update(str(row[0]) for row in rows if row[0])
+        sids.update(_normalize_student_id(row[0]) for row in rows
+                    if _normalize_student_id(row[0]))
     with _sessions_lock:
         sids.update(
-            str(client.student_id)
+            _normalize_student_id(client.student_id)
             for client, _ts in _sessions.values()
-            if getattr(client, "student_id", "")
+            if _normalize_student_id(getattr(client, "student_id", ""))
         )
     return sids
+
+
+def _normalize_student_id(value) -> str:
+    """将数据库、会话和旧设置中的学号统一为可比较的字符串。"""
+    return str(value or "").strip()
+
+
+def _aggregate_by_student(rows) -> dict:
+    """规范化 GROUP BY 结果的学号键，兼容历史数据中的空格和类型差异。"""
+    result = {}
+    for student_id, value in rows:
+        sid = _normalize_student_id(student_id)
+        if sid:
+            result[sid] = value
+    return result
 
 
 def _stats_cache_get(key: str):
@@ -315,39 +331,45 @@ def admin_users():
     # 在线会话快照
     with _sessions_lock:
         sess = {
-            str(client.student_id): [client, ts]
+            _normalize_student_id(client.student_id): [client, ts]
             for client, ts in _sessions.values()
-            if getattr(client, "student_id", "")
+            if _normalize_student_id(getattr(client, "student_id", ""))
         }
     sids = sorted(_admin_student_ids())
     # 性能优化: 聚合查询一次取全量(此前每用户 4-5 次查询, 用户多时 N+1 爆炸)
-    g_counts = dict(db.session.query(Grade.student_id, func.count(Grade.id))
-                    .filter(Grade.student_id != "").group_by(Grade.student_id).all())
-    c_counts = dict(db.session.query(Course.student_id, func.count(Course.id))
-                    .filter(Course.student_id != "").group_by(Course.student_id).all())
-    e_counts = dict(db.session.query(Exam.student_id, func.count(Exam.id))
-                    .filter(Exam.student_id != "").group_by(Exam.student_id).all())
-    best_gps = dict(db.session.query(Grade.student_id, func.max(Grade.grade_point))
-                    .filter(Grade.student_id != "", Grade.grade_point > 0)
-                    .group_by(Grade.student_id).all())
+    g_counts = _aggregate_by_student(
+        db.session.query(Grade.student_id, func.count(Grade.id))
+        .filter(Grade.student_id != "").group_by(Grade.student_id).all())
+    c_counts = _aggregate_by_student(
+        db.session.query(Course.student_id, func.count(Course.id))
+        .filter(Course.student_id != "").group_by(Course.student_id).all())
+    e_counts = _aggregate_by_student(
+        db.session.query(Exam.student_id, func.count(Exam.id))
+        .filter(Exam.student_id != "").group_by(Exam.student_id).all())
+    best_gps = _aggregate_by_student(
+        db.session.query(Grade.student_id, func.max(Grade.grade_point))
+        .filter(Grade.student_id != "", Grade.grade_point > 0)
+        .group_by(Grade.student_id).all())
     # 新结构使用 user_settings(student_id, k, v)，旧结构的 settings 仍作回退。
     user_meta_rows = (db.session.query(UserSetting.student_id,
                                        UserSetting.k, UserSetting.v)
                       .filter(UserSetting.k.in_(("semester", "name")))
                       .all())
-    sem_map = {str(sid): value for sid, key, value in user_meta_rows
+    sem_map = {_normalize_student_id(sid): value
+               for sid, key, value in user_meta_rows
                if key == "semester" and value}
-    name_map = {str(sid): value for sid, key, value in user_meta_rows
+    name_map = {_normalize_student_id(sid): value
+                for sid, key, value in user_meta_rows
                 if key == "name" and value}
     legacy_sem_rows = db.session.query(Setting.k, Setting.v).filter(
         Setting.k.like("%:semester")).all()
     legacy_name_rows = db.session.query(Setting.k, Setting.v).filter(
         Setting.k.like("%:name")).all()
     for key, value in legacy_sem_rows:
-        sid = key.rsplit(":", 1)[0]
+        sid = _normalize_student_id(key.rsplit(":", 1)[0])
         sem_map.setdefault(sid, value)
     for key, value in legacy_name_rows:
-        sid = key.rsplit(":", 1)[0]
+        sid = _normalize_student_id(key.rsplit(":", 1)[0])
         if value:
             name_map.setdefault(sid, value)
     users = []

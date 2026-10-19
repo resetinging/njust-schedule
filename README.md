@@ -1,165 +1,185 @@
-# 课表助手
+# 课表助手后端
 
-面向本校学生的教务一站式 Web 应用:登录强智教务系统,拉取并展示**课表、考试安排、教学评价、成绩绩点、四六级成绩**,支持**批量自动评教**与**保研口径 GPA** 计算。部署于微信云托管(Flask + MySQL),手机端可安装为 PWA。
+南京理工大学课表助手的微信小程序后端。服务部署在微信云托管，负责智慧理工 SSO、教务数据抓取与解析、用户数据缓存、共享课程目录、空教室、订阅提醒和管理端接口。
 
-> 本项目从桌面版迁移而来,基于微信云托管 Flask 模板框架二次开发,原模板的计数器示例代码已不再使用。
->
-> 配套微信小程序与本后端的分工、模块划分与接口契约,详见 [docs/architecture.md](docs/architecture.md)。
->
-> **架构(方案 A)**:后端收敛为「教务网关 + 认证 + 提交中转」,业务计算(GPA 绩点、评教自动评分、批量评教循环)已移至前端(小程序 `utils/gpa.js`、`eval.js`,Web `evaluations.js`)。
+当前生产运行时已迁移为 Go/WebGo。旧 Flask 源码暂时保留用于迁移核对和回归测试，但不会复制进生产镜像；验证码识别由 Go 进程内的 ONNX Runtime 完成，生产镜像不包含 Python、Flask 或 SQLAlchemy。
 
-## 功能
+## 核心能力
 
-- **课表**:周视图 + 手机列表视图,自动计算当前教学周(根据学期第一周周一),高亮今日课程
-- **考试**:考试安排列表(时间/考场/座位号)
-- **教学评价**:
-  - 拉取评价批次与课程列表,解析评价指标表单
-  - 按目标分自动填选(默认 95 分,含防同列机制与微调优化)
-  - 后台线程批量保存/提交全部课程,进度实时可见
-  - 内置教务页面反向代理(`/proxy/jw/*`),可在本应用中直接打开教务评价页
-- **成绩与绩点**:
-  - 成绩记录按学期存储,计算学期绩点与全部学期加权平均绩点(4.0 量表)
-  - 排除通识教育选修课、缓考/缺考/免修等非正式成绩
-  - 保研模式:四六级成绩按官方公式折算百分制,替换英语模块(8 学分)重算 GPA
-- **登录**:支持智慧理工 SSO 密码登录与微信扫码登录。密码默认由后端 AES-256-GCM 加密保存，用于 24 小时内的 Cookie 快速恢复和会话失效自动重登；退出登录不删除密码，管理员不能查看明文。会话失效时后台全量同步会立即中止，不继续请求后续教务数据域
-- **蹭课查询**:按课程名称、任课教师、地点、星期和节次组合查询教务课程课表; 支持同维度多选、不同维度同时匹配; 只展示课程名、教师、星期、节次、周次和教室等实际可得字段
+- 本科和研究生课表、考试、成绩、四六级、评教、培养方案、校历和学籍信息
+- 智慧理工密码登录与二维码登录
+- 密码 AES-256-GCM 加密保存，24 小时本地信任，教务 Cookie 最长保留 30 天
+- 空教室和蹭课目录使用活跃本科会话、持久 Cookie、服务账号三级来源
+- 蹭课条件查询、候选分片、课程收藏和课表冲突数据
+- 考试提醒、成绩提醒和微信一次性订阅额度
+- 使用统计、反馈、公告、图库、字体和管理控制台
+- 请求合并、教务并发限制、缓存、限流、优雅停机和就绪探针
+- 兼容旧小程序的 API 路径、JSON 字段、HTTP 状态码和 X-Auth-Token
+
+智慧理工要求验证码时，后端会本地识别并自动提交换图重试一次；模型或运行库不可用、连续识别失败时回退二维码登录。已有 token、持久 Cookie 和 24 小时信任凭据不走 OCR。
 
 ## 技术栈
 
-- 后端:Python 3.10 / Flask 3.1 / SQLAlchemy 2.0 / MySQL / gunicorn(单 worker 多线程,会话在进程内存)
-- 爬虫:requests + BeautifulSoup(lxml),HTML 解析带多策略降级(API → 查询页表单 → 列表页)
-- OCR:ddddocr(验证码自动识别)
-- 前端:原生 JS + PWA(Service Worker 离线缓存)
-- 部署:微信云托管(Dockerfile + container.config.json)
+- Go 1.26.9
+- WebGo v7.1.1
+- database/sql + go-sql-driver/mysql
+- goquery
+- MySQL
+- Redis（可选，用于跨进程会话）
+- Docker 多阶段构建 + Debian 最终镜像 + ONNX Runtime 1.23.2
 
 ## 目录结构
 
-```
-.
-├── config.py                    集中配置(数据库、教务 URL、大节定义、HTTP 头)
-├── run.py                       Flask 启动入口
-├── requirements.txt             依赖清单
-├── Dockerfile                    云托管容器构建
-├── container.config.json         云托管服务设置与建表 SQL
-├── wxcloudrun/                   app 目录
-│   ├── __init__.py               Flask 应用与 SQLAlchemy 初始化
-│   ├── views.py                  页面路由 + Blueprint 装配 + 字体接口
-│   ├── api/                      各域接口(认证/课表/成绩/评教/空教室/学习/订阅)
-│   ├── core/                     通用能力(会话/Cookie 加密/限流/微信订阅/考试提醒)
-│   ├── jwc_client.py             教务客户端门面(组合 jwc/ 下各域 mixin)
-│   ├── jwc/                      教务各域 mixin(课表/考试/成绩/评教/周历/培养方案/学籍)
-│   ├── model.py                  ORM 模型(Course/Exam/Evaluation/Grade/CetScore/Setting)
-│   ├── repositories/             按聚合划分的数据访问与快照替换
-│   ├── services/                 教务访问、刷新编排、错误映射与缓存失效
-│   ├── jobs/                     后台任务统一启动入口与任务适配器
-│   ├── dao.py                    兼容门面(旧调用方入口)
-│   ├── templates/                Jinja2 页面模板(课表/考试/成绩/评教/校历/设置)
-│   └── static/                   前端资源(JS/CSS/PWA/图标/校历图片)
-├── docs/
-│   └── architecture.md           小程序前后端职责说明与接口契约
-```
+    cmd/
+      server/                 WebGo 服务入口
+      migrate/                MySQL 迁移入口
+    internal/
+      app/                    应用装配
+      authn/                  密码与持久 Cookie
+      config/                 环境变量和启动校验
+      database/               MySQL 连接池
+      httpapi/                API、后台任务和管理端
+      jwc/                    智慧理工与教务客户端、页面解析
+      migrate/                幂等迁移和 Schema 校验
+      security/               AES-GCM、令牌签名
+      session/                内存/Redis 会话
+      store/                  SQL 数据访问
+    wxcloudrun/static/        小程序需要的图库和字体资源
+    wxcloudrun/templates/     管理端页面
+    Dockerfile               生产镜像
+    Dockerfile.development   Air 热重载镜像
+    container.config.json    微信云托管服务配置
 
-## 快速开始
+## 认证与会话
 
-### 环境变量
+密码登录先检查服务端保存密码是否与本次输入一致，且上次真实 SSO 验证未超过 24 小时。满足条件时先探测持久 Cookie；Cookie 失效后才重新访问智慧理工。真实 SSO 成功会更新加密密码和持久 Cookie。
 
-| 变量 | 说明 | 默认 |
-|---|---|---|
-| `SQLALCHEMY_DATABASE_URI` | 数据库连接串；本地可用 `sqlite:///xxx.db` | 空(则必须配置下列 MySQL 变量) |
-| `MYSQL_USERNAME` / `MYSQL_PASSWORD` / `MYSQL_ADDRESS` | 云托管 MySQL 连接信息；生产环境必须完整配置 | 空 |
-| `DEBUG` | Flask 调试模式(生产环境保持关闭) | `False` |
-| `JW_MAX_CONCURRENT` | 教务访问池并发上限(同时进行的教务 HTTP 请求数,防打爆教务服务器) | `4` |
-| `SESSION_TTL` | 用户会话无活动回收时间(秒) | `43200`(12h) |
-| `MAX_SESSIONS` | 用户池上限,超限自动淘汰最久未活动会话 | `200` |
-| `DATA_CACHE_TTL` | 课表/成绩/评教/周历/培养方案/学籍等业务数据缓存时间(秒) | `2592000`(30天) |
-| `SSO_SESSION_MAX_AGE` | 教务持久 Cookie 最长复用时间(秒) | `2592000`(30天) |
-| `CREDENTIAL_TRUST_TTL` | 服务端保存密码的本地信任期；只有真实 SSO 成功才续期(秒) | `86400`(24小时) |
-| `NETWORK_CACHE_TTL` | `/api/status` 教务连通性结果缓存时间(秒) | `300`(5分钟) |
-| `FREE_CLASSROOM_PREWARM_DAYS` | 空教室后台预热天数(1=仅今天, 2=今天+明天) | `1` |
-| `FREE_CLASSROOM_COOKIE_SOURCE` | 空教室 Cookie 来源: `auto`/`active-only`/`persistent-only`/`service-only` | `auto` |
-| `FREE_CLASSROOM_CANDIDATE_RETRIES` | 每类 Cookie 候选重试上限 | `5` |
-| `FREE_CLASSROOM_PERSISTED_LIMIT` | 单次读取的持久化 Cookie 候选上限 | `50` |
-| `TRUSTED_PROXY_HOPS` | 可信反向代理跳数, 用于安全解析客户端 IP | `1` |
-| `JW_TRY_DEFAULT_PWD` | 是否允许尝试教务初始密码兜底(高风险, 默认关闭) | `false` |
-| `ADMIN_REQUEST_TTL` | 管理端请求监控缓冲留存时间(秒) | `900` |
-| `ADMIN_PASSWORD` | 管理控制面板(/admin)登录口令; 未配置则本次运行随机生成(重启即变) | 随机 |
-| `SESSION_KEY` | 32 字节 base64 密钥: 教务会话/密码加密落库, 并派生 admin token 签名 | 空(相关能力禁用) |
-| `REDIS_URL` | 可选 Redis 地址；启用后会话、限流、缓存和调度锁可跨 worker 共享 | 空(单实例内存模式) |
-| `MIGRATIONS_AUTO` | 是否启动时自动执行幂等迁移；生产建议 `0` 并在发布阶段运行 `python tools/migrate.py` | `0` |
-| `SCHEMA_CHECK_ON_STARTUP` | 启动时是否只读检查必需表；生产保持开启 | `1` |
-| `REQUIRE_SECURE_CONFIG` | 是否强制生产密钥配置，缺少 `SESSION_KEY`/`ADMIN_PASSWORD` 时拒绝启动 | `0` |
-| `MP_SECRET` | 小程序 AppSecret: 订阅消息(考试提醒)发送用; 不配置则只记录授权、不发送 | 空(发送禁用) |
-| `SUBSCRIBE_TPL_EXAM` | 考试提醒的订阅消息模板 ID | 已内置 |
-| `EXAM_REMINDER` / `EXAM_REMINDER_HOUR` | 考试提醒开关 / 考前一天开始提醒的小时(北京时间) | `1` / `18` |
+二维码登录不保存密码，但会保存成功换取的教务 Cookie。退出登录只删除 X-Auth-Token 对应的服务端会话，不删除保存的密码或持久 Cookie；管理员删除会话也遵循相同规则。
 
-### 本地运行
+默认同一学号只保留一个登录 token。配置 Redis 后，会话可在进程重启或多实例间恢复；Redis 写入失败时不会产生半成功的内存会话。
 
-```bash
-pip install -r requirements.txt
-python run.py 127.0.0.1 5000
-```
+## 环境变量
 
-浏览器访问 http://127.0.0.1:5000,在「设置」页登录教务系统后即可刷新数据。
-注意:教务系统仅限校园网或 VPN 环境访问。
+### 必需
 
-### 安全扫描
-
-```bash
-pip install -r requirements-dev.txt
-python tools/security_scan.py
-```
-
-脚本会依次执行 Python 编译检查、凭据/会话/管理端/冒烟测试、pytest、
-`pip-audit` 依赖漏洞扫描和 Bandit 静态安全扫描。仓库内的
-`.github/workflows/security.yml` 会在 push/PR 时执行同一入口。
-
-### 云托管部署
-
-使用微信云托管控制台选择本仓库部署(参考[云托管快速开始](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/basic/guide.html))。生产应用启动默认只读检查 Schema，不执行 `CREATE TABLE` 或 `ALTER TABLE`；发布前在一次性迁移任务/维护容器中显式执行：
-
-```bash
-python tools/migrate.py
-```
-
-迁移脚本使用数据库锁避免多实例重复执行 DDL。迁移成功后再发布应用；若启动检查发现表、关键列或迁移版本缺失，应用会直接失败并提示先执行迁移，避免业务请求在不完整 Schema 上运行。迁移 DDL 出错时脚本也会失败，不会登记对应版本。`MIGRATIONS_AUTO=1` 仅用于本地或明确受控的单实例环境。
-
-**单实例部署**(`minNum`/`maxNum` 已设为 1):教务会话保存在容器内存中,多实例弹性扩容会导致用户登录态被负载均衡随机丢失;单实例 1 核 2G 对几十人规模足够(并发由访问池限流保护),且 `minNum=1` 常驻避免冷启动。
-
-## 主要 API
-
-| 端点 | 说明 |
+| 变量 | 说明 |
 |---|---|
-| `GET /api/status` | 登录状态、学期、数据统计 |
-| `POST /api/login` / `POST /api/login-manual` / `GET /api/get-captcha` | **已下线**(教务直连),返回「教务直连已下线」 |
-| `POST /api/refresh-schedule` / `refresh-exams` / `refresh-all` | 从教务刷新课表/考试/全部 |
-| `POST /api/refresh-grades` / `refresh-cet` / `refresh-evaluations` | 刷新成绩/四六级/评价列表 |
-| `GET /api/courses` / `exams` / `grades` / `cet-scores` / `evaluations` | 查询已存储数据(**原始数据**,GPA/折算等计算在前端完成) |
-| `GET /api/eval-courses` / `eval-form` | 解析评教课程列表 / 评价表单 |
-| `POST /api/submit-eval` | 单门评教提交中转(批量循环由前端执行) |
-| `POST /api/jw-proxy` | 通用教务网关:转发任意 9080 GET/POST 并返回原始内容 |
-| `POST /api/login-webvpn` | 智慧理工 SSO 一步登录(免教务密码/验证码);`get-webvpn-captcha` 为其旧名别名 |
-| `DELETE /api/credentials` | 删除当前用户明确授权保存的服务端密码 |
-| `POST /api/analytics/events` | 小程序去明文使用统计批量上报（强制开启） |
-| `POST /api/sso-qr/start` / `GET /api/sso-qr/status` / `POST /api/sso-qr/cancel` | 微信扫码登录(免密码): 长按二维码→识别图中二维码→确认 |
-| `GET/POST /api/settings`, `POST /api/semester` | 设置与学期切换 |
-| `POST /api/clear-data` | 清除当前学期数据 |
-| `GET /api/connect-test` | 教务连通性测试 |
-| `GET/POST /proxy/jw/*` | 教务页面反向代理(评教用) |
-| `GET /api/calendar` / `POST /api/refresh-calendar` | 教学周历(第 N 周→日期); 登录后自动回写 `first_week_date`(以教务为准) |
-| `GET /api/programme` / `POST /api/refresh-programme` | 专业培养方案(整份, 自动翻页); 学分进度数据源 |
-| `GET /api/profile` / `POST /api/refresh-profile` | 学籍卡片(院系/专业/班级等; 30 天缓存, 不含头像) |
-| `GET /api/subscribe/status` / `POST /api/subscribe/grant` | 订阅消息额度查询 / 授权上报(当前仅考试提醒) |
-| `POST /api/subscribe/test-send` | 发送一条样例考试提醒(验证模板与密钥, 消耗 1 次额度) |
+| MYSQL_ADDRESS | MySQL 地址，格式 host:port |
+| MYSQL_USERNAME | MySQL 用户名 |
+| MYSQL_PASSWORD | MySQL 密码 |
+| SESSION_KEY | 可解码为 32 字节的 base64 密钥 |
+| ADMIN_PASSWORD | 管理控制台口令 |
 
-## 使用注意
+### 常用
 
-- 教务系统需要校园网或 VPN 才能访问;**登录必须显式提供密码**(不接受空密码/仅凭历史会话登录),Session 过期后需重新输入学号与密码。
-- 服务端在配置 `SESSION_KEY` 后**默认加密保存登录密码**(AES-256-GCM, 学号绑定)。密码匹配且距最近一次真实 SSO 认证不超过 24 小时时可优先复用教务 Cookie；退出登录保留密码，管理员控制台不提供明文查询。
-- 空教室刷新优先随机使用活跃本科教务 Cookie，其次使用持久化本科 Cookie，最后回退服务账号；同一轮刷新复用同一教务会话。
-- **多用户**:每位用户独立登录、持有独立的教务会话(以登录签发的 token 标识),课表/考试/成绩/评教/四六级数据按学号隔离、互不可见。未配置 Redis 时会话保存在容器内存;配置 `REDIS_URL` 后会话 Cookie 加密写入 Redis，可由多个 worker 恢复。
-- 生产探针：`GET /healthz`、`GET /readyz`；指标：`GET /metrics`。
-- 批量评教为自动化辅助工具,请仅用于自己的账号,并自行承担使用责任。
+| 变量 | 默认值 | 说明 |
+|---|---:|---|
+| ADDRESS | :80 | HTTP 监听地址 |
+| MYSQL_DATABASE | flask_demo | 数据库名，为兼容现网保留旧名称 |
+| REDIS_URL | 空 | Redis URL；空值使用单实例内存会话 |
+| SESSION_TTL | 43200 | 登录 token 无活动有效期，秒 |
+| MAX_SESSIONS | 200 | 内存会话上限 |
+| DATA_CACHE_TTL | 2592000 | 用户数据缓存时间，秒 |
+| CREDENTIAL_TRUST_TTL | 86400 | 保存密码的本地信任期，秒 |
+| SSO_SESSION_MAX_AGE | 2592000 | 持久教务 Cookie 最长复用时间，秒 |
+| JW_MAX_CONCURRENT | 4 | 同时访问教务的请求上限 |
+| JW_REQUEST_TIMEOUT | 30 | 单次教务 HTTP 请求超时，秒 |
+| TRUSTED_PROXY_HOPS | 1 | 从 X-Forwarded-For 末端计算的可信代理跳数 |
+| FREE_CLASSROOM_SID | 924101960123 | 本科服务账号学号 |
+| CAPTCHA_OCR_MODEL_PATH | common.onnx | ddddocr 通用模型路径；文件缺失时自动回退二维码登录 |
+| ONNXRUNTIME_SHARED_LIBRARY_PATH | 空 | ONNX Runtime 动态库路径；空值按可执行文件目录和当前目录探测 |
+| STATIC_DIR | wxcloudrun/static | 静态资源目录 |
+| LOG_LEVEL | INFO | DEBUG、INFO、WARN 或 ERROR |
+
+### 微信订阅
+
+| 变量 | 说明 |
+|---|---|
+| MP_APPID | 小程序 AppID；仓库内有当前应用默认值 |
+| MP_SECRET | 小程序 AppSecret；未配置时只记录额度，不发送消息 |
+| SUBSCRIBE_TPL_EXAM | 考试提醒模板 ID |
+| SUBSCRIBE_TPL_GRADE | 成绩提醒模板 ID；空值回退考试模板 |
+
+### 后台任务
+
+以下开关默认开启，设置为 0、false 或 off 可关闭：
+
+- AUDIT_CATALOG_SYNC：每日 00:05 检查并刷新蹭课目录
+- FREE_CLASSROOM_PREWARM：启动时及每日 00:02 预热当天空教室
+- EXAM_REMINDER：每 10 分钟扫描提醒
+- REMINDER_LIFECYCLE：启用课程结课、考试、成绩提醒生命周期
+
+## 本地运行
+
+需要 Go 1.26.9+ 和可访问的 MySQL。Go 版不支持 SQLite。
+
+    go mod download
+    go run ./cmd/migrate
+    go run ./cmd/server
+
+Windows PowerShell 示例：
+
+    $env:MYSQL_ADDRESS = "127.0.0.1:3306"
+    $env:MYSQL_USERNAME = "root"
+    $env:MYSQL_PASSWORD = "..."
+    $env:MYSQL_DATABASE = "flask_demo"
+    $env:SESSION_KEY = "..."
+    $env:ADMIN_PASSWORD = "..."
+    go run ./cmd/migrate
+    go run ./cmd/server
+
+服务默认监听 80。开发热重载见 docs/live-coding.md。
+
+## 测试
+
+    go test ./...
+    go vet ./...
+    go test -race ./...
+
+Linux 构建需要 CGO 和 C 编译器；ONNX Runtime 在运行时动态加载：
+
+    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o .tmp/server ./cmd/server
+    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o .tmp/migrate ./cmd/migrate
+
+## 云托管部署
+
+微信云托管只运行常驻服务，因此生产 Docker 命令采用以下顺序：
+
+    /app/migrate && exec /app/server
+
+迁移器使用 MySQL 命名锁，避免多个实例同时执行 DDL。迁移失败时服务不会启动；服务进程本身只执行只读 Schema 校验，不在接收流量后修改表结构。
+
+container.config.json 只负责确保数据库存在，所有表、列、索引和迁移版本统一由 cmd/migrate 管理，避免控制台 SQL 与代码迁移出现双重来源。
+
+生产最终镜像只包含：
+
+- server 和 migrate 两个 Go 二进制
+- ddddocr 通用模型与 ONNX Runtime 1.23.2 动态库
+- wxcloudrun/static
+- wxcloudrun/templates/admin.html
+- CA 证书和时区数据
+
+建议保持单实例运行。当前共享缓存、定时任务锁和部分限流状态位于进程内；需要水平扩容时，应先把这些状态迁移到 Redis 或数据库。
+
+## 运维端点
+
+| 端点 | 用途 |
+|---|---|
+| GET /healthz | 进程存活 |
+| GET /readyz | MySQL 与已配置 Redis 的就绪状态 |
+| GET /metrics | 非敏感累计请求指标（不公开在线用户数） |
+| GET /admin | 管理控制台 |
+
+## API 兼容
+
+- 认证头保持 X-Auth-Token。
+- 响应继续使用 success、message 和既有业务字段。
+- /api/login-webvpn、/api/get-webvpn-captcha 和二维码登录路由保留。
+- /api/get-captcha、/api/login、/api/login-manual 保留路径，但明确返回教务直连已下线。
+- /api/login-webvpn-manual 保留路径，但返回无需第二步教务登录。
+
+完整职责、数据流和接口分组见 docs/architecture.md。
 
 ## License
 
-[MIT](./LICENSE)
+MIT

@@ -1,0 +1,67 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/resetinging/njust-schedule/internal/app"
+	"github.com/resetinging/njust-schedule/internal/config"
+)
+
+func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: config.LogLevel(os.Getenv("LOG_LEVEL")),
+	}))
+	os.Exit(run(logger))
+}
+
+func run(logger *slog.Logger) int {
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Error("配置无效", "error", err)
+		return 1
+	}
+
+	application, err := app.New(cfg, logger)
+	if err != nil {
+		logger.Error("应用初始化失败", "error", err)
+		return 1
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("服务启动", "address", cfg.Address, "runtime", "webgo")
+		errCh <- application.ListenAndServe()
+	}()
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	exitCode := 0
+	select {
+	case <-ctx.Done():
+	case err = <-errCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("服务异常退出", "error", err)
+			exitCode = 1
+		}
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := application.Shutdown(shutdownCtx); err != nil {
+		logger.Error("优雅停机失败", "error", err)
+		exitCode = 1
+	}
+	if err := application.Close(); err != nil {
+		logger.Error("关闭数据库失败", "error", err)
+		exitCode = 1
+	}
+	return exitCode
+}

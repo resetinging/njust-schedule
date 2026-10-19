@@ -17,6 +17,12 @@ def _percent(retained, eligible):
     return round(retained * 100.0 / eligible, 1)
 
 
+def _ratio(numerator, denominator, digits=1):
+    if not denominator:
+        return None
+    return round(float(numerator or 0) * 100.0 / float(denominator), digits)
+
+
 def build_report(days=30):
     days = max(1, min(90, int(days or 30)))
     today = _beijing_date()
@@ -202,11 +208,20 @@ def build_report(days=30):
                 'views': int(row.views or 0),
                 'visible_count': int(row.visible_count or 0),
                 'visible_ms': int(row.visible_ms or 0),
+                'visible_per_user': round(
+                    float(row.visible_count or 0) /
+                    max(1, int(row.users or 0)), 1),
+                'avg_visible_seconds': round(
+                    float(row.visible_ms or 0) /
+                    max(1, int(row.visible_count or 0)) / 1000.0, 1),
                 'requests': int(row.requests or 0),
                 'impressions': int(row.impressions or 0),
                 'clicks': int(row.clicks or 0),
                 'closes': int(row.closes or 0),
                 'users': int(row.users or 0),
+                'fill_rate': _ratio(row.impressions, row.requests),
+                'ctr': _ratio(row.clicks, row.impressions),
+                'close_rate': _ratio(row.closes, row.impressions),
             }
             for row in slot_rows
         ],

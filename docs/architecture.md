@@ -1,207 +1,221 @@
-# 小程序前后端职责说明
+# 小程序与后端架构
 
-> 本文档说明「课表助手」中**微信小程序前端**与**云托管 Flask 后端**各自的职责范围、模块划分与协作契约。
->
-> - 后端仓库:`njust-schedule`(本仓库,部署于微信云托管)
-> - 小程序仓库:`C:\Users\a\Documents\local\miniprogram`(微信开发者工具管理)
+本文描述课表助手微信小程序与 Go/WebGo 后端的现行职责、数据流和兼容边界。
 
-## 一、总览
+## 一、系统边界
 
-```
-┌─────────────────────┐   wx.cloud.callContainer   ┌──────────────────────────┐
-│   微信小程序(前端)    │ ─────────────────────────→ │   云托管 Flask 后端       │
-│                     │   (云托管内网,免域名白名单)   │                          │
-│  pages/ 5个tab+校历页 │ ←───────────────────────── │  api/*.py 蓝图 /api/*    │
-│  components/ 3个组件  │        JSON 响应           │  jwc_client.py 教务爬虫   │
-│  utils/ api/storage  │                            │  services + repositories │
-└─────────────────────┘                            │  gpa.py 绩点计算          │
-                                                    └──────────┬───────────────┘
-                                                               │ requests + BeautifulSoup
-                                                               ▼
-                                                ┌──────────────────────────┐
-                                                │ 学校教务系统(强智)         │
-                                                │ 202.119.81.112:9080 /     │
-                                                │ 202.119.81.113:8080 /     │
-                                                │ ids.njust.edu.cn(SSO)     │
-                                                └──────────────────────────┘
-```
+    微信小程序
+        |
+        | wx.cloud.callContainer
+        | JSON + X-Auth-Token
+        v
+    微信云托管 WebGo 服务
+        |-- MySQL：用户数据、共享目录、凭据密文、订阅额度
+        |-- Redis：可选的跨进程登录会话
+        |-- 智慧理工 SSO：密码登录、二维码登录
+        |-- 强智本科教务 / 研究生教务：抓取与提交
+        '-- 微信接口：订阅消息
 
-**核心原则**:小程序只做「展示与交互」,后端做「与教务系统打交道的一切脏活」。
-小程序不直连教务系统、不存密码;后端不保存小程序的界面状态。
+核心边界：
 
----
+- 小程序负责展示、交互、本地缓存、GPA 和评教评分等界面侧计算。
+- 后端负责认证、会话、教务访问、HTML 解析、数据隔离、共享缓存、提醒和管理。
+- 小程序不直连教务，不自行构造教务表单。
+- 后端解析目标页面的真实表单字段后再提交，不猜测字段名。
 
-## 二、后端职责(`njust-schedule` 仓库)
+## 二、运行时分层
 
-### 1. 教务系统对接 — `wxcloudrun/jwc_client.py`
-
-| 职责 | 说明 |
-|---|---|
-| 会话与 Cookie 管理 | 自定义 `_DedupCookieJar` 解决教务返回重复 `JSESSIONID` 导致的崩溃;按 (domain, path) 去重,保留跨服务器 Cookie |
-| 登录(唯一方式: 智慧理工 SSO) | 直连 SSO 表单 + AES-128-CBC 密码加密 + CAS ticket 换取教务会话。教务直连(8080/9080 表单)因教务改版后会话不再被接受,已下线 |
-| 会话保活 | **多用户**:每个登录用户持有独立 `JWCClient` 实例(独立教务会话/Cookie),登录签发随机 token,请求经 `X-Auth-Token` 头识别;`is_session_valid()` 轻量探测。会话 cookie 由 `core/session_store.py` 按学号持久化(上限 30 天,与 CAS 票据对齐);普通用户密码匹配且 24 小时信任期有效时也可复用,否则必须真实验证密码;退出登录调用 CAS logout 吊销票据并删除副本。登录后台全量预抓一旦发现会话失效立即终止,不继续请求后续数据域 |
-| 课表抓取 | API(`app.do?method=getKbcxAzc`)优先,降级 HTML:`#kbtable`(周次/教室/教师,从 `font[title]` 提取)与 `#dataList`(精确小节/学分)双表合并 |
-| 考试抓取 | 查询页表单提交 → `#dataList` 解析,含 3 个降级策略(表单 POST / 直接 POST / GET) |
-| 评教抓取 | 批次列表(`.Nsb_r_list`)、课程列表(`#dataList` + `openWindow` 链接)、评价表单(`#table1` 指标 + `pj0601fz_*` 分值 + radio 选项) |
-| 成绩抓取 | `app.do?method=getCjcx` API 优先,降级 HTML(表头列名映射 + 强智常见布局兜底) |
-| 四六级抓取 | `djkscj_list` 页面解析,取 CET4/CET6 各自最高分 |
-| 连通性 | `test_connection()` / 登录重定向链诊断日志(`debug_log` 仅 DEBUG 模式返回,生产环境只记录服务端日志) |
-| 分布式状态 | 可选 `REDIS_URL`: 跨 worker 会话 Cookie 恢复、限流、查询缓存、后台任务锁 |
-| 健康与指标 | `GET /healthz`、`GET /readyz`、`GET /metrics` (Prometheus 文本格式) |
-
-### 2. HTTP API — `wxcloudrun/api/*.py`
-
-各业务蓝图只负责参数解析、鉴权、响应格式和 HTTP 状态码，不直接编排教务访问或批量写库。刷新类接口调用 `services/`，查询类接口优先读取 Repository/缓存；`views.py` 仅保留桌面 Web 页面路由和蓝图装配。
-
-按功能分组:
-
-| 分组 | 接口 | 说明 |
+| 层 | 目录 | 职责 |
 |---|---|---|
-| 状态 | `GET /api/status` | 登录态、学号/姓名、学期、数据统计、第一周日期 |
-| 登录 | `POST /api/login` / `login-manual`、`GET /api/get-captcha` | **已下线**:保留路由并返回「教务直连已下线」,用于兼容未升级的旧版小程序 |
-| | `POST /api/login-webvpn` | **智慧理工 SSO 一步登录**(直连换取教务会话, 免教务密码/验证码); 默认加密保存密码, 旧前端的 `remember` 字段继续接收但不改变默认保存行为 |
-| | `POST /api/get-webvpn-captcha` | 旧名保留兼容: 与上面同一实现, 额外回传 `already_logged_in`(旧版小程序直接取 token) |
-| | `DELETE /api/credentials` | 删除当前用户授权保存的服务端密码 |
-| | `POST /api/login-webvpn-manual` | **已废弃**: 第二步教务登录不再需要, 返回明确提示 |
-| | `POST /api/sso-qr/start` / `GET /api/sso-qr/status` / `POST /api/sso-qr/cancel` | **微信扫码登录**(免密码, 单设备可用): 后端代跑智慧理工二维码流程 —— 长按二维码→识别图中二维码→确认; 确认后后端换取 CASTGC 并建立教务会话, 学号从教务页面自动提取。二维码约 3 分钟有效, 会话存 `core/sessions.py` 的 `_qr_clients`(TTL 300s) |
-| 数据刷新 | `POST /api/refresh-schedule` / `refresh-exams` / `refresh-all` | 从教务拉取课表/考试/全部 |
-| | `POST /api/refresh-grades` / `refresh-cet` / `refresh-evaluations` | 拉取成绩/四六级/评教批次 |
-| 数据查询 | `GET /api/courses` / `exams` / `grades` / `cet-scores` / `evaluations` | 读 MySQL 缓存的数据;**只返回原始数据,不做业务计算**(GPA/折算由前端算) |
-| 蹭课查询 | `GET /api/audit-courses?name=&teacher=&classroom=&names=&teachers=&classrooms=&weekday=&jc1=&jc2=` | 后台每日从教务全校课程课表同步目录; 单值兼容旧前端, `names/teachers/classrooms` 支持 JSON 数组, 同维度 OR、不同维度 AND; 不访问教务 |
-| 蹭课候选 | `GET /api/audit-options?field=name/teacher/classroom&q=` | 从当前学期蹭课目录读取去重候选, 供输入框自动补全; 不访问教务 |
-| 蹭课收藏 | `GET/POST/DELETE /api/audit-favorites` | 账号级收藏蹭课课程组合; 按本人课表与学生隔离, 前端缓存离线副本 |
-| 空教室 | `GET /api/free-classrooms` | **数据由后端负责更新**: 每次刷新随机选择活跃本科 Cookie, 活跃池不可用时使用持久化本科 Cookie, 最后回退服务账号; 同一轮刷新复用同一会话。容器启动补齐当天全部大节, 之后每天 00:00 全量刷新两校区缓存; 前端只读接口结果, 不触发教务抓取。服务账号密码存 `settings.free_classroom_pwd`, 仓库内不留明文 |
-| 评教操作 | `GET /api/eval-courses` / `eval-form` | 解析批次课程列表 / 单课评价表单(解析属网关层,评分由前端算) |
-| | `POST /api/submit-eval` | 单门保存/提交中转(参数按浏览器原生顺序重建) |
-| 网关 | `POST /api/jw-proxy` | 通用教务网关:用已登录会话转发任意 9080 GET/POST,返回原始内容 |
-| 设置 | `GET/POST /api/settings`、`POST /api/semester`、`POST /api/clear-data` | 设置读写、学期切换、清数据 |
-| 校历 | `GET /api/gallery-images` / `gallery-image?name=` | 图片文件名列表 / 单张 base64(带路径穿越防护) |
-| 其他 | `GET /api/connect-test`、`GET/POST /proxy/jw/*` | 连通测试、教务页面反向代理(评教用) |
+| 入口 | cmd/server | 配置、日志、信号处理和优雅停机 |
+| 应用装配 | internal/app | MySQL、Schema 校验和 HTTP 服务组装 |
+| HTTP | internal/httpapi | 路由、认证、响应契约、管理端和后台任务 |
+| 教务网关 | internal/jwc | SSO、Cookie、页面表单解析、数据抓取与提交 |
+| 认证 | internal/authn | 加密密码、24 小时信任、30 天持久 Cookie |
+| 会话 | internal/session | X-Auth-Token、LRU、单学号单 token、Redis 恢复 |
+| 数据访问 | internal/store | database/sql 查询、事务和快照替换 |
+| 迁移 | internal/migrate | MySQL 命名锁、幂等 DDL、版本与 Schema 校验 |
+| 安全 | internal/security | AES-256-GCM、AAD 学号绑定、签名令牌 |
 
-### 3. 业务服务与事务边界 — `wxcloudrun/services/` + `wxcloudrun/core/transactions.py`
+internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数据库。共享数据刷新由 HTTP 服务编排，store 只负责持久化。
 
-| 层 | 职责 |
+## 三、登录与会话
+
+### 1. 密码登录
+
+1. 小程序向 POST /api/login-webvpn 提交学号和智慧理工密码。
+2. 后端检查同学号保存的密码是否恒定时间相等，且真实验证时间未超过 CREDENTIAL_TRUST_TTL。
+3. 满足信任条件时，先用持久 Cookie 恢复智慧理工和教务会话。
+4. Cookie 无效或不满足信任条件时，解析智慧理工登录页表单并执行真实 SSO。
+5. 智慧理工要求验证码时，使用本地 ONNX Runtime + ddddocr 模型识别并提交；识别失败才回退二维码登录。
+6. 成功后保存 AES-GCM 密码密文、持久 Cookie，并签发新的 X-Auth-Token。
+7. 新 token 会顶掉同学号旧 token，然后异步预抓必要数据。
+
+密码密文使用学号作为 AAD，不能跨账号解密。管理员接口不返回明文密码。
+
+### 2. 二维码登录
+
+1. POST /api/sso-qr/start 创建临时扫码会话并返回二维码。
+2. GET /api/sso-qr/status 轮询智慧理工状态。
+3. 用户确认后，后端换取 SSO 票据并进入教务。
+4. 后端从实际教务页面识别学号、姓名和账号类型，保存持久 Cookie 并签发 token。
+
+二维码登录不会凭空得到密码，因此只更新 Cookie，不创建密码记录。
+
+微信订阅使用的 `X-WX-OPENID` 只在请求经过微信云托管网关时可信。生产服务必须置于该网关之后，由网关覆盖该请求头，不得把容器端口绕过网关直接暴露给公网；后端还会拒绝超长或包含非法字符的 OpenID。
+
+### 3. 三类状态
+
+| 状态 | 默认有效期 | 用途 |
+|---|---:|---|
+| X-Auth-Token 会话 | 12 小时无活动 | 小程序访问本服务 API |
+| 保存密码的信任 | 24 小时 | 相同密码输入时允许优先探测 Cookie |
+| 持久教务 Cookie | 30 天上限 | 减少重复 SSO 和供后台共享任务使用 |
+
+退出登录和管理员删除会话只删除第一类状态，不删除密码和持久 Cookie。
+
+未配置 Redis 时 token 在单实例内存中；配置 Redis 后，会话密文写入 Redis，并使用学号到 token 的映射保证单学号单会话。Redis 写失败时不切换内存会话。
+
+## 四、用户数据
+
+每个用户的数据均以 student_id 隔离：
+
+| 数据 | 表或存储 |
 |---|---|
-| `services/student_data_service.py` | 统一课表、考试、成绩、四六级刷新；负责教务访问锁、错误映射、缓存失效和提醒任务同步 |
-| `services/shared_data_service.py` | 编排共享蹭课目录抓取，选择 Cookie 来源并触发全量替换 |
-| `repositories/student_data.py` | 用户课表/考试/成绩/四六级/评教快照的查询与原子替换 |
-| `repositories/audit.py` | 全校蹭课目录的查询与原子替换 |
-| `core/transactions.py` | 统一提交/回滚边界；替换失败时保留旧快照 |
+| 课表 | courses |
+| 考试 | exams |
+| 成绩 | grades |
+| 四六级 | cet_scores |
+| 评教 | evaluations |
+| 用户设置、密文密码、持久 Cookie、校历、培养方案、学籍 | user_settings |
+| 反馈 | feedback |
+| 订阅额度与提醒任务 | user_settings、reminder_tasks |
 
-全量刷新采用“事务内删除旧快照并插入新快照”。教务请求失败发生在写库前；写库异常则回滚当前事务，避免出现先删后插的半成品数据。`dao.py` 仅保留旧函数签名的兼容门面，新的业务代码不应在 API 层直接拼装 ORM 写操作。
+刷新流程先完成教务请求和解析，再在数据库事务中替换对应快照。抓取失败不会先删除旧数据，数据库写入失败会回滚。
 
-### 4. 数据存储 — `wxcloudrun/model.py` + `wxcloudrun/repositories/`
+普通查询优先读取 MySQL。登录后的预抓和用户主动刷新都会更新版本号；小程序可通过 GET /api/sync/versions 只比较版本，再决定是否下载完整数据。
 
-| 表 | 内容 |
+## 五、共享数据
+
+### 1. Cookie 来源
+
+空教室和蹭课目录按以下顺序选择本科会话：
+
+1. 随机活跃本科会话
+2. 随机持久化本科 Cookie
+3. 本科服务账号
+
+每个候选都先探测并恢复教务会话。服务账号的 Cookie 失效时，后端可使用管理端保存的加密密码重新登录。研究生会话不会进入该池。
+
+### 2. 空教室
+
+- GET /api/free-classrooms 只要求小程序从服务端取结果。
+- 相同参数的并发请求会合并。
+- 内存缓存持续到次日 00:02。
+- 开启 FREE_CLASSROOM_PREWARM 时，启动和每日 00:02 预热当天两校区各大节。
+- 缓存未命中时服务端可同步访问教务，小程序仍不直连教务。
+
+### 3. 蹭课目录
+
+- 后端按学期抓取全校课表并原子替换 audit_courses。
+- 每日 00:05 检查目录版本；管理员也可主动触发。
+- 候选目录支持版本校验和分片下载。
+- 查询支持课程、教师、教室、星期和节次组合过滤。
+- 收藏写入 audit_favorites，并保持 student_id 隔离。
+
+课程单元格按“课程名列 + 上课时间列”解析。班级、教师、周次和教室允许多行、多值；显示层可聚合，查询索引使用拆分结果。
+
+## 六、提醒
+
+考试提醒和成绩提醒共用订阅基础设施，但分别记录额度和模板。
+
+课程生命周期：
+
+1. 从用户课表和培养方案识别课程结课时间与考核方式。
+2. 考试课结课后等待考试安排，考试结束后进入成绩检测。
+3. 考查课结课后直接进入成绩检测。
+4. 只有拥有对应订阅额度的用户才进入提醒池。
+5. 同课程名、同教师的用户可共享一次教务成绩探测，但发送前仍按用户实际成绩确认。
+6. 同名课程教师冲突时标记歧义，不自动跨教师匹配。
+
+成绩检测从开始日起最多 28 天：
+
+- 第 1 至 7 天：10:00、14:00、18:00
+- 第 8 至 21 天：06:00 至 23:00 每小时
+- 第 22 至 28 天：10:00、14:00、18:00
+- 超过 28 天仍无成绩则停止
+
+微信个人主体小程序使用一次性订阅，每次发送消耗一个额度。
+
+## 七、接口契约
+
+所有受保护接口使用请求头 X-Auth-Token。JSON 响应保持 success、message 和既有业务字段，错误使用 400、401、403、404、409、429 或 500/502。
+
+### 主要接口
+
+| 分组 | 路径 |
 |---|---|
-| `courses` / `exams` | 课表、考试(按学期先删后插,**按 student_id 隔离**) |
-| `evaluations` | 评教批次(items 存 JSON,**按 student_id 隔离**) |
-| `grades` / `cet_scores` | 成绩(按学年学期)、四六级(全量替换,查询时取最高,**按 student_id 隔离**) |
-| `audit_courses` | 蹭课课程目录(按学期全量同步,前端只读) |
-| `audit_favorites` | 账号级蹭课收藏(课程组合 + 时段 JSON,按 student_id/学期隔离) |
-| `settings` | 全局键值(校历日期/自动刷新等);用户级设置以 `{student_id}:{key}` 前缀存储(如学期切换) |
+| 登录 | /api/login-webvpn、/api/get-webvpn-captcha、/api/sso-qr/*、/api/logout |
+| 状态 | /api/status、/api/prefetch-status、/api/connect-test |
+| 课表考试 | /api/courses、/api/exams、/api/refresh-schedule、/api/refresh-exams、/api/refresh-all |
+| 成绩 | /api/grades、/api/cet-scores、/api/refresh-grades、/api/refresh-cet |
+| 评教 | /api/evaluations、/api/eval-courses、/api/eval-form、/api/submit-eval、/api/jw-proxy |
+| 学业 | /api/calendar、/api/programme、/api/profile 及对应 refresh 路由 |
+| 空教室 | /api/free-classrooms |
+| 蹭课 | /api/audit-courses、/api/audit-options、/api/audit-favorites |
+| 同步 | /api/sync/versions |
+| 订阅 | /api/subscribe/status、/api/subscribe/grant、/api/subscribe/test-send |
+| 内容 | /api/feedback、/api/my-feedback、/api/announcement、/api/gallery-*、/api/font/* |
+| 统计 | /api/analytics/events |
+| 管理 | /admin、/api/admin/* |
 
-- **密码安全**:默认加密保存登录密码(AES-256-GCM、AAD 绑学号),仅用于 24 小时内 Cookie 快速恢复和会话失效自动重登;退出登录保留密码。管理员控制台不提供密码明文查询
-- **会话凭据**:持久化的是 SSO 会话 cookie(等价凭据,**非密码**),存于 `settings` 表 `{student_id}:jwc_session`,上限 30 天;后台服务账号或通过本地密码校验的用户复用前必探测教务入口有效性,失效即回退密码认证;错误密码禁止复用;退出登录调用 CAS logout 吊销票据并删除副本
-- **认证节流**(防智慧理工风控冻结):普通用户仅在密码匹配且 24 小时信任期内复用教务 Cookie,否则必须真实验证密码;后台服务账号可复用持久化会话(0 次密码提交);验证码换图重试默认 1 次;同一学号认证失败后 2 秒冷却(只防连点);小程序启动不再无条件登录,仅会话失效时自动重登一次
-- 小程序默认保存密码(仅本机),退出登录时保留用于下次登录回填
+### 旧前端兼容
 
-### 5. 后台任务 — `wxcloudrun/jobs/`
+- GET /api/get-captcha、POST /api/login、POST /api/login-manual 仍存在，但返回“教务直连已下线”。
+- POST /api/login-webvpn-manual 仍存在，但返回“无需第二步教务登录”。
+- POST /api/get-webvpn-captcha 与新登录流程共用实现，并保留 already_logged_in 字段。
+- /api/status 的 features 保留 yjs 等旧前端分支判断字段。
+- 研究生登录后 has_courses 与旧实现一致。
+- 本科课表必须合并 kbtable 的周次、教室与 dataList 的精确节次；不能只解析 dataList。
+- 考试和成绩查询页没有直接数据时，继续回退到 xsksap_list、cjcx_list 列表页。
+- 成绩列表没有“绩点”列时 grade_point 写 0，由小程序按成绩计算，不能使用行号兜底。
+- 蹭课目录使用“一行一门课、列=星期×大节”的 43 列课程目录结构，并按旧版规则拆分多教师、多班级、多教室和多周次。
+- 空列表统一返回 [] 而不是 null，包括收藏、管理端用户详情和考试安排。
+- 小程序启动预取通过 /api/sync/versions 比较数据版本，不能只依赖本地 30 天 TTL。
 
-`jobs/runner.py` 是唯一的后台任务启动入口，统一启动空教室预热、蹭课目录同步和考试/成绩提醒。各任务模块只保留自己的循环逻辑与 `start()` 适配器；进程内启动注册表防止 Flask 导入、Gunicorn 入口和开发重载重复创建线程。跨实例调度锁仍由各任务使用的共享状态后端负责。
+## 八、并发与可靠性
 
-### 6. 业务计算(方案 A:全部在前端)
+- JW_MAX_CONCURRENT 控制所有教务 HTTP 并发。
+- 相同刷新任务使用请求合并，避免同一用户重复访问教务。
+- Session 内互斥锁防止同一 Cookie 会话被并发改写。
+- HTTP 请求体上限 2MB，并拒绝尾随 JSON。
+- 学期、学号、蹭课查询和收藏字段均执行格式与数据库列长度校验。
+- 登录、管理端和字体接口有限流。
+- TRUSTED_PROXY_HOPS 控制客户端 IP 解析，避免直接使用可伪造的 X-Forwarded-For 首项。
+- 管理员令牌带随机 nonce；退出管理端会在当前实例立即撤销该令牌。
+- 公开 /metrics 只输出非敏感累计请求数，不暴露实时在线会话数量。
+- 后台任务受根 context 管理，停机时等待退出。
+- /readyz 同时检查 MySQL 与已配置的 Redis。
 
-| 模块 | 位置 | 职责 |
-|---|---|---|
-| GPA/绩点 | 小程序 `utils/gpa.js`、Web 无成绩页 | 4.0 绩点换算、学期/总加权 GPA、通识选修过滤、非正式成绩排除、CET 折算、保研模式(CET 替换英语模块 8 学分)——从服务端 `gpa.py` 移植 |
-| 评教自动评分 | 小程序 `eval.js:_computeAutoFill`、Web `evaluations.js:computeAutoFillSelection` | 贪心分配 + 防"全同列" + 单指标微调,生成 `{seq: value}` |
-| 批量评教 | 小程序/Web 前端顺序 async 循环 | 逐门课「取表单 → 前端评分 → 提交」,直接更新进度 UI;后端不再有后台线程 |
+当前 container.config.json 固定 maxNum 为 1。若未来横向扩容，需要先把共享缓存、后台任务选主、限流和管理端实时统计迁移到 Redis 或数据库。
 
-### 7. 静态与 Web 服务(附带)
+## 九、数据库迁移
 
-- 校历图片托管(`static/gallery/`)
-- 桌面网页版(课表/考试/评教/校历/设置页 + PWA)——小程序之外的另一套前端,与小程序共用同一套 API
+cmd/migrate 是唯一 Schema 写入入口：
 
----
+1. 获取 MySQL 命名锁。
+2. 创建缺失表。
+3. 增加缺失列和索引。
+4. 执行受控数据修复。
+5. 校验必需表、列、关键列类型和迁移版本。
+6. 全部成功后登记 schema_migrations。
 
-## 三、小程序前端职责(`miniprogram` 仓库)
+服务进程启动时只调用 Verify。生产 Docker 命令先运行 migrate，再 exec server；迁移失败时实例不会接收流量。
 
-### 1. 页面(`pages/`,5 个 tab + 1 个子页面)
+container.config.json 只创建数据库，不重复声明业务表。
 
-| 页面 | 职责 |
-|---|---|
-| `schedule` 课表 | 周网格(`week-grid` 组件)与列表双视图;周次前后切换;单双周过滤;日期行 + 今日列高亮;按学期第一周周一自动定位当前周;学期切换;下拉刷新;课程详情弹窗 |
-| `exams` 考试 | 倒计时卡片(最近 3 场,按紧迫度着色);按日期分组列表;下拉刷新 |
-| `eval` 评教 | 批次列表(倒计时/紧迫度);批次 → 课程列表;评价表单(radio 勾选、实时总分、**前端自动评分算法**);保存/提交;**一键批量评教由前端顺序循环执行**(实时更新进度弹窗,非轮询) |
-| `grades` 成绩 | GPA 大卡片 + 统计(**全部由前端 `utils/gpa.js` 计算**);各学期绩点列表(点击切换学期);成绩明细;保研模式切换;四六级折叠展示与刷新 |
-| `settings` 我的 | 登录(仅智慧理工 SSO,含手动验证码兜底);第一周周一日期设置;校历入口;一键刷新;清缓存;退出登录 |
-| `gallery` 校历 | 校历/地图图片列表(base64 加载),点击全屏预览(`wx.previewImage`) |
+## 十、生产镜像
 
-### 2. 组件(`components/`)
+Dockerfile 使用 Go 1.26.9 Debian 多阶段构建。最终镜像以非 root 用户运行，包含两个 CGO Go 二进制、ddddocr 通用模型、ONNX Runtime 1.23.2 动态库、静态资源、管理端模板、CA 证书和时区数据。
 
-| 组件 | 职责 |
-|---|---|
-| `week-grid` | 大节行 × 7 天网格,按重叠小节数计算课程块高度,课程颜色 djb2 hash,单双周角标; 蹭课收藏以独立虚线样式合并显示 |
-| `captcha-input` | 验证码图片 + 输入框 + 刷新按钮 |
-| `loading-modal` | 加载/进度弹窗(属性:`visible/title/message/showProgress/percent/done`) |
-
-### 3. 工具(`utils/`)
-
-| 模块 | 职责 |
-|---|---|
-| `api.js` | 全部后端接口的封装,统一走 `wx.cloud.callContainer`(云托管内网);非 200 统一包装为 `{success:false,message}` |
-| `storage.js` | 本地缓存:学号/姓名/学期、课程/考试/成绩缓存 + 时间戳 TTL;登录态 = 本地有学号(后端无 token 校验) |
-| `date.js` | 教学周计算、`weeks` 字符串范围判断("1-16"/"1-8,10-17"/离散)、倒计时文案 |
-| `gpa.js` | **GPA 业务计算**(方案 A 新增):绩点换算、学期/总 GPA、CET 折算、保研模式 —— 服务端 `gpa.py` 的 JS 移植 |
-| `config.js` | 云环境 ID/服务名、请求超时(30s) |
-
-### 4. 本地状态管理
-
-- `app.js` globalData:登录态、姓名、学期;启动时从本地缓存恢复(以学号为准)
-- 缓存优先:页面先渲染本地缓存,再异步刷新服务端数据
-- 登录态变化仅影响本地 UI;真正鉴权由后端会话决定(小程序感知不到,失败时后端返回错误信息)
-
----
-
-## 四、前后端协作契约
-
-### 请求约定
-
-- 小程序 → 后端:JSON body(POST)/ query 参数(GET),经 `wx.cloud.callContainer` 走云托管内网
-- 响应统一:`{"success": bool, "message": str, ...业务字段}`;错误码 400/401/403/404/500
-- 小程序侧把非 200 状态包装为 `{success:false, message:"服务器错误 xxx"}`
-
-### 关键字段约定
-
-| 数据 | 字段 |
-|---|---|
-| 课程 | `name, teacher, classroom, day(1-7), start, end, weeks("1-16"等), week_type(0全/1单/2双), credits, course_type` |
-| 考试 | `course_name, date, time, location, seat, type` |
-| 评教批次 | `semester, category, batch, start_date, end_date, is_done, items[{name,url}]` |
-| 评教课程 | `seq, code, name, teacher, score, evaluated, submitted, eval_url` |
-| 评价指标 | `seq, label, options[{name,value,label,score,checked}]` |
-| 自动评分 | 纯前端计算:输入 `indicators + target_score`,输出 `{selections:{seq:radio_value}, total}`(小程序 `eval.js` / Web `evaluations.js`) |
-| 批量评教 | 前端顺序循环:逐门 `GET /api/eval-form` → 前端评分 → `POST /api/submit-eval`,进度直接渲染在本地 UI |
-| 成绩 | 原始数据 `academic_year, semester, course_code, course_name, score, credit, grade_point, course_type, course_nature, exam_type`;**GPA/学期汇总/保研折算由前端 `utils/gpa.js` 计算** |
-| 四六级 | 原始数据 `{type:"CET4"/"CET6", score, exam_date}`;折算百分制由前端计算 |
-| 登录 | 成功响应 `{success, student_name, semester, login_method}` |
-| 图片 | 验证码/校历图:`{..._b64, ..._mime}` → 前端拼 `data:<mime>;base64,<b64>` |
-| 网关 | `POST /api/jw-proxy` 请求 `{method, path, query, data}` → 响应 `{status, content_type, text 或 data_b64}` |
-
-### 边界约定(方案 A)
-
-- **小程序/Web 前端做**:业务计算(GPA/绩点、评教自动评分、批量评教循环)、展示与交互、本地缓存、周次/倒计时
-- **后端只做**:与教务系统通信(登录/OCR/SSO)、页面抓取与解析(网关层)、评教提交中转、设置与凭据存储
-- **小程序不做**:教务爬取(域名白名单限制)、会话管理;默认保存本机密码并同步授权后端加密保存,用于 24 小时内快速恢复和自动重登
-
----
-
-## 五、部署与更新
-
-| 端 | 方式 | 说明 |
-|---|---|---|
-| 后端 | 微信云托管控制台「重新构建/部署」(或 Git 关联自动构建) | 构建时 `pip install -r requirements.txt`(含 `pycryptodome`);生产配置 `SESSION_KEY`、`ADMIN_PASSWORD` 等密钥 |
-| 小程序 | 微信开发者工具「上传」→ 体验版/正式版 | 后端先上线更稳妥;顺序颠倒也兼容(新接口 404 时自动降级) |
-
-**发布顺序建议**:先部署后端 → 再上传小程序。
+旧 wxcloudrun 下的 Flask 源码、requirements 文件和 Python 测试不会进入最终镜像。OCR 由 Go 进程内的 ONNX Runtime 完成，不依赖 Python。旧代码只用于迁移比对，新增业务应进入 internal 下的 Go 分层。

@@ -5,20 +5,29 @@ on:
   pull_request:
 
 jobs:
-  security:
+  go:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-go@v5
         with:
-          python-version: "3.10"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-dev.txt
-      - name: Run security scan
+          go-version-file: go.mod
+          cache: true
+      - name: Test
+        run: go test ./...
+      - name: Race detector
+        run: go test -race ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build production binaries
         env:
-          SQLALCHEMY_DATABASE_URI: sqlite:///ci_security.db
-          SESSION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
-          ADMIN_PASSWORD: ci-admin-password
-        run: python tools/security_scan.py
+          CGO_ENABLED: "1"
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          go build -trimpath -o /tmp/njust-server ./cmd/server
+          go build -trimpath -o /tmp/njust-migrate ./cmd/migrate
+      - name: Dependency vulnerability scan
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...

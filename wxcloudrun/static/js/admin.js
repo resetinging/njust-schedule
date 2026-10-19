@@ -568,15 +568,28 @@ function renderSimpleBars(el, rows, valueKey, labelKey, color) {
     </div>`).join('') : '<p class="dim center">暂无统计数据</p>';
 }
 
-function renderAnalyticsList(el, rows, nameFn, valueFn) {
+function fmtAnalyticsInt(value) {
+  return Number(value || 0).toLocaleString('zh-CN');
+}
+
+function fmtAnalyticsRate(value) {
+  if (value === null || value === undefined || value === '') return '--';
+  return Number(value).toFixed(1) + '%';
+}
+
+function renderAnalyticsList(el, rows, nameFn, valueFn, headers, gridClass) {
   if (!rows || !rows.length) {
     el.innerHTML = '<div class="center dim">暂无数据</div>';
     return;
   }
-  el.innerHTML = '<div class="analytics-row head"><span>名称</span><span class="analytics-value">次数</span><span class="analytics-value">用户</span><span class="analytics-value">说明</span></div>'
+  const names = headers || ['名称', '次数', '用户', '说明'];
+  const rowClass = 'analytics-row' + (gridClass ? ' ' + gridClass : '');
+  el.innerHTML = `<div class="${rowClass} head">`
+    + names.map((name, index) => `<span class="${index ? 'analytics-value' : 'analytics-name'}">${esc(name)}</span>`).join('')
+    + '</div>'
     + rows.map(row => {
       const values = valueFn(row);
-      return '<div class="analytics-row">'
+      return `<div class="${rowClass}">`
         + `<span class="analytics-name" title="${esc(nameFn(row))}">${esc(nameFn(row))}</span>`
         + values.map(v => `<span class="analytics-value">${esc(v)}</span>`).join('')
         + '</div>';
@@ -619,17 +632,32 @@ async function loadAnalytics(force) {
 
     renderAnalyticsList($('pageRanking'), r.pages || [],
       x => x.page,
-      x => [x.events, x.users, '']);
+      x => [
+        fmtAnalyticsInt(x.events),
+        fmtAnalyticsInt(x.users),
+        (Number(x.events || 0) / Math.max(1, Number(x.users || 0))).toFixed(1)
+      ],
+      ['名称', '次数', '用户', '人均次数']);
     renderAnalyticsList($('featureRanking'), r.features || [],
       x => x.feature,
-      x => [x.events, x.users, '']);
+      x => [
+        fmtAnalyticsInt(x.events),
+        fmtAnalyticsInt(x.users),
+        (Number(x.events || 0) / Math.max(1, Number(x.users || 0))).toFixed(1)
+      ],
+      ['名称', '次数', '用户', '人均次数']);
     renderAnalyticsList($('slotRanking'), r.slots || [],
       x => x.slot_id + (x.ad_type && x.ad_type !== '未指定' ? ' · ' + x.ad_type : ''),
       x => [
-        x.visible_count,
-        x.users,
-        Math.round((x.visible_ms || 0) / Math.max(1, x.visible_count || 1) / 100) / 10 + '秒'
-      ]);
+        fmtAnalyticsInt(x.visible_count),
+        fmtAnalyticsInt(x.users),
+        Number(x.visible_per_user || 0).toFixed(1),
+        Number(x.avg_visible_seconds || 0).toFixed(1) + '秒',
+        fmtAnalyticsRate(x.fill_rate),
+        fmtAnalyticsRate(x.ctr)
+      ],
+      ['槽位', '有效曝光', '用户', '人均曝光', '平均时长', '填充率', '点击率'],
+      'slot-grid');
   } catch (e) {}
 }
 
