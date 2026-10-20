@@ -9,9 +9,9 @@
 | Dockerfile | 生产多阶段构建，最终镜像不包含编译器 |
 | Dockerfile.development | 开发镜像，安装 Go、Git 和 Air |
 | docker-compose.yml | 源码挂载、端口、依赖缓存和环境变量 |
-| .air.toml | 文件监听、迁移和重启规则 |
+| .air.toml | 文件监听和重启规则 |
 
-Air 监听 Go、HTML、CSS、JS 和 JSON。每次构建前先运行 cmd/migrate，迁移失败时不会启动开发服务。
+Air 监听 Go、HTML、CSS、JS 和 JSON，只负责构建与重启。数据库迁移必须由开发者手动执行，Air 不会自动迁移。
 
 ## 前置条件
 
@@ -58,7 +58,7 @@ go-mod-cache 和 go-build-cache 是命名卷，避免每次重建重新下载依
 1. 插件读取 docker-compose.yml。
 2. 当前仓库挂载到 /app。
 3. Dockerfile.development 安装 Air。
-4. Air 首次执行数据库迁移并构建 cmd/server。
+4. 首次启动前由开发者手动执行 `go run ./cmd/migrate`；Air 只构建 cmd/server。
 5. 保存受监听文件后，Air 终止旧进程并重新构建。
 
 compose 中保留 wxPort、hostPort、wxcloud 和服务名标签，供插件识别。容器名虽然保留历史服务标识 flask-5da7，但运行时已经是 WebGo。
@@ -94,7 +94,7 @@ REMINDER_LIFECYCLE 只在 EXAM_REMINDER 已启用且 MP_APPID、MP_SECRET 可用
 
 ### 迁移失败
 
-Air 的 pre_cmd 会先运行迁移。检查：
+服务启动前需手动执行迁移。检查：
 
 - MySQL 地址是否是 host:port
 - 数据库账号是否有 CREATE、ALTER、INDEX 权限
@@ -124,7 +124,7 @@ Air 的 pre_cmd 会先运行迁移。检查：
 |---|---|
 | 包含 Go、CGO 工具链和 Air | 两个 CGO Go 二进制、ONNX 模型与运行库 |
 | 源码挂载 | 只复制构建产物与运行资源 |
-| 保存后自动迁移、重建 | 默认只校验 Schema；维护时显式设置 `MIGRATIONS_AUTO=1` 执行迁移 |
+| 保存后自动重建 | 只校验 Schema；WebShell 中手动执行 migrate 和 server |
 | 可关闭后台任务 | 按云环境变量运行后台任务 |
 
 两种环境使用同一个 cmd/server、cmd/migrate 和 MySQL Schema，不维护独立的开发实现。

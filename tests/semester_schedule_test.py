@@ -13,7 +13,7 @@ os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
 sys.path.insert(0, ".")
 from wxcloudrun import _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 
 

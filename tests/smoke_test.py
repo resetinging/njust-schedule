@@ -33,7 +33,7 @@ os.environ["SESSION_KEY"] = base64.b64encode(b"0123456789abcdef0123456789abcdef"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from wxcloudrun import app, db, dao, _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 
 _APP_CTX = app.app_context()
 _APP_CTX.push()
@@ -482,7 +482,7 @@ assert _freeclass_api._read_service_password() == "LegacyPlain@Test"
 _upgraded_blob = dao.get_setting("free_classroom_pwd", "")
 assert _upgraded_blob.startswith("enc:v1:")
 assert "LegacyPlain@Test" not in _upgraded_blob
-print("  [PASS] 空教室服务账号密码加密落库并自动迁移旧明文")
+print("  [PASS] 空教室服务账号密码加密落库并迁移旧明文")
 
 # 时区: 教学周按传入日期计算(修复前用 date.today(), 容器 UTC 时会偏一天)
 from wxcloudrun.views import (  # noqa: E402

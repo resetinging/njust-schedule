@@ -27,7 +27,6 @@ type Config struct {
 	MaxSessions           int
 	JWMaxConcurrent       int
 	TrustedProxyHops      int
-	MigrationsAuto        bool
 	StaticDir             string
 	MPAppID               string
 	MPSecret              string
@@ -55,7 +54,6 @@ func Load() (Config, error) {
 		MaxSessions:           integer("MAX_SESSIONS", 200, 1, 100000),
 		JWMaxConcurrent:       integer("JW_MAX_CONCURRENT", 4, 1, 64),
 		TrustedProxyHops:      integer("TRUSTED_PROXY_HOPS", 1, 1, 20),
-		MigrationsAuto:        boolean("MIGRATIONS_AUTO", false),
 		StaticDir:             env("STATIC_DIR", "wxcloudrun/static"),
 		MPAppID:               env("MP_APPID", "wx1d76c0631bdeebac"),
 		MPSecret:              os.Getenv("MP_SECRET"),
@@ -129,14 +127,6 @@ func integer(name string, fallback, minValue, maxValue int) int {
 		return maxValue
 	}
 	return value
-}
-
-func boolean(name string, fallback bool) bool {
-	value := strings.ToLower(strings.TrimSpace(os.Getenv(name)))
-	if value == "" {
-		return fallback
-	}
-	return value == "1" || value == "true" || value == "yes" || value == "on"
 }
 
 func seconds(name string, fallback, minValue, maxValue time.Duration) time.Duration {

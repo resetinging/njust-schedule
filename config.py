@@ -192,10 +192,8 @@ if not SESSION_KEY:
 # 可选: Redis 分布式状态。未配置时保持单实例兼容模式。
 REDIS_URL = os.environ.get("REDIS_URL", "").strip()
 
-# 数据库迁移只允许通过发布流程显式执行 `python tools/migrate.py`。
+# 数据库迁移只允许通过 `python tools/migrate.py` 显式执行。
 # 应用启动阶段只做只读 Schema 检查，避免多个容器同时执行 DDL 并触发表元数据锁。
-MIGRATIONS_AUTO = os.environ.get(
-    "MIGRATIONS_AUTO", "0").strip().lower() not in ("0", "false", "no")
 SCHEMA_CHECK_ON_STARTUP = os.environ.get(
     "SCHEMA_CHECK_ON_STARTUP", "1").strip().lower() not in ("0", "false", "no")
 REQUIRE_SECURE_CONFIG = os.environ.get(

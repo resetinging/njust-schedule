@@ -12,6 +12,8 @@
 !cmd/**
 !internal
 !internal/**
+!scripts
+!scripts/manual-start.sh
 
 # Go 服务仍复用现有管理后台静态资源与 HTML 模板。
 !wxcloudrun

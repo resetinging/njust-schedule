@@ -22,9 +22,9 @@
 
 ### 数据库迁移启动策略
 
-- 生产默认 `MIGRATIONS_AUTO=0`，应用启动仅执行只读 Schema 检查，不调用 `db.create_all()`。
+- 应用启动仅执行只读 Schema 检查，不调用 `db.create_all()`，也不存在自动迁移开关。
 - 发布阶段显式运行 `python tools/migrate.py`；迁移入口使用 MySQL 命名锁，避免多实例同时执行 DDL。
-- 本地测试通过 `_run_migrations(force=True)` 建立临时数据库；迁移脚本通过 `SCHEMA_CHECK_ON_STARTUP=0` 导入应用后显式执行迁移。
+- 本地测试通过 `_run_migrations()` 建立临时数据库；迁移脚本通过 `SCHEMA_CHECK_ON_STARTUP=0` 导入应用后显式执行迁移。
 - Schema 的表、关键列或迁移版本不完整时应用启动失败并提示迁移，不以运行时隐式建表掩盖发布遗漏；DDL 失败也不会登记迁移版本。
 
 ### 兼容策略

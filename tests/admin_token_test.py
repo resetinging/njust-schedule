@@ -29,7 +29,7 @@ _root = os.path.dirname(_here)
 sys.path.insert(0, _root)
 
 from wxcloudrun import app, _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun import admin as admin_mod  # noqa: E402
 
 _client = app.test_client()

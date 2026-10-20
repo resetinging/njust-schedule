@@ -173,24 +173,11 @@ def test_job_runner_registers_each_job_once(monkeypatch):
     runner.reset_for_tests()
 
 
-def test_disabled_auto_migration_never_calls_create_all(monkeypatch):
-    """生产启动路径只读校验，不能因配置关闭而触发 DDL。"""
-    monkeypatch.setattr(app_module.config, "MIGRATIONS_AUTO", False)
-    monkeypatch.setattr(app_module, "_verify_schema", lambda: None)
-
-    def fail_create_all():
-        raise AssertionError("关闭自动迁移时不应调用 db.create_all")
-
-    monkeypatch.setattr(app_module.db, "create_all", fail_create_all)
-    assert app_module._run_migrations(force=False) == []
-
-
-def test_enabled_auto_migration_runs_create_all(monkeypatch):
-    """保留本地单实例兼容开关时，开启它必须真正执行迁移入口。"""
+def test_manual_migration_runs_create_all(monkeypatch):
+    """只有显式迁移入口可以执行 DDL。"""
     called = []
-    monkeypatch.setattr(app_module.config, "MIGRATIONS_AUTO", True)
     monkeypatch.setattr(app_module.db, "create_all", lambda: called.append(True))
-    assert app_module._run_migrations(force=False) == []
+    assert app_module._run_migrations() == []
     assert called == [True]
 
 

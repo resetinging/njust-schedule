@@ -52,8 +52,7 @@ RUN apt-get update \
 ENV TZ=Asia/Shanghai \
     STATIC_DIR=/app/wxcloudrun/static \
     CAPTCHA_OCR_MODEL_PATH=/app/common.onnx \
-    ONNXRUNTIME_SHARED_LIBRARY_PATH=/app/libonnxruntime.so \
-    MIGRATIONS_AUTO=0
+    ONNXRUNTIME_SHARED_LIBRARY_PATH=/app/libonnxruntime.so
 WORKDIR /app
 
 COPY --from=build /out/server /app/server
@@ -65,15 +64,17 @@ COPY --from=runtime-assets /assets/libonnxruntime_providers_shared.so /app/libon
 COPY --chown=app:app internal/captcha/*.txt /app/licenses/
 COPY --chown=app:app wxcloudrun/static /app/wxcloudrun/static
 COPY --chown=app:app wxcloudrun/templates/admin.html /app/wxcloudrun/templates/admin.html
+COPY --chown=app:app scripts/manual-start.sh /app/manual-start
 
 # 云托管固定使用 80 端口；保留非 root 运行，仅授予绑定低端口能力。
-RUN setcap 'cap_net_bind_service=+ep' /app/server
+RUN chmod +x /app/manual-start \
+    && setcap 'cap_net_bind_service=+ep' /app/server
 
 USER app
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
     CMD wget -q -O /dev/null http://127.0.0.1/healthz || exit 1
 
-# 先监听健康端口，再在进程内执行带 MySQL 命名锁的迁移。
-# 迁移完成前业务接口返回 503；迁移失败时进程退出，云托管保留旧版本。
+# 正常服务只校验 Schema，绝不执行 DDL。
+# 需要迁移时，由操作员在 WebShell 中运行 /app/manual-start。
 CMD ["/app/server"]

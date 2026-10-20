@@ -24,7 +24,7 @@ os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from wxcloudrun import app, dao, db, _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 from wxcloudrun import views  # noqa: E402
 

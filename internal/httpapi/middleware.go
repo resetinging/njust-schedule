@@ -223,6 +223,9 @@ func middleware(logger *slog.Logger, server *Server, next http.Handler) http.Han
 			case status >= http.StatusInternalServerError:
 				level = slog.LevelError
 				message = "请求失败"
+			case status == http.StatusUnauthorized && strings.TrimSpace(r.Header.Get(tokenHeader)) == "":
+				level = slog.LevelDebug
+				message = "未认证请求"
 			case status >= http.StatusBadRequest:
 				level = slog.LevelWarn
 				message = "请求异常"

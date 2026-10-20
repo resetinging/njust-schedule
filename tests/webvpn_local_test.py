@@ -31,7 +31,7 @@ os.environ.setdefault(
 os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
 from wxcloudrun import _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun.webvpn import (  # noqa: E402
     VECTOR_HOST, VECTOR_TOKEN, WEBVPN_BASE, is_jw_url, remap_jw_url,
     to_proxy_url, wengine_token)

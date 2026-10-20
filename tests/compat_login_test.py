@@ -19,7 +19,7 @@ os.environ["SESSION_KEY"] = base64.b64encode(os.urandom(32)).decode()
 os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
 from wxcloudrun import app, _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun.api import auth as auth_api  # noqa: E402
 from wxcloudrun.core import credential_store  # noqa: E402
 

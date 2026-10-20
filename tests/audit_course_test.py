@@ -17,7 +17,7 @@ os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 os.environ["AUDIT_OPTIONS_CHUNK_SIZE"] = "2"
 
 from wxcloudrun import app, db, views, _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 from wxcloudrun.model import AuditCourse  # noqa: E402
 

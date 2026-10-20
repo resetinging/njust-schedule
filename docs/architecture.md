@@ -125,6 +125,15 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 
 课程单元格按“课程名列 + 上课时间列”解析。班级、教师、周次和教室允许多行、多值；显示层可聚合，查询索引使用拆分结果。
 
+### 4. 通识选修课大纲
+
+- 管理员通过 `/api/admin/general-education-sync` 触发共享目录刷新。
+- 开启 `GENERAL_EDUCATION_SYNC` 时，每日 00:10 检查目录是否缺失或超过 24 小时未更新。
+- 后端遍历教务“通识选修课大纲查询”的全部分页，当前实测每页 20 门、共 13 页。
+- 目录写入 `general_education_syllabi`；只有所有页面完整解析后才事务替换，失败时保留旧目录。
+- `GET /api/general-education-courses` 按学期、关键词和分页返回目录。
+- `GET /api/general-education-syllabus?course_code=...` 按需读取课程详情页并缓存，避免刷新目录时一次请求数百个详情页。
+
 ## 六、提醒
 
 考试提醒和成绩提醒共用订阅基础设施，但分别记录额度和模板。
@@ -161,6 +170,7 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 | 成绩 | /api/grades、/api/cet-scores、/api/refresh-grades、/api/refresh-cet |
 | 评教 | /api/evaluations、/api/eval-courses、/api/eval-form、/api/submit-eval、/api/jw-proxy |
 | 学业 | /api/calendar、/api/programme、/api/profile 及对应 refresh 路由 |
+| 通识大纲 | /api/general-education-courses、/api/general-education-syllabus |
 | 空教室 | /api/free-classrooms |
 | 蹭课 | /api/audit-courses、/api/audit-options、/api/audit-favorites |
 | 同步 | /api/sync/versions |
@@ -211,7 +221,16 @@ cmd/migrate 是唯一 Schema 写入入口：
 5. 校验必需表、列、关键列类型和迁移版本。
 6. 全部成功后登记 schema_migrations。
 
-服务进程先绑定健康端口。生产默认 `MIGRATIONS_AUTO=0`，只执行只读 Schema 校验；缺失表、列、索引或迁移版本时进程失败，不自动执行 DDL。维护窗口可显式运行 `cmd/migrate` 或临时设置 `MIGRATIONS_AUTO=1`。迁移完成前 `/readyz` 和业务接口返回 503，后台任务不会启动。
+服务进程只执行只读 Schema 校验，任何启动路径都不执行 DDL，也不存在自动迁移开关。生产迁移和启动必须由操作人员在目标版本容器的 WebShell 中显式执行：
+
+```bash
+set -eu
+cd /app
+./migrate
+exec ./server
+```
+
+镜像内提供等价的 `/app/manual-start`。迁移失败时命令立即停止，不得启动服务；迁移成功并确认 `/readyz` 返回 200 后，才能切换生产流量。
 
 container.config.json 只创建数据库，不重复声明业务表。
 

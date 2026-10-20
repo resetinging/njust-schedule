@@ -205,7 +205,7 @@ def _migrate_user_settings():
         moved += 1
         if moved % 500 == 0:
             # 分批 flush 控制内存，不提前提交；迁移版本登记和数据迁移
-            # 必须由 _run_migrations 在同一事务中统一提交。
+            # 必须由显式迁移入口在同一事务中统一提交。
             db.session.flush()
     if moved:
         db.session.flush()
@@ -370,17 +370,13 @@ def _verify_schema():
             + "；请先运行 python tools/migrate.py")
 
 
-def _run_migrations(force: bool = False):
-    """幂等迁移入口。生产可关闭自动迁移并显式执行 tools/migrate.py。"""
+def _run_migrations():
+    """显式执行幂等迁移；应用启动路径不得调用。"""
     with app.app_context():
-        if not (force or config.MIGRATIONS_AUTO):
-            _verify_schema()
-            return []
         applied = []
 
         def _run():
-            # 只有显式迁移命令或明确开启自动迁移时才允许建表/执行 DDL。
-            # 放在迁移锁内，避免多个实例并发 create_all/ALTER TABLE。
+            # 放在迁移锁内，避免多个维护命令并发 create_all/ALTER TABLE。
             db.create_all()
             for version, fn in _SCHEMA_MIGRATIONS:
                 existing = SchemaMigration.query.filter(
@@ -397,12 +393,8 @@ def _run_migrations(force: bool = False):
         return _with_migration_lock(_run)
 
 
-# 应用启动只做只读 Schema 检查。DDL 迁移必须由 tools/migrate.py 显式执行，
-# 避免滚动发布时多个容器同时 ALTER TABLE，导致业务被 metadata lock 阻塞。
-# 明确设置 MIGRATIONS_AUTO=1 时保留本地/单实例兼容路径；生产默认值为 0。
-if config.MIGRATIONS_AUTO:
-    _run_migrations()
-elif config.SCHEMA_CHECK_ON_STARTUP:
+# 应用启动只做只读 Schema 检查。DDL 迁移必须由 tools/migrate.py 显式执行。
+if config.SCHEMA_CHECK_ON_STARTUP:
     with app.app_context():
         _verify_schema()
 

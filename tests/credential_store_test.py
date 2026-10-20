@@ -16,7 +16,7 @@ os.environ["SESSION_KEY"] = base64.b64encode(os.urandom(32)).decode()
 
 from wxcloudrun.core import credential_store as cs  # noqa: E402
 from wxcloudrun import app, dao, _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 
 _APP_CTX = app.app_context()
 _APP_CTX.push()

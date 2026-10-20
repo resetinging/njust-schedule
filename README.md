@@ -2,7 +2,7 @@
 
 南京理工大学课表助手的微信小程序后端。服务部署在微信云托管，负责智慧理工 SSO、教务数据抓取与解析、用户数据缓存、共享课程目录、空教室、订阅提醒和管理端接口。
 
-Go/WebGo 是目标生产运行时。当前生产暂由 Flask 维护版本承接流量，待显式执行并验证 WebGo 迁移后再切换；验证码识别由 Go 进程内的 ONNX Runtime 完成，Go 生产镜像不包含 Python、Flask 或 SQLAlchemy。
+Go/WebGo 是生产运行时。旧 Flask 代码仅保留用于兼容性测试，不进入生产镜像；验证码识别由 Go 进程内的 ONNX Runtime 完成，Go 生产镜像不包含 Python、Flask 或 SQLAlchemy。
 
 ## 核心能力
 
@@ -11,6 +11,7 @@ Go/WebGo 是目标生产运行时。当前生产暂由 Flask 维护版本承接�
 - 密码 AES-256-GCM 加密保存，24 小时本地信任，教务 Cookie 最长保留 30 天
 - 空教室和蹭课目录使用活跃本科会话、持久 Cookie、服务账号三级来源
 - 蹭课条件查询、候选分片、课程收藏和课表冲突数据
+- 通识选修课目录分页刷新、关键词查询和课程大纲按需缓存
 - 考试提醒、成绩提醒和微信一次性订阅额度
 - 使用统计、反馈、公告、图库、字体和管理控制台
 - 请求合并、教务并发限制、缓存、限流、优雅停机和就绪探针
@@ -85,7 +86,6 @@ Go/WebGo 是目标生产运行时。当前生产暂由 Flask 维护版本承接�
 | JW_MAX_CONCURRENT | 4 | 同时访问教务的请求上限 |
 | JW_REQUEST_TIMEOUT | 30 | 单次教务 HTTP 请求超时，秒 |
 | TRUSTED_PROXY_HOPS | 1 | 从 X-Forwarded-For 末端计算的可信代理跳数 |
-| MIGRATIONS_AUTO | false | 是否允许服务启动时执行 DDL；生产必须保持关闭 |
 | FREE_CLASSROOM_SID | 924101960123 | 本科服务账号学号 |
 | CAPTCHA_OCR_MODEL_PATH | common.onnx | ddddocr 通用模型路径；文件缺失时自动回退二维码登录 |
 | ONNXRUNTIME_SHARED_LIBRARY_PATH | 空 | ONNX Runtime 动态库路径；空值按可执行文件目录和当前目录探测 |
@@ -106,6 +106,7 @@ Go/WebGo 是目标生产运行时。当前生产暂由 Flask 维护版本承接�
 以下开关默认开启，设置为 0、false 或 off 可关闭：
 
 - AUDIT_CATALOG_SYNC：每日 00:05 检查并刷新蹭课目录
+- GENERAL_EDUCATION_SYNC：每日 00:10 检查并刷新通识选修课目录
 - FREE_CLASSROOM_PREWARM：启动时及每日 00:02 预热当天空教室
 - EXAM_REMINDER：每 10 分钟扫描提醒
 - REMINDER_LIFECYCLE：启用课程结课、考试、成绩提醒生命周期
@@ -144,11 +145,22 @@ Linux 构建需要 CGO 和 C 编译器；ONNX Runtime 在运行时动态加载�
 
 ## 云托管部署
 
-微信云托管只运行常驻服务，因此生产 Docker 命令采用以下顺序：
+微信云托管只运行常驻服务，生产环境的迁移与启动流程如下：
 
-    /app/server
+先在目标版本容器的 WebShell 中显式执行完整启动命令：
 
-服务先绑定健康端口。默认 `MIGRATIONS_AUTO=0`，只执行只读 Schema 校验，不运行 DDL；校验通过后 `/readyz` 才返回 200，后台任务随后启动。维护窗口需要执行迁移时，可临时设置 `MIGRATIONS_AUTO=1` 启动一次，或通过同环境 WebShell 运行 `/app/migrate`。迁移完成后必须恢复 `MIGRATIONS_AUTO=0`。
+    set -eu
+    cd /app
+    ./migrate
+    exec ./server
+
+也可以执行：
+
+    /app/manual-start
+
+服务进程只执行只读 Schema 校验，不运行 DDL。迁移失败时命令立即停止，不得继续启动服务；迁移成功并确认 `/readyz` 返回 200 后，才能切换生产流量。镜像默认 `/app/server` 仅用于 Schema 已迁移完成后的正常运行和重启。
+
+如果 WebShell 所在实例已经由平台运行 `/app/server`，完整启动命令会因 80 端口占用而失败。此时先执行 `/app/migrate`，再通过平台重启实例，由 Docker CMD 启动新版本服务，不要强制终止平台管理的进程。
 
 container.config.json 只负责确保数据库存在，所有表、列、索引和迁移版本统一由 cmd/migrate 管理，避免控制台 SQL 与代码迁移出现双重来源。
 

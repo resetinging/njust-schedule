@@ -18,7 +18,7 @@ from config import DATA_CACHE_TTL, SSO_SESSION_MAX_AGE  # noqa: E402
 from sqlalchemy import inspect as sa_inspect  # noqa: E402
 
 from wxcloudrun import app, dao, db, _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun.api import study  # noqa: E402
 from wxcloudrun.api import freeclass as freeclass_api  # noqa: E402
 from wxcloudrun.core import sessions as sessions_mod  # noqa: E402

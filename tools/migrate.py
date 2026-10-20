@@ -9,14 +9,12 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-# 导入 wxcloudrun 时跳过只读 Schema 检查，并关闭导入期自动迁移；
-# 迁移只在脚本 main 中通过 force=True 显式执行一次。
-os.environ["MIGRATIONS_AUTO"] = "0"
+# 导入 wxcloudrun 时跳过只读 Schema 检查；迁移只在 main 中显式执行一次。
 os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
 from wxcloudrun import _run_migrations  # noqa: E402
 
 
 if __name__ == "__main__":
-    applied = _run_migrations(force=True)
+    applied = _run_migrations()
     print("迁移完成: " + (", ".join(applied) if applied else "无待执行迁移"))

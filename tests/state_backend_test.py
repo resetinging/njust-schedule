@@ -16,7 +16,7 @@ os.environ["SESSION_KEY"] = base64.b64encode(
 os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
 from wxcloudrun import _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun.core import state  # noqa: E402
 from wxcloudrun.core import sessions  # noqa: E402
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402

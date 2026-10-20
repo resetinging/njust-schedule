@@ -16,7 +16,7 @@ os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 sys.path.insert(0, os.path.dirname(_here))
 
 from wxcloudrun import app, dao, db, _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun.core import mp, reminder  # noqa: E402
 from wxcloudrun.core import subscribe_store as ss  # noqa: E402
 from wxcloudrun.core.reminder_lifecycle import sync_user_reminder_tasks  # noqa: E402

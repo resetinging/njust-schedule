@@ -18,7 +18,6 @@ import (
 type App struct {
 	server *httpapi.Server
 	db     *sql.DB
-	cfg    config.Config
 }
 
 func New(cfg config.Config, logger *slog.Logger) (*App, error) {
@@ -30,7 +29,7 @@ func New(cfg config.Config, logger *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, errors.Join(err, db.Close())
 	}
-	return &App{server: server, db: db, cfg: cfg}, nil
+	return &App{server: server, db: db}, nil
 }
 
 func (a *App) ListenAndServe() error {
@@ -46,9 +45,6 @@ func (a *App) Serve(listener net.Listener) error {
 }
 
 func (a *App) Initialize(ctx context.Context, logger *slog.Logger) error {
-	if a.cfg.MigrationsAuto {
-		return a.Migrate(ctx, logger)
-	}
 	verifyCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	a.server.SetMigrationStage("verify_schema")
@@ -56,36 +52,6 @@ func (a *App) Initialize(ctx context.Context, logger *slog.Logger) error {
 		return fmt.Errorf("数据库 Schema 校验失败: %w", err)
 	}
 	logger.Info("数据库 Schema 校验完成", "version", migrate.Version)
-	a.server.SetMigrationStage("complete")
-	a.server.MarkReady()
-	a.server.StartJobs()
-	return nil
-}
-
-func (a *App) Migrate(ctx context.Context, logger *slog.Logger) error {
-	migrationCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
-	migrationDB, err := database.OpenForMigration(migrationCtx, a.cfg)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if closeErr := migrationDB.Close(); closeErr != nil {
-			logger.Warn("关闭迁移数据库连接失败", "error", closeErr)
-		}
-	}()
-	applied, err := migrate.RunWithProgress(
-		migrationCtx,
-		migrationDB,
-		logger,
-		a.server.SetMigrationStage,
-	)
-	if err != nil {
-		return err
-	}
-	if len(applied) == 0 {
-		logger.Info("数据库迁移校验完成", "version", migrate.Version)
-	}
 	a.server.SetMigrationStage("complete")
 	a.server.MarkReady()
 	a.server.StartJobs()

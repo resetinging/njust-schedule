@@ -26,6 +26,15 @@ func (s *Server) startJobs() {
 			}
 		})
 	}
+	if envEnabled("GENERAL_EDUCATION_SYNC") {
+		s.runDaily("general-education-catalog", 0, 10, func(ctx context.Context) {
+			semester := currentSemester()
+			status := s.generalEducationStatus(ctx, semester)
+			if status["needs_refresh"] == true {
+				s.startGeneralEducationSync(semester)
+			}
+		})
+	}
 	if envEnabled("FREE_CLASSROOM_PREWARM") {
 		s.runDaily("freeclass-prewarm", 0, 2, s.prewarmFreeClassrooms)
 	}

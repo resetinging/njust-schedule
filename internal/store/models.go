@@ -99,6 +99,36 @@ type AuditFavorite struct {
 	CreatedAt   string          `json:"created_at"`
 }
 
+type GeneralEducationCourse struct {
+	ID              int64  `json:"id,omitempty"`
+	Semester        string `json:"semester"`
+	CourseCode      string `json:"course_code"`
+	CourseName      string `json:"course_name"`
+	Department      string `json:"department"`
+	Credit          string `json:"credit"`
+	Hours           string `json:"hours"`
+	Assessment      string `json:"assessment"`
+	Attribute       string `json:"attribute"`
+	SyllabusID      string `json:"syllabus_id,omitempty"`
+	HasSyllabus     bool   `json:"has_syllabus"`
+	DetailJSON      string `json:"-"`
+	DetailFetchedAt int64  `json:"detail_fetched_at,omitempty"`
+}
+
+type GeneralEducationCatalog struct {
+	Courses []GeneralEducationCourse
+	Pages   int
+}
+
+type GeneralEducationSyllabus struct {
+	SyllabusID string            `json:"syllabus_id"`
+	Title      string            `json:"title"`
+	Fields     map[string]string `json:"fields"`
+	Rows       [][]string        `json:"rows"`
+	RawText    string            `json:"raw_text"`
+	FetchedAt  int64             `json:"fetched_at"`
+}
+
 type Feedback struct {
 	ID          int64      `json:"id"`
 	StudentID   string     `json:"student_id"`

@@ -26,9 +26,6 @@ func TestLoadRequiresProductionSecrets(t *testing.T) {
 	if cfg.TrustedProxyHops != 1 {
 		t.Fatalf("TrustedProxyHops = %d", cfg.TrustedProxyHops)
 	}
-	if cfg.MigrationsAuto {
-		t.Fatal("MigrationsAuto should default to false")
-	}
 	if cfg.CaptchaOCRModelPath != "common.onnx" || cfg.CaptchaOCRRuntimePath != "" {
 		t.Fatalf("unexpected captcha OCR config: %+v", cfg)
 	}
@@ -43,7 +40,6 @@ func TestLoadCredentialTTLOverrides(t *testing.T) {
 	t.Setenv("CREDENTIAL_TRUST_TTL", "7200")
 	t.Setenv("SSO_SESSION_MAX_AGE", "86400")
 	t.Setenv("TRUSTED_PROXY_HOPS", "2")
-	t.Setenv("MIGRATIONS_AUTO", "1")
 	t.Setenv("CAPTCHA_OCR_MODEL_PATH", "/models/common.onnx")
 	t.Setenv("ONNXRUNTIME_SHARED_LIBRARY_PATH", "/opt/libonnxruntime.so")
 
@@ -56,9 +52,6 @@ func TestLoadCredentialTTLOverrides(t *testing.T) {
 	}
 	if cfg.TrustedProxyHops != 2 {
 		t.Fatalf("TrustedProxyHops = %d", cfg.TrustedProxyHops)
-	}
-	if !cfg.MigrationsAuto {
-		t.Fatal("MigrationsAuto override was ignored")
 	}
 	if cfg.CaptchaOCRModelPath != "/models/common.onnx" || cfg.CaptchaOCRRuntimePath != "/opt/libonnxruntime.so" {
 		t.Fatalf("unexpected captcha OCR config: %+v", cfg)

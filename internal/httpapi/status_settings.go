@@ -59,7 +59,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		"auto_login_error": "", "server_time": time.Now().In(beijing).Format("2006-01-02 15:04:05"),
 		"first_week_date": firstWeek, "network": network, "data_refresh": refreshState,
 		"api_version": 5,
-		"features":    []string{"yjs", "freeclass", "font_subset", "refresh_dedupe", "credential_relogin", "prefetch_status", "usage_analytics", "audit_courses", "qr_login", "webgo"},
+		"features":    []string{"yjs", "freeclass", "font_subset", "refresh_dedupe", "credential_relogin", "prefetch_status", "usage_analytics", "audit_courses", "general_education", "qr_login", "webgo"},
 	})
 }
 

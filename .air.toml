@@ -4,7 +4,6 @@ tmp_dir = ".air-tmp"
 [build]
 cmd = "go build -o ./.air-tmp/server ./cmd/server"
 bin = "./.air-tmp/server"
-pre_cmd = ["go run ./cmd/migrate"]
 include_ext = ["go", "html", "css", "js", "json"]
 exclude_dir = [".git", ".tmp", ".air-tmp", ".venv", "poster", "tests", "tests_pytest"]
 delay = 500

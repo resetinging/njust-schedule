@@ -24,7 +24,7 @@ os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite:///" + _tmp_db)
 os.environ["SCHEMA_CHECK_ON_STARTUP"] = "0"
 
 from wxcloudrun import app, _run_migrations  # noqa: E402
-_run_migrations(force=True)
+_run_migrations()
 from wxcloudrun.jwc_client import JWCClient  # noqa: E402
 
 SID = os.environ.get("NJUST_SID", "").strip()
