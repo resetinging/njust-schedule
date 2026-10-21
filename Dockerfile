@@ -75,6 +75,6 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
     CMD wget -q -O /dev/null http://127.0.0.1/healthz || exit 1
 
-# 正常服务只校验 Schema，绝不执行 DDL。
-# 需要迁移时，由操作员在 WebShell 中运行 /app/manual-start。
+# 服务只自动执行白名单中的安全增量迁移。
+# 高风险迁移由操作员在 WebShell 中运行 /app/manual-start。
 CMD ["/app/server"]

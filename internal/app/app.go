@@ -45,13 +45,19 @@ func (a *App) Serve(listener net.Listener) error {
 }
 
 func (a *App) Initialize(ctx context.Context, logger *slog.Logger) error {
-	verifyCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	migrationCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	a.server.SetMigrationStage("verify_schema")
-	if err := migrate.Verify(verifyCtx, a.db); err != nil {
-		return fmt.Errorf("数据库 Schema 校验失败: %w", err)
+	a.server.SetMigrationStage("check_schema")
+	applied, err := migrate.Ensure(
+		migrationCtx,
+		a.db,
+		logger,
+		a.server.SetMigrationStage,
+	)
+	if err != nil {
+		return fmt.Errorf("数据库安全迁移或 Schema 校验失败: %w", err)
 	}
-	logger.Info("数据库 Schema 校验完成", "version", migrate.Version)
+	logger.Info("数据库 Schema 就绪", "version", migrate.Version, "auto_applied", applied)
 	a.server.SetMigrationStage("complete")
 	a.server.MarkReady()
 	a.server.StartJobs()

@@ -10,13 +10,36 @@ import (
 	"time"
 )
 
-const Version = "1001_general_education_syllabi"
+const (
+	BaselineVersion       = "1000_webgo_schema_v1"
+	Version               = "1001_general_education_syllabi"
+	generalEducationTable = "general_education_syllabi"
+)
+
 const lockName = "njust_schedule_schema_migration"
 const usageEventDedupeIndex = "ix_usage_events_event_key_dedupe"
 const usageEventDuplicateTable = "usage_event_key_duplicates"
 
+const generalEducationCreateTable = `CREATE TABLE IF NOT EXISTS general_education_syllabi (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, semester VARCHAR(50) NOT NULL DEFAULT '', course_code VARCHAR(50) NOT NULL DEFAULT '', course_name VARCHAR(200) NOT NULL DEFAULT '', department VARCHAR(200) NOT NULL DEFAULT '', credit VARCHAR(20) NOT NULL DEFAULT '', hours VARCHAR(20) NOT NULL DEFAULT '', assessment VARCHAR(50) NOT NULL DEFAULT '', attribute VARCHAR(50) NOT NULL DEFAULT '', syllabus_id VARCHAR(64) NOT NULL DEFAULT '', has_syllabus TINYINT(1) NOT NULL DEFAULT 0, detail_json MEDIUMTEXT NULL, detail_fetched_at DATETIME NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+
 type columnSpec struct {
 	table, name, definition string
+}
+
+type indexSpec struct {
+	table, name, columns string
+}
+
+type autoSafeMigration struct {
+	from  string
+	to    string
+	apply func(context.Context, *sql.Conn, *slog.Logger) error
+}
+
+// 只登记完全增量、可重复执行且失败后能安全重试的迁移。
+// 其余迁移必须由操作员在目标版本容器中运行 /app/migrate。
+var autoSafeMigrations = []autoSafeMigration{
+	{from: BaselineVersion, to: Version, apply: applyGeneralEducationMigration},
 }
 
 type queryer interface {
@@ -53,14 +76,14 @@ var createTables = []string{
 	`CREATE TABLE IF NOT EXISTS feedback (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, student_id VARCHAR(50) NOT NULL DEFAULT '', student_name VARCHAR(50) NOT NULL DEFAULT '', fb_type VARCHAR(20) NOT NULL DEFAULT 'other', content VARCHAR(500) NOT NULL DEFAULT '', contact VARCHAR(100) NOT NULL DEFAULT '', status VARCHAR(20) NOT NULL DEFAULT 'pending', reply VARCHAR(500) NOT NULL DEFAULT '', replied_at TIMESTAMP NULL, reply_read TINYINT(1) NOT NULL DEFAULT 0, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	`CREATE TABLE IF NOT EXISTS audit_courses (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, semester VARCHAR(50) NOT NULL DEFAULT '', course_name VARCHAR(200) NOT NULL DEFAULT '', class_info TEXT NULL, teacher VARCHAR(200) NOT NULL DEFAULT '', classroom VARCHAR(200) NOT NULL DEFAULT '', day_of_week INT NOT NULL DEFAULT 0, start_period INT NOT NULL DEFAULT 0, end_period INT NOT NULL DEFAULT 0, weeks VARCHAR(100) NOT NULL DEFAULT '', updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	`CREATE TABLE IF NOT EXISTS audit_favorites (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, student_id VARCHAR(50) NOT NULL DEFAULT '', semester VARCHAR(50) NOT NULL DEFAULT '', favorite_key VARCHAR(64) NOT NULL DEFAULT '', course_name VARCHAR(200) NOT NULL DEFAULT '', class_info TEXT NULL, teacher VARCHAR(200) NOT NULL DEFAULT '', classroom VARCHAR(200) NOT NULL DEFAULT '', schedules_json TEXT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-	`CREATE TABLE IF NOT EXISTS general_education_syllabi (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, semester VARCHAR(50) NOT NULL DEFAULT '', course_code VARCHAR(50) NOT NULL DEFAULT '', course_name VARCHAR(200) NOT NULL DEFAULT '', department VARCHAR(200) NOT NULL DEFAULT '', credit VARCHAR(20) NOT NULL DEFAULT '', hours VARCHAR(20) NOT NULL DEFAULT '', assessment VARCHAR(50) NOT NULL DEFAULT '', attribute VARCHAR(50) NOT NULL DEFAULT '', syllabus_id VARCHAR(64) NOT NULL DEFAULT '', has_syllabus TINYINT(1) NOT NULL DEFAULT 0, detail_json MEDIUMTEXT NULL, detail_fetched_at DATETIME NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+	generalEducationCreateTable,
 	`CREATE TABLE IF NOT EXISTS reminder_tasks (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, student_id VARCHAR(50) NOT NULL DEFAULT '', semester VARCHAR(50) NOT NULL DEFAULT '', kind VARCHAR(20) NOT NULL DEFAULT 'grade', course_key VARCHAR(64) NOT NULL DEFAULT '', course_name VARCHAR(200) NOT NULL DEFAULT '', teacher_key VARCHAR(64) NOT NULL DEFAULT '', teacher_snapshot VARCHAR(200) NOT NULL DEFAULT '', assessment_type VARCHAR(20) NOT NULL DEFAULT '', stage VARCHAR(30) NOT NULL DEFAULT 'scheduled', course_end_at DATETIME NULL, exam_wait_started_at DATETIME NULL, grade_wait_started_at DATETIME NULL, exam_at DATETIME NULL, exam_finished_at DATETIME NULL, grade_first_seen_at DATETIME NULL, next_check_at DATETIME NULL, last_check_at DATETIME NULL, sent_at DATETIME NULL, expires_at DATETIME NULL, fail_count INT NOT NULL DEFAULT 0, status VARCHAR(20) NOT NULL DEFAULT 'active', updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	`CREATE TABLE IF NOT EXISTS usage_events (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, event_key VARCHAR(96) NOT NULL, analytics_id VARCHAR(64) NOT NULL DEFAULT '', visitor_hash VARCHAR(64) NOT NULL DEFAULT '', session_id VARCHAR(64) NOT NULL DEFAULT '', event_name VARCHAR(40) NOT NULL DEFAULT '', page VARCHAR(40) NOT NULL DEFAULT '', feature VARCHAR(40) NOT NULL DEFAULT '', slot_id VARCHAR(64) NOT NULL DEFAULT '', ad_type VARCHAR(24) NOT NULL DEFAULT '', visible_ms INT NOT NULL DEFAULT 0, properties_json TEXT NULL, app_version VARCHAR(40) NOT NULL DEFAULT '', platform VARCHAR(24) NOT NULL DEFAULT '', client_ts DATETIME NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	`CREATE TABLE IF NOT EXISTS usage_user_daily (date DATE NOT NULL, analytics_id VARCHAR(64) NOT NULL, open_count INT NOT NULL DEFAULT 0, session_count INT NOT NULL DEFAULT 0, active_seconds INT NOT NULL DEFAULT 0, page_views INT NOT NULL DEFAULT 0, event_count INT NOT NULL DEFAULT 0, feature_actions INT NOT NULL DEFAULT 0, first_seen_at DATETIME NULL, last_seen_at DATETIME NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY(date,analytics_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	`CREATE TABLE IF NOT EXISTS usage_slot_user_daily (date DATE NOT NULL, analytics_id VARCHAR(64) NOT NULL, slot_id VARCHAR(64) NOT NULL, ad_type VARCHAR(24) NOT NULL DEFAULT '', page VARCHAR(40) NOT NULL DEFAULT '', views INT NOT NULL DEFAULT 0, visible_count INT NOT NULL DEFAULT 0, visible_ms INT NOT NULL DEFAULT 0, requests INT NOT NULL DEFAULT 0, impressions INT NOT NULL DEFAULT 0, clicks INT NOT NULL DEFAULT 0, closes INT NOT NULL DEFAULT 0, first_seen_at DATETIME NULL, last_seen_at DATETIME NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY(date,analytics_id,slot_id,ad_type)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 }
 
-var indexes = []struct{ table, name, columns string }{
+var indexes = []indexSpec{
 	{"courses", "ix_courses_student_id", "student_id"}, {"courses", "ix_courses_user_semester_day", "student_id,semester,day_of_week,start_period"},
 	{"exams", "ix_exams_student_id", "student_id"}, {"exams", "ix_exams_user_semester_date", "student_id,semester,exam_date"},
 	{"evaluations", "ix_evaluations_student_id", "student_id"}, {"evaluations", "ix_evaluations_user_end", "student_id,end_date"},
@@ -83,6 +106,192 @@ var uniqueKeys = []struct {
 	{"reminder_tasks", []string{"student_id", "semester", "kind", "course_key", "teacher_key"}},
 }
 
+func Ensure(
+	ctx context.Context,
+	db *sql.DB,
+	logger *slog.Logger,
+	progress func(string),
+) ([]string, error) {
+	if err := Verify(ctx, db); err == nil {
+		return nil, nil
+	}
+
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := conn.Close(); closeErr != nil && logger != nil {
+			logger.Warn("关闭数据库迁移连接失败", "error", closeErr)
+		}
+	}()
+	release, err := acquireMigrationLock(ctx, conn, logger, progress)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
+	applied, err := applyAutoSafeMigrations(ctx, conn, logger, progress)
+	if err != nil {
+		return nil, err
+	}
+	if err = verifyVersion(ctx, conn, Version); err != nil {
+		return nil, fmt.Errorf("数据库结构仍不完整，请运行 /app/migrate: %w", err)
+	}
+	if len(applied) > 0 && logger != nil {
+		logger.Info("安全数据库迁移完成", "versions", applied)
+	}
+	return applied, nil
+}
+
+func applyAutoSafeMigrations(
+	ctx context.Context,
+	conn *sql.Conn,
+	logger *slog.Logger,
+	progress func(string),
+) ([]string, error) {
+	present, err := loadMigrationVersions(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+	if present[Version] {
+		if err = verifyVersion(ctx, conn, Version); err != nil {
+			return nil, fmt.Errorf("迁移版本已登记但结构异常，请手动运行 /app/migrate: %w", err)
+		}
+		return nil, nil
+	}
+
+	var applied []string
+	for {
+		migration, ok := nextAutoSafeMigration(present)
+		if !ok {
+			break
+		}
+		if err = verifyVersion(ctx, conn, migration.from); err != nil {
+			return nil, fmt.Errorf("自动迁移基线校验失败，请手动运行 /app/migrate: %w", err)
+		}
+		logStage(logger, progress, "auto_migrate:"+migration.to)
+		if err = migration.apply(ctx, conn, logger); err != nil {
+			return nil, fmt.Errorf("安全迁移 %s 失败，请手动运行 /app/migrate: %w", migration.to, err)
+		}
+		if _, err = conn.ExecContext(
+			ctx,
+			"INSERT INTO schema_migrations(version,applied_at) VALUES (?,NOW())",
+			migration.to,
+		); err != nil {
+			return nil, fmt.Errorf("登记安全迁移 %s 失败: %w", migration.to, err)
+		}
+		present[migration.to] = true
+		applied = append(applied, migration.to)
+	}
+	if len(applied) == 0 {
+		return nil, fmt.Errorf("数据库存在非安全或未知迁移状态，请在目标版本容器中运行 /app/migrate")
+	}
+	return applied, nil
+}
+
+func loadMigrationVersions(ctx context.Context, conn *sql.Conn) (map[string]bool, error) {
+	rows, err := conn.QueryContext(ctx, "SELECT version FROM schema_migrations")
+	if err != nil {
+		return nil, fmt.Errorf("读取迁移版本失败，请先运行 /app/migrate: %w", err)
+	}
+	defer rows.Close()
+	present := map[string]bool{}
+	for rows.Next() {
+		var version string
+		if err = rows.Scan(&version); err != nil {
+			return nil, err
+		}
+		present[version] = true
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return present, nil
+}
+
+func nextAutoSafeMigration(present map[string]bool) (autoSafeMigration, bool) {
+	for _, migration := range autoSafeMigrations {
+		if present[migration.from] && !present[migration.to] {
+			return migration, true
+		}
+	}
+	return autoSafeMigration{}, false
+}
+
+func acquireMigrationLock(
+	ctx context.Context,
+	conn *sql.Conn,
+	logger *slog.Logger,
+	progress func(string),
+) (func(), error) {
+	var acquired sql.NullInt64
+	logStage(logger, progress, "waiting_lock")
+	if err := conn.QueryRowContext(ctx, "SELECT GET_LOCK(?, 60)", lockName).Scan(&acquired); err != nil || !acquired.Valid || acquired.Int64 != 1 {
+		if err == nil {
+			err = fmt.Errorf("获取数据库迁移锁超时")
+		}
+		return nil, err
+	}
+	logStage(logger, progress, "acquired_lock")
+	return func() {
+		releaseCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, err := conn.ExecContext(releaseCtx, "SELECT RELEASE_LOCK(?)", lockName); err != nil && logger != nil {
+			logger.Warn("释放数据库迁移锁失败", "error", err)
+		}
+	}, nil
+}
+
+func applyGeneralEducationMigration(ctx context.Context, conn *sql.Conn, logger *slog.Logger) error {
+	if _, err := conn.ExecContext(ctx, generalEducationCreateTable); err != nil {
+		return fmt.Errorf("创建表 %s 失败: %w", generalEducationTable, err)
+	}
+	for _, index := range indexes {
+		if index.table != generalEducationTable {
+			continue
+		}
+		if err := ensureIndex(ctx, conn, logger, index); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ensureIndex(ctx context.Context, conn *sql.Conn, logger *slog.Logger, index indexSpec) error {
+	exists, matches, err := indexDefinition(
+		ctx, conn, index.table, index.name, index.columns,
+		strings.HasPrefix(index.name, "uq_"),
+	)
+	if err != nil {
+		return err
+	}
+	if exists && !matches {
+		if logger != nil {
+			logger.Warn("索引定义不匹配，准备重建",
+				"table", index.table, "index", index.name)
+		}
+		if _, err = conn.ExecContext(ctx,
+			fmt.Sprintf("DROP INDEX `%s` ON `%s`", index.name, index.table),
+		); err != nil {
+			return fmt.Errorf("删除错误索引 %s 失败: %w", index.name, err)
+		}
+		exists = false
+	}
+	if exists {
+		return nil
+	}
+	kind := "INDEX"
+	if strings.HasPrefix(index.name, "uq_") {
+		kind = "UNIQUE INDEX"
+	}
+	statement := fmt.Sprintf("CREATE %s `%s` ON `%s` (%s)", kind, index.name, index.table, quoteColumns(index.columns))
+	if _, err = conn.ExecContext(ctx, statement); err != nil {
+		return fmt.Errorf("创建索引 %s 失败: %w", index.name, err)
+	}
+	return nil
+}
+
 func Run(ctx context.Context, db *sql.DB, logger *slog.Logger) ([]string, error) {
 	return RunWithProgress(ctx, db, logger, nil)
 }
@@ -102,22 +311,11 @@ func RunWithProgress(
 			logger.Warn("关闭数据库迁移连接失败", "error", closeErr)
 		}
 	}()
-	var acquired sql.NullInt64
-	logStage(logger, progress, "waiting_lock")
-	if err = conn.QueryRowContext(ctx, "SELECT GET_LOCK(?, 60)", lockName).Scan(&acquired); err != nil || !acquired.Valid || acquired.Int64 != 1 {
-		if err == nil {
-			err = fmt.Errorf("获取数据库迁移锁超时")
-		}
+	release, err := acquireMigrationLock(ctx, conn, logger, progress)
+	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		releaseCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if _, releaseErr := conn.ExecContext(releaseCtx, "SELECT RELEASE_LOCK(?)", lockName); releaseErr != nil && logger != nil {
-			logger.Warn("释放数据库迁移锁失败", "error", releaseErr)
-		}
-	}()
-	logStage(logger, progress, "acquired_lock")
+	defer release()
 
 	if _, err = conn.ExecContext(ctx, createTables[0]); err != nil {
 		return nil, err
@@ -127,7 +325,7 @@ func RunWithProgress(
 		return nil, err
 	}
 	if exists > 0 {
-		return nil, verifyApplied(ctx, conn)
+		return nil, verifyVersion(ctx, conn, Version)
 	}
 	logStage(logger, progress, "create_tables")
 	for _, statement := range createTables {
@@ -181,34 +379,8 @@ func RunWithProgress(
 	}
 	logStage(logger, progress, "create_indexes")
 	for _, index := range indexes {
-		exists, matches, inspectErr := indexDefinition(
-			ctx, conn, index.table, index.name, index.columns,
-			strings.HasPrefix(index.name, "uq_"),
-		)
-		if inspectErr != nil {
-			return nil, inspectErr
-		}
-		if exists && !matches {
-			if logger != nil {
-				logger.Warn("索引定义不匹配，准备重建",
-					"table", index.table, "index", index.name)
-			}
-			if _, err = conn.ExecContext(ctx,
-				fmt.Sprintf("DROP INDEX `%s` ON `%s`", index.name, index.table),
-			); err != nil {
-				return nil, fmt.Errorf("删除错误索引 %s 失败: %w", index.name, err)
-			}
-			exists = false
-		}
-		if !exists {
-			kind := "INDEX"
-			if strings.HasPrefix(index.name, "uq_") {
-				kind = "UNIQUE INDEX"
-			}
-			statement := fmt.Sprintf("CREATE %s `%s` ON `%s` (%s)", kind, index.name, index.table, quoteColumns(index.columns))
-			if _, err = conn.ExecContext(ctx, statement); err != nil {
-				return nil, fmt.Errorf("创建索引 %s 失败: %w", index.name, err)
-			}
+		if err = ensureIndex(ctx, conn, logger, index); err != nil {
+			return nil, err
 		}
 	}
 	if err = dropUsageEventDedupeIndex(ctx, conn); err != nil {
@@ -235,7 +407,7 @@ func RunWithProgress(
 	if _, err = conn.ExecContext(ctx, "INSERT INTO schema_migrations(version,applied_at) VALUES (?,NOW())", Version); err != nil {
 		return nil, err
 	}
-	if err = verifyApplied(ctx, conn); err != nil {
+	if err = verifyVersion(ctx, conn, Version); err != nil {
 		return nil, err
 	}
 	if logger != nil {
@@ -254,7 +426,7 @@ func logStage(logger *slog.Logger, progress func(string), stage string) {
 }
 
 func Verify(ctx context.Context, db *sql.DB) error {
-	return verifyApplied(ctx, db)
+	return verifyVersion(ctx, db, Version)
 }
 
 func prepareUsageEventKey(ctx context.Context, conn *sql.Conn) (bool, error) {
@@ -363,21 +535,34 @@ func dropUsageEventDedupeIndex(ctx context.Context, conn *sql.Conn) error {
 	return nil
 }
 
-func verifyApplied(ctx context.Context, db queryer) error {
-	if err := verifySchema(ctx, db); err != nil {
+func verifyVersion(ctx context.Context, db queryer, version string) error {
+	if err := verifySchemaVersion(ctx, db, version); err != nil {
 		return err
 	}
 	var count int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations WHERE version=?", Version).Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations WHERE version=?", version).Scan(&count); err != nil {
 		return err
 	}
 	if count != 1 {
-		return fmt.Errorf("数据库缺少迁移版本 %s，请先运行 migrate", Version)
+		return fmt.Errorf("数据库缺少迁移版本 %s，请先运行 migrate", version)
 	}
 	return nil
 }
 
 func verifySchema(ctx context.Context, db queryer) error {
+	return verifySchemaVersion(ctx, db, Version)
+}
+
+func verifySchemaVersion(ctx context.Context, db queryer, version string) error {
+	excludedTables := map[string]bool{}
+	switch version {
+	case BaselineVersion:
+		excludedTables[generalEducationTable] = true
+	case Version:
+	default:
+		return fmt.Errorf("未知数据库迁移版本 %s", version)
+	}
+
 	rows, err := db.QueryContext(ctx, `SELECT TABLE_NAME,COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE()`)
 	if err != nil {
 		return fmt.Errorf("读取数据库结构失败: %w", err)
@@ -399,6 +584,9 @@ func verifySchema(ctx context.Context, db queryer) error {
 	}
 	required := map[string]map[string]bool{"settings": {"k": true, "v": true}, "schema_migrations": {"version": true}}
 	for _, column := range requiredColumns {
+		if excludedTables[column.table] {
+			continue
+		}
 		if required[column.table] == nil {
 			required[column.table] = map[string]bool{}
 		}
@@ -459,6 +647,9 @@ func verifySchema(ctx context.Context, db queryer) error {
 	}
 	var invalidIndexes []string
 	for _, index := range indexes {
+		if excludedTables[index.table] {
+			continue
+		}
 		actual := actualIndexes[index.table+"."+index.name]
 		expectUnique := strings.HasPrefix(index.name, "uq_")
 		if actual == nil || strings.Join(actual.columns, ",") != index.columns || (expectUnique && actual.nonUnique != 0) {

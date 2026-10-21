@@ -56,7 +56,7 @@ func run(logger *slog.Logger) int {
 			migrationErrCh <- fmt.Errorf("数据库初始化失败: %w", err)
 			return
 		}
-		logger.Info("服务就绪", "schema_check", "passed")
+		logger.Info("服务就绪", "schema_status", "ready")
 	}()
 
 	exitCode := 0

@@ -145,24 +145,24 @@ Linux 构建需要 CGO 和 C 编译器；ONNX Runtime 在运行时动态加载�
 
 ## 云托管部署
 
-微信云托管只运行常驻服务，生产环境的迁移与启动流程如下：
+微信云托管只运行常驻服务。服务启动时只自动执行代码中登记的安全白名单迁移，例如从已校验的 `1000_webgo_schema_v1` 增量创建 `general_education_syllabi`：
 
-先在目标版本容器的 WebShell 中显式执行完整启动命令：
+正常部署：
+
+    /app/server
+
+未知基线、已登记版本但结构异常、大表字段变更、删除操作和历史数据清洗仍会阻断启动，必须在目标版本容器的 WebShell 中执行完整高风险迁移：
 
     set -eu
     cd /app
     ./migrate
     exec ./server
 
-也可以执行：
+也可以运行镜像内的 `/app/manual-start`。迁移失败时命令立即停止，不得继续启动服务；迁移成功并确认 `/readyz` 返回 200 后，才能切换生产流量。
 
-    /app/manual-start
+安全自动迁移执行期间 `/healthz` 保持可响应，`/readyz` 和业务接口返回 503；迁移完成后再开放流量。如果 WebShell 所在实例已经由平台运行 `/app/server`，完整高风险迁移命令会因 80 端口占用而失败。此时先执行 `/app/migrate`，再通过平台重启实例，由 Docker CMD 启动新版本服务，不要强制终止平台管理的进程。
 
-服务进程只执行只读 Schema 校验，不运行 DDL。迁移失败时命令立即停止，不得继续启动服务；迁移成功并确认 `/readyz` 返回 200 后，才能切换生产流量。镜像默认 `/app/server` 仅用于 Schema 已迁移完成后的正常运行和重启。
-
-如果 WebShell 所在实例已经由平台运行 `/app/server`，完整启动命令会因 80 端口占用而失败。此时先执行 `/app/migrate`，再通过平台重启实例，由 Docker CMD 启动新版本服务，不要强制终止平台管理的进程。
-
-container.config.json 只负责确保数据库存在，所有表、列、索引和迁移版本统一由 cmd/migrate 管理，避免控制台 SQL 与代码迁移出现双重来源。
+container.config.json 只负责确保数据库存在。迁移定义和 DDL 统一由 `internal/migrate` 管理，`cmd/migrate` 是完整手动入口，服务只能调用安全白名单，避免控制台 SQL 与代码迁移出现双重来源。
 
 生产最终镜像只包含：
 

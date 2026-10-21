@@ -212,7 +212,7 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 
 ## 九、数据库迁移
 
-cmd/migrate 是唯一 Schema 写入入口：
+`internal/migrate` 是唯一 DDL 实现，`cmd/migrate` 负责完整手动迁移：
 
 1. 获取 MySQL 命名锁。
 2. 创建缺失表。
@@ -221,7 +221,16 @@ cmd/migrate 是唯一 Schema 写入入口：
 5. 校验必需表、列、关键列类型和迁移版本。
 6. 全部成功后登记 schema_migrations。
 
-服务进程只执行只读 Schema 校验，任何启动路径都不执行 DDL，也不存在自动迁移开关。生产迁移和启动必须由操作人员在目标版本容器的 WebShell 中显式执行：
+服务启动时会先校验当前 Schema。若数据库处于已知基线 `1000_webgo_schema_v1`，只缺少登记在 `autoSafeMigrations` 白名单中的增量版本，则获取 MySQL 命名锁后自动执行安全迁移；`1001_general_education_syllabi` 仅创建独立新表和索引，属于当前唯一安全升级。
+
+以下情况禁止自动处理，必须在目标版本容器的 WebShell 中运行完整迁移：
+
+- 数据库缺少 `1000_webgo_schema_v1` 基线或基线结构不完整。
+- `schema_migrations` 已登记目标版本，但表、列或索引定义异常。
+- 迁移包含大表字段变更、删除操作、不可逆转换或历史数据清洗。
+- 迁移白名单没有声明对应的从版本和到版本。
+
+高风险迁移命令：
 
 ```bash
 set -eu
@@ -230,7 +239,7 @@ cd /app
 exec ./server
 ```
 
-镜像内提供等价的 `/app/manual-start`。迁移失败时命令立即停止，不得启动服务；迁移成功并确认 `/readyz` 返回 200 后，才能切换生产流量。
+镜像内提供等价的 `/app/manual-start`。安全自动迁移执行期间 `/readyz` 和业务接口返回 503，迁移完成后自动开放；高风险命令失败时必须立即停止，不得继续启动服务。
 
 container.config.json 只创建数据库，不重复声明业务表。
 

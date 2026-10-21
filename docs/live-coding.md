@@ -11,7 +11,7 @@
 | docker-compose.yml | 源码挂载、端口、依赖缓存和环境变量 |
 | .air.toml | 文件监听和重启规则 |
 
-Air 监听 Go、HTML、CSS、JS 和 JSON，只负责构建与重启。数据库迁移必须由开发者手动执行，Air 不会自动迁移。
+Air 监听 Go、HTML、CSS、JS 和 JSON，只负责构建与重启。Air 本身不执行迁移；cmd/server 启动时只会自动执行 `autoSafeMigrations` 中登记的安全增量迁移，高风险迁移仍需开发者手动执行。
 
 ## 前置条件
 
@@ -58,7 +58,7 @@ go-mod-cache 和 go-build-cache 是命名卷，避免每次重建重新下载依
 1. 插件读取 docker-compose.yml。
 2. 当前仓库挂载到 /app。
 3. Dockerfile.development 安装 Air。
-4. 首次启动前由开发者手动执行 `go run ./cmd/migrate`；Air 只构建 cmd/server。
+4. Air 构建并启动 cmd/server；安全白名单迁移自动执行，高风险迁移由开发者手动运行 `go run ./cmd/migrate`。
 5. 保存受监听文件后，Air 终止旧进程并重新构建。
 
 compose 中保留 wxPort、hostPort、wxcloud 和服务名标签，供插件识别。容器名虽然保留历史服务标识 flask-5da7，但运行时已经是 WebGo。
@@ -68,6 +68,10 @@ compose 中保留 wxPort、hostPort、wxcloud 和服务名标签，供插件识�
 不使用 Docker 时：
 
     go mod download
+    go run ./cmd/server
+
+需要执行全部高风险迁移时：
+
     go run ./cmd/migrate
     go run ./cmd/server
 
@@ -94,7 +98,7 @@ REMINDER_LIFECYCLE 只在 EXAM_REMINDER 已启用且 MP_APPID、MP_SECRET 可用
 
 ### 迁移失败
 
-服务启动前需手动执行迁移。检查：
+安全白名单迁移失败会阻断启动，其他风险迁移仍需手动执行。检查：
 
 - MySQL 地址是否是 host:port
 - 数据库账号是否有 CREATE、ALTER、INDEX 权限
@@ -124,7 +128,7 @@ REMINDER_LIFECYCLE 只在 EXAM_REMINDER 已启用且 MP_APPID、MP_SECRET 可用
 |---|---|
 | 包含 Go、CGO 工具链和 Air | 两个 CGO Go 二进制、ONNX 模型与运行库 |
 | 源码挂载 | 只复制构建产物与运行资源 |
-| 保存后自动重建 | 只校验 Schema；WebShell 中手动执行 migrate 和 server |
+| 保存后自动重建 | 安全白名单自动迁移；高风险迁移在 WebShell 中手动执行 |
 | 可关闭后台任务 | 按云环境变量运行后台任务 |
 
 两种环境使用同一个 cmd/server、cmd/migrate 和 MySQL Schema，不维护独立的开发实现。
