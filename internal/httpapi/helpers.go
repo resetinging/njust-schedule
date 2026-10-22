@@ -25,7 +25,7 @@ const tokenHeader = "X-Auth-Token"
 
 var beijing = time.FixedZone("Asia/Shanghai", 8*60*60)
 
-var semesterInputPattern = regexp.MustCompile(`^([0-9]{4})[-/]([0-9]{4})(?:-([12])|(?:学年)?第([一二])学期)$`)
+var semesterInputPattern = regexp.MustCompile(`^([0-9]{4})[-/]([0-9]{4})\s*(?:-([12])|(?:学年)?\s*(?:第([一二])|([秋春])季?)学期)$`)
 
 func decodeJSON(r *http.Request, target any) error {
 	const maxBody = 2 << 20
@@ -165,21 +165,58 @@ func validText(value string, maxRunes int) bool {
 	return true
 }
 
-func validSemester(value string, allowAll bool) bool {
+func normalizeSemester(value string, allowAll bool) (string, bool) {
 	value = strings.TrimSpace(value)
 	if allowAll && value == "__all__" {
-		return true
+		return value, true
 	}
 	if !validText(value, 32) {
-		return false
+		return "", false
 	}
 	parts := semesterInputPattern.FindStringSubmatch(value)
 	if parts == nil {
-		return false
+		return "", false
 	}
 	first, firstErr := strconv.Atoi(parts[1])
 	second, secondErr := strconv.Atoi(parts[2])
-	return firstErr == nil && secondErr == nil && first >= 2000 && first <= 2100 && second == first+1
+	if firstErr != nil || secondErr != nil || first < 2000 || first > 2100 || second != first+1 {
+		return "", false
+	}
+	term := parts[3]
+	if term == "" {
+		switch {
+		case parts[4] == "一":
+			term = "1"
+		case parts[4] == "二":
+			term = "2"
+		case parts[5] == "秋":
+			term = "1"
+		case parts[5] == "春":
+			term = "2"
+		default:
+			return "", false
+		}
+	}
+	return strconv.Itoa(first) + "-" + strconv.Itoa(second) + "-" + term, true
+}
+
+func validSemester(value string, allowAll bool) bool {
+	_, ok := normalizeSemester(value, allowAll)
+	return ok
+}
+
+func normalizeSemesterList(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := map[string]bool{}
+	for _, value := range values {
+		normalized, ok := normalizeSemester(value, false)
+		if !ok || seen[normalized] {
+			continue
+		}
+		seen[normalized] = true
+		out = append(out, normalized)
+	}
+	return out
 }
 
 func validStudentID(value string) bool {
@@ -328,14 +365,17 @@ func mapJWCError(w http.ResponseWriter, err error, fallback string) {
 
 func (s *Server) semesterFor(r *http.Request, sess *session.Session) string {
 	if value := strings.TrimSpace(r.URL.Query().Get("semester")); value != "" {
-		return value
+		if normalized, ok := normalizeSemester(value, false); ok {
+			return normalized
+		}
+		return currentSemester()
 	}
 	value, err := s.store.UserSetting(r.Context(), sess.StudentID, "semester")
 	if err != nil && s.logger != nil {
 		s.logger.Warn("读取当前学期失败，使用系统学期", "sid_prefix", maskedSID(sess.StudentID), "error", err)
 	}
-	if value == "" || !validSemester(value, false) {
-		value = currentSemester()
+	if normalized, ok := normalizeSemester(value, false); ok {
+		return normalized
 	}
-	return value
+	return currentSemester()
 }

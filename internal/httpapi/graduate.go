@@ -28,15 +28,16 @@ func (s *Server) graduateCourses(ctx context.Context, sess *session.Session, for
 		unlock := sess.Lock()
 		defer unlock()
 		var values []store.Course
-		var semesters []string
+		var sourceSemesters []string
 		err := s.withJWC(callCtx, func() error {
 			var err error
-			values, semesters, err = sess.JWC.GraduateCourses(callCtx)
+			values, sourceSemesters, err = sess.JWC.GraduateCourses(callCtx)
 			return err
 		})
 		if err != nil {
 			return nil, err
 		}
+		semesters := normalizeSemesterList(sourceSemesters)
 		semester := ""
 		if len(semesters) > 0 {
 			semester = semesters[0]

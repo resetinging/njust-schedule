@@ -131,8 +131,8 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "读取用户设置失败")
 			return
 		}
-		if userSettings["semester"] != "" {
-			semester = userSettings["semester"]
+		if normalized, ok := normalizeSemester(userSettings["semester"], false); ok {
+			semester = normalized
 		}
 	}
 	firstWeek, err := s.store.Setting(r.Context(), "first_week_date")
@@ -175,12 +175,13 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 	updates := map[string]string{}
 	if raw, exists := body["semester"]; exists {
 		semester := strings.TrimSpace(fmt.Sprint(raw))
-		if semester != "" && !validSemester(semester, false) {
-			writeError(w, http.StatusBadRequest, "学期格式无效")
-			return
-		}
 		if semester != "" {
-			updates["semester"] = semester
+			normalized, ok := normalizeSemester(semester, false)
+			if !ok {
+				writeError(w, http.StatusBadRequest, "学期格式无效")
+				return
+			}
+			updates["semester"] = normalized
 		}
 	}
 	if raw, exists := body["auto_refresh"]; exists {
@@ -214,8 +215,8 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if semester != "" {
-			updates["first_week_date:"+semester] = firstWeek
+		if normalized, ok := normalizeSemester(semester, false); ok {
+			updates["first_week_date:"+normalized] = firstWeek
 		}
 	}
 	if err := s.store.SetUserSettings(r.Context(), sess.StudentID, updates); err != nil {
@@ -233,6 +234,7 @@ func (s *Server) semesters(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		semesters, _ := payload["semesters"].([]string)
+		semesters = normalizeSemesterList(semesters)
 		current := ""
 		if len(semesters) > 0 {
 			current = semesters[0]
@@ -256,15 +258,16 @@ func (s *Server) setSemester(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body.Semester = strings.TrimSpace(body.Semester)
-	if !validSemester(body.Semester, false) {
+	normalized, ok := normalizeSemester(body.Semester, false)
+	if !ok {
 		writeError(w, http.StatusBadRequest, "学期格式无效")
 		return
 	}
-	if err := s.store.SetUserSetting(r.Context(), sess.StudentID, "semester", body.Semester); err != nil {
+	if err := s.store.SetUserSetting(r.Context(), sess.StudentID, "semester", normalized); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存学期失败")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "已切换到学期: " + body.Semester})
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "已切换到学期: " + normalized})
 }
 
 func (s *Server) clearData(w http.ResponseWriter, r *http.Request) {

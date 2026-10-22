@@ -196,7 +196,8 @@ func TestGraduateSemestersUsesActualCourseSemesters(t *testing.T) {
 	if err = json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
 		t.Fatal(err)
 	}
-	if !payload.Success || !slices.Equal(payload.Semesters, semesters) || payload.Current != semesters[0] {
+	want := []string{"2026-2027-1", "2025-2026-2"}
+	if !payload.Success || !slices.Equal(payload.Semesters, want) || payload.Current != want[0] {
 		t.Fatalf("unexpected payload: %#v", payload)
 	}
 	if err = mock.ExpectationsWereMet(); err != nil {
@@ -275,9 +276,20 @@ func TestLoginCredentialsRejectInvalidOrOversizedInput(t *testing.T) {
 }
 
 func TestSemesterValidationSupportsUndergraduateAndGraduateFormats(t *testing.T) {
-	for _, value := range []string{"2026-2027-1", "2026/2027-2", "2026-2027第一学期", "2026-2027学年第二学期"} {
-		if !validSemester(value, false) {
-			t.Fatalf("valid semester rejected: %q", value)
+	cases := map[string]string{
+		"2026-2027-1":     "2026-2027-1",
+		"2026/2027-2":     "2026-2027-2",
+		"2026-2027第一学期":   "2026-2027-1",
+		"2026-2027学年第二学期": "2026-2027-2",
+		"2026-2027秋学期":    "2026-2027-1",
+		"2026-2027 秋季学期":  "2026-2027-1",
+		"2026-2027学年春学期":  "2026-2027-2",
+		"2026/2027学年春季学期": "2026-2027-2",
+	}
+	for value, want := range cases {
+		got, ok := normalizeSemester(value, false)
+		if !ok || got != want {
+			t.Fatalf("normalizeSemester(%q) = %q, %v; want %q, true", value, got, ok, want)
 		}
 	}
 	for _, value := range []string{"", "2026-2028-1", "2026-2027-3", strings.Repeat("2", 100), "2026-\n2027-1"} {
@@ -287,6 +299,37 @@ func TestSemesterValidationSupportsUndergraduateAndGraduateFormats(t *testing.T)
 	}
 	if !validSemester("__all__", true) || validSemester("__all__", false) {
 		t.Fatal("__all__ semester scope validation is incorrect")
+	}
+}
+
+func TestMiddlewareAcceptsGraduateSeasonSemester(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	server := &Server{logger: logger}
+	handler := middleware(logger, server, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"success": true})
+	}))
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(
+		http.MethodGet,
+		"/api/free-classrooms?semester=2026-2027%E7%A7%8B%E5%AD%A6%E6%9C%9F",
+		nil,
+	))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestSemesterForNormalizesGraduateSeason(t *testing.T) {
+	server := &Server{}
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/free-classrooms?semester=2026-2027%E7%A7%8B%E5%AD%A6%E6%9C%9F",
+		nil,
+	)
+	got := server.semesterFor(request, &session.Session{StudentID: "124101960001"})
+	if got != "2026-2027-1" {
+		t.Fatalf("semesterFor() = %q, want 2026-2027-1", got)
 	}
 }
 
