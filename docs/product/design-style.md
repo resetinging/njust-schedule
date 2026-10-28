@@ -1,5 +1,10 @@
 # 小程序设计规范（目标风格 · 参考截图整理）
 
+> 状态：**历史参考，已废弃**；本文描述的紫调渐变风格已撤回，不得据此恢复紫色渐变或立体化样式。
+>
+> 现行视觉规范：[frontend-style-refresh-2026-10-24.md](frontend-style-refresh-2026-10-24.md)；
+> 唯一实现来源：`.miniapp/styles/design-system.wxss` 与 `.miniapp/ui/theme/tokens.js`。
+
 > 来源: 参考设计截图(课表/成绩/考试/自定义课程/账号 5 页)
 > 定位: 柔和紫调 · 圆角卡片 · 渐变强调 · 轻量现代
 

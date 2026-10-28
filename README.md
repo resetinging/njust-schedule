@@ -1,8 +1,17 @@
 # 课表助手后端
 
+> 状态：现行；最后核对：2026-10-23
+
 南京理工大学课表助手的微信小程序后端。服务部署在微信云托管，负责智慧理工 SSO、教务数据抓取与解析、用户数据缓存、共享课程目录、空教室、订阅提醒和管理端接口。
 
 Go/WebGo 是生产运行时。旧 Flask 代码仅保留用于兼容性测试，不进入生产镜像；验证码识别由 Go 进程内的 ONNX Runtime 完成，Go 生产镜像不包含 Python、Flask 或 SQLAlchemy。
+
+## 文档入口
+
+- [Agent 交接说明](docs/HANDOFF.md)
+- [完整文档索引](docs/README.md)
+- [当前架构](docs/architecture/current.md)
+- [本地与云托管开发](docs/operations/live-coding.md)
 
 ## 核心能力
 
@@ -130,7 +139,7 @@ Windows PowerShell 示例：
     go run ./cmd/migrate
     go run ./cmd/server
 
-服务默认监听 80。开发热重载见 docs/live-coding.md。
+服务默认监听 80。开发热重载见 [docs/operations/live-coding.md](docs/operations/live-coding.md)。
 
 ## 测试
 
@@ -191,7 +200,7 @@ container.config.json 只负责确保数据库存在。迁移定义和 DDL 统�
 - /api/get-captcha、/api/login、/api/login-manual 保留路径，但明确返回教务直连已下线。
 - /api/login-webvpn-manual 保留路径，但返回无需第二步教务登录。
 
-完整职责、数据流和接口分组见 docs/architecture.md。
+完整职责、数据流和接口分组见 [docs/architecture/current.md](docs/architecture/current.md)。
 
 ## License
 

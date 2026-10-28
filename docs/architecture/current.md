@@ -1,5 +1,7 @@
 # 小程序与后端架构
 
+> 状态：现行；最后核对：2026-10-29
+
 本文描述课表助手微信小程序与 Go/WebGo 后端的现行职责、数据流和兼容边界。
 
 ## 一、系统边界
@@ -14,14 +16,16 @@
         |-- Redis：可选的跨进程登录会话
         |-- 智慧理工 SSO：密码登录、二维码登录
         |-- 强智本科教务 / 研究生教务：抓取与提交
+        |-- 江苏汇文 OPAC（匿名只读）：公共纸本馆藏检索与逐册库存
         '-- 微信接口：订阅消息
 
 核心边界：
 
 - 小程序负责展示、交互、本地缓存、GPA 和评教评分等界面侧计算。
 - 后端负责认证、会话、教务访问、HTML 解析、数据隔离、共享缓存、提醒和管理。
-- 小程序不直连教务，不自行构造教务表单。
+- 小程序不直连教务，不自行构造教务表单；图书馆公共馆藏也只经本服务转发。
 - 后端解析目标页面的真实表单字段后再提交，不猜测字段名。
+- 图书馆上游是公开 OPAC，匿名访问，不携带任何用户教务 Cookie/SSO 凭据；接口仍要求本服务登录态。
 
 ## 二、运行时分层
 
@@ -31,13 +35,23 @@
 | 应用装配 | internal/app | MySQL、Schema 校验和 HTTP 服务组装 |
 | HTTP | internal/httpapi | 路由、认证、响应契约、管理端和后台任务 |
 | 教务网关 | internal/jwc | SSO、Cookie、页面表单解析、数据抓取与提交 |
+| 公共馆藏网关 | internal/library | 匿名 OPAC 检索 JSON / 馆藏 HTML 解析、ID 与响应上限校验 |
 | 认证 | internal/authn | 加密密码、24 小时信任、30 天持久 Cookie |
 | 会话 | internal/session | X-Auth-Token、LRU、单学号单 token、Redis 恢复 |
 | 数据访问 | internal/store | database/sql 查询、事务和快照替换 |
 | 迁移 | internal/migrate | MySQL 命名锁、幂等 DDL、版本与 Schema 校验 |
 | 安全 | internal/security | AES-256-GCM、AAD 学号绑定、签名令牌 |
 
-internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数据库。共享数据刷新由 HTTP 服务编排，store 只负责持久化。
+internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数据库。共享数据刷新由 HTTP 服务编排，store 只负责持久化。图书馆请求同样由 httpapi 编排：认证/限流/缓存/并发控制在本层，解析在 internal/library；书目列表不逐条抓库存，单本明细在用户点选后按需请求。
+
+### 图书馆公共馆藏（2026-10-29 新增）
+
+- `GET /api/library/search`：书名/作者/ISBN/索书号检索，服务端分页；`GET /api/library/item`：单本逐册馆藏，支持 `campus=all|nanjing|jiangyin`。
+- 两个接口都要求本服务登录态（`X-Auth-Token`）；本科/研究生共用，无账号类型分支。
+- 上游固定为 `http://libopac.njust.edu.cn` 的 `ajax_search_adv.php` / `ajax_item.php`；不开放用户传 URL，不读取用户 Cookie，不写任何凭据。
+- 缓存复用 httpapi 进程内含上界缓存：检索 30 分钟、单本 5 分钟；失败可回退 24 小时内旧值并标记 stale；同 key 并发合并；限流 + 上游并发上限（`LIBRARY_MAX_CONCURRENT`）。
+- 书目 ID 为不透明字符串，校验长度/字符后仅用于固定路径 query；HTTP 200 的业务错误（“出错啦”等）与空馆藏严格区分。
+- 详细契约见 [product/library-inventory-2026-10-29.md](../product/library-inventory-2026-10-29.md)。
 
 ## 三、登录与会话
 
@@ -114,6 +128,7 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 - 内存缓存持续到次日 00:02。
 - 开启 FREE_CLASSROOM_PREWARM 时，启动和每日 00:02 预热当天两校区各大节。
 - 缓存未命中时服务端可同步访问教务，小程序仍不直连教务。
+- 小程序展示江阴校区时保留后端返回的全部有效教学楼分组；孝陵卫继续聚焦Ⅰ至Ⅳ教学楼。
 
 ### 3. 蹭课目录
 
