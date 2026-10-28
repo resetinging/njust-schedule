@@ -254,15 +254,38 @@ func (s *Server) cacheGet(key string) (any, bool) {
 func (s *Server) cacheSet(key string, value any, ttl time.Duration) {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
-	s.cache[key] = cacheEntry{value: value, expiresAt: time.Now().Add(ttl)}
+	if s.cache == nil {
+		s.cache = map[string]cacheEntry{}
+	}
+	now := time.Now()
+	s.cache[key] = cacheEntry{value: value, expiresAt: now.Add(ttl), storedAt: now}
 	if len(s.cache) > 4096 {
-		now := time.Now()
 		for cacheKey, item := range s.cache {
 			if now.After(item.expiresAt) {
 				delete(s.cache, cacheKey)
 			}
 		}
 	}
+}
+
+// cacheLookup 读取缓存并区分「新鲜」与「过期但仍在旧值宽限期内」。
+// staleTTL 为 0 时过期即删除；只有需要“上游失败回退旧缓存”的功能才使用宽限期。
+func (s *Server) cacheLookup(key string, staleTTL time.Duration) (any, bool, time.Time, bool) {
+	s.cacheMu.Lock()
+	defer s.cacheMu.Unlock()
+	item, ok := s.cache[key]
+	if !ok {
+		return nil, false, time.Time{}, false
+	}
+	now := time.Now()
+	if now.Before(item.expiresAt) {
+		return item.value, true, item.storedAt, true
+	}
+	if staleTTL > 0 && now.Before(item.expiresAt.Add(staleTTL)) {
+		return item.value, false, item.storedAt, true
+	}
+	delete(s.cache, key)
+	return nil, false, time.Time{}, false
 }
 
 func (s *Server) cacheDeletePrefix(prefix string) {
@@ -280,6 +303,9 @@ func (s *Server) rateLimited(key string, limit int, window time.Duration) bool {
 	cutoff := now.Add(-window)
 	s.rateMu.Lock()
 	defer s.rateMu.Unlock()
+	if s.rates == nil {
+		s.rates = map[string][]time.Time{}
+	}
 	values := s.rates[key]
 	first := 0
 	for first < len(values) && values[first].Before(cutoff) {

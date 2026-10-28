@@ -26,6 +26,7 @@ type Config struct {
 	PersistentSessionTTL  time.Duration
 	MaxSessions           int
 	JWMaxConcurrent       int
+	LibraryMaxConcurrent  int
 	TrustedProxyHops      int
 	StaticDir             string
 	MPAppID               string
@@ -53,6 +54,7 @@ func Load() (Config, error) {
 		PersistentSessionTTL:  seconds("SSO_SESSION_MAX_AGE", 30*24*time.Hour, time.Minute, 365*24*time.Hour),
 		MaxSessions:           integer("MAX_SESSIONS", 200, 1, 100000),
 		JWMaxConcurrent:       integer("JW_MAX_CONCURRENT", 4, 1, 64),
+		LibraryMaxConcurrent:  integer("LIBRARY_MAX_CONCURRENT", 3, 1, 16),
 		TrustedProxyHops:      integer("TRUSTED_PROXY_HOPS", 1, 1, 20),
 		StaticDir:             env("STATIC_DIR", "wxcloudrun/static"),
 		MPAppID:               env("MP_APPID", "wx1d76c0631bdeebac"),

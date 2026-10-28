@@ -17,6 +17,7 @@ import (
 	"github.com/resetinging/njust-schedule/internal/captcha"
 	"github.com/resetinging/njust-schedule/internal/config"
 	"github.com/resetinging/njust-schedule/internal/jwc"
+	"github.com/resetinging/njust-schedule/internal/library"
 	"github.com/resetinging/njust-schedule/internal/security"
 	"github.com/resetinging/njust-schedule/internal/session"
 	"github.com/resetinging/njust-schedule/internal/store"
@@ -33,6 +34,10 @@ type Server struct {
 	logger     *slog.Logger
 	jwcSlots   chan struct{}
 	captcha    *captcha.Solver
+
+	// 图书馆公共馆藏：匿名只读上游 + 全用户共享缓存（无需教务 Cookie）。
+	library      *library.Client
+	librarySlots chan struct{}
 
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -80,6 +85,7 @@ type qrSession struct {
 type cacheEntry struct {
 	value     any
 	expiresAt time.Time
+	storedAt  time.Time
 }
 
 type inflight struct {
@@ -116,6 +122,7 @@ func New(cfg config.Config, db *sql.DB, logger *slog.Logger) (*Server, error) {
 		cfg: cfg, db: db, store: repository, crypto: crypto,
 		auth: authn.New(repository, crypto, cfg.PersistentSessionTTL, cfg.CredentialTrustTTL), sessions: sessions,
 		logger: logger, jwcSlots: make(chan struct{}, cfg.JWMaxConcurrent),
+		library: library.NewClient(12 * time.Second), librarySlots: make(chan struct{}, cfg.LibraryMaxConcurrent),
 		captcha: captcha.NewSolver(cfg.CaptchaOCRModelPath, cfg.CaptchaOCRRuntimePath),
 		ctx:     ctx, cancel: cancel, qrs: map[string]*qrSession{}, cache: map[string]cacheEntry{},
 		dedupe: map[string]*inflight{}, rates: map[string][]time.Time{}, adminStarted: time.Now(),
@@ -209,7 +216,9 @@ func (s *Server) routes() []*webgo.Route {
 		route(http.MethodGet, "/proxy/jw/:target_path*", s.jwBrowserProxy), route(http.MethodPost, "/proxy/jw/:target_path*", s.jwBrowserProxy),
 		route(http.MethodGet, "/api/calendar", s.calendar), route(http.MethodPost, "/api/refresh-calendar", s.refreshCalendar), route(http.MethodGet, "/api/programme", s.programme), route(http.MethodPost, "/api/refresh-programme", s.refreshProgramme), route(http.MethodGet, "/api/profile", s.profile), route(http.MethodPost, "/api/refresh-profile", s.refreshProfile),
 		route(http.MethodGet, "/api/general-education-courses", s.generalEducationCourses), route(http.MethodGet, "/api/general-education-syllabus", s.generalEducationSyllabus),
-		route(http.MethodGet, "/api/free-classrooms", s.freeClassrooms), route(http.MethodGet, "/api/audit-courses", s.auditCourses), route(http.MethodGet, "/api/audit-options", s.auditOptions), route(http.MethodGet, "/api/audit-favorites", s.auditFavorites), route(http.MethodPost, "/api/audit-favorites", s.saveAuditFavorite), route(http.MethodDelete, "/api/audit-favorites/:favoriteID", s.deleteAuditFavorite),
+		route(http.MethodGet, "/api/free-classrooms", s.freeClassrooms), route(http.MethodGet, "/api/audit-courses", s.auditCourses),
+		route(http.MethodGet, "/api/library/search", s.librarySearch), route(http.MethodGet, "/api/library/item", s.libraryItem),
+		route(http.MethodGet, "/api/audit-options", s.auditOptions), route(http.MethodGet, "/api/audit-favorites", s.auditFavorites), route(http.MethodPost, "/api/audit-favorites", s.saveAuditFavorite), route(http.MethodDelete, "/api/audit-favorites/:favoriteID", s.deleteAuditFavorite),
 		route(http.MethodGet, "/api/sync/versions", s.syncVersions), route(http.MethodPost, "/api/feedback", s.postFeedback), route(http.MethodGet, "/api/my-feedback", s.myFeedback), route(http.MethodPost, "/api/my-feedback/read", s.readFeedback), route(http.MethodGet, "/api/announcement", s.announcement), route(http.MethodGet, "/api/content-board", s.contentBoard),
 		route(http.MethodGet, "/api/gallery-images", s.galleryImages), route(http.MethodGet, "/api/gallery-image", s.galleryImage), route(http.MethodGet, "/api/gallery-image-meta", s.galleryImageMeta), route(http.MethodGet, "/api/gallery-image-part", s.galleryImagePart),
 		route(http.MethodGet, "/api/font/pixel", s.pixelFont), route(http.MethodGet, "/api/font/pixel.json", s.pixelFontJSON), route(http.MethodPost, "/api/font/subset", s.fontSubset), route(http.MethodGet, "/api/font/list", s.fontList),
