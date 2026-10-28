@@ -1,182 +1,295 @@
-/* 评教页面样式 — 参考桌面端 evaluations 设计 */
+/* ==========================================================================
+   教学评价（eval-view）
+   --------------------------------------------------------------------------
+   · 表面材质统一来自 styles/design-system.wxss：
+     .card / .batch-card / .course-card / .indicator-card / .modal-buttons
+   · 按钮统一由基座 .btn-primary / .btn-outline 提供，页面只覆盖 TDesign 尺寸
+   · 本文件只负责布局、层级、状态与间距；颜色 / 圆角 / 阴影 / 动效一律引用令牌
+   · 状态：已完成 --success、待处理/已保存 --warning、进行中 --primary；
+     无渐变、无装饰圆、普通卡片无投影
+   · 按压反馈由基座 .tap 提供；TDesign 弹层只使用组件自身的一套过渡
+   ========================================================================== */
 
 .container {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   background: var(--bg-page);
 }
 
-/* 顶部操作栏 */
-.top-bar {
+.view-root {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.view-scroll {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16rpx 28rpx;
-  font-size: 24rpx;
-  color: var(--text-hint);
-  background: var(--bg-card);
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
-.refresh-btn {
-  color: var(--primary);
-  font-weight: bold;
+:host {
+  display: block;
+  height: 100%;
 }
 
-.summary-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16rpx 28rpx;
-  font-size: 24rpx;
-  color: var(--text-hint);
-  background: var(--bg-card);
-  border-bottom: 1rpx solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+/* 三个滚动区共享高度链；长列表连续滚动，不做逐项入场动画 */
+.batch-scroll,
+.course-scroll,
+.form-scroll {
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
-.batch-btn {
-  color: var(--primary);
-  font-weight: bold;
+.course-scroll {
+  padding-bottom: var(--space-lg);
 }
 
-/* ==============================
-   批次卡片
-   ============================== */
+.form-scroll {
+  padding: var(--space-xs) 0;
+}
+
+/* ==========================================================================
+   批次列表
+   ========================================================================== */
 
 .batch-card {
-  margin: 12rpx 24rpx;
+  margin: var(--space-sm) var(--space-page);
+  padding: var(--space-md) var(--space-lg);
 }
 
 .batch-card.batch-urgent {
-  border-top-width: 8rpx;
-  border-top-color: var(--danger);
+  border-left: 4rpx solid var(--warning);
 }
 
 .batch-card.batch-warning {
-  border-top-width: 8rpx;
-  border-top-color: var(--warning);
+  border-left: 4rpx solid var(--warning-light);
 }
 
-.batch-card.batch-done {
-  opacity: 0.6;
+.batch-card.batch-done .batch-title {
+  color: var(--text-secondary);
 }
 
 .batch-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8rpx;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
 }
 
 .batch-title {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: var(--text-strong);
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .batch-info {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12rpx;
-  font-size: 24rpx;
-  color: var(--text-hint);
+  gap: var(--space-xs) var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--fs-sub);
+  line-height: 1.5;
 }
 
 .tag {
-  font-size: 22rpx;
-  padding: 4rpx 14rpx;
-  border-radius: var(--radius-card);
-  font-weight: bold;
+  flex: none;
+  font-weight: 600;
 }
 
-.tag-done { background: var(--primary-soft); color: var(--text-hint); }
-.tag-pending { background: var(--bg-page); color: var(--text-muted); }
-.tag-urgent { background: var(--danger-soft); color: var(--danger); }
-.tag-warning { background: var(--warning-soft); color: var(--signal); }
+/* 状态徽标：已完成用成功色，待处理用提醒色；文字本身已说明状态 */
+.tag.tag-done {
+  background: var(--success-soft);
+  color: var(--success);
+}
 
-/* ==============================
-   课程列表卡片
-   ============================== */
+.tag.tag-pending {
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+}
 
-.course-scroll {
+.tag.tag-urgent {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.sem-tag {
+  display: inline-block;
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-chip);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: var(--fs-cap);
+  line-height: 1.5;
+}
+
+.bi-dates {
+  color: var(--text-muted);
+  font-size: var(--fs-sub);
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   顶部操作条 / 返回 / 一键评教
+   ========================================================================== */
+
+.summary-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 96rpx;
+  padding: 0 var(--space-page);
+  border-bottom: 1rpx solid var(--line);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: var(--fs-sub);
+  border: none;
+  border-radius: var(--radius-island);
+  box-shadow: var(--shadow-island);
+}
+
+.sub-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 88rpx;
+  color: var(--primary);
+  font-size: var(--fs-sub);
+  font-weight: 600;
+}
+
+.icon-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.batch-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 72rpx;
+  padding: 0 var(--space-lg);
+  border-radius: var(--radius-control);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: var(--fs-sub);
+  font-weight: 600;
+}
+
+/* 表单页返回条：课程名与批次列表的课程名同一层级 */
+.form-course-name {
   flex: 1;
-  padding: 0 4rpx 24rpx;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+/* ==========================================================================
+   批次课程列表
+   ========================================================================== */
 
 .course-card {
-  margin: 12rpx 24rpx;
-}
-
-.course-card.course-done {
-  opacity: 0.65;
+  margin: var(--space-sm) var(--space-page);
+  padding: var(--space-md) var(--space-lg);
 }
 
 .course-card.course-saved {
-  border-top-width: 8rpx;
-  border-top-color: var(--warning);
+  border-left: 4rpx solid var(--warning);
+}
+
+.course-card.course-done .course-name {
+  color: var(--text-secondary);
 }
 
 .course-header {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 
 .course-main {
   flex: 1;
+  min-width: 0;
 }
 
 .course-name {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: var(--text-strong);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .course-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8rpx 20rpx;
-  margin-top: 6rpx;
-  font-size: 22rpx;
-  color: var(--text-hint);
+  gap: var(--space-xs) var(--space-md);
+  margin-top: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
+  line-height: 1.4;
 }
 
 .course-status {
-  font-size: 22rpx;
-  padding: 4rpx 12rpx;
-  border-radius: var(--radius-card);
-  font-weight: bold;
-  flex-shrink: 0;
+  flex: none;
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-chip);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .course-status.done {
-  background: var(--primary-soft);
-  color: var(--text-hint);
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .course-status.saved {
   background: var(--warning-soft);
-  color: var(--signal);
+  color: var(--warning);
 }
 
 .course-status.pending {
-  background: #EFE9FF;
-  color: #6D28D9;
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
 }
 
 .course-actions {
-  margin-top: 14rpx;
   display: flex;
   justify-content: flex-end;
-  gap: 12rpx;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
+/* TDesign 小按钮尺寸覆盖（外部类覆盖组件内部尺寸，沿用 !important） */
 .small-btn {
-  padding: 8rpx 28rpx !important;
-  font-size: 24rpx !important;
+  padding: 0 var(--space-lg) !important;
+  font-size: var(--fs-sub) !important;
 }
 
 .view-btn {
@@ -184,118 +297,113 @@
   border-color: var(--primary) !important;
 }
 
-/* ==============================
+/* ==========================================================================
    评价表单
-   ============================== */
+   ========================================================================== */
 
-.form-course-name {
-  font-weight: bold;
-  color: var(--primary);
-  flex: 1;
-  text-align: center;
-}
-
-.form-scroll {
-  flex: 1;
-  padding: 8rpx 0;
-}
-
-/* 只读模式提示 */
 .readonly-banner {
-  margin: 12rpx 24rpx;
-  padding: 14rpx 20rpx;
-  background: var(--primary-soft);
-  border-radius: var(--radius-chip);
-  font-size: 24rpx;
-  color: var(--primary-dark);
+  margin: var(--space-sm) var(--space-page);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
+  line-height: 1.5;
   text-align: center;
 }
 
-/* 自动填写工具栏 */
 .autofill-bar {
   display: flex;
-  align-items: center;
-  gap: 8rpx;
-  margin: 8rpx 24rpx 4rpx;
-  padding: 14rpx 16rpx;
-  background: var(--bg-page);
-  border-radius: var(--radius-chip);
   flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: var(--space-xs) var(--space-page) var(--space-xxs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--bg-sunken);
 }
 
 .autofill-label {
-  font-size: 24rpx;
   color: var(--text-secondary);
+  font-size: var(--fs-sub);
   white-space: nowrap;
 }
 
 .autofill-input {
-  width: 100rpx;
-  height: 52rpx;
-  border: 2rpx solid var(--border);
+  width: 96rpx;
+  height: 56rpx;
+  padding: 0 var(--space-xs);
+  border: var(--bw-ctrl) solid var(--line-strong);
   border-radius: var(--radius-chip);
-  padding: 0 8rpx;
-  font-size: 26rpx;
-  text-align: center;
   background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: var(--fs-sub);
+  text-align: center;
 }
 
 .autofill-hint {
-  font-size: 20rpx;
   color: var(--text-hint);
+  font-size: var(--fs-cap);
 }
 
 .autofill-btn {
-  padding: 8rpx 20rpx !important;
-  font-size: 22rpx !important;
-  flex-shrink: 0;
+  padding: 0 var(--space-md) !important;
+  font-size: var(--fs-cap) !important;
 }
 
 .live-score {
-  font-size: 24rpx;
-  color: var(--text-muted);
   margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--fs-sub);
 }
 
 .live-score-num {
-  font-weight: bold;
   color: var(--primary);
-  font-size: 28rpx;
+  font-family: var(--font-num);
+  font-size: var(--fs-body);
+  font-weight: 700;
 }
 
-/* 评价指标 */
 .indicator-card {
-  margin: 12rpx 24rpx;
+  margin: var(--space-sm) var(--space-page);
+  padding: var(--space-md) var(--space-lg);
 }
 
 .indicator-label {
-  font-size: 28rpx;
-  font-weight: 500;
-  margin-bottom: 12rpx;
+  margin-bottom: var(--space-sm);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .indicator-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
+  gap: var(--space-sm);
 }
 
+/* 选项胶囊：控件圆角 12rpx；按压的缩放/明暗由基座 .tap 统一提供 */
 .option-item {
-  padding: 10rpx 24rpx;
-  border: 2rpx solid var(--border);
-  border-radius: var(--radius-chip);
-  font-size: 24rpx;
-  color: var(--text-secondary);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8rpx;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 72rpx;
+  padding: var(--space-xs) var(--space-lg);
+  border: var(--bw-ctrl) solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
+  line-height: 1.4;
 }
 
 .option-item.option-checked {
   border-color: var(--primary);
   background: var(--primary-soft);
   color: var(--primary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .option-item.option-readonly {
@@ -303,38 +411,37 @@
 }
 
 .option-score {
-  font-size: 20rpx;
   color: var(--text-hint);
+  font-size: var(--fs-cap);
+  line-height: 1.4;
 }
 
-.option-checked .option-score {
+.option-item.option-checked .option-score {
   color: var(--primary);
-  font-weight: bold;
+  font-weight: 600;
 }
 
-/* 表单操作栏 */
+/* 底部操作栏：保存 / 提交由 TDesign 组件承载，行为不变，只统一尺寸 */
 .form-actions {
   display: flex;
-  gap: 16rpx;
-  padding: 16rpx 20rpx;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-page);
+  border-top: 1rpx solid var(--line);
   background: var(--bg-card);
-  border-top: 1rpx solid var(--border);
-  z-index: 10;
 }
 
-.form-actions .btn-outline,
-.form-actions .btn-primary {
+.form-actions .btn-primary,
+.form-actions .btn-outline {
   flex: 1;
-  font-size: 28rpx;
+  font-size: 30rpx !important;
 }
 
-/* ==============================
-   分数滑块弹窗
-   ============================== */
+/* ==========================================================================
+   一键评教弹窗（TDesign dialog；过渡只由组件自身负责）
+   ========================================================================== */
 
 .batch-dialog {
   --td-dialog-width: calc(100vw - 96rpx);
-  --td-dialog-border-radius: var(--radius-panel);
 }
 
 .batch-dialog-content {
@@ -342,366 +449,90 @@
 }
 
 .slider-wrapper {
-  padding: 16rpx 0;
+  padding: var(--space-md) 0;
 }
 
 .slider-value {
-  text-align: center;
-  font-size: 72rpx;
-  font-weight: bold;
-  color: var(--primary);
   display: block;
-  margin-bottom: 16rpx;
+  margin-bottom: var(--space-md);
+  color: var(--primary);
+  font-family: var(--font-num);
+  font-size: 56rpx;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .slider-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 22rpx;
   color: var(--text-hint);
+  font-size: var(--fs-cap);
 }
 
-.modal-buttons {
-  display: flex;
-  gap: 16rpx;
-  margin-top: 24rpx;
-}
-
-.modal-buttons .btn-outline,
-.modal-buttons .btn-primary {
+/* 弹窗底部按钮容器由基座 .modal-buttons 提供；这里只让 TDesign 按钮等宽 */
+.modal-buttons .btn-primary,
+.modal-buttons .btn-outline {
   flex: 1;
+  font-size: 30rpx !important;
 }
 
-/* ==============================
-   批量结果
-   ============================== */
+/* ==========================================================================
+   批量评教进度结果
+   ========================================================================== */
 
 .batch-results {
   max-height: 400rpx;
-  margin-top: 12rpx;
+  margin-top: var(--space-sm);
 }
 
 .result-item {
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  padding: 8rpx 0;
-  font-size: 24rpx;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
+  line-height: 1.4;
 }
 
 .result-icon {
-  font-size: 28rpx;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
 }
 
 .result-name {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* 失败原因：颜色 + 文字同时表达，不只手靠颜色 */
 .result-error {
-  color: var(--danger);
-  font-size: 20rpx;
-}
-
-/* ==============================
-   公共
-   ============================== */
-
-.empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-hint);
-}
-
-.empty-state .icon {
-  font-size: 80rpx;
-  margin-bottom: 20rpx;
-}
-
-.empty-state .text {
-  font-size: 28rpx;
-}
-
-.btn-primary {
-  display: block;
-  padding: 20rpx;
-  background: var(--primary);
-  color: var(--bg-card);
-  border-radius: var(--radius-ctrl);
-  box-shadow: var(--shadow-card);
-  font-size: 28rpx;
-  text-align: center;
-  border: none;
-}
-
-.btn-outline {
-  display: block;
-  padding: 20rpx;
-  background: var(--bg-card);
-  color: var(--primary);
-  border: 2rpx solid var(--primary-line);
-  border-radius: var(--radius-pill);
-  font-size: 28rpx;
-  text-align: center;
-}
-
-/* ============================================================
-   V2 视觉升级 — 评教页
-   ============================================================ */
-.batch-card, .course-card, .indicator-card {
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
-
-/* 选项胶囊选中渐变 */
-.option-item {
-  border-radius: var(--radius-card);
-  transition: all 0.12s;
-}
-.option-item.option-checked {
-  background: var(--primary);
-  color: var(--bg-card);
-  border-color: transparent;
-  box-shadow: var(--shadow-card);
-}
-.option-checked .option-score { color: var(--bg-card); }
-
-
-/* ============================================================
-   V3 视觉升级 — 评教页头部 Hero
-   ============================================================ */
-.top-bar {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 60%, var(--primary) 100%);
-  color: var(--bg-card);
-}
-.top-bar .refresh-btn {
-  background: var(--bg-card);
-  color: var(--primary);
-  border-radius: var(--radius-card);
-  padding: 8rpx 24rpx;
-  box-shadow: var(--shadow-card);
-}
-.summary-bar {
-  background: var(--bg-card);
-  border-radius: 0 0 var(--radius-card) var(--radius-card);
-  box-shadow: var(--shadow-card);
-  z-index: 10;
-}
-.summary-bar .batch-btn {
-  color: var(--primary);
-  background: var(--primary-soft);
-  border-radius: var(--radius-card);
-  padding: 6rpx 20rpx;
-}
-
-.sub-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4rpx;
-  color: var(--primary);
-  font-size: 25rpx;
-  font-weight: 650;
-}
-
-.icon-back {
-  display: inline-flex;
-}
-
-
-/* ============================================================
-   V4 简约风格 — 评教页
-   ============================================================ */
-.top-bar {
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  border-bottom: 1rpx solid var(--line);
-}
-.top-bar .refresh-btn, .summary-bar .batch-btn {
-  background: var(--primary-soft);
-  color: var(--primary);
-  box-shadow: var(--shadow-card);
-}
-.summary-bar {
-  box-shadow: var(--shadow-card);
-  border-bottom: 1rpx solid var(--line);
-}
-
-.batch-card, .course-card, .indicator-card {
-  box-shadow: var(--shadow-card);
-}
-
-/* 选中选项: 浅蓝底 + 主色字 */
-.option-item.option-checked {
-  background: var(--primary-soft);
-  color: var(--primary);
-  border-color: var(--primary);
-  box-shadow: var(--shadow-card);
-}
-.option-checked .option-score { color: var(--primary); }
-
-
-/* ============================================================
-   V6 桌面端同款 — 评教页
-   ============================================================ */
-.batch-card, .course-card, .indicator-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-ctrl);
-  box-shadow: var(--shadow-card);
-}
-/* 选项胶囊 → 桌面 .option-item: 白底描边圆角 */
-.option-item {
-  background: var(--bg-card);
-  border: var(--bw-ctrl) solid var(--line-strong);
-  color: var(--text-primary);
-  border-radius: var(--radius-card);
-}
-.option-item.option-checked {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--bg-card);
-  box-shadow: var(--shadow-card);
-}
-.option-checked .option-score { color: var(--bg-card); }
-
-/* ============================================================
-   V7 风格统一 — 评教页对齐全局卡片规范(白底细描边)
-   ============================================================ */
-.batch-card, .course-card, .indicator-card {
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
-
-/* 批次学期标签 */
-.sem-tag {
-  display: inline-block;
-  font-size: 20rpx;
-  color: var(--primary-dark);
-  background: var(--primary-soft);
-  border-radius: var(--radius-chip);
-  padding: 2rpx 12rpx;
-  margin-right: 8rpx;
-}
-
-/* ============================================================
-   风格统一 — 对齐课表(卡片加细边框)
-   ============================================================ */
-.batch-card, .course-card, .indicator-card {
-  border: var(--bw-card) solid var(--line);
-}
-
-/* 批次信息: 学期标签 + 日期一行 */
-.bi-dates {
-  font-size: 23rpx;
-  color: var(--text-hint);
-}
-
-/* 组件根/滚动区 */
-.view-root { height: 100%; box-sizing: border-box; }
-.view-scroll {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-}
-
-.batch-scroll {
-  flex: 1;
-  min-height: 0;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* 宿主节点高度(swiper-item 内撑满, 保证内部 100% 高度链有效) */
-:host {
-  display: block;
-  height: 100%;
-}
-
-/* 评教页统一卡片: 去掉大面积高饱和背景 */
-.top-bar,
-.summary-bar,
-.batch-card,
-.course-card,
-.indicator-card,
-.readonly-banner,
-.autofill-bar {
-  background: var(--bg-card) !important;
-  border: 1rpx solid var(--line) !important;
-  border-radius: var(--radius-card) !important;
-  box-shadow: var(--shadow-card) !important;
-}
-
-.batch-card.batch-urgent {
-  background: var(--signal-soft) !important;
-  border-color: var(--signal-line) !important;
-}
-
-.batch-card.batch-warning {
-  background: var(--warning-soft) !important;
-  border-color: var(--warning-line) !important;
-}
-
-.batch-card.batch-done {
-  background: var(--bg-sunken) !important;
-}
-
-.batch-card,
-.course-card,
-.indicator-card {
-  animation: evalCardIn 400ms var(--ease-spring) backwards;
-}
-
-@keyframes evalCardIn {
-  from { opacity: 0; transform: translateY(16rpx) scale(.982); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* Evaluation keeps the same edge grid and tactile option feedback as other tools. */
-.view-scroll,
-.course-scroll,
-.form-scroll {
-  min-height: 0;
-  -webkit-overflow-scrolling: touch;
-}
-
-.top-bar,
-.summary-bar,
-.batch-card,
-.course-card,
-.indicator-card,
-.readonly-banner,
-.autofill-bar {
-  border-color: var(--line) !important;
-  box-shadow: var(--shadow-soft) !important;
-}
-
-.batch-card,
-.course-card,
-.indicator-card {
-  background: var(--surface-tint-strong) !important;
-}
-
-.option-item {
-  transition: background-color var(--motion-fast) var(--ease-standard),
-              border-color var(--motion-fast) var(--ease-standard),
-              transform var(--motion-base) var(--ease-spring);
-}
-
-.option-item:active {
-  transform: scale(.985);
-}
-
-.result-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34rpx;
-  height: 34rpx;
   flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  color: var(--danger);
+  font-size: var(--fs-cap);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.course-status.pending {
-  background: var(--primary-soft);
-  color: var(--primary);
+/* 页面内不定义独立动效（按压走 .tap、弹层走 TDesign）；
+   保留减少动效兜底，避免将来新增过渡时漏配 */
+@media (prefers-reduced-motion: reduce) {
+  .batch-card,
+  .course-card,
+  .indicator-card,
+  .option-item,
+  .summary-bar {
+    animation-duration: .01ms;
+    transition-duration: .01ms;
+  }
 }

@@ -15,22 +15,28 @@ const font = require('../../utils/font')
 const analytics = require('../../utils/analytics')
 
 const MAIN_TITLE = '课表助手'
-const TOOL_TITLES = { freeclass: '空教室查询', gallery: '校园工具', audit: '蹭课查询' }
+const TOOL_TITLES = {
+  freeclass: '空教室查询',
+  gallery: '校园工具',
+  audit: '蹭课查询',
+  library: '图书馆库存',
+  notice: '信息中心'
+}
 
 Page({
   data: {
     current: 1,        // 底栏选中项: 0=功能 1=课表 2=我的
-    toolPage: '',      // 页面内假页: '' | freeclass | gallery | exams | eval | grades | credit
+    toolPage: '',      // 页面内假页: '' | notice | freeclass | gallery | library | exams | eval | grades | credit
     toolRendered: false, // 二级固定层是否挂载
     toolVisible: false,
     toolClosing: false,
     isGraduate: false, // 研究生账号在功能页隐藏"教学评价"
+    popupOpen: false,  // 一级页是否正打开底部弹层(此时隐藏浮动 TabBar)
     fontClass: '',     // 字体档位: '' 像素 | 'font-system' 系统字体
-    swiperHeight: 600, // 内容区高度(px), 自适应计算(公告条可见时扣除其高度)
     visited: [true, false, false, false, false, false],  // 已挂载的常驻 Tab: 0=课表, 4=我的
 
     // 顶部公告条(long: 文本被单行截断, 显示"查看 ›"提示)
-    ann: { visible: false, text: '', updated: '', long: false }
+    ann: { visible: false, unread: false, text: '', updated: '', long: false }
   },
 
   onLoad(options) {
@@ -38,7 +44,6 @@ Page({
       this._pendingProfile = true
     }
     this._syncAccountType()
-    this._calcHeight()
     // 首屏停在"课表"(底栏中间项)
     this._route()
     // 拉取公告(有新公告则顶部横幅展示)
@@ -102,58 +107,44 @@ Page({
     analytics.pageView(page)
   },
 
+  /** 一级页底部弹层开关(课表/我的上报)：打开时隐藏浮动 TabBar，关闭后恢复 */
+  onPopupState(e) {
+    const open = !!(e && e.detail && e.detail.open)
+    if (open !== this.data.popupOpen) this.setData({ popupOpen: open })
+  },
+
   /** 研究生账号(学号 1 开头)在功能页隐藏"教学评价"入口 */
   _syncAccountType() {
     const isGrad = storage.get('account_type', '') === 'graduate'
     if (isGrad !== this.data.isGraduate) this.setData({ isGraduate: isGrad })
   },
 
-  /** 计算内容区高度: 视口高 - tabBar 高(约 96rpx, 图标+文字) - iOS 底部安全区 - 公告条高(若可见) */
-  _calcHeight() {
-    try {
-      // 仅取视口/安全区尺寸用于布局。不使用 getSystemInfoSync: 该接口已废弃,
-      // 且属于微信隐私接口清单中的「设备信息」——本项目不采集设备信息,
-      // 详见 docs/privacy-guideline.md(getWindowInfo 只返回窗口尺寸, 不涉及个人信息)
-      const sys = wx.getWindowInfo()
-      const ratio = sys.windowWidth / 750
-      const tabH = Math.ceil(112 * ratio)
-      // iOS 全面屏底部安全区(tabBar 有 env(safe-area-inset-bottom) padding)
-      const safeH = (sys.safeArea && sys.safeArea.bottom) ? Math.max(0, sys.windowHeight - sys.safeArea.bottom) : 0
-      let h = sys.windowHeight - tabH - safeH - 2
-      if (this.data.ann.visible) h -= Math.ceil(88 * ratio)   // 公告条高 88rpx
-      this.setData({ swiperHeight: h > 200 ? h : 600 })
-    } catch (e) {
-      this.setData({ swiperHeight: 600 })
-    }
-  },
 
   /** 拉取公告并决定横幅是否展示(仅 updated 未读时展示) */
   _loadAnnouncement(force) {
     ann.load(!!force).then(a => {
       const text = a.text || ''
-      const visible = a.enabled && !!text && ann.isNew(a.updated)
+      const unread = a.enabled && !!text && ann.isNew(a.updated)
       this.setData({
-        'ann.visible': visible,
-        'ann.text': visible ? text : '',
+        'ann.visible': unread,
+        'ann.unread': unread,
+        'ann.text': unread ? text : '',
         'ann.updated': a.updated,
         // 横幅只有一行, 超过约 14 字会被省略号截断 → 给出"查看"提示
-        'ann.long': visible && text.length > 14
+        'ann.long': unread && text.length > 14
       })
-      this._calcHeight()
-    })
+      })
   },
 
-  /** 点击公告条: 弹窗展示全文 → 确认即标记已读并隐藏 */
+  /** 点击公告条: 打开正式信息中心 */
   onAnnTap() {
-    const a = this.data.ann
-    if (!a.visible) return
-    wx.showModal({
-      title: '公告',
-      content: a.text,
-      showCancel: false,
-      confirmText: '知道了',
-      success: () => this._dismissAnn()
-    })
+    this.onOpenNotice()
+  },
+
+  /** 打开信息中心 */
+  onOpenNotice() {
+    analytics.featureOpen('notice', this.data.current === 2 ? 'profile' : 'feature')
+    this._openToolPage('notice', 'toolNotice')
   },
 
   /** 点 ✕ 关闭(同样视为已读) */
@@ -166,22 +157,17 @@ Page({
     if (!a.visible) return
     ann.markSeen(a.updated)
     this.setData({ 'ann.visible': false, 'ann.text': '', 'ann.updated': '', 'ann.long': false })
-    this._calcHeight()
   },
 
   /** "我的"页公告栏查看后回调(设置页标记已读 → 主页面横幅同步隐藏) */
-  onAnnSeen() {
-    if (!this.data.ann.visible) return
-    const c = ann.cached()
-    const text = c.text || ''
-    const visible = c.enabled && !!text && ann.isNew(c.updated)
-    this.setData({
-      'ann.visible': visible,
-      'ann.text': visible ? text : '',
-      'ann.updated': c.updated,
-      'ann.long': visible && text.length > 14
-    })
-    this._calcHeight()
+  onAnnSeen(e) {
+    const updated = e && e.detail && e.detail.updated
+    if (updated) ann.markSeen(updated)
+    const settings = this.selectComponent('#tabview4')
+    if (settings && typeof settings.onNoticeSeen === 'function') {
+      settings.onNoticeSeen(updated)
+    }
+    this._loadAnnouncement(true)
   },
 
   /** 获取某索引的视图组件实例 */
@@ -323,7 +309,7 @@ Page({
    * 挂载后再查找组件实例激活; 找不到时短暂重试。
    */
   _openToolPage(page, toolId, mode) {
-    const allowed = ['freeclass', 'gallery', 'audit', 'exams', 'eval', 'grades', 'credit']
+    const allowed = ['notice', 'freeclass', 'gallery', 'audit', 'library', 'exams', 'eval', 'grades', 'credit']
     if (allowed.indexOf(page) < 0 || this.data.toolVisible ||
         this.data.toolClosing || this.data.toolRendered) return
     analytics.pageView(page)
@@ -409,7 +395,9 @@ Page({
       eval: 'toolEval',
       grades: 'toolGrades',
       credit: 'toolCredit',
-      audit: 'toolAudit'
+      audit: 'toolAudit',
+      library: 'toolLibrary',
+      notice: 'toolNotice'
     }[page] || ''
   },
 

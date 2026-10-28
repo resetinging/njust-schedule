@@ -210,7 +210,7 @@ Component({
         this._refreshDecoratedCourses()
         return
       }
-      if (!storage.isLoggedIn()) {
+      if (!storage.hasSession()) {
         this.setData({
           ownCourses: [],
           ownCoursesLoaded: true,
@@ -245,7 +245,7 @@ Component({
       const cacheKey = this._favoritesCacheKey()
       const cached = storage.getCached(cacheKey)
       if (Array.isArray(cached)) this._applyFavorites(cached)
-      if (!storage.isLoggedIn()) {
+      if (!storage.hasSession()) {
         this.setData({ favoritesLoading: false })
         return
       }
@@ -410,7 +410,7 @@ Component({
       if (!this.data.ownCoursesLoaded) {
         return { hasConflict: false, loading: true, text: '课表同步中' }
       }
-      if (!storage.isLoggedIn()) {
+      if (!storage.hasSession()) {
         return { hasConflict: false, unavailable: true, text: '登录后可检测' }
       }
       const result = auditCourseUtil.conflictForCourse(
@@ -450,7 +450,7 @@ Component({
 
     async _toggleFavorite(course) {
       if (!course) return false
-      if (!storage.isLoggedIn()) {
+      if (!storage.hasSession()) {
         wx.showToast({ title: '请先登录后再收藏', icon: 'none' })
         return false
       }

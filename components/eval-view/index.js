@@ -6,6 +6,7 @@
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const analytics = require('../../utils/analytics')
 const { timeUntilDeadline, parseDateStr } = require('../../utils/date')
 
 Component({
@@ -71,6 +72,7 @@ Component({
       }
     },
     detached() {
+      analytics.disconnectSlots(this)
       this._disableLeaveGuard()
     }
   },
@@ -79,6 +81,9 @@ Component({
     /** 由 main 页面调用: 每次被激活时触发 */
     activate() {
       this.setData({ active: true })   // 懒渲染: 首次激活才渲染内容
+      analytics.observeSlots(this, [
+        { id: 'slot-eval-bottom', page: 'eval', ad_type: 'native' }
+      ])
       // 退出登录后清空上一用户数据(隐私, 含评教表单/批量状态)
       if (!storage.isLoggedIn()) {
         this.setData({

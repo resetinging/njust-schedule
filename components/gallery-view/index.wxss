@@ -1,23 +1,28 @@
-/* 校园工具样式 · 清透课堂: 白卡 + 细描边 */
+/* ==========================================================================
+   校园图鉴（校历 / 校区地图照片墙）
+   --------------------------------------------------------------------------
+   · 白卡 + 细边线 + 16rpx 圆角，无投影、无装饰圆、无渐变
+   · 两列图文卡片：统一页面边距、卡片内边距、标题基线与图片圆角；
+     图片按真实比例展示，点击仍走 wx.previewImage 预览，不裁剪、不替换真实资产
+   · 返回按钮有效热区 88rpx；按压反馈由基座 .tap 提供，组件内不再自定义
+   ========================================================================== */
 
 .container {
   height: 100vh;
   min-height: 0;
   overflow-y: auto;
-  box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 40rpx;
+  padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
   background: var(--bg-page);
 }
 
+/* 固定顶栏：使用实色面，不叠毛玻璃，滚动时与内容区分干净 */
 .custom-nav {
   position: sticky;
   top: 0;
   z-index: 80;
-  background: var(--glass-bg);
-  border-bottom: 1rpx solid var(--line);
-  -webkit-backdrop-filter: blur(22rpx) saturate(150%);
-  backdrop-filter: blur(22rpx) saturate(150%);
+  background: var(--bg-card);
+  border-bottom: var(--bw-card) solid var(--line);
 }
 
 .custom-nav.is-embedded {
@@ -32,27 +37,28 @@
   position: relative;
   display: flex;
   align-items: center;
-  padding-left: 20rpx;
-  box-sizing: border-box;
+  padding-left: var(--space-xs);
 }
 
+/* 返回：图标 + 文字，热区 88rpx（约 44px），左右留白与页面边距同源 */
 .custom-back {
   display: inline-flex;
   align-items: center;
-  gap: 5rpx;
-  height: 54rpx;
-  padding: 0 16rpx 0 12rpx;
-  border: 1rpx solid var(--line);
+  gap: var(--space-xxs);
+  min-height: 88rpx;
+  padding: 0 var(--space-md) 0 var(--space-xs);
   border-radius: var(--radius-pill);
-  background: var(--glass-bg-strong);
   color: var(--text-secondary);
-  font-size: 23rpx;
-  font-weight: 650;
-  box-shadow: var(--shadow-card);
+  font-size: var(--fs-sub);
+  font-weight: 500;
 }
 
 .custom-back:active {
-  transform: scale(.94);
+  background: var(--bg-hover);
+}
+
+.icon-back {
+  display: inline-flex;
 }
 
 .custom-nav-title {
@@ -60,127 +66,66 @@
   left: 50%;
   transform: translateX(-50%);
   color: var(--text-primary);
-  font-size: 28rpx;
+  font-size: var(--fs-page-title);
   font-weight: 700;
   pointer-events: none;
 }
 
-.icon-back {
-  display: inline-flex;
-}
-
 .page-loading {
   display: flex;
+  min-height: 320rpx;
   flex-direction: column;
   align-items: center;
-  padding: 140rpx 40rpx;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-page);
 }
 
-.page-loading .loading-text {
-  margin-top: 24rpx;
-  font-size: 26rpx;
-  color: var(--text-hint);
-}
-
-.tool-list {
-  padding: 20rpx 20rpx 40rpx;
-}
-
-.tool-card {
-  background: var(--bg-card);
-  border: var(--bw-card) solid var(--line);
-  border-radius: var(--radius-card);
-  padding: 24rpx;
-  margin-bottom: 24rpx;
-  box-shadow: var(--shadow-card);
-}
-
-.tool-title {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 16rpx;
-}
-
-.tool-img {
-  width: 100%;
-  display: block;
-  border-radius: var(--radius-ctrl);
-  background: var(--bg-page);
-}
-
-.empty-state {
-  padding: 160rpx 40rpx;
-  text-align: center;
-}
-
-.empty-state .icon { font-size: 100rpx; }
-.empty-state .text {
-  font-size: 28rpx;
-  color: var(--text-hint);
-  margin: 20rpx 0 32rpx;
-}
-
-/* 诊断信息 */
-.diag-tip {
-  margin: 16rpx 24rpx;
-  padding: 16rpx 20rpx;
-  font-size: 22rpx;
-  color: var(--signal-deep);
-  background: var(--signal-soft);
-  border-radius: var(--radius-ctrl);
-  word-break: break-all;
-}
-
-/* Layout pass: a two-column image index keeps the tool page scannable. */
 .page-content {
-  padding-left: 20rpx;
-  padding-right: 20rpx;
+  padding: 0 var(--space-page);
 }
 
+/* 两列图文索引：行间距与页面边距同源（8rpx 倍数），同排卡片等高对齐 */
 .tool-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14rpx;
-  margin: 16rpx 0 0;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
 }
 
+/* 表面（白底 / 细边线 / 16rpx 圆角 / 无投影）由基座 .tool-card 提供，
+   这里只负责卡片内部排版，避免与 styles/design-system.wxss 重复声明。 */
 .tool-card {
-  margin: 0;
-  border-radius: 18rpx;
-  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
 }
 
-/* Gallery shares the same compact navigation and two-column scan rhythm. */
-.custom-nav {
-  background: rgba(245, 247, 249, .84);
-  border-bottom-color: var(--line);
-  -webkit-backdrop-filter: blur(24rpx) saturate(145%);
-  backdrop-filter: blur(24rpx) saturate(145%);
-}
-
-.custom-back {
-  min-height: 56rpx;
-  height: 56rpx;
-  border-color: var(--line);
-  background: var(--surface-tint-strong);
-  box-shadow: var(--shadow-soft);
-}
-
-.tool-card {
-  padding: 16rpx;
-  background: var(--surface-tint-strong);
-  border-color: var(--line);
-  transition: transform var(--motion-base) var(--ease-spring),
-              box-shadow var(--motion-base) var(--ease-standard);
-}
-
-.tool-card:active {
-  transform: scale(.975);
-  box-shadow: 0 5rpx 16rpx rgba(15, 23, 42, .045);
-}
-
+/* 标题单行省略，保证两列卡片的图文起始位置一致 */
 .tool-title {
-  margin-bottom: 12rpx;
-  font-size: 27rpx;
+  overflow: hidden;
+  margin-bottom: var(--space-sm);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-img {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-group);
+  background: var(--bg-sunken);
+}
+
+/* 诊断信息（仅出错时出现） */
+.diag-tip {
+  margin: var(--space-md) 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-control);
+  color: var(--warning);
+  background: var(--warning-soft);
+  font-size: var(--fs-cap);
+  word-break: break-all;
 }

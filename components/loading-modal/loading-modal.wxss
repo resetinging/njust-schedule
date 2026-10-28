@@ -1,18 +1,18 @@
-.message {
-  font-size: 26rpx;
-  color: var(--text-muted);
-  display: block;
-  text-align: center;
-  line-height: 1.6;
-}
+/* ==========================================================================
+   加载 / 进度弹层的内容排版
+   --------------------------------------------------------------------------
+   · 轻量对齐：内容居中、正文 24rpx、间距 8rpx 倍数
+   · 弹层圆角与阴影由基座 token 与 TDesign t-dialog 统一提供，
+     这里不再声明卡片、阴影或覆盖层样式
+   ========================================================================== */
 
 .loading-content {
   display: flex;
+  min-height: 112rpx;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
-  gap: 24rpx;
-  min-height: 112rpx;
+  gap: var(--space-lg);
 }
 
 .loading-indicator {
@@ -24,3 +24,10 @@
   width: 100%;
 }
 
+.message {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
+  line-height: 1.6;
+  text-align: center;
+}

@@ -1,6 +1,7 @@
 {
   "component": true,
   "usingComponents": {
+    "ad-slot": "/components/ad-slot/index",
     "icon": "/components/icon/index",
     "empty-state": "/components/empty-state/index",
     "week-grid": "/components/week-grid/week-grid"

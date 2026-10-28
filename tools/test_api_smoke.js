@@ -53,8 +53,8 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 58 个接口(含连接测试、服务端凭据删除、同步版本、蹭课收藏与使用统计)', () => {
-    assert.strictEqual(Object.keys(api).length, 58, Object.keys(api).join(','))
+  await check('导出 63 个接口(含通识大纲、信息中心、同步版本、蹭课收藏、图书馆库存与使用统计)', () => {
+    assert.strictEqual(Object.keys(api).length, 63, Object.keys(api).join(','))
     assert.strictEqual(typeof api.testConnection, 'function')
     assert.strictEqual(typeof api.searchAuditCourses, 'function')
     assert.strictEqual(typeof api.listAuditOptions, 'function')
@@ -62,6 +62,11 @@ async function check(name, fn) {
     assert.strictEqual(typeof api.saveAuditFavorite, 'function')
     assert.strictEqual(typeof api.deleteAuditFavorite, 'function')
     assert.strictEqual(typeof api.getSyncVersions, 'function')
+    assert.strictEqual(typeof api.getContentBoard, 'function')
+    assert.strictEqual(typeof api.getGeneralEducationCourses, 'function')
+    assert.strictEqual(typeof api.getGeneralEducationSyllabus, 'function')
+    assert.strictEqual(typeof api.searchLibraryBooks, 'function')
+    assert.strictEqual(typeof api.getLibraryBookItems, 'function')
   })
   await check('loginWebvpn 成功路径(存 token/学号/授权密码)', async () => {
     const res = await api.loginWebvpn('10001', 'pwd', true)
@@ -161,6 +166,21 @@ async function check(name, fn) {
     }))
     const r = await api.getDataRefreshStatus()
     assert.strictEqual(r.data_refresh.state, 'running')
+  })
+  await check('自动重登成功后退出离线模式', async () => {
+    storage.setStudentId('10001')
+    storage.set('saved_password', 'pwd')
+    storage.setOffline(true)
+    storage.remove('token')
+    storage.remove('relogin_fail_ts')
+    stubBoth((o) => o.success({
+      statusCode: 200,
+      data: { success: true, token: 'tok-relogin', semester: '2026-2027-1' }
+    }))
+    const token = await api.autoRelogin()
+    assert.strictEqual(token, 'tok-relogin')
+    assert.strictEqual(storage.get('token'), 'tok-relogin')
+    assert.strictEqual(storage.isOffline(), false)
   })
   await check('测试连接绕过离线短路并返回 ok 状态', async () => {
     storage.setOffline(true)

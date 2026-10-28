@@ -61,6 +61,7 @@ function isLoggedIn() { return !!getStudentId() }
 /** 离线模式: 登录失效后仍展示本地缓存(不打网络, 登录接口除外) */
 function isOffline() { return !!get(STORAGE_KEYS.OFFLINE, false) }
 function setOffline(v) { set(STORAGE_KEYS.OFFLINE, !!v) }
+function hasSession() { return !!getStudentId() && !!get(STORAGE_KEYS.TOKEN, '') && !isOffline() }
 
 // ============================================================
 // 数据缓存
@@ -124,6 +125,7 @@ module.exports = {
   getStudentId, setStudentId, getStudentName, setStudentName,
   getSemester, setSemester,
   isOffline, setOffline,
+  hasSession,
   getCached, setCached, getCacheAge,
   clearAll
 }

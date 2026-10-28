@@ -1,388 +1,400 @@
-/* 成绩查询页面样式 · 清透课堂: 白卡 + 细描边 + 分数胶囊 */
+/* ==========================================================================
+   成绩查询视图（本科 GPA / 分学期折叠 + 研究生学分明细）
+   --------------------------------------------------------------------------
+   · 颜色 / 圆角 / 间距 / 阴影 / 动效全部取 styles/design-system.wxss 的令牌
+   · 普通表面（gpa-hero / sem-card / sem-gpa-card / sc-cet / card）由基座定义，
+     这里只补充本组件的布局与排版；无投影、无装饰圆、无整卡入场动画
+   · 按压反馈交给基座 .tap，本地不重复声明按压态；动效仅保留切换器位移 180ms
+   ========================================================================== */
 
-/* ============ 研究生成绩: 学分进度 + 明细(不算绩点) ============ */
-.yjs-tr {
-  display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line-soft);
+/* ==========================================================================
+   1. 结构与高度链（宿主 → scroll-view，保证 swiper-item 内可滚动）
+   ========================================================================== */
+
+:host {
+  display: block;
+  height: 100%;
 }
-.yjs-tr:last-child { border-bottom: none; }
-.yjs-td { font-size: 12px; color: var(--text-primary); flex: 1; word-break: break-all; }
-.yjs-td:first-child { flex: 1.6; }
-.yjs-hint { font-size: 12px; color: var(--text-hint); text-align: center; padding: 14px 0; }
-.yjs-note { font-size: 11px; color: var(--text-hint); text-align: center; margin-top: 12px; }
+
+.view-root {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.view-scroll {
+  height: 100%;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
 
 .container {
-  padding-bottom: 40rpx;
-  background: var(--bg-page);
+  padding-bottom: calc(var(--space-xl) + env(safe-area-inset-bottom));
 }
 
-/* 成绩提醒: 与考试页订阅条同一交互层级 */
+/* ==========================================================================
+   2. 成绩提醒条：单行可点，白底细边，低存在感
+   ========================================================================== */
+
 .grade-sub {
-  margin: 16rpx 24rpx 0;
-  padding: 18rpx 22rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1rpx solid var(--hero-border);
-  border-radius: var(--radius-card);
-  background: var(--hero-bg);
-  box-shadow: var(--shadow-card);
-  animation: gradeCardIn 400ms var(--ease-spring) backwards;
+  gap: var(--space-md);
+  margin: var(--space-md) var(--space-page) var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-card);
+  border: none;
+  border-radius: var(--radius-island);
+  box-shadow: var(--shadow-island);
 }
 
 .grade-sub-t {
   min-width: 0;
   color: var(--text-secondary);
-  font-size: 26rpx;
-  line-height: 1.35;
+  font-size: var(--fs-sub);
+  line-height: 1.4;
 }
 
+/* 条内小操作：整条已绑定 .tap，这里只做视觉引导 */
 .grade-sub-btn {
   flex: none;
-  margin-left: 16rpx;
-  padding: 6rpx 20rpx;
-  border-radius: 999rpx;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-pill);
   background: var(--primary);
+  /* 品牌色反白字：基座暂无专用 on-brand 令牌，沿用既有 var(--bg-card) 写法 */
   color: var(--bg-card);
-  font-size: 24rpx;
+  font-size: var(--fs-sub);
   font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
 }
 
-/* ============ 绩点大卡: 浅蓝软底 + 细描边, 数值用墨色/语义色 ============ */
+/* ==========================================================================
+   3. GPA 概览：唯一的大数字焦点，其余信息退为次级
+   ========================================================================== */
+
 .gpa-hero {
-  margin: 20rpx 24rpx 24rpx;
-  border-radius: var(--radius-card);
-  padding: 32rpx 28rpx 24rpx;
-  background: var(--hero-bg);
-  border: var(--bw-card) solid var(--hero-border);
-  box-shadow: var(--shadow-card);
+  margin: var(--space-md) var(--space-page);
+  padding: var(--space-lg);
+  background: var(--bg-card);
+  border: none;
+  border-radius: var(--radius-island);
+  box-shadow: var(--shadow-island);
 }
 
 .hero-top {
   display: flex;
   align-items: flex-start;
+  gap: var(--space-md);
 }
 
 .hero-gpa-wrap {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  gap: var(--space-xxs);
 }
 
 .hero-gpa {
-  font-size: 96rpx;
-  font-weight: 800;
-  color: var(--hero-title);
-  line-height: 1.1;
-  text-shadow: none;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: 80rpx;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-display);
+  line-height: 1.05;
 }
-
-.hero-gpa.gpa-high { color: var(--gpa-high); }
-.hero-gpa.gpa-mid { color: var(--gpa-mid); }
-.hero-gpa.gpa-low { color: var(--gpa-low); }
 
 .hero-label {
-  margin-top: 8rpx;
-  font-size: 24rpx;
   color: var(--text-muted);
+  font-size: var(--fs-sub);
+  line-height: 1.4;
 }
 
-/* 刷新按钮: 浅底上的白色圆形图标 */
-.hero-refresh {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
-  font-size: 30rpx;
-  border-radius: 50%;
-  background: var(--bg-card);
-  color: var(--primary);
-  flex-shrink: 0;
-}
+/* 刷新：非圆形图标按钮，热区 88rpx（约 44 物理像素） */
 
-/* 统计胶囊行: 浅蓝底主色字, 一行三胶囊 */
-.stat-pills {
-  display: flex;
-  gap: 16rpx;
-  margin: 0 24rpx 24rpx;
-}
 
-.pill {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4rpx;
-  background: var(--primary-soft);
-  border-radius: var(--radius-pill);
-  padding: 18rpx 12rpx 16rpx;
-}
-
-.pill-label {
-  font-size: 22rpx;
-  color: var(--text-hint);
-}
-
-.pill-value {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: var(--primary);
-}
-
-/* 模式切换 */
+/* 绩点算法切换：滑动的底板指示器，单次 180ms 位移，无投影 */
 .mode-seg {
+  position: relative;
   display: flex;
-  background: var(--bg-card);
-  border: 1rpx solid var(--primary-line);
-  border-radius: var(--radius-card);
-  padding: 6rpx;
+  overflow: hidden;
+  padding: var(--space-xxs);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-pill);
+  border: none;
 }
 
 .hero-mode {
-  margin-top: 24rpx;
+  margin-top: var(--space-md);
+}
+
+.mode-indicator {
+  position: absolute;
+  z-index: 0;
+  top: var(--space-xxs);
+  bottom: var(--space-xxs);
+  left: var(--space-xxs);
+  width: calc(50% - var(--space-xxs));
+  border-radius: var(--radius-xs);
+  background: var(--bg-card);
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+
+.mode-indicator.right {
+  transform: translateX(100%);
 }
 
 .seg {
+  position: relative;
+  z-index: 1;
   flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
+  line-height: 1.4;
   text-align: center;
-  padding: 12rpx 20rpx;
-  font-size: 25rpx;
-  color: var(--text-muted);
-  border-radius: var(--radius-card);
 }
 
-.seg.on {
-  background: var(--primary);
-  color: var(--bg-card);
+.mode-seg .seg.on {
+  color: var(--primary);
   font-weight: 700;
 }
 
-/* GPA 颜色类（数值语义色） */
-.gpa-high { color: var(--success); }
-.gpa-mid { color: var(--warning); }
-.gpa-low { color: var(--danger); }
+/* ==========================================================================
+   4. 关键指标：一个分组表面，用分隔线区分三列（不逐格套卡片）
+   ========================================================================== */
 
-/* ============ 四六级行（独立卡） ============ */
-.sc-cet {
-  margin: 0 24rpx 24rpx;
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 var(--space-page) var(--space-lg);
   background: var(--bg-card);
-  border-radius: var(--radius-card);
-  padding: 22rpx 26rpx;
-  box-shadow: var(--shadow-card);
+  border: none;
+  border-radius: var(--radius-island);
+  box-shadow: var(--shadow-island);
+  overflow: hidden;
+}
+
+.metric-card {
+  min-width: 0;
+  padding: var(--space-md) var(--space-xs);
+  text-align: center;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.metric-card + .metric-card {
+  border-left: 1rpx solid var(--line-soft);
+}
+
+.metric-value {
+  display: block;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: 32rpx;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-label {
+  display: block;
+  margin-top: var(--space-xxs);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+}
+
+/* ==========================================================================
+   5. 四六级成绩条：整条可点刷新，标题 / 日期 / 折算行同层级
+   ========================================================================== */
+
+.sc-cet {
+  margin: 0 var(--space-page) var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
 }
 
 .sc-cet-top {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: var(--space-sm);
 }
 
 .sc-cet-title {
-  font-size: 28rpx;
-  font-weight: 600;
   color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 600;
 }
 
 .sc-cet-date {
   margin-left: auto;
-  font-size: 24rpx;
-  color: var(--text-hint);
+  color: var(--text-muted);
+  font-size: var(--fs-sub);
 }
 
+/* 行内状态图标（整条可点，不单独计热区） */
 .sc-cet-refresh {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36rpx;
-  height: 36rpx;
+  width: 32rpx;
+  height: 32rpx;
+  flex: none;
 }
 
 .sc-cet-line {
-  margin-top: 10rpx;
-  font-size: 24rpx;
-  color: var(--text-muted);
-  padding-left: 44rpx;
+  margin-top: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
+  line-height: 1.4;
 }
 
-/* ============ 各学期绩点明细 ============ */
+/* ==========================================================================
+   6. 各学期绩点：横向滚动的轻量卡，数值等宽对齐
+   ========================================================================== */
+
 .sem-gpa-section {
-  margin: 0 24rpx 24rpx;
+  margin: 0 var(--space-page) var(--space-lg);
 }
 
+/* 分区标题沿用基座 .section-title，这里只保证块级排布 */
 .section-title {
   display: block;
-  font-size: 32rpx;
-  font-weight: 700;
-  color: var(--text-strong);
-}
-
-.section-desc {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  color: var(--text-hint);
 }
 
 .sem-gpa-scroll {
-  margin-top: 16rpx;
+  margin-top: var(--space-md);
   white-space: nowrap;
 }
 
 .sem-gpa-grid {
   display: inline-flex;
-  gap: 16rpx;
-  padding-bottom: 8rpx;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-xs);
 }
 
 .sem-gpa-card {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  min-width: 200rpx;
-  padding: 24rpx 28rpx;
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  min-width: 184rpx;
+  padding: var(--space-md) var(--space-lg);
 }
 
 .sg-sem {
-  font-size: 24rpx;
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
   font-weight: 600;
-  color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .sg-gpa {
-  margin-top: 10rpx;
-  font-size: 44rpx;
-  font-weight: 800;
+  margin-top: var(--space-xxs);
   color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: 44rpx;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .sg-sub {
-  margin-top: 6rpx;
-  font-size: 22rpx;
-  color: var(--text-hint);
+  margin-top: var(--space-xxs);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  line-height: 1.4;
 }
 
-/* ============ 成绩明细区 ============ */
+/* ==========================================================================
+   7. 成绩明细：分学期，保留折叠与勾选；行高稳定、长课程名最多两行
+   ========================================================================== */
+
 .detail-head {
-  margin: 0 24rpx 8rpx;
+  margin: 0 var(--space-page) var(--space-sm);
 }
 
-/* ============ 勾选框 ============ */
-.chk {
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: var(--radius-chip);
-  border: 3rpx solid var(--icon-faint);
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--bg-card);
-  font-size: 26rpx;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.chk.on {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
-}
-
-.chk.sm { width: 34rpx; height: 34rpx; font-size: 22rpx; }
-
-/* ============ 分学期卡片 ============ */
 .sem-card {
-  margin: 0 24rpx 20rpx;
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  padding: 24rpx 28rpx 8rpx;
-  box-shadow: var(--shadow-card);
+  margin: 0 var(--space-page) var(--space-md);
+  padding: var(--space-xs) var(--space-md);
+  overflow: hidden;
 }
 
+/* 学期头：整行可点折叠，热区 ≥88rpx */
 .sem-head {
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  padding: 8rpx 0 16rpx;
+  gap: var(--space-sm);
+  min-height: 88rpx;
+  padding: var(--space-xs) 0;
+  border-bottom: 1rpx solid var(--line-soft);
 }
 
 .sem-ico {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36rpx;
-  height: 36rpx;
+  width: 32rpx;
+  height: 32rpx;
   flex: none;
 }
 
 .sem-name {
   flex: 1;
-  font-size: 32rpx;
-  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
   color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sem-count {
-  font-size: 25rpx;
-  color: var(--text-hint);
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--fs-sub);
+  font-variant-numeric: tabular-nums;
 }
 
 .sem-gpa-tag {
-  font-size: 22rpx;
+  flex: none;
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-chip);
+  background: var(--bg-sunken);
+  font-family: var(--font-num);
+  font-size: var(--fs-cap);
   font-weight: 700;
-  padding: 4rpx 14rpx;
-  border-radius: var(--radius-ctrl);
-  background: var(--primary-soft);
-  color: var(--primary-dark);
+  font-variant-numeric: tabular-nums;
 }
 
+/* 展开/收起指示：随整行点击，不单独计热区 */
 .sem-fold {
-  width: 36rpx;
-  height: 36rpx;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.sem-stats {
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  padding: 14rpx 0;
-  border-top: 1rpx solid var(--primary-soft);
-  border-bottom: 1rpx solid var(--primary-soft);
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  flex: none;
 }
 
-.ss-tag { font-size: 28rpx; }
-
-.ss-title {
-  flex: 1;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.ss-avg {
-  font-size: 25rpx;
-  color: var(--text-hint);
-}
-
-/* ============ 课程行 ============ */
+/* 课程行：等宽分数列 + 最多两行课程名，行高稳定 */
 .grade-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 20rpx 0;
+  gap: var(--space-sm);
+  min-height: 96rpx;
+  padding: var(--space-sm) 0;
   border-bottom: 1rpx solid var(--line-soft);
 }
 
-.grade-row:last-child { border-bottom: none; }
+.grade-row:last-child {
+  border-bottom: 0;
+}
 
 .g-main {
   flex: 1;
@@ -390,348 +402,195 @@
 }
 
 .g-name {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .g-meta {
   display: block;
-  margin-top: 6rpx;
-  font-size: 22rpx;
-  color: var(--text-hint);
+  margin-top: var(--space-xxs);
   overflow: hidden;
-  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 分数胶囊 */
 .g-score {
-  flex-shrink: 0;
-  min-width: 76rpx;
-  text-align: center;
-  padding: 8rpx 18rpx;
-  border-radius: var(--radius-ctrl);
-  background: var(--primary);
-  color: var(--bg-card);
-  font-size: 27rpx;
+  flex: none;
+  width: 96rpx;
+  padding: var(--space-xs) 0;
+  border-radius: var(--radius-chip);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-family: var(--font-num);
+  font-size: var(--fs-body);
   font-weight: 700;
-  box-shadow: var(--shadow-card);
-}
-
-/* 空状态 */
-.empty-state {
-  padding: 160rpx 40rpx;
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
-.empty-state .icon { font-size: 100rpx; }
-.empty-state .text {
-  font-size: 28rpx;
-  color: var(--text-hint);
-  margin: 20rpx 0 32rpx;
-}
-
-/* ============================================================
-   风格统一 — 对齐课表: 白卡 + 细描边
-   ============================================================ */
-.sem-card, .sc-cet, .sem-gpa-card {
-  border: var(--bw-card) solid var(--line);
-}
-
-
-/* 组件根/滚动区 */
-.view-root {
-  height: 100%;
-  box-sizing: border-box;
-}
-.view-scroll {
-  height: 100%;
-}
-
-/* 宿主节点高度(swiper-item 内撑满, 保证内部 100% 高度链有效) */
-:host {
-  display: block;
-  height: 100%;
-}
-
-/* 成绩页统一卡片: 低饱和底色 + 细描边 */
-.gpa-hero,
-.sc-cet,
-.sem-gpa-card,
-.sem-card {
-  background: var(--bg-card) !important;
-  border: 1rpx solid var(--line) !important;
-  border-radius: var(--radius-card) !important;
-  box-shadow: var(--shadow-card) !important;
-  animation: gradeCardIn 400ms var(--ease-spring) backwards;
-}
-
-.gpa-hero {
-  background: var(--hero-bg) !important;
-  border-color: var(--hero-border) !important;
-}
-
-.stat-pills .pill {
-  background: var(--bg-sunken);
-  border: 1rpx solid var(--line);
-}
-
-.sem-gpa-card:nth-child(2) { animation-delay: 30ms; }
-.sem-gpa-card:nth-child(3) { animation-delay: 60ms; }
-.sem-card:nth-child(2) { animation-delay: 30ms; }
-.sem-card:nth-child(3) { animation-delay: 60ms; }
-
-@keyframes gradeCardIn {
-  from { opacity: 0; transform: translateY(16rpx) scale(.982); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* 2026-10 成绩页布局收敛 */
-.gpa-hero {
-  padding: 30rpx 26rpx 22rpx !important;
-}
-
-.hero-gpa {
-  font-size: 88rpx;
-}
-
-.hero-label {
-  margin-top: 6rpx;
-  font-size: 23rpx;
-  color: var(--text-muted);
-}
-
-.mode-seg {
-  position: relative;
-  overflow: hidden;
-  background: var(--bg-sunken) !important;
-}
-
-.mode-indicator {
-  position: absolute;
-  z-index: 0;
-  top: 6rpx;
-  bottom: 6rpx;
-  left: 6rpx;
-  width: calc(50% - 6rpx);
-  border-radius: 14rpx;
-  background: var(--bg-card);
-  box-shadow: 0 6rpx 18rpx rgba(15, 23, 42, .08);
-  transition: transform 340ms var(--ease-spring);
-}
-
-.mode-indicator.right {
-  transform: translateX(100%);
-}
-
-.mode-seg .seg {
-  position: relative;
-  z-index: 1;
-  background: transparent !important;
-  color: var(--text-muted);
-}
-
-.mode-seg .seg.on {
-  background: transparent !important;
-  color: var(--primary-dark);
-  font-weight: 700;
-}
-
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12rpx;
-  margin: 0 24rpx 22rpx;
-}
-
-.metric-card {
-  min-width: 0;
-  padding: 18rpx 10rpx;
-  border: 1rpx solid var(--line);
-  border-radius: 18rpx;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-  text-align: center;
-  animation: gradeCardIn 380ms var(--ease-spring) backwards;
-}
-
-.metric-card:nth-child(2) { animation-delay: 30ms; }
-.metric-card:nth-child(3) { animation-delay: 60ms; }
-
-.metric-value {
-  display: block;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 32rpx;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.metric-label {
-  display: block;
-  margin-top: 4rpx;
-  color: var(--text-hint);
-  font-size: 20rpx;
-}
-
-.sc-cet {
-  animation-delay: 90ms;
-}
-
-.sem-gpa-section {
-  margin-bottom: 22rpx;
-}
-
-.sg-sub {
-  font-size: 20rpx;
-}
-
-.detail-head {
-  margin-bottom: 10rpx;
-}
-
-.sem-card {
-  padding: 20rpx 24rpx 6rpx !important;
-}
-
-.sem-head {
-  padding: 6rpx 0 12rpx;
-}
-
-.grade-row {
-  animation: gradeRowIn 320ms var(--ease-spring) backwards;
-}
-
-.grade-row:nth-child(2) { animation-delay: 20ms; }
-.grade-row:nth-child(3) { animation-delay: 40ms; }
-.grade-row:nth-child(4) { animation-delay: 60ms; }
-.grade-row:nth-child(5) { animation-delay: 80ms; }
-.grade-row:nth-child(6) { animation-delay: 100ms; }
-
+/* 勾选框：视觉 48rpx，伪元素把有效热区扩到 88rpx；状态变化交给基座 .tap 过渡 */
 .chk {
-  transition: transform 260ms var(--ease-spring),
-              background-color 160ms var(--ease-standard),
-              border-color 160ms var(--ease-standard);
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  border: 2rpx solid var(--line-strong);
+  border-radius: var(--radius-chip);
+  background: var(--bg-card);
+  color: var(--bg-card);
+  font-size: var(--fs-sub);
+  font-weight: 700;
+  line-height: 1;
 }
 
-.chk:active {
-  transform: scale(.88);
+.chk::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: var(--radius-chip);
+  transform: translate(-50%, -50%);
 }
 
 .chk.on {
-  animation: checkPop 300ms var(--ease-spring);
+  border-color: var(--primary);
+  background: var(--primary);
 }
 
-@keyframes gradeRowIn {
-  from { opacity: 0; transform: translateY(12rpx); }
-  to   { opacity: 1; transform: translateY(0); }
+/* ==========================================================================
+   8. 研究生成绩：学分进度复用分组表面；明细为行 + 分隔线，不套卡片
+   ========================================================================== */
+
+.stat-pills {
+  display: flex;
+  margin: 0 var(--space-page) var(--space-lg);
+  background: var(--bg-card);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
 }
 
-@keyframes checkPop {
-  0% { transform: scale(.86); }
-  65% { transform: scale(1.08); }
-  100% { transform: scale(1); }
+.pill {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xxs);
+  padding: var(--space-md) var(--space-xs);
 }
 
-/* Layout pass: keep the grade page on the same 20rpx edge grid. */
-.grade-sub,
-.gpa-hero,
-.sc-cet,
-.sem-card {
-  margin-left: 20rpx;
-  margin-right: 20rpx;
+.pill + .pill {
+  border-left: 1rpx solid var(--line-soft);
 }
 
-.gpa-hero,
-.sc-cet,
-.sem-gpa-card,
-.sem-card,
-.metric-card {
-  box-shadow: var(--shadow-soft) !important;
+.pill-label {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.metric-grid {
-  margin-left: 20rpx;
-  margin-right: 20rpx;
+.pill-value {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: 32rpx;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.sem-gpa-section,
-.detail-head {
-  margin-left: 20rpx;
-  margin-right: 20rpx;
+/* 研究生明细卡：表面由基座 .card 提供，这里补边距 */
+.card {
+  margin: 0 var(--space-page) var(--space-sm);
+  padding: var(--space-xs) var(--space-lg);
 }
 
-.sem-gpa-section .section-title,
-.detail-head .section-title {
-  font-size: 29rpx;
+.yjs-tr {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1rpx solid var(--line-soft);
 }
 
-/* 高保真收口: GPA 负责建立视觉焦点, 其余信息退到轻量列表。 */
-.gpa-hero {
-  margin-top: 14rpx;
-  padding: 26rpx 24rpx 20rpx;
-  background: rgba(239, 246, 255, .72);
+.yjs-tr:last-child {
+  border-bottom: 0;
 }
 
-.hero-gpa {
-  font-size: 92rpx;
+.yjs-td {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-sub);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
-.metric-card {
-  min-height: 82rpx;
-  padding-top: 12rpx;
-  padding-bottom: 12rpx;
-  background: rgba(255, 255, 255, .72);
+.yjs-td:first-child {
+  flex: 1.6;
 }
 
-.sem-gpa-card {
-  min-width: 184rpx;
-  padding: 18rpx 22rpx;
-  background: rgba(255, 255, 255, .72);
+.yjs-hint {
+  padding: var(--space-xl) 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sub);
+  text-align: center;
 }
 
-.sem-card {
-  background: rgba(255, 255, 255, .74);
+.yjs-note {
+  margin-top: var(--space-sm);
+  padding: 0 var(--space-page);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  line-height: 1.4;
+  text-align: center;
 }
 
-/* Grade page follows the same hierarchy: one lead number, quiet detail rows. */
-.view-scroll {
-  min-height: 0;
-  -webkit-overflow-scrolling: touch;
+/* ==========================================================================
+   9. 绩点语义色（GPA / 学期 GPA / 学期标签共用）
+   ========================================================================== */
+
+.gpa-high {
+  color: var(--success);
 }
 
-.gpa-hero,
-.metric-card,
-.sem-gpa-card,
-.sem-card,
-.grade-sub {
-  border-color: var(--line);
-  box-shadow: var(--shadow-soft) !important;
+.gpa-mid {
+  color: var(--warning);
 }
 
-.gpa-hero {
-  background: rgba(239, 246, 255, .68);
+.gpa-low {
+  color: var(--danger);
 }
 
-.metric-card,
-.sem-gpa-card,
-.sem-card {
-  background: var(--surface-tint-strong);
-}
+/* ==========================================================================
+   10. 减少动态效果：本地唯一的位移切换器直接跳转，加载旋转图标停止
+   ========================================================================== */
 
-.grade-row {
-  transition: background-color var(--motion-fast) var(--ease-standard),
-              transform var(--motion-base) var(--ease-spring);
-}
+@media (prefers-reduced-motion: reduce) {
+  .mode-indicator {
+    transition: none !important;
+  }
 
-.grade-row:active {
-  background: var(--bg-hover);
-  transform: scale(.99);
+  .spin {
+    animation: none !important;
+  }
 }

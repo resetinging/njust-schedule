@@ -3,7 +3,7 @@
 const fs = require('fs')
 const path = require('path')
 const { validatePage } = require('../schema')
-const { resolveToken, createCssVariables } = require('../theme/tokens')
+const { tokens, resolveToken, createCssVariables } = require('../theme/tokens')
 
 const EXPR_MAP = {
   state: 'state',
@@ -150,11 +150,19 @@ function attrValueText(value, context) {
 function emitActionCard(node, context, depth) {
   const props = node.props || {}
   const tone = props.tone || 'brand'
+  // 图标色跟随 tone，避免生成页写死旧品牌蓝
+  const toneColors = {
+    brand: tokens.color.brand,
+    success: tokens.color.success,
+    signal: tokens.color.signal,
+    violet: tokens.color.violet
+  }
+  const iconColor = toneColors[tone] || tokens.color.brand
   const title = props.title || ''
   const icon = props.icon || 'more'
   const classes = `ui-action-card ui-tone-${tone}`
   return `${nodeIndent(depth)}<view${controlAttrs(node, context)}${attr('id', node.id, context)} class="${classes}"${eventAttrs(node, context)}>\n`
-    + `${nodeIndent(depth + 1)}<view class="ui-action-card-icon"><icon name="${escapeAttr(attrValueText(icon, context))}" size="36" color="#2563EB" /></view>\n`
+    + `${nodeIndent(depth + 1)}<view class="ui-action-card-icon"><icon name="${escapeAttr(attrValueText(icon, context))}" size="36" color="${iconColor}" /></view>\n`
     + `${nodeIndent(depth + 1)}<view class="ui-action-card-title">${attrValueText(title, context)}</view>\n`
     + `${nodeIndent(depth)}</view>`
 }
@@ -194,7 +202,7 @@ function emitTabBar(node, context, depth) {
   ]
   const items = tabs.map((tab) => {
     const on = tab.key === active ? ' is-on' : ''
-    const color = tab.key === active ? '#2563EB' : '#94A3B8'
+    const color = tab.key === active ? tokens.color.brand : tokens.color.textHint
     return `${nodeIndent(depth + 1)}<view class="ui-tab${on}"><icon name="${tab.icon}" size="30" color="${color}" /><text>${tab.label}</text></view>`
   }).join('\n')
   return `${nodeIndent(depth)}<view${controlAttrs(node, context)}${attr('id', node.id, context)} class="ui-tabbar">\n${items}\n${nodeIndent(depth)}</view>`
@@ -305,24 +313,24 @@ function emitWxss() {
   lines.push('}')
   lines.push('.ui-page { display: flex; flex-direction: column; min-height: 100vh; padding: 24rpx 24rpx 140rpx; }')
   lines.push('.ui-surface-page { background: var(--bg-page); }')
-  lines.push('.ui-hero-summary { display: grid; grid-template-columns: 64rpx 1fr auto; gap: 18rpx; align-items: center; margin-bottom: 26rpx; padding: 22rpx; border: 1rpx solid rgba(18,33,28,.09); border-radius: 22rpx; background: var(--bg-card); box-shadow: 0 16rpx 40rpx rgba(29,45,39,.08); }')
-  lines.push('.ui-hero-badge { display: grid; place-items: center; width: 64rpx; height: 64rpx; border-radius: 20rpx; color: var(--primary); background: var(--primary-soft); font-size: 22rpx; font-weight: 700; }')
+  lines.push('.ui-hero-summary { display: grid; grid-template-columns: 64rpx 1fr auto; gap: var(--space-md); align-items: center; margin-bottom: var(--space-lg); padding: 20rpx; border: var(--bw-card) solid var(--line); border-radius: var(--radius-card); background: var(--bg-card); }')
+  lines.push('.ui-hero-badge { display: grid; place-items: center; width: 64rpx; height: 64rpx; border-radius: var(--radius-control); color: var(--primary); background: var(--primary-soft); font-size: 22rpx; font-weight: 700; }')
   lines.push('.ui-hero-label { font-size: 28rpx; font-weight: 650; }')
   lines.push('.ui-hero-meta { margin-top: 5rpx; color: var(--text-muted); font-size: 22rpx; }')
   lines.push('.ui-hero-time { color: var(--signal); font-family: var(--font-num); font-size: 24rpx; font-weight: 650; }')
   lines.push('.ui-section { margin: 0 0 20rpx; }')
   lines.push('.ui-section-title { margin: 0 0 12rpx 4rpx; color: var(--text-muted); font-size: 22rpx; font-weight: 600; }')
-  lines.push('.ui-grid { display: grid; gap: 14rpx; }')
+  lines.push('.ui-grid { display: grid; gap: var(--space-md); }')
   lines.push('.ui-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }')
   lines.push('.ui-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }')
-  lines.push('.ui-action-card { min-height: 124rpx; padding: 20rpx; border: 1rpx solid rgba(18,33,28,.09); border-radius: 20rpx; background: var(--bg-card); box-shadow: 0 12rpx 32rpx rgba(29,45,39,.06); }')
-  lines.push('.ui-action-card-icon { display: grid; place-items: center; width: 52rpx; height: 52rpx; margin-bottom: 14rpx; border-radius: 16rpx; background: var(--primary-soft); }')
+  lines.push('.ui-action-card { min-height: 144rpx; padding: 20rpx; border: var(--bw-card) solid var(--line); border-radius: var(--radius-card); background: var(--bg-card); }')
+  lines.push('.ui-action-card-icon { display: grid; place-items: center; width: 64rpx; height: 64rpx; margin-bottom: var(--space-sm); border-radius: var(--radius-control); background: var(--primary-soft); }')
   lines.push('.ui-action-card-title { font-size: 27rpx; font-weight: 600; }')
-  lines.push('.ui-tone-violet .ui-action-card-icon { background: #f0edff; }')
+  lines.push('.ui-tone-violet .ui-action-card-icon { background: var(--violet-soft); }')
   lines.push('.ui-tone-signal .ui-action-card-icon { background: var(--signal-soft); }')
   lines.push('.ui-tone-success .ui-action-card-icon { background: var(--success-soft); }')
-  lines.push('.ui-tabbar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rpx; margin-top: auto; padding: 12rpx 12rpx 18rpx; border: 1rpx solid rgba(255,255,255,.72); border-radius: 26rpx; background: rgba(255,255,255,.82); box-shadow: 0 18rpx 44rpx rgba(29,45,39,.12); -webkit-backdrop-filter: blur(24rpx) saturate(170%); backdrop-filter: blur(24rpx) saturate(170%); }')
-  lines.push('.ui-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; min-height: 72rpx; color: var(--text-muted); font-size: 19rpx; }')
+  lines.push('.ui-tabbar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rpx; margin-top: auto; padding: 12rpx 12rpx calc(12rpx + env(safe-area-inset-bottom)); border: var(--bw-card) solid var(--line); border-radius: var(--radius-sheet); background: var(--nav-bg); -webkit-backdrop-filter: blur(20rpx) saturate(140%); backdrop-filter: blur(20rpx) saturate(140%); }')
+  lines.push('.ui-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; min-height: 88rpx; color: var(--text-muted); font-size: 19rpx; }')
   lines.push('.ui-tab.is-on { color: var(--primary); font-weight: 650; }')
   return lines.join('\n') + '\n'
 }

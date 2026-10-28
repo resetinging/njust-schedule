@@ -78,7 +78,6 @@ Component({
     weekTypeOptions: WEEK_TYPE_OPTIONS,
     weekOptions: WEEK_OPTIONS,
 
-    entering: false,
     active: false            // 懒渲染: main 激活时才渲染内容
   },
 
@@ -104,8 +103,13 @@ Component({
     },
     detached() {
       if (this._weekAnimTimer) clearTimeout(this._weekAnimTimer)
-      if (this._entranceTimer) clearTimeout(this._entranceTimer)
       analytics.disconnectSlots(this)
+    }
+  },
+
+  observers: {
+    'showDetail, showCustomForm'() {
+      this._syncPopupState()
     }
   },
 
@@ -115,7 +119,7 @@ Component({
      * 避免顶栏一直"选择学期"、切换列表为空(清缓存/首次登录等场景)
      */
     _ensureSemesterData() {
-      if (!storage.isLoggedIn() || !storage.get('token', '')) return
+      if (!storage.hasSession()) return
       const hasCourses = (storage.getCached(this._coursesCacheKey()) || []).length > 0
       const hasSemester = !!this.data.semester
       const hasSemesters = this.data.semesters.length > 0
@@ -126,8 +130,9 @@ Component({
 
     /** 由 main 页面调用: 每次被激活(滑动/点 tab 切换/从子页返回) */
     activate() {
-      if (this.data.active) this._playEntrance()
-      else this.setData({ active: true }, () => this._playEntrance())
+      // 入场动画由 main 的 tabPageIn 统一播放，这里只切换挂载状态
+      if (!this.data.active) this.setData({ active: true })
+      // 课表不再放广告，仅保留底部历史库存统计标记
       analytics.observeSlots(this, [
         { id: 'slot-schedule-bottom', page: 'schedule', ad_type: 'native' }
       ])
@@ -148,19 +153,6 @@ Component({
       this._ensureSemesterData()
       // 从「我的」页设置第一周日期后回到课表, 自动刷新定位本周
       this.loadFirstWeekDate()
-    },
-
-    _playEntrance() {
-      if (this._entranceTimer) clearTimeout(this._entranceTimer)
-      const play = () => {
-        this.setData({ entering: true })
-        this._entranceTimer = setTimeout(() => {
-          this._entranceTimer = null
-          this.setData({ entering: false })
-        }, 620)
-      }
-      if (this.data.entering) this.setData({ entering: false }, play)
-      else play()
     },
 
     onWeekSwipeStart(e) {
@@ -377,7 +369,7 @@ Component({
       const cached = this._readAuditFavorites()
       this._auditFavorites = cached
       this._composeCourses()
-      if (!storage.isLoggedIn()) return
+      if (!storage.hasSession()) return
       try {
         const res = await api.listAuditFavorites({
           semester: storage.getSemester() || ''
@@ -815,7 +807,7 @@ Component({
           .join('')
         if (ft) font.loadForText(ft, { force: true })
       } catch (e) { /* 字体失败不影响刷新 */ }
-      if (!storage.isLoggedIn()) {
+      if (!storage.hasSession()) {
         wx.showToast({ title: '请先在"我的"页面登录', icon: 'none' })
         return
       }
@@ -870,6 +862,20 @@ Component({
     /** 关闭课程详情 */
     closeDetail() {
       this.setData({ showDetail: false })
+    },
+
+    /** 弹层/选择器开关唯一真值来源：任一浮层可见即通知主页面隐藏浮动 TabBar */
+    _syncPopupState() {
+      const open = !!(this.data.showDetail || this.data.showCustomForm || this._pickerOpen)
+      if (open === this._popupOpen) return
+      this._popupOpen = open
+      this.triggerEvent('popupstate', { open })
+    },
+
+    /** 选择器（ui-picker）可见性变化：并入浮层状态，避免底栏覆盖选择器 */
+    onPickerVisibleChange(e) {
+      this._pickerOpen = !!(e && e.detail && e.detail.visible)
+      this._syncPopupState()
     },
 
     onDetailVisibleChange(e) {

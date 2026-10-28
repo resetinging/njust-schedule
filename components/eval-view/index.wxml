@@ -25,8 +25,8 @@
         <text class="ph-title">教学评价</text>
         <text class="ph-sub">{{batches.length}} 个批次</text>
       </view>
-      <view class="ph-refresh tap {{loading ? 'spin' : ''}}" bindtap="onRefresh">
-        <icon name="refresh" size="32" color="#64748B" />
+      <view class="ph-refresh tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新教学评价">
+        <icon name="refresh" size="32" color="#6B7684" />
       </view>
     </view>
 
@@ -53,7 +53,7 @@
   <!-- ============================================================ -->
   <view wx:if="{{batchCourses.length > 0 && !showForm}}">
     <view class="summary-bar">
-      <view class="sub-link tap" bindtap="backToBatches"><view class="icon-back"><icon name="back" size="26" color="#64748B" /></view><text>返回</text></view>
+      <view class="sub-link tap" bindtap="backToBatches"><view class="icon-back"><icon name="back" size="26" color="#6B7684" /></view><text>返回</text></view>
       <text>{{batchCourses.length}} 门课程</text>
       <text class="batch-btn tap" bindtap="showBatchDialog">一键评教</text>
     </view>
@@ -92,7 +92,7 @@
   <!-- ============================================================ -->
   <view wx:if="{{showForm}}">
     <view class="summary-bar">
-      <view class="sub-link tap" bindtap="backToCourses"><view class="icon-back"><icon name="back" size="26" color="#64748B" /></view><text>返回课程</text></view>
+      <view class="sub-link tap" bindtap="backToCourses"><view class="icon-back"><icon name="back" size="26" color="#6B7684" /></view><text>返回课程</text></view>
       <text class="form-course-name">{{formCourseName}}</text>
       <text></text>
     </view>
@@ -138,6 +138,13 @@
     <view class="form-actions" wx:else>
       <t-button t-class="btn-outline" theme="primary" variant="outline" block bind:tap="backToCourses">返回课程列表</t-button>
     </view>
+  </view>
+
+  <view id="slot-eval-bottom">
+    <ad-slot unit-id="adunit-8f99eb551760e548"
+             slot-id="slot-eval-bottom"
+             page="eval"
+             ad-type="native" />
   </view>
 
   </view>

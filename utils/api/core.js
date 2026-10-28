@@ -169,6 +169,7 @@ function autoRelogin() {
     if (res && res.success && res.token) {
       // 关键: 新 token 必须持久化, 否则后续请求仍携带旧 token → 401 循环
       storage.remove('relogin_fail_ts')
+      storage.setOffline(false)
       storage.set(TOKEN_KEY, res.token)
       if (res.credential_delete_token) {
         storage.set('credential_delete_token', res.credential_delete_token)

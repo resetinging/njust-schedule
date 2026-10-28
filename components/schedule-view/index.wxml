@@ -1,5 +1,5 @@
 <!-- 课表视图组件 -->
-<view class="container view-root {{entering ? 'is-entering' : ''}}" wx:if="{{active}}">
+<view class="container view-root" wx:if="{{active}}">
 
   <!-- 滚动内容区(scroll-view 内滚; 刷新走右上角手动按钮) -->
   <scroll-view class="view-scroll" scroll-y
@@ -10,11 +10,11 @@
 
     <!-- 顶栏第一行: 学期(可点切换) + 今天日期 -->
     <view class="topbar">
-      <ui-picker range="{{semesters}}" title="选择学期" bind:change="onSemesterChange">
+      <ui-picker range="{{semesters}}" title="选择学期" bind:change="onSemesterChange" bind:visiblechange="onPickerVisibleChange">
         <view class="tb-sem">{{semester || '选择学期'}}<text class="tb-caret">▾</text></view>
       </ui-picker>
       <view class="tb-fav tap" aria-label="查询蹭课收藏" bindtap="onOpenAuditFavorites">
-        <icon name="award" size="24" color="#B45309" />
+        <icon name="award" size="24" color="#A66A0B" />
         <text>收藏</text>
       </view>
       <text class="tb-today" wx:if="{{todayText}}">{{todayText}}</text>
@@ -23,29 +23,29 @@
     <!-- 顶栏第二行: 周次导航 + 工具(切换/刷新/加号) -->
     <view class="weekbar">
       <view class="week-btn tap" bindtap="prevWeek">
-        <icon class="ctrl-icon prev-icon" name="prev" size="26" color="#64748B" />
+        <icon class="ctrl-icon prev-icon" name="prev" size="26" color="#6B7684" />
       </view>
       <!-- 点周次可快速跳周 -->
-      <ui-picker range="{{weekPickerRange}}" value="{{currentWeek - 1}}" title="跳转周次" bind:change="onJumpWeek">
+      <ui-picker range="{{weekPickerRange}}" value="{{currentWeek - 1}}" title="跳转周次" bind:change="onJumpWeek" bind:visiblechange="onPickerVisibleChange">
         <view class="week-label">
           <text class="week-main">{{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周 · 本周' : '第 ' + (currentWeek || 1) + ' 周'}}</text>
           <text class="week-range" wx:if="{{weekRange}}">{{weekRange}}</text>
         </view>
       </ui-picker>
       <view class="week-btn tap" bindtap="nextWeek">
-        <icon class="ctrl-icon next-icon" name="next" size="26" color="#64748B" />
+        <icon class="ctrl-icon next-icon" name="next" size="26" color="#6B7684" />
       </view>
 
       <!-- 工具: 视图切换(图标显示"切过去的形态") / 刷新 / 加号 -->
       <view class="tb-acts">
         <view class="tb-toggle tap" data-mode="{{viewMode === 'grid' ? 'list' : 'grid'}}" bindtap="switchView">
-          <icon class="ctrl-icon toggle-icon" name="{{viewMode === 'grid' ? 'list' : 'grid'}}" size="34" color="#64748B" />
+          <icon class="ctrl-icon toggle-icon" name="{{viewMode === 'grid' ? 'list' : 'grid'}}" size="34" color="#6B7684" />
         </view>
-        <view class="refresh-btn tap {{loading ? 'spin' : ''}}" bindtap="onRefresh">
-          <icon class="ctrl-icon refresh-icon" name="refresh" size="34" color="#64748B" />
+        <view class="refresh-action tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新课表">
+          <icon class="ctrl-icon refresh-icon" name="refresh" size="34" color="#6B7684" />
         </view>
         <view class="u-ico-btn tap" bindtap="onAddCustom">
-          <icon class="ctrl-icon plus-icon" name="plus" size="36" color="#2563EB" />
+          <icon class="ctrl-icon plus-icon" name="plus" size="36" color="#3157D5" />
         </view>
       </view>
     </view>
@@ -217,36 +217,36 @@
 
       <view class="cu-field">
         <text class="cu-label">星期</text>
-        <ui-picker range="{{dayOptions}}" value="{{formDayIdx}}" title="选择星期" bind:change="onFormDay">
-          <view class="cu-pick">{{dayOptions[formDayIdx]}} <view class="cu-arrow"><icon name="next" size="24" color="#64748B" /></view></view>
+        <ui-picker range="{{dayOptions}}" value="{{formDayIdx}}" title="选择星期" bind:change="onFormDay" bind:visiblechange="onPickerVisibleChange">
+          <view class="cu-pick">{{dayOptions[formDayIdx]}} <view class="cu-arrow"><icon name="next" size="24" color="#6B7684" /></view></view>
         </ui-picker>
       </view>
       <view class="cu-field">
         <text class="cu-label">上课时间</text>
         <view class="cu-range">
-          <ui-picker range="{{periodOptions}}" value="{{formStartIdx}}" title="选择开始节次" bind:change="onFormStart">
+          <ui-picker range="{{periodOptions}}" value="{{formStartIdx}}" title="选择开始节次" bind:change="onFormStart" bind:visiblechange="onPickerVisibleChange">
             <view class="cu-pick">{{periodOptions[formStartIdx]}}</view>
           </ui-picker>
           <text class="cu-dash">—</text>
-          <ui-picker range="{{periodOptions}}" value="{{formEndIdx}}" title="选择结束节次" bind:change="onFormEnd">
+          <ui-picker range="{{periodOptions}}" value="{{formEndIdx}}" title="选择结束节次" bind:change="onFormEnd" bind:visiblechange="onPickerVisibleChange">
             <view class="cu-pick">{{periodOptions[formEndIdx]}}</view>
           </ui-picker>
         </view>
       </view>
       <view class="cu-field">
         <text class="cu-label">周次类型</text>
-        <ui-picker range="{{weekTypeOptions}}" value="{{formTypeIdx}}" title="选择周次类型" bind:change="onFormType">
-          <view class="cu-pick">{{weekTypeOptions[formTypeIdx]}} <view class="cu-arrow"><icon name="next" size="24" color="#64748B" /></view></view>
+        <ui-picker range="{{weekTypeOptions}}" value="{{formTypeIdx}}" title="选择周次类型" bind:change="onFormType" bind:visiblechange="onPickerVisibleChange">
+          <view class="cu-pick">{{weekTypeOptions[formTypeIdx]}} <view class="cu-arrow"><icon name="next" size="24" color="#6B7684" /></view></view>
         </ui-picker>
       </view>
       <view class="cu-field">
         <text class="cu-label">周次范围</text>
         <view class="cu-range">
-          <ui-picker range="{{weekOptions}}" value="{{formWeekStartIdx}}" title="选择开始周" bind:change="onFormWeekStart">
+          <ui-picker range="{{weekOptions}}" value="{{formWeekStartIdx}}" title="选择开始周" bind:change="onFormWeekStart" bind:visiblechange="onPickerVisibleChange">
             <view class="cu-pick">{{weekOptions[formWeekStartIdx]}}</view>
           </ui-picker>
           <text class="cu-dash">至</text>
-          <ui-picker range="{{weekOptions}}" value="{{formWeekEndIdx}}" title="选择结束周" bind:change="onFormWeekEnd">
+          <ui-picker range="{{weekOptions}}" value="{{formWeekEndIdx}}" title="选择结束周" bind:change="onFormWeekEnd" bind:visiblechange="onPickerVisibleChange">
             <view class="cu-pick">{{weekOptions[formWeekEndIdx]}}</view>
           </ui-picker>
         </view>

@@ -26,4 +26,19 @@ function refreshProgramme() {
   return request('POST', '/api/refresh-programme', {}, { force: true })
 }
 
-module.exports = { getCalendar, refreshCalendar, getProgramme, refreshProgramme }
+/** 通识选修课目录(共享数据; 支持分页和关键词筛选) */
+function getGeneralEducationCourses(params) {
+  return request('GET', '/api/general-education-courses', params || {})
+}
+
+/** 单门通识选修课大纲(首次读取时后端按需抓取并缓存) */
+function getGeneralEducationSyllabus(courseCode, semester) {
+  const params = { course_code: courseCode }
+  if (semester) params.semester = semester
+  return request('GET', '/api/general-education-syllabus', params)
+}
+
+module.exports = {
+  getCalendar, refreshCalendar, getProgramme, refreshProgramme,
+  getGeneralEducationCourses, getGeneralEducationSyllabus
+}

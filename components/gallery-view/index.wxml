@@ -6,7 +6,7 @@
     <view class="custom-nav-inner"
           style="{{embedded ? 'height:88rpx;' : 'height:' + navBarHeight + 'px;'}}padding-right:{{navRight}}px;">
       <view class="custom-back tap" aria-label="返回" bindtap="goBack">
-        <view class="icon-back"><icon name="back" size="28" color="#64748B" /></view>
+        <view class="icon-back"><icon name="back" size="28" color="#6B7684" /></view>
         <text>返回</text>
       </view>
       <text class="custom-nav-title">校园工具</text>
@@ -39,7 +39,12 @@
       <image class="tool-img" src="{{item.src}}" mode="widthFix" lazy-load />
     </view>
   </view>
-  <view id="slot-gallery-bottom" class="analytics-slot-marker"></view>
+  <view id="slot-gallery-bottom">
+    <ad-slot unit-id="adunit-8f99eb551760e548"
+             slot-id="slot-gallery-bottom"
+             page="gallery"
+             ad-type="native" />
+  </view>
 
   </view>
 

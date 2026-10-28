@@ -213,8 +213,31 @@ function deferred() {
     assert.strictEqual(inst.data.result.count, 2)
   })
 
+  console.log('\n2e) 江阴校区展示全部有效教学楼')
+  inst.setData({ campusIndex: 1, weekdayIndex: 2, weekIndex: 8, startIndex: 0, endIndex: 0 })
+  const dE = deferred()
+  nextDeferred = dE
+  const pE = inst.search()
+  dE.resolve({
+    success: true, campus: '江阴', weekday: 2, week: 8, jc1: 1, jc2: 3,
+    weekday_name: '星期二', time_text: '第1-3节', count: 2,
+    rooms: ['江阴致知B103', '江阴至善A201'],
+    buildings: [{ code: 'z', name: '致知楼B' }, { code: 's', name: '至善楼A' }],
+    semester: '2026-2027-1', updated_at: 555
+  })
+  await pE
+  check('切换江阴后请求携带江阴校区参数', () => {
+    assert.strictEqual(calls[calls.length - 1].campus, '江阴')
+  })
+  check('江阴教学楼上屏且数量按展示结果重算', () => {
+    assert.deepStrictEqual(inst.data.groups.map(x => x.prefix).sort(),
+      ['江阴至善A', '江阴致知B'])
+    assert.strictEqual(inst.data.result.count, 2)
+    assert.ok(inst.data.result.summary.indexOf('江阴') >= 0, inst.data.result.summary)
+  })
+
   console.log('\n3) 等价查询命中缓存(不再重复请求)')
-  inst.setData({ weekdayIndex: 3, weekIndex: 5, startIndex: 0, endIndex: 0 })
+  inst.setData({ campusIndex: 0, weekdayIndex: 3, weekIndex: 5, startIndex: 0, endIndex: 0 })
   let before = calls.length
   await inst.search()                            // 同样 星期三/第5周/第1-3节
   check('命中解析后条件的缓存, 未产生新请求', () => {
@@ -240,6 +263,19 @@ function deferred() {
     const hit = g1.find(x => x.prefix === 'Ⅳ')
     assert.ok(hit && hit.label === 'Ⅳ教学楼', JSON.stringify(g1.map(x => x.label)))
     assert.strictEqual(hit.rooms.length, 2)
+  })
+  const g1b = groupRooms([
+    'Ⅰ教学楼-A106', 'Ⅱ教学楼-B202', 'Ⅲ教学楼-C304', 'Ⅳ教学楼-A312'
+  ], [
+    { code: '1', name: 'Ⅰ教学楼' },
+    { code: '2', name: 'Ⅱ教学楼' },
+    { code: '3', name: 'Ⅲ教学楼' },
+    { code: '4', name: 'Ⅳ教学楼' }
+  ])
+  check('带教学楼后缀的罗马数字不串到Ⅰ教学楼', () => {
+    assert.deepStrictEqual(g1b.map(x => x.label),
+      ['Ⅰ教学楼', 'Ⅱ教学楼', 'Ⅲ教学楼', 'Ⅳ教学楼'],
+      JSON.stringify(g1b.map(x => ({ prefix: x.prefix, label: x.label }))))
   })
   check('汉字前缀 → 教学楼名(江阴致知B → 致知楼B)', () => {
     const hit = g1.find(x => x.prefix === '江阴致知B')

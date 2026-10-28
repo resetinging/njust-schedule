@@ -1,3 +1,5 @@
+/* 图标：尺寸与颜色由调用方通过 name/size/color 传入（inline style），
+   组件只保证 inline 基线与 flex 容器内不被压缩；不设圆角、背景与阴影。 */
 .icon {
   display: inline-block;
   vertical-align: middle;

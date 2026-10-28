@@ -1,8 +1,23 @@
+/* ==========================================================================
+   蹭课查询 · 样式统一
+   --------------------------------------------------------------------------
+   · 颜色 / 圆角 / 间距 / 阴影 / 动效全部引用 styles/design-system.wxss 令牌
+   · 去掉装饰圆（原两处 50% 圆）、厚投影、渐变；普通卡片与列表项一律无投影
+   · 按压反馈由基座 .tap 提供，页面不再自定义缩放；图标按钮热区 ≥ 88rpx
+   · 候选列表 / 长列表滚动为纯布局：不加 max-height、overflow 或滚动动画，
+     面板只做定位；重复点击同一输入框时没有可重放的入场动画
+   · 业务逻辑（本地索引、联动筛选、教师拆分、聚合、收藏）未改动
+   ========================================================================== */
+
+/* ============================================================
+   容器与滚动
+   ============================================================ */
+
 .container {
-  height: 100%;
-  min-height: 0;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
   background: var(--bg-page);
 }
 
@@ -10,116 +25,129 @@
   flex: 1;
   min-height: 0;
   height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .page-content {
-  padding: 20rpx 24rpx calc(60rpx + env(safe-area-inset-bottom));
+  padding: var(--space-md) var(--space-page) calc(48rpx + env(safe-area-inset-bottom));
 }
 
+/* ============================================================
+   查询条件卡
+   ============================================================ */
+
+/* 层级保持原值：候选面板需要浮在结果卡片之上 */
 .filter-card {
   position: relative;
   z-index: 5;
-  padding: 20rpx;
-  border: var(--bw-card) solid var(--line);
-  border-radius: var(--radius-card);
+  padding: var(--space-lg);
+  border: none;
+  border-radius: var(--radius-island);
   background: var(--bg-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-island);
 }
 
 .filter-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-sm);
   min-height: 48rpx;
 }
 
 .filter-title-wrap {
   display: flex;
   align-items: center;
-  gap: 10rpx;
+  gap: var(--space-xs);
+  min-width: 0;
 }
 
 .filter-head-ico {
-  width: 48rpx;
-  height: 48rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 15rpx;
-  background: var(--primary-line);
+  width: 40rpx;
+  height: 40rpx;
+  flex: none;
+  border-radius: var(--radius-chip);
+  background: var(--primary-soft);
 }
 
 .filter-title {
   color: var(--text-primary);
-  font-size: 27rpx;
+  font-size: var(--fs-section);
   font-weight: 700;
 }
 
 .filter-actions {
   display: flex;
   align-items: center;
-  gap: 6rpx;
-}
-
-.explorer-open {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-  padding: 8rpx 12rpx;
-  border-radius: var(--radius-pill);
-  background: var(--primary-soft);
-  color: var(--primary-dark);
-  font-size: 22rpx;
-  font-weight: 650;
+  gap: var(--space-xs);
+  flex: none;
 }
 
 .favorites-filter {
   display: flex;
   align-items: center;
-  gap: 4rpx;
-  padding: 8rpx 12rpx;
+  gap: var(--space-xxs);
+  height: 56rpx;
+  padding: 0 var(--space-md);
   border-radius: var(--radius-pill);
   background: var(--bg-sunken);
-  color: var(--text-muted);
-  font-size: 22rpx;
-  font-weight: 650;
+  color: var(--text-secondary);
+  font-size: var(--fs-cap);
+  font-weight: 600;
 }
 
 .favorites-filter.active {
-  background: #fff7d6;
-  color: #b45309;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
 }
 
 .favorites-count {
-  min-width: 28rpx;
-  padding: 0 6rpx;
-  border-radius: 999rpx;
-  background: rgba(37, 99, 235, .12);
+  min-width: 32rpx;
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
   color: var(--primary);
   text-align: center;
-  font-size: 19rpx;
-  line-height: 28rpx;
+  font-size: var(--fs-cap);
+  line-height: 32rpx;
+}
+
+.explorer-open {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xxs);
+  height: 56rpx;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: var(--fs-cap);
+  font-weight: 600;
 }
 
 .reset {
   display: flex;
   align-items: center;
-  gap: 4rpx;
-  padding: 8rpx 10rpx;
-  border-radius: var(--radius-pill);
-  color: var(--text-hint);
-  font-size: 22rpx;
+  gap: var(--space-xxs);
+  height: 56rpx;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
 }
 
-.reset:active {
-  background: var(--bg-hover);
-}
+/* ============================================================
+   筛选输入行 + 候选面板
+   ============================================================ */
 
 .filter-list {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
-  margin-top: 18rpx;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
 .filter-field {
@@ -129,65 +157,16 @@
 .filter-row {
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  height: 68rpx;
-  padding: 0 18rpx;
-  border-radius: 18rpx;
+  gap: var(--space-sm);
+  min-height: 88rpx;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-control);
   background: var(--bg-sunken);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   transform: translateZ(0);
   will-change: background-color, transform;
-  transition: background-color var(--motion-fast) var(--ease-standard),
-              transform var(--motion-fast) var(--ease-spring);
-}
-
-.suggest-panel {
-  position: absolute;
-  z-index: 40;
-  top: 76rpx;
-  left: 0;
-  right: 0;
-  overflow: hidden;
-  border: var(--bw-card) solid var(--line);
-  border-radius: 18rpx;
-  background: var(--bg-card);
-  box-shadow: 0 18rpx 48rpx rgba(15, 23, 42, .12);
-  animation: suggestIn 160ms var(--ease-spring) both;
-}
-
-.suggest-scroll {
-  width: 100%;
-}
-
-.suggest-item {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  min-height: 68rpx;
-  padding: 0 18rpx;
-  border-bottom: var(--bw-card) solid var(--line-soft);
-  color: var(--text-secondary);
-  font-size: 26rpx;
-}
-
-.suggest-item:last-child {
-  border-bottom: 0;
-}
-
-.suggest-item:active {
-  background: var(--primary-soft);
-  color: var(--primary-dark);
-}
-
-.suggest-state {
-  min-height: 76rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-  color: var(--text-hint);
-  font-size: 24rpx;
+  transition: background-color var(--motion-fast) var(--ease-standard);
 }
 
 .filter-row:focus-within {
@@ -195,26 +174,81 @@
 }
 
 .filter-ico {
-  width: 34rpx;
   display: flex;
+  align-items: center;
   justify-content: center;
+  width: 32rpx;
   flex: none;
 }
 
 .filter-input {
   flex: 1;
   min-width: 0;
-  height: 68rpx;
-  background: transparent;
+  height: 88rpx;
+  /* TDesign input 默认白底会盖住筛选行的灰底，需显式覆盖 */
+  background: transparent !important;
   color: var(--text-primary);
-  font-size: 27rpx;
+  /* t-class 根节点与 TDesign 自身样式同优先级，需显式提升以覆盖默认小圆角 */
+  border-radius: var(--radius-pill) !important;
 }
+
+/* 候选面板：只做定位与圆角裁剪，滚动由 WXML 内的 scroll-view 承担。
+   面板本身不加 max-height / overflow 滚动 / 入场动画，避免重复点击时闪烁。 */
+.suggest-panel {
+  position: absolute;
+  z-index: 40;
+  top: 96rpx;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  border: none;
+  border-radius: var(--radius-island);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-island);
+}
+
+.suggest-scroll {
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 行高固定 68rpx：index.js 按 options.length * 68 计算面板高度（>5 项时上限 360rpx），
+   此处不得改动，否则候选面板高度与内容会错位。 */
+.suggest-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 68rpx;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: var(--bw-card) solid var(--line-soft);
+  color: var(--text-primary);
+  font-size: var(--fs-sub);
+  line-height: 1.4;
+}
+
+.suggest-item:last-child {
+  border-bottom: 0;
+}
+
+.suggest-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 96rpx;
+  color: var(--text-hint);
+  font-size: var(--fs-sub);
+}
+
+/* ============================================================
+   时间条件 / 查询按钮
+   ============================================================ */
 
 .time-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12rpx;
-  margin-top: 12rpx;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
 .time-picker {
@@ -222,28 +256,32 @@
 }
 
 .time-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-xxs);
   min-width: 0;
-  padding: 14rpx 12rpx;
+  min-height: 88rpx;
+  padding: var(--space-sm) var(--space-md);
   border: var(--bw-card) solid var(--line);
-  border-radius: 18rpx;
+  border-radius: var(--radius-control);
   background: var(--bg-card);
 }
 
 .time-label {
   display: block;
-  margin-bottom: 5rpx;
   color: var(--text-hint);
-  font-size: 21rpx;
+  font-size: var(--fs-cap);
 }
 
 .time-value {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4rpx;
+  gap: var(--space-xxs);
   min-width: 0;
-  color: var(--text-secondary);
-  font-size: 23rpx;
+  color: var(--text-primary);
+  font-size: var(--fs-sub);
   font-weight: 600;
 }
 
@@ -255,49 +293,42 @@
 }
 
 .query-btn {
-  height: 76rpx;
-  margin-top: 18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
-  border-radius: var(--radius-ctrl);
-  background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
+  gap: var(--space-xs);
+  min-height: 88rpx;
+  margin-top: var(--space-md);
+  border-radius: var(--radius-pill);
+  background: var(--primary);
   color: var(--bg-card);
-  font-size: 27rpx;
-  font-weight: 700;
-  box-shadow: 0 12rpx 24rpx rgba(37, 99, 235, .18);
+  font-size: var(--fs-body);
+  font-weight: 600;
 }
 
-.query-btn:active {
-  transform: scale(.97);
-}
-
-.summary {
-  margin: 20rpx 8rpx 10rpx;
-  color: var(--text-hint);
-  font-size: 24rpx;
-}
+/* ============================================================
+   已选条件 / 结果摘要
+   ============================================================ */
 
 .active-filters {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  margin: 18rpx 0 4rpx;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
   overflow-x: auto;
   white-space: nowrap;
 }
 
 .active-chip {
-  flex: none;
   display: flex;
   align-items: center;
-  gap: 6rpx;
-  padding: 9rpx 12rpx;
-  border-radius: var(--radius-pill);
+  gap: var(--space-xxs);
+  flex: none;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-chip);
   background: var(--primary-soft);
-  color: var(--primary-dark);
-  font-size: 22rpx;
+  color: var(--primary-strong);
+  font-size: var(--fs-cap);
 }
 
 .active-chip text {
@@ -308,100 +339,113 @@
 
 .active-edit {
   flex: none;
-  padding: 9rpx 12rpx;
-  border-radius: var(--radius-pill);
-  background: var(--bg-card);
+  padding: var(--space-xs) var(--space-sm);
   border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--bg-card);
   color: var(--primary);
-  font-size: 22rpx;
-  font-weight: 650;
+  font-size: var(--fs-cap);
+  font-weight: 600;
+}
+
+.summary {
+  margin: var(--space-md) 0 var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+}
+
+/* ============================================================
+   结果卡片（普通卡片：无投影、无入场动画、无渐变）
+   ============================================================ */
+
+.course-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-xs);
 }
 
 .course-card {
-  margin-top: 18rpx;
-  padding: 24rpx;
+  padding: var(--space-lg);
   border: var(--bw-card) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-  animation: auditCardIn var(--motion-base) var(--ease-spring) both;
 }
 
 .course-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16rpx;
-  margin-bottom: 16rpx;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
 }
 
 .course-title-wrap {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: flex-start;
-  gap: 12rpx;
+  gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
 }
 
 .course-card-ico {
-  width: 52rpx;
-  height: 52rpx;
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16rpx;
-  background: var(--primary-line);
+  width: 48rpx;
+  height: 48rpx;
+  flex: none;
+  border-radius: var(--radius-chip);
+  background: var(--primary-soft);
 }
 
 .course-name {
   flex: 1;
   min-width: 0;
   color: var(--text-primary);
-  font-size: 31rpx;
-  font-weight: 750;
-  line-height: 1.35;
-}
-
-.course-day {
-  flex-shrink: 0;
-  padding: 6rpx 14rpx;
-  border-radius: var(--radius-pill);
-  background: var(--primary-line);
-  color: var(--primary);
-  font-size: 22rpx;
-  font-weight: 650;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .course-head-right {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: var(--space-xs);
+  flex: none;
+}
+
+.course-day {
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: var(--fs-cap);
+  font-weight: 600;
 }
 
 .course-status-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12rpx;
-  margin-bottom: 10rpx;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
 }
 
 .audit-status {
   display: inline-flex;
   align-items: center;
-  padding: 4rpx 12rpx;
-  border-radius: var(--radius-pill);
-  background: #e8f7ee;
-  color: #16865b;
-  font-size: 21rpx;
-  font-weight: 650;
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-chip);
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: var(--fs-cap);
+  font-weight: 600;
 }
 
 .audit-status.conflict {
-  background: #fff1e8;
-  color: #c2410c;
+  background: var(--signal-soft);
+  color: var(--signal);
 }
 
 .audit-status.loading,
@@ -413,162 +457,170 @@
 .favorite-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4rpx;
-  padding: 6rpx 12rpx;
-  border-radius: var(--radius-pill);
+  gap: var(--space-xxs);
+  min-height: 56rpx;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-control);
   background: var(--bg-sunken);
-  color: var(--text-muted);
-  font-size: 21rpx;
-  font-weight: 650;
+  color: var(--text-secondary);
+  font-size: var(--fs-cap);
+  font-weight: 600;
 }
 
 .favorite-btn.on {
-  background: #fff7d6;
-  color: #b45309;
-}
-
-.favorite-btn:active {
-  transform: scale(.96);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
 }
 
 .conflict-detail {
-  margin: 0 0 10rpx;
-  padding: 10rpx 14rpx;
-  border-radius: 14rpx;
-  background: #fff8f4;
-  color: #b45309;
-  font-size: 22rpx;
+  margin-bottom: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--signal-soft);
+  color: var(--signal);
+  font-size: var(--fs-cap);
   line-height: 1.45;
 }
 
 .meta-row {
   display: flex;
   align-items: center;
-  gap: 10rpx;
-  min-height: 42rpx;
+  gap: var(--space-sm);
+  min-height: 40rpx;
   color: var(--text-secondary);
-  font-size: 25rpx;
+  font-size: var(--fs-sub);
 }
 
 .meta-row text {
   flex: 1;
   min-width: 0;
-  line-height: 1.45;
+  line-height: 1.5;
   word-break: break-all;
 }
 
-.load-more {
-  margin-top: 24rpx;
-  height: 76rpx;
-  line-height: 76rpx;
-  text-align: center;
-  border-radius: var(--radius-ctrl);
-  background: var(--bg-card);
-  border: var(--bw-card) solid var(--line);
-  color: var(--primary);
-  font-size: 26rpx;
-  font-weight: 650;
-}
+/* ============================================================
+   列表状态
+   ============================================================ */
 
-.load-more:active {
-  transform: scale(.98);
+.load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  margin-top: var(--space-md);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--bg-card);
+  color: var(--primary);
+  font-size: var(--fs-body);
+  font-weight: 600;
 }
 
 .loading-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 90rpx 0;
+  padding: 96rpx 0;
   color: var(--text-hint);
-  font-size: 25rpx;
+  font-size: var(--fs-sub);
 }
 
 .error {
-  margin-top: 24rpx;
-  padding: 20rpx;
-  border-radius: var(--radius-ctrl);
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  border-radius: var(--radius-control);
   background: var(--danger-soft);
   color: var(--danger);
   text-align: center;
-  font-size: 25rpx;
+  font-size: var(--fs-sub);
 }
 
+/* ============================================================
+   扩展查询弹层（t-popup 内部；自身只做布局，过渡交给 t-popup）
+   ============================================================ */
+
 .explorer-popup {
-  width: 100%;
-  height: 100vh;
-  max-height: 100vh;
-  --td-popup-bg-color: var(--bg-page);
-  --td-popup-border-radius: 0;
-  --td-popup-transition: all var(--motion-slow) var(--ease-standard);
+  /* 统一最大高度 88vh：TDesign 用 distance-top 计算，直接写 max-height 会被其自身规则覆盖 */
+  --td-popup-distance-top: 12vh;
+  /* 底部弹层统一规格：过渡只由 t-popup 负责（内容不自播入场/退出），
+     遮罩色统一走 --td-overlay-bg-color，底部安全区由 t-popup--bottom 负责 */
+  --td-popup-bg-color: var(--bg-card);
+  --td-popup-border-radius: var(--radius-sheet);
+  --td-popup-transition: all var(--motion-sheet) var(--ease-bounce);
+  max-height: 88vh;
 }
 
 .explorer-sheet {
   position: relative;
   z-index: 1;
-  width: 100%;
-  height: 100vh;
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  padding-top: env(safe-area-inset-top);
-  border-radius: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   background: var(--bg-page);
-  box-shadow: var(--shadow-sheet);
   overflow: hidden;
 }
 
 .explorer-head {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20rpx;
-  padding: 26rpx 24rpx 18rpx;
+  gap: var(--space-md);
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-page);
   background: var(--bg-card);
 }
 
 .explorer-title {
   display: block;
   color: var(--text-primary);
-  font-size: 34rpx;
-  font-weight: 750;
+  font-size: var(--fs-page-title);
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .explorer-sub {
   display: block;
-  margin-top: 4rpx;
+  margin-top: var(--space-xxs);
   color: var(--text-hint);
-  font-size: 22rpx;
+  font-size: var(--fs-cap);
 }
 
+/* 关闭：88rpx 热区、12rpx 圆角，不再使用装饰圆 */
 .explorer-close {
-  width: 64rpx;
-  height: 64rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  width: 88rpx;
+  height: 88rpx;
+  flex: none;
+  border-radius: var(--radius-control);
   background: var(--bg-sunken);
 }
 
 .explorer-tabs {
-  flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8rpx;
-  padding: 12rpx 24rpx;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-page);
+  border-top: var(--bw-card) solid var(--line-soft);
   background: var(--bg-card);
-  border-top: 1rpx solid var(--line-soft);
 }
 
 .explorer-tab {
-  padding: 14rpx 8rpx;
-  border-radius: var(--radius-ctrl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72rpx;
+  border-radius: var(--radius-control);
   background: var(--bg-sunken);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-align: center;
-  font-size: 25rpx;
-  font-weight: 650;
+  font-size: var(--fs-sub);
+  font-weight: 600;
 }
 
 .explorer-tab.active {
@@ -577,54 +629,33 @@
 }
 
 .explorer-time-grid {
-  flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10rpx;
-  padding: 12rpx 24rpx 14rpx;
-  background: var(--bg-card);
-}
-
-.explorer-recent {
+  gap: var(--space-xs);
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 10rpx 24rpx 12rpx;
+  padding: var(--space-sm) var(--space-page) var(--space-md);
   background: var(--bg-card);
-  overflow-x: auto;
-  white-space: nowrap;
-}
-
-.explorer-recent-label {
-  flex: none;
-  color: var(--text-hint);
-  font-size: 21rpx;
-}
-
-.recent-chip {
-  flex: none;
-  padding: 8rpx 12rpx;
-  border-radius: var(--radius-pill);
-  background: var(--bg-sunken);
-  color: var(--text-secondary);
-  font-size: 21rpx;
 }
 
 .explorer-time-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-xxs);
   min-width: 0;
-  padding: 12rpx 10rpx;
-  border-radius: 16rpx;
+  min-height: 88rpx;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-control);
   background: var(--bg-sunken);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   text-align: center;
-  font-size: 23rpx;
+  font-size: var(--fs-sub);
   font-weight: 600;
 }
 
 .explorer-time-cell > text:last-child {
   display: block;
-  margin-top: 4rpx;
+  margin-top: var(--space-xxs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -633,29 +664,55 @@
 .explorer-time-label {
   display: block;
   color: var(--text-hint);
-  font-size: 20rpx;
+  font-size: var(--fs-cap);
   font-weight: 500;
 }
 
-.explorer-selected {
+.explorer-recent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
   flex-shrink: 0;
+  padding: var(--space-xs) var(--space-page) var(--space-sm);
+  background: var(--bg-card);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.explorer-recent-label {
+  flex: none;
+  color: var(--text-hint);
+  font-size: var(--fs-cap);
+}
+
+.recent-chip {
+  flex: none;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-chip);
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-size: var(--fs-cap);
+}
+
+.explorer-selected {
   display: flex;
   flex-wrap: wrap;
-  gap: 8rpx;
-  padding: 0 24rpx 12rpx;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  padding: 0 var(--space-page) var(--space-sm);
   background: var(--bg-card);
 }
 
 .selected-chip {
-  max-width: 100%;
   display: flex;
   align-items: center;
-  gap: 6rpx;
-  padding: 8rpx 10rpx 8rpx 14rpx;
-  border-radius: var(--radius-pill);
+  gap: var(--space-xxs);
+  max-width: 100%;
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-chip);
   background: var(--primary-soft);
-  color: var(--primary-dark);
-  font-size: 22rpx;
+  color: var(--primary-strong);
+  font-size: var(--fs-cap);
 }
 
 .selected-chip text {
@@ -665,54 +722,49 @@
   white-space: nowrap;
 }
 
-.selected-close {
-  width: 30rpx;
-  height: 30rpx;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .explorer-search {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  margin: 16rpx 24rpx 10rpx;
-  padding: 0 18rpx;
-  height: 68rpx;
-  border-radius: 18rpx;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+  min-height: 88rpx;
+  margin: var(--space-md) var(--space-page) var(--space-xs);
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-control);
   background: var(--bg-sunken);
 }
 
 .explorer-input {
   flex: 1;
   min-width: 0;
-  height: 68rpx;
+  height: 88rpx;
   color: var(--text-primary);
-  font-size: 27rpx;
+  font-size: var(--fs-body);
 }
 
+/* 清除：88rpx 热区，负外边距保持右侧视觉留白 */
 .explorer-clear {
-  width: 44rpx;
-  height: 44rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 88rpx;
+  height: 88rpx;
+  margin-right: calc(-1 * var(--space-md));
+  flex: none;
 }
 
 .explorer-count {
   flex-shrink: 0;
-  padding: 4rpx 28rpx 12rpx;
+  padding: var(--space-xs) var(--space-page) var(--space-sm);
   color: var(--text-hint);
-  font-size: 22rpx;
+  font-size: var(--fs-cap);
 }
 
+/* 列表滚动：纯 flex 高度，由 scroll-view 连续滚动；不设 max-height / 滚动动画 */
 .explorer-body {
+  position: relative;
   flex: 1;
   min-height: 0;
-  position: relative;
 }
 
 .explorer-scroll {
@@ -723,29 +775,29 @@
 }
 
 .explorer-item {
-  min-height: 72rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16rpx;
-  padding: 12rpx 28rpx;
-  border-bottom: 1rpx solid var(--line-soft);
+  gap: var(--space-md);
+  min-height: 88rpx;
+  padding: var(--space-sm) var(--space-page);
+  border-bottom: var(--bw-card) solid var(--line-soft);
   color: var(--text-primary);
-  font-size: 27rpx;
+  font-size: var(--fs-body);
 }
 
 .explorer-item.selected {
   background: var(--primary-soft);
-  color: var(--primary-dark);
+  color: var(--primary-strong);
 }
 
 .explorer-item-main {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12rpx;
+  gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
 }
 
 .explorer-item-main > text:first-child {
@@ -759,115 +811,110 @@
 .explorer-item-count {
   flex: none;
   color: var(--text-hint);
-  font-size: 20rpx;
+  font-size: var(--fs-cap);
 }
 
 .explorer-check {
-  width: 34rpx;
+  width: 32rpx;
   flex: none;
   color: var(--primary);
   text-align: center;
-  font-size: 30rpx;
-  font-weight: 800;
-}
-
-.explorer-item:active {
-  background: var(--primary-soft);
-  color: var(--primary-dark);
+  font-size: var(--fs-body);
+  font-weight: 700;
 }
 
 .explorer-load-more {
-  height: 72rpx;
-  margin: 12rpx 24rpx 24rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1rpx solid var(--line);
-  border-radius: var(--radius-ctrl);
+  min-height: 88rpx;
+  margin: var(--space-sm) var(--space-page) var(--space-lg);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-control);
   background: var(--bg-sunken);
   color: var(--primary);
-  font-size: 24rpx;
-  font-weight: 650;
-}
-
-.explorer-load-more:active {
-  transform: scale(.985);
-}
-
-.explorer-footer {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-  padding: 14rpx 24rpx calc(14rpx + env(safe-area-inset-bottom));
-  background: var(--bg-card);
-  border-top: 1rpx solid var(--line);
-}
-
-.explorer-footer-meta {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3rpx;
-  color: var(--text-hint);
-  font-size: 21rpx;
-}
-
-.explorer-query {
-  min-width: 230rpx;
-  height: 72rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  border-radius: var(--radius-ctrl);
-  background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
-  color: var(--bg-card);
-  font-size: 25rpx;
-  font-weight: 700;
-  box-shadow: 0 10rpx 22rpx rgba(37, 99, 235, .18);
-}
-
-.explorer-query:active {
-  transform: scale(.97);
+  font-size: var(--fs-sub);
+  font-weight: 600;
 }
 
 .explorer-end {
-  padding: 28rpx;
+  padding: var(--space-lg);
   color: var(--text-hint);
+  font-size: var(--fs-cap);
   text-align: center;
-  font-size: 23rpx;
 }
 
+.explorer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-page) calc(var(--space-sm) + env(safe-area-inset-bottom));
+  border-top: var(--bw-card) solid var(--line);
+  background: var(--bg-card);
+}
+
+.explorer-footer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xxs);
+  min-width: 0;
+  color: var(--text-hint);
+  font-size: var(--fs-cap);
+}
+
+.explorer-query {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-width: 240rpx;
+  min-height: 88rpx;
+  flex: none;
+  border-radius: var(--radius-control);
+  background: var(--primary);
+  color: var(--bg-card);
+  font-size: var(--fs-sub);
+  font-weight: 600;
+}
+
+/* ============================================================
+   周课表弹层（底部弹层：24rpx 顶部圆角，仅弹层保留轻投影）
+   ============================================================ */
+
 .weekly-popup {
-  --td-popup-bg-color: var(--bg-page);
-  --td-popup-border-radius: var(--radius-panel);
-  --td-popup-transition: all var(--motion-slow) var(--ease-standard);
+  /* 统一最大高度 88vh：TDesign 用 distance-top 计算，直接写 max-height 会被其自身规则覆盖 */
+  --td-popup-distance-top: 12vh;
+  /* 底部弹层统一规格：过渡只由 t-popup 负责（内容不自播入场/退出），
+     遮罩色统一走 --td-overlay-bg-color，底部安全区由 t-popup--bottom 负责 */
+  --td-popup-bg-color: var(--bg-card);
+  --td-popup-border-radius: var(--radius-sheet);
+  --td-popup-transition: all var(--motion-sheet) var(--ease-bounce);
+  max-height: 88vh;
 }
 
 .weekly-sheet {
   position: relative;
   z-index: 1;
-  width: 100%;
-  height: 92vh;
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  padding-top: env(safe-area-inset-top);
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   background: var(--bg-page);
   box-shadow: var(--shadow-sheet);
   overflow: hidden;
 }
 
 .weekly-head {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20rpx;
-  padding: 26rpx 24rpx 18rpx;
+  gap: var(--space-md);
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-page);
   background: var(--bg-card);
 }
 
@@ -876,69 +923,80 @@
   min-width: 0;
 }
 
-.weekly-actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-
 .weekly-title {
   display: block;
   color: var(--text-primary);
-  font-size: 34rpx;
-  font-weight: 750;
+  font-size: var(--fs-page-title);
+  font-weight: 700;
   line-height: 1.3;
 }
 
 .weekly-sub {
   display: block;
-  margin-top: 4rpx;
+  margin-top: var(--space-xxs);
   color: var(--text-muted);
-  font-size: 23rpx;
+  font-size: var(--fs-sub);
 }
 
-.weekly-close {
-  width: 64rpx;
-  height: 64rpx;
+.weekly-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
   flex-shrink: 0;
+}
+
+/* 周课表头的收藏是纯图标按钮：88rpx 热区 */
+.weekly-actions .favorite-btn {
+  justify-content: center;
+  width: 88rpx;
+  min-height: 88rpx;
+  padding: 0;
+  font-size: var(--fs-section);
+}
+
+/* 关闭：88rpx 热区、12rpx 圆角，不再使用装饰圆 */
+.weekly-close {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  width: 88rpx;
+  height: 88rpx;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
   background: var(--bg-sunken);
 }
 
 .weekly-weekbar {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18rpx;
-  padding: 14rpx 24rpx;
+  gap: var(--space-md);
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-page);
+  border-top: var(--bw-card) solid var(--line-soft);
+  border-bottom: var(--bw-card) solid var(--line);
   background: var(--bg-card);
-  border-top: 1rpx solid var(--line-soft);
-  border-bottom: 1rpx solid var(--line);
 }
 
 .weekly-arrow {
-  width: 58rpx;
-  height: 58rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16rpx;
+  width: 88rpx;
+  height: 88rpx;
+  flex: none;
+  border-radius: var(--radius-control);
   background: var(--bg-sunken);
 }
 
 .weekly-week-label {
-  min-width: 180rpx;
-  padding: 12rpx 30rpx;
+  min-width: 160rpx;
+  padding: var(--space-xs) var(--space-lg);
   border-radius: var(--radius-pill);
   background: var(--primary-soft);
-  color: var(--primary-dark);
+  color: var(--primary-strong);
   text-align: center;
-  font-size: 27rpx;
+  font-size: var(--fs-sub);
   font-weight: 700;
 }
 
@@ -949,140 +1007,19 @@
   background: var(--bg-card);
 }
 
-@keyframes auditCardIn {
-  from { opacity: 0; transform: translateY(16rpx) scale(.985); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
+/* ============================================================
+   减少动态效果：关掉本页残余过渡；入场动画已整体移除以避免列表重播
+   ============================================================ */
 
-@keyframes suggestIn {
-  from { opacity: 0; transform: translateY(-8rpx) scale(.985); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* Layout pass: search and result cards share the same 20rpx content edge. */
-.page-content {
-  padding-left: 20rpx;
-  padding-right: 20rpx;
-}
-
-.filter-card,
-.result-bar,
-.course-card {
-  margin-left: 0;
-  margin-right: 0;
-  border-radius: 18rpx;
-  box-shadow: var(--shadow-soft);
-}
-
-/* 高保真收口: 查询页以搜索和结果为主, 颜色只承担状态提示。 */
-.filter-card {
-  margin-top: 12rpx;
-  padding: 16rpx;
-  background: rgba(255, 255, 255, .76);
-  -webkit-backdrop-filter: blur(22rpx) saturate(155%);
-  backdrop-filter: blur(22rpx) saturate(155%);
-}
-
-.filter-title {
-  font-size: 26rpx;
-}
-
-.filter-row {
-  height: 64rpx;
-  border-radius: 16rpx;
-}
-
-.query-btn,
-.explorer-query {
-  background: var(--primary);
-  box-shadow: var(--shadow-btn);
-}
-
-.audit-status {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.audit-status.conflict {
-  background: var(--signal-soft);
-  color: var(--signal-deep);
-}
-
-.favorite-btn.on {
-  background: var(--warning-soft);
-  color: var(--signal-deep);
-}
-
-.conflict-detail {
-  background: var(--signal-soft);
-  color: var(--signal-deep);
-}
-
-.summary {
-  margin-top: 16rpx;
-  margin-bottom: 8rpx;
-  font-size: 22rpx;
-}
-
-.course-card {
-  padding: 20rpx;
-  background: rgba(255, 255, 255, .76);
-}
-
-.course-name {
-  font-size: 29rpx;
-}
-
-.meta-row {
-  min-height: 38rpx;
-  font-size: 23rpx;
-}
-
-/* Query controls remain fixed while only the result stream scrolls. */
-.container,
-.view-root {
-  min-height: 0;
-}
-
-.view-scroll {
-  height: 100%;
-  min-height: 0;
-  -webkit-overflow-scrolling: touch;
-}
-
-.filter-card,
-.result-bar,
-.course-card {
-  border-color: var(--line);
-  box-shadow: var(--shadow-soft);
-}
-
-.filter-card {
-  background: var(--surface-tint-strong);
-}
-
-.filter-row {
-  min-height: 64rpx;
-  border-radius: 14rpx;
-  background: rgba(245, 247, 249, .70);
-}
-
-.suggest-panel {
-  border-color: var(--line);
-  background: rgba(255, 255, 255, .96);
-  box-shadow: var(--shadow-pop);
-}
-
-.suggest-scroll {
-  -webkit-overflow-scrolling: touch;
-}
-
-.course-card {
-  background: var(--surface-tint-strong);
-  transition: transform var(--motion-base) var(--ease-spring),
-              box-shadow var(--motion-base) var(--ease-standard);
-}
-
-.course-card:active {
-  transform: scale(.985);
+@media (prefers-reduced-motion: reduce) {
+  .filter-row,
+  .suggest-item,
+  .explorer-tab,
+  .explorer-item,
+  .course-card,
+  .query-btn,
+  .load-more {
+    animation: none;
+    transition: none;
+  }
 }

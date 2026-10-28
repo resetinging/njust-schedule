@@ -19,8 +19,8 @@
             <text class="hero-gpa">{{yjsTotal.earned || 0}}</text>
             <text class="hero-label">已修学分 · 要求 {{yjsTotal.required || '-'}} · 培养计划 {{yjsTotal.planned || '-'}}</text>
           </view>
-          <view class="hero-refresh tap {{refreshing ? 'spin' : ''}}" bindtap="onRefreshYjsGrades">
-            <icon name="refresh" size="34" color="#2563EB" />
+          <view class="refresh-action tap {{refreshing ? 'is-busy' : ''}}" bindtap="onRefreshYjsGrades" aria-label="刷新成绩">
+            <icon name="refresh" size="34" color="#3157D5" />
           </view>
         </view>
       </view>
@@ -60,8 +60,8 @@
             <text class="hero-gpa {{stats.gpaClass}}">{{stats.gpa}}</text>
             <text class="hero-label">{{stats.mode === 'baoyan' ? '保研 GPA' : '综测 GPA'}}</text>
           </view>
-          <view class="hero-refresh tap {{refreshing ? 'spin' : ''}}" bindtap="onRefreshGrades">
-            <icon name="refresh" size="34" color="#2563EB" />
+          <view class="refresh-action tap {{refreshing ? 'is-busy' : ''}}" bindtap="onRefreshGrades" aria-label="刷新成绩">
+            <icon name="refresh" size="34" color="#3157D5" />
           </view>
         </view>
 
@@ -127,7 +127,7 @@
           <text class="sem-name">{{grp.sem}}</text>
           <text class="sem-gpa-tag {{grp.gpaClass}}">GPA {{grp.gpa}}</text>
           <text class="sem-count">{{grp.count}} 门</text>
-          <view class="sem-fold"><icon name="{{grp.folded ? 'next' : 'prev'}}" size="22" color="#64748B" /></view>
+          <view class="sem-fold"><icon name="{{grp.folded ? 'next' : 'prev'}}" size="22" color="#6B7684" /></view>
         </view>
 
         <!-- 课程列表 -->
@@ -144,7 +144,12 @@
           </view>
         </block>
       </view>
-      <view id="slot-grades-bottom" class="analytics-slot-marker"></view>
+      <view id="slot-grades-bottom">
+        <ad-slot unit-id="adunit-8f99eb551760e548"
+                 slot-id="slot-grades-bottom"
+                 page="grades"
+                 ad-type="native" />
+      </view>
 
     </block>
 

@@ -1,10 +1,21 @@
+/* ==========================================================================
+   通用选择器触发器（ui-picker）
+   --------------------------------------------------------------------------
+   · 这里只负责触发器自身的布局与禁用态；弹层定位与层级由
+     <root-portal> + TDesign t-picker 负责，本文件不得声明
+     position / z-index，以免空教室选择器被遮挡或裁剪
+   · 禁用态透明度与基座 .is-disabled 保持一致（0.45）
+   ========================================================================== */
+
 :host,
 .ui-picker-trigger {
   display: block;
   width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
 }
 
 .ui-picker-trigger.is-disabled {
-  opacity: .48;
+  opacity: .45;
   pointer-events: none;
 }

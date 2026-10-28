@@ -1,29 +1,35 @@
-/* 卡片式空状态: 白卡 + 细描边 + 淡蓝图标圆底 */
+/* ==========================================================================
+   卡片式空状态
+   --------------------------------------------------------------------------
+   · 轻量对齐：居中、正文字号 28rpx / 次级 24rpx、8rpx 倍数间距、16rpx 圆角
+   · 白卡 + 细边线，无厚投影；图标与说明交给 TDesign t-empty
+   · 图标颜色继承基座 --td-empty-icon-color（中性淡色），不再单独强调
+   ========================================================================== */
+
+:host {
+  display: block;
+}
 
 .es-wrap {
   display: flex;
   justify-content: center;
-  padding: 40rpx 24rpx 60rpx;
+  padding: var(--space-xl) var(--space-page);
   box-sizing: border-box;
 }
 
 .es-card {
-  width: 100%;
-  background: var(--bg-card);
-  border: var(--bw-card) solid var(--line);
-  border-radius: var(--radius-card);
-  padding: 52rpx 36rpx 44rpx;
-  box-shadow: none;
-  box-sizing: border-box;
   display: flex;
+  width: 100%;
   flex-direction: column;
   align-items: center;
-}
-
-.es-card {
-  --td-empty-icon-color: var(--primary);
-  --td-empty-description-margin-top: 20rpx;
-  --td-empty-action-margin-top: 28rpx;
+  padding: var(--space-xl) var(--space-lg) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-island);
+  background: var(--bg-card);
+  box-sizing: border-box;
+  --td-empty-description-margin-top: var(--space-md);
+  --td-empty-action-margin-top: var(--space-lg);
+  box-shadow: var(--shadow-island);
 }
 
 .es-copy {
@@ -33,21 +39,17 @@
 }
 
 .es-title {
-  margin-top: 24rpx;
-  font-size: 32rpx;
-  font-weight: 700;
-  color: var(--text-strong);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .es-desc {
-  margin-top: 12rpx;
-  font-size: 24rpx;
+  margin-top: var(--space-xs);
   color: var(--text-hint);
+  font-size: var(--fs-sub);
+  line-height: 1.6;
   text-align: center;
-  line-height: 1.5;
-}
-
-/* 操作按钮: 纯色主色 */
-:host {
-  display: block;
 }

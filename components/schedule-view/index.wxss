@@ -17,6 +17,9 @@
 .view-scroll {
   height: 100%;
   min-height: 0;
+  /* 底部为浮动底栏(92rpx + 14rpx + 安全区)留白，避免最后一行被遮挡 */
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -24,11 +27,10 @@
 .weekbar {
   display: flex;
   align-items: center;
-  border: 1rpx solid var(--line);
-  background: var(--glass-bg-strong);
-  box-shadow: var(--shadow-card);
-  -webkit-backdrop-filter: blur(18rpx) saturate(140%);
-  backdrop-filter: blur(18rpx) saturate(140%);
+  border: none;
+  background: var(--bg-card);
+  border-radius: var(--radius-island);
+  box-shadow: var(--shadow-island);
 }
 
 .topbar {
@@ -36,8 +38,11 @@
   gap: 10rpx;
   margin: 12rpx 20rpx 0;
   padding: 8rpx 12rpx;
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  border-radius: var(--radius-island);
   border-bottom: 0;
+  border: none;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-island);
 }
 
 .topbar picker,
@@ -95,10 +100,11 @@
 .weekbar {
   min-height: 76rpx;
   gap: 4rpx;
-  margin: 0 20rpx 12rpx;
+  /* 与上方学期/日期岛保持 12rpx 呼吸间距，两块都是完整圆角岛，避免断续边缘 */
+  margin: 12rpx 20rpx 12rpx;
   padding: 4rpx 6rpx 8rpx;
   border-top: 0;
-  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  border-radius: var(--radius-island);
 }
 
 .weekbar picker {
@@ -107,20 +113,18 @@
 
 .week-btn,
 .tb-toggle,
-.refresh-btn,
 .tb-acts .u-ico-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 68rpx;
-  height: 68rpx;
+  width: 88rpx;
+  height: 88rpx;
   flex: none;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
 }
 
 .week-btn:active,
 .tb-toggle:active,
-.refresh-btn:active,
 .tb-acts .u-ico-btn:active {
   background: var(--primary-soft);
 }
@@ -197,16 +201,20 @@
 .grid-wrapper {
   margin-right: 20rpx;
   margin-left: 20rpx;
-  border: 1rpx solid var(--line);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  border: none;
+  border-radius: var(--radius-island);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-island);
 }
 
 .today-card {
   margin-bottom: 10rpx;
   padding: 16rpx 18rpx;
-  background: #FFFBF3;
-  border-color: #F1E2C5;
+  background: var(--bg-card);
+  border-color: var(--signal-line);
+  border: none;
+  border-radius: var(--radius-island);
+  box-shadow: var(--shadow-island);
 }
 
 .today-head {
@@ -303,7 +311,7 @@
   padding: 4rpx 10rpx;
   border-radius: var(--radius-pill);
   color: var(--signal);
-  background: #FFF0D4;
+  background: var(--signal-soft);
   font-size: 20rpx;
   font-weight: 700;
 }
@@ -322,6 +330,10 @@
 
 .day-group {
   margin-bottom: 22rpx;
+  border: none;
+  border-radius: var(--radius-island);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-island);
 }
 
 .day-title {
@@ -336,62 +348,19 @@
 .course-card {
   margin-bottom: 10rpx;
   padding: 16rpx 18rpx;
-  border: 1rpx solid rgba(24, 34, 48, .07);
+  border: var(--bw-card) solid var(--line);
   border-radius: var(--radius-control);
-  box-shadow: var(--shadow-card);
-  transition: transform var(--motion-base) var(--ease-spring),
-              box-shadow var(--motion-base) var(--ease-standard);
+  background: var(--bg-card);
 }
 
-.course-card:active { transform: scale(.98); }
+.course-card:active {
+  border-color: var(--line-strong);
+  background: var(--bg-hover);
+}
 .course-card.audit { border-style: dashed; }
 
-.view-root.is-entering .topbar {
-  animation: scheduleChromeIn 360ms var(--ease-spring) both;
-}
-
-.view-root.is-entering .weekbar {
-  animation: scheduleChromeIn 380ms var(--ease-spring) 35ms both;
-}
-
-.view-root.is-entering .week-body {
-  animation: scheduleBodyIn 430ms var(--ease-spring) 70ms both;
-}
-
-.view-root.is-entering .today-card {
-  animation: scheduleItemIn 400ms var(--ease-spring) 120ms backwards;
-}
-
-.view-root.is-entering .grid-wrapper {
-  animation: scheduleItemIn 420ms var(--ease-spring) 155ms backwards;
-}
-
-.view-root.is-entering .day-group {
-  animation: scheduleItemIn 380ms var(--ease-spring) backwards;
-}
-
-.view-root.is-entering .day-group:nth-child(2) { animation-delay: 80ms; }
-.view-root.is-entering .day-group:nth-child(3) { animation-delay: 120ms; }
-.view-root.is-entering .day-group:nth-child(4) { animation-delay: 160ms; }
-.view-root.is-entering .day-group:nth-child(5) { animation-delay: 200ms; }
-.view-root.is-entering .day-group:nth-child(6) { animation-delay: 240ms; }
-.view-root.is-entering .day-group:nth-child(7) { animation-delay: 280ms; }
-
-@keyframes scheduleChromeIn {
-  from { opacity: 0; transform: translateY(-12rpx) scale(.99); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes scheduleBodyIn {
-  from { opacity: 0; transform: translateY(16rpx); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes scheduleItemIn {
-  0%   { opacity: 0; transform: translateY(16rpx) scale(.985); }
-  70%  { opacity: 1; transform: translateY(-2rpx) scale(1.002); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
+/* 切页入场由唯一责任层负责：pages/main/main.wxss 的 tabPageIn。
+   本组件内不再播放整页/顶栏入场，避免父子叠加；周次切换动画(week-in-*)保留。 */
 
 .card-header,
 .card-footer {
@@ -413,18 +382,24 @@
 .card-badge.audit { color: var(--success); background: var(--success-soft); }
 
 .schedule-popup {
-  --td-popup-bg-color: var(--glass-bg-strong);
-  --td-popup-border-radius: var(--radius-panel);
-  --td-popup-transition: all var(--motion-slow) var(--ease-standard);
+  /* 统一最大高度 88vh：TDesign 用 distance-top 计算，直接写 max-height 会被其自身规则覆盖 */
+  --td-popup-distance-top: 12vh;
+  /* 底部弹层统一规格：过渡只由 t-popup 负责（内容不自播入场/退出），
+     遮罩色统一走 --td-overlay-bg-color，底部安全区由 t-popup--bottom 负责 */
+  --td-popup-bg-color: var(--bg-card);
+  --td-popup-border-radius: var(--radius-sheet);
+  --td-popup-transition: all var(--motion-sheet) var(--ease-bounce);
+  max-height: 88vh;
 }
 
 .modal-card {
   width: 100%;
-  max-height: 82vh;
+  max-height: 84vh;
   overflow-y: auto;
-  padding: 30rpx 24rpx 28rpx;
-  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
-  background: var(--glass-bg-strong);
+  padding: var(--space-lg) var(--space-lg) var(--space-lg);
+  box-sizing: border-box;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  background: var(--bg-card);
   box-shadow: var(--shadow-sheet);
 }
 
@@ -448,11 +423,10 @@
 .modal-row .m-value { flex: 1; margin-left: 16rpx; color: var(--text-secondary); text-align: right; word-break: break-all; }
 .weeks-text { word-break: break-all; }
 
-.cu-card { max-height: 84vh; }
 .cu-field { display: flex; align-items: center; gap: 12rpx; padding: 11rpx 0; }
 .cu-label { width: 134rpx; flex: none; color: var(--text-muted); font-size: 24rpx; }
 .cu-input,
-.cu-pick { height: 68rpx; box-sizing: border-box; border: 1rpx solid var(--line); border-radius: var(--radius-control); background: var(--bg-sunken); font-size: 25rpx; }
+.cu-pick { height: 88rpx; box-sizing: border-box; border: 1rpx solid var(--line); border-radius: var(--radius-control); background: var(--bg-sunken) !important; font-size: 25rpx; }
 .cu-input { min-width: 0; flex: 1; padding: 0 16rpx; }
 .cu-pick { display: flex; align-items: center; justify-content: space-between; min-width: 220rpx; padding: 0 16rpx; color: var(--text-primary); line-height: 68rpx; }
 .cu-ph { color: var(--text-hint); }
@@ -472,12 +446,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .view-root.is-entering .topbar,
-  .view-root.is-entering .weekbar,
-  .view-root.is-entering .week-body,
-  .view-root.is-entering .today-card,
-  .view-root.is-entering .grid-wrapper,
-  .view-root.is-entering .day-group {
+  .week-body,
+  .course-card,
+  .day-group {
     animation: none;
+    transition-duration: .01ms !important;
   }
 }

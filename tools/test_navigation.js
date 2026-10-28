@@ -64,6 +64,14 @@ async function check(name, fn) {
     assert.strictEqual(page.data.toolPage, 'grades')
   })
 
+  await check('信息中心通过统一工具层打开', () => {
+    const page = instantiate()
+    page.onOpenNotice()
+    assert.strictEqual(page.data.toolRendered, true)
+    assert.strictEqual(page.data.toolVisible, true)
+    assert.strictEqual(page.data.toolPage, 'notice')
+  })
+
   await check('Tab 切换前先关闭工具页', async () => {
     const page = instantiate()
     page._openToolPage('grades', 'toolGrades')

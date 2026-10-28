@@ -1,13 +1,20 @@
-/* 学分进度: 与成绩页保持统一的白卡、细描边和低饱和进度条 */
+/* ==========================================================================
+   学分进度视图（培养方案应修 × 成绩已修）
+   --------------------------------------------------------------------------
+   · 颜色 / 圆角 / 间距 / 阴影 / 动效全部取 styles/design-system.wxss 的令牌
+   · 进度摘要与分类进度共用白底细边的分组表面；未通过 / 在读 / 后续学期
+     是次级明细，用留白 + 分隔线组织，不做卡片套卡片，也不逐分区浮动卡片
+   · 进度条统一语义色：已完成进度用 --success，未通过计数用 --danger
+   · 按压反馈交给基座 .tap；本地无整卡入场动画，无装饰圆、无投影
+   ========================================================================== */
+
+/* ==========================================================================
+   1. 结构与高度链（宿主 → scroll-view，保证 swiper-item 内可滚动）
+   ========================================================================== */
 
 :host {
   display: block;
   height: 100%;
-}
-
-.container {
-  padding-bottom: 40rpx;
-  background: var(--bg-page);
 }
 
 .view-root {
@@ -17,151 +24,189 @@
 
 .view-scroll {
   height: 100%;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
+.container {
+  padding-bottom: calc(var(--space-xl) + env(safe-area-inset-bottom));
+}
+
+/* ==========================================================================
+   2. 总进度摘要：整页唯一的大数字焦点
+   ========================================================================== */
+
 .credit-hero {
-  margin: 20rpx 24rpx 24rpx;
-  padding: 30rpx 28rpx 22rpx;
-  border: 1rpx solid var(--hero-border);
-  border-radius: var(--radius-card);
-  background: var(--hero-bg);
-  box-shadow: var(--shadow-card);
-  animation: creditCardIn 420ms var(--ease-spring) backwards;
+  margin: var(--space-md) var(--space-page) var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--bg-card);
+  border: none;
+  border-radius: var(--radius-island);
+  box-shadow: var(--shadow-island);
 }
 
 .credit-hero-top {
   display: flex;
   align-items: flex-start;
+  gap: var(--space-md);
 }
 
 .credit-hero-main {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  min-width: 0;
 }
 
 .credit-hero-value {
-  color: var(--hero-title);
-  font-family: var(--font-display);
-  font-size: 88rpx;
-  font-weight: 800;
-  line-height: 1.05;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: 72rpx;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  line-height: 1.05;
 }
 
 .credit-hero-total {
-  margin-left: 8rpx;
-  color: var(--text-muted);
+  margin-left: var(--space-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-num);
   font-size: 32rpx;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .credit-hero-label {
   width: 100%;
-  margin-top: 4rpx;
+  margin-top: var(--space-xxs);
   color: var(--text-muted);
-  font-size: 23rpx;
+  font-size: var(--fs-sub);
 }
 
-.credit-refresh {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
-  flex: none;
-  border-radius: 50%;
-  background: var(--bg-card);
-}
+/* 刷新：非圆形图标按钮，热区 88rpx（约 44 物理像素） */
 
+
+/* 进度条：纯色语义，轨道用中性边线色；宽度变化不做位移动画 */
 .cr-bar {
-  height: 12rpx;
-  margin-top: 22rpx;
+  height: 8rpx;
+  margin-top: var(--space-md);
   overflow: hidden;
-  border-radius: 999rpx;
-  background: var(--bg-sunken);
+  border-radius: var(--radius-pill);
+  background: var(--line);
 }
 
 .cr-bar-in {
   height: 100%;
-  border-radius: 999rpx;
-  background: var(--primary);
-  transition: width 300ms var(--ease-standard);
+  border-radius: var(--radius-pill);
+  background: var(--success);
 }
 
+/* 摘要指标：分组表面内部用分隔线分列，不再逐格套小卡片 */
 .credit-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12rpx;
-  margin-top: 20rpx;
+  margin-top: var(--space-md);
+  overflow: hidden;
 }
 
 .credit-metric {
   min-width: 0;
-  padding: 14rpx 8rpx;
-  border: 1rpx solid var(--line);
-  border-radius: 16rpx;
-  background: var(--bg-card);
+  padding: var(--space-sm) var(--space-xs);
   text-align: center;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.credit-metric + .credit-metric {
+  border-left: 1rpx solid var(--line-soft);
 }
 
 .credit-metric-value {
   display: block;
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 30rpx;
-  font-weight: 800;
+  font-family: var(--font-num);
+  font-size: 32rpx;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .credit-metric-label {
   display: block;
-  margin-top: 2rpx;
-  color: var(--text-hint);
-  font-size: 20rpx;
+  margin-top: var(--space-xxs);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+}
+
+/* 完成度与进度条共用成功色，未通过计数用危险色（不只靠颜色，另有文字标签） */
+.credit-metrics .credit-metric:first-child .credit-metric-value {
+  color: var(--success);
 }
 
 .credit-metric.is-warn .credit-metric-value {
   color: var(--danger);
 }
 
+/* ==========================================================================
+   3. 分类进度：与摘要同级的白底分组表面，行间用分隔线
+   ========================================================================== */
+
 .credit-card {
-  margin: 0 24rpx 20rpx;
-  padding: 22rpx 24rpx 10rpx;
-  border: 1rpx solid var(--line);
-  border-radius: var(--radius-card);
+  margin: 0 var(--space-page) var(--space-lg);
+  padding: var(--space-sm) var(--space-lg) var(--space-xs);
   background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-  animation: creditCardIn 420ms var(--ease-spring) backwards;
+  border: none;
+  border-radius: var(--radius-island);
+  box-shadow: var(--shadow-island);
 }
 
-.credit-card:nth-child(3) {
-  animation-delay: 40ms;
+/* 未通过 / 本学期 / 后续学期：次级明细不做卡片，用留白 + 顶部分隔线 */
+.credit-card + .credit-card {
+  margin-top: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-top: 1rpx solid var(--line);
+  border-radius: 0;
 }
 
 .credit-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 10rpx;
+  gap: var(--space-md);
+  min-height: 72rpx;
+  padding: var(--space-xs) 0 var(--space-sm);
+  border-bottom: 1rpx solid var(--line-soft);
 }
 
-.credit-section-title {
+.credit-section-title,
+.cr-title {
   color: var(--text-primary);
-  font-size: 30rpx;
+  font-size: var(--fs-section);
   font-weight: 700;
+  line-height: 1.4;
 }
 
-.credit-section-count {
-  color: var(--text-hint);
-  font-size: 22rpx;
+.credit-section-count,
+.cr-count {
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  font-variant-numeric: tabular-nums;
 }
 
+.cr-count {
+  display: block;
+  margin-top: var(--space-xxs);
+}
+
+/* 分类行：名称可换行，数值列等宽右对齐 */
 .cr-row {
-  padding: 18rpx 0;
+  padding: var(--space-md) 0;
   border-top: 1rpx solid var(--line-soft);
 }
 
@@ -169,53 +214,69 @@
   border-top: 0;
 }
 
+.cr-row .cr-bar {
+  margin-top: var(--space-xs);
+}
+
 .cr-row-top,
 .cr-row-foot {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: var(--space-md);
 }
 
 .cr-name {
+  flex: 1;
   min-width: 0;
-  overflow: hidden;
   color: var(--text-primary);
-  font-size: 27rpx;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .cr-value-wrap {
   display: flex;
   align-items: baseline;
   flex: none;
-  margin-left: 16rpx;
 }
 
 .cr-val {
-  color: var(--primary);
-  font-size: 26rpx;
-  font-weight: 800;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .cr-unit {
-  margin-left: 4rpx;
-  color: var(--text-hint);
-  font-size: 20rpx;
+  margin-left: var(--space-xxs);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
 }
 
 .cr-row-foot {
-  margin-top: 8rpx;
-  color: var(--text-hint);
-  font-size: 20rpx;
+  align-items: center;
+  margin-top: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  font-variant-numeric: tabular-nums;
 }
+
+/* ==========================================================================
+   4. 折叠明细分区：整行可点，热区 ≥88rpx
+   ========================================================================== */
 
 .cr-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 48rpx;
+  gap: var(--space-md);
+  min-height: 88rpx;
+  padding: var(--space-xs) 0;
+  border-bottom: 1rpx solid var(--line);
 }
 
 .cr-head-main {
@@ -223,20 +284,7 @@
   min-width: 0;
 }
 
-.cr-title {
-  display: block;
-  color: var(--text-primary);
-  font-size: 28rpx;
-  font-weight: 700;
-}
-
-.cr-count {
-  display: block;
-  margin-top: 3rpx;
-  color: var(--text-hint);
-  font-size: 21rpx;
-}
-
+/* 展开/收起指示：随整行点击，不单独计热区 */
 .cr-arrow {
   display: flex;
   align-items: center;
@@ -246,143 +294,86 @@
   flex: none;
 }
 
+/* 按学期分组的小标题 + 课程明细行 */
 .cr-sem {
-  margin-top: 16rpx;
-  padding-top: 12rpx;
+  margin-top: var(--space-sm);
+  padding-top: var(--space-xs);
+}
+
+.cr-sem + .cr-sem {
+  margin-top: var(--space-sm);
   border-top: 1rpx solid var(--line-soft);
 }
 
 .cr-sem-name {
   display: block;
-  margin-bottom: 6rpx;
+  padding-bottom: var(--space-xxs);
   color: var(--text-muted);
-  font-size: 22rpx;
+  font-size: var(--fs-cap);
 }
 
 .cr-course {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 16rpx;
-  padding: 10rpx 0;
+  gap: var(--space-md);
+  padding: var(--space-xs) 0;
+}
+
+.cr-course + .cr-course {
+  border-top: 1rpx solid var(--line-soft);
 }
 
 .cr-c-name {
+  flex: 1;
   min-width: 0;
-  overflow: hidden;
   color: var(--text-primary);
-  font-size: 25rpx;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--fs-sub);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .cr-c-meta {
   flex: none;
-  color: var(--text-hint);
-  font-size: 21rpx;
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
+
+/* ==========================================================================
+   5. 页脚提示：计划外 / 同组未选标签与更新时间
+   ========================================================================== */
 
 .credit-foot {
   display: flex;
   flex-wrap: wrap;
-  gap: 10rpx;
-  margin: 0 28rpx 4rpx;
+  gap: var(--space-xs);
+  margin: var(--space-md) var(--space-page) 0;
 }
 
 .credit-chip {
-  padding: 7rpx 14rpx;
+  padding: var(--space-xxs) var(--space-sm);
   border: 1rpx solid var(--line);
-  border-radius: 999rpx;
+  border-radius: var(--radius-chip);
   background: var(--bg-card);
-  color: var(--text-hint);
-  font-size: 20rpx;
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  font-variant-numeric: tabular-nums;
 }
 
 .credit-updated {
   display: block;
-  margin: 12rpx 28rpx 0;
-  color: var(--text-hint);
-  font-size: 20rpx;
+  margin: var(--space-sm) var(--space-page) 0;
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
   text-align: right;
 }
 
-@keyframes creditCardIn {
-  from {
-    opacity: 0;
-    transform: translateY(18rpx) scale(.982);
+/* 本组件无本地入场动画与过渡：按压反馈由基座 .tap 统一处理。
+   减少动态效果时停止刷新图标的旋转（其余状态切换均为瞬时）。 */
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none !important;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Layout pass: progress numbers lead, detail cards stay secondary. */
-.credit-hero,
-.credit-card {
-  box-shadow: var(--shadow-soft);
-}
-
-.credit-hero {
-  margin-left: 20rpx;
-  margin-right: 20rpx;
-}
-
-.credit-card {
-  margin-left: 20rpx;
-  margin-right: 20rpx;
-  border-radius: 18rpx;
-}
-
-.credit-foot,
-.credit-updated {
-  margin-left: 20rpx;
-  margin-right: 20rpx;
-}
-
-/* 高保真收口: 进度数字突出, 分类明细保持轻量。 */
-.credit-hero {
-  margin-top: 14rpx;
-  padding: 26rpx 24rpx 20rpx;
-  background: rgba(239, 246, 255, .72);
-}
-
-.credit-card {
-  padding-left: 20rpx;
-  padding-right: 20rpx;
-  background: rgba(255, 255, 255, .74);
-}
-
-.credit-section-title {
-  font-size: 29rpx;
-}
-
-.cr-row {
-  padding-top: 15rpx;
-  padding-bottom: 15rpx;
-}
-
-/* Credit progress uses the same restrained metric/detail contrast as grades. */
-.view-scroll {
-  min-height: 0;
-  -webkit-overflow-scrolling: touch;
-}
-
-.credit-hero,
-.credit-card {
-  border-color: var(--line);
-  box-shadow: var(--shadow-soft);
-}
-
-.credit-hero {
-  background: rgba(239, 246, 255, .68);
-}
-
-.credit-card {
-  background: var(--surface-tint-strong);
-}
-
-.credit-metric {
-  background: rgba(245, 247, 249, .72);
-  border-color: var(--line-soft);
 }

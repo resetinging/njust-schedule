@@ -34,7 +34,9 @@ function buildingLabel(prefix, buildings) {
   const list = buildings || []
   if (!prefix || !list.length) return ''
   const p = normRoman(prefix)
-  const isRoman = /^[IVX]+$/i.test(p)
+  // 先剥离楼名后缀；否则“Ⅱ教学楼”会被Ⅰ的模糊匹配抢先命中。
+  const pCore = p.replace(/教学楼|楼/g, '')
+  const isRoman = /^[IVX]+$/i.test(pCore)
   for (const item of list) {
     const b = (item && typeof item === 'object') ? String(item.name || '') : String(item || '')
     if (!b) continue
@@ -42,10 +44,10 @@ function buildingLabel(prefix, buildings) {
     const bn = normRoman(b).replace(/教学楼|楼/g, '')
     if (!bn) continue
     if (isRoman) {
-      if (bn.toUpperCase() === p.toUpperCase()) return b
+      if (bn.toUpperCase() === pCore.toUpperCase()) return b
     } else {
       // 汉字: '江阴致知B' → 去'江阴' → '致知B' 对比 '致知楼B'→'致知B'
-      const p2 = p.replace(/^江阴/, '')
+      const p2 = pCore.replace(/^江阴/, '')
       if (p2 && (p2 === bn || bn.startsWith(p2) || p2.startsWith(bn))) return b
     }
   }

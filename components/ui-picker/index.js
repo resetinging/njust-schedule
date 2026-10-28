@@ -34,24 +34,36 @@ Component({
   },
 
   methods: {
+    /** 上报选择器可见性，供页面统一隐藏浮动底栏（与弹层同一责任层） */
+    _notify(visible) {
+      this.triggerEvent('visiblechange', { visible: !!visible })
+    },
+
     open() {
-      if (!this.data.disabled) this.setData({ visible: true })
+      if (!this.data.disabled) {
+        this.setData({ visible: true })
+        this._notify(true)
+      }
     },
 
     onConfirm(e) {
       const columns = (e.detail && e.detail.columns) || []
       const index = columns.length ? columns[0].index : Number((e.detail.value || [0])[0])
       this.setData({ visible: false, pickerValue: [index] })
+      this._notify(false)
       this.triggerEvent('change', { value: String(index) })
     },
 
     onCancel() {
       this.setData({ visible: false })
+      this._notify(false)
       this.triggerEvent('cancel')
     },
 
     onVisibleChange(e) {
-      this.setData({ visible: !!(e.detail && e.detail.visible) })
+      const visible = !!(e.detail && e.detail.visible)
+      this.setData({ visible })
+      this._notify(visible)
     }
   }
 })

@@ -1,0 +1,7 @@
+<view class="ad-slot {{height ? 'ad-slot-sized' : ''}}" style="min-height: {{height}};">
+  <ad-custom wx:if="{{unitId}}"
+             unit-id="{{unitId}}"
+             bindload="onAdLoad"
+             binderror="onAdError"
+             bindclose="onAdClose"></ad-custom>
+</view>

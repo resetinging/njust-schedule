@@ -1,20 +1,19 @@
 <!-- 设置/登录视图组件 — 原 pages/settings 页面改造（方案A 合页 swiper） -->
-<view class="container view-root {{fontSwitching ? 'font-switching' : ''}} {{entering ? 'is-entering' : ''}}" wx:if="{{active}}">
+<view class="container view-root {{fontSwitching ? 'font-switching' : ''}}" wx:if="{{active}}">
 
   <!-- 滚动内容区(scroll-view 内滚, 无下拉刷新) -->
   <scroll-view class="view-scroll" scroll-y>
 
   <!-- ============================================================ -->
-  <!-- 公告栏(常驻, 登录前后均显示): 折叠展示, 点击展开全文即视为已读 -->
+  <!-- 信息中心入口(常驻): 展示最新公告摘要 -->
   <!-- ============================================================ -->
-  <view class="announce-card tap" wx:if="{{announcement}}" bindtap="onToggleAnnounce">
+  <view class="announce-card tap" bindtap="onOpenNotice">
     <view class="announce-head">
-      <view class="announce-icon"><icon name="megaphone" size="28" color="#2563EB" /></view>
-      <text class="announce-title">公告</text>
+      <view class="announce-icon"><icon name="megaphone" size="28" color="#3157D5" /></view>
       <text class="announce-new" wx:if="{{annIsNew}}">新</text>
-      <text class="announce-state" wx:if="{{annLong}}">{{annExpanded ? '收起' : '查看全文'}}</text>
+      <text class="announce-state">查看</text>
     </view>
-    <view class="announce-body {{annExpanded || !annLong ? '' : 'clamped'}}">{{announcement}}</view>
+    <view class="announce-body clamped">{{announcement || '公告、更新日志与 QQ 群信息'}}</view>
   </view>
 
   <!-- ============================================================ -->
@@ -22,116 +21,116 @@
   <!-- ============================================================ -->
   <view wx:if="{{isLoggedIn}}">
 
-    <!-- 身份面板: 只保留身份信息, 指标与校历单独分层 -->
-    <view class="user-card card">
-      <view class="user-top">
-        <view class="avatar"><icon name="user" size="40" color="#2563EB" /></view>
-        <view class="user-info">
-          <text class="user-name">{{studentName || '未设置'}}</text>
-          <text class="user-id">{{studentId}}</text>
+    <!-- ============================================================ -->
+    <!-- 身份信息区: 姓名/学号/学期 + 指标 + 周次校准合并为一个信息块   -->
+    <!-- 内部用「行 + 分隔线」组织, 不做卡片套卡片                     -->
+    <!-- ============================================================ -->
+    <view class="identity-panel">
+      <view class="identity-head">
+        <view class="identity-avatar"><icon name="user" size="36" color="#3157D5" /></view>
+        <view class="identity-copy">
+          <text class="identity-name">{{studentName || '未设置'}}</text>
+          <text class="identity-id">{{studentId}}</text>
         </view>
-        <text class="user-semester">{{semester || '未知学期'}}</text>
+        <text class="identity-semester">{{semester || '未知学期'}}</text>
+      </view>
+
+      <view class="identity-metrics">
+        <view class="identity-metric">
+          <text class="identity-metric-value">{{gradeCount}}</text>
+          <text class="identity-metric-label">成绩记录</text>
+        </view>
+        <view class="identity-metric-divider"></view>
+        <view class="identity-metric">
+          <text class="identity-metric-value">{{gpa}}</text>
+          <text class="identity-metric-label">总 GPA</text>
+        </view>
+        <view class="identity-metric-divider"></view>
+        <view class="identity-metric">
+          <text class="identity-metric-value">{{creditProgress}}</text>
+          <text class="identity-metric-label">学分进度</text>
+        </view>
+      </view>
+
+      <picker class="identity-picker" mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
+        <view class="identity-row tap">
+          <view class="identity-row-icon"><icon name="calendar" size="26" color="#3157D5" /></view>
+          <text class="identity-row-label">第一周周一</text>
+          <text class="identity-row-value">{{firstWeekDate || '设置'}}</text>
+          <view class="identity-row-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
+        </view>
+      </picker>
+
+      <view class="identity-row identity-row-last tap {{calendarSyncing ? 'is-busy' : ''}}" bindtap="onSyncCalendar">
+        <view class="identity-row-icon"><view class="{{calendarSyncing ? 'spin' : ''}}"><icon name="refresh" size="26" color="#3157D5" /></view></view>
+        <text class="identity-row-label">校历</text>
+        <text class="identity-row-value identity-row-action">{{calendarSyncing ? '同步中…' : '从教务同步'}}</text>
       </view>
     </view>
 
-    <!-- 关键指标行 -->
-    <view class="profile-metrics card">
-      <view class="user-overview">
-        <view class="user-overview-item">
-          <text class="user-overview-value">{{gradeCount}}</text>
-          <text class="user-overview-label">成绩记录</text>
-        </view>
-        <view class="user-overview-divider"></view>
-        <view class="user-overview-item">
-          <text class="user-overview-value">{{gpa}}</text>
-          <text class="user-overview-label">总 GPA</text>
-        </view>
-        <view class="user-overview-divider"></view>
-        <view class="user-overview-item">
-          <text class="user-overview-value credit-value">{{creditProgress}}</text>
-          <text class="user-overview-label">学分进度</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 校历校准 -->
-    <view class="profile-calibration card">
-      <view class="user-calibration">
-        <picker class="calibration-picker" mode="date" value="{{firstWeekDate}}" bindchange="onFirstWeekDateChange">
-          <view class="calibration-inline tap">
-            <view class="calibration-icon"><icon name="calendar" size="28" color="#2563EB" /></view>
-            <view class="calibration-copy">
-              <text class="calibration-title">第一周周一</text>
-            </view>
-            <text class="calibration-value">{{firstWeekDate || '设置'}}</text>
-            <view class="calibration-arrow"><icon name="next" size="24" color="#64748B" /></view>
-          </view>
-        </picker>
-        <view class="sync-inline tap" bindtap="onSyncCalendar">
-          <view class="sync-icon {{calendarSyncing ? 'spin' : ''}}"><icon name="refresh" size="28" color="#2563EB" /></view>
-          <text>{{calendarSyncing ? '同步中…' : '从教务同步'}}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 界面字体: 紧凑分段选择 -->
+    <!-- ============================================================ -->
+    <!-- 偏好 / 服务 / 帮助与反馈: 统一为「分组标题 + 列表行」          -->
+    <!-- ============================================================ -->
     <view class="profile-section-label">偏好</view>
-    <view class="setting-card card">
-      <view class="group-title">界面字体</view>
-      <view class="font-seg">
-        <view class="font-choice f-pixel tap {{fontMode === 'pixel' ? 'on' : ''}}" data-mode="pixel" bindtap="onPickFont">
-          <text class="font-name">像素点阵</text>
-        </view>
-        <view class="font-choice f-system tap {{fontMode === 'system' ? 'on' : ''}}" data-mode="system" bindtap="onPickFont">
-          <text class="font-name">系统字体</text>
+    <view class="list-group">
+      <view class="list-row">
+        <text class="list-row__label">界面字体</text>
+        <view class="font-seg">
+          <view class="font-choice f-pixel tap {{fontMode === 'pixel' ? 'on' : ''}}" data-mode="pixel" bindtap="onPickFont">
+            <text class="font-name">像素点阵</text>
+          </view>
+          <view class="font-choice f-system tap {{fontMode === 'system' ? 'on' : ''}}" data-mode="system" bindtap="onPickFont">
+            <text class="font-name">系统字体</text>
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 消息提醒(订阅消息): 授权一次可发一条; 服务端未配置时不显示 -->
-    <view class="profile-section-label service-label">服务</view>
-    <view class="notice-card" wx:if="{{subKinds.length > 0}}">
+    <view class="profile-section-label service-label" wx:if="{{subKinds.length > 0}}">服务</view>
+    <view class="list-group" wx:if="{{subKinds.length > 0}}">
       <view class="act-row tap" bindtap="onOpenSubscriptions">
         <view class="notice-dot {{subHasQuota ? 'on' : ''}}"></view>
         <view class="act-main">
           <text class="act-title">消息提醒</text>
           <text class="act-sub">{{subSummary}}</text>
         </view>
-        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
+        <view class="act-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
       </view>
     </view>
 
     <!-- 帮助与反馈(弹窗实现都在本组件内, 入口必须放在同一页, 否则会先跳页再弹窗) -->
-    <view class="menu-card">
+    <view class="profile-section-label">帮助与反馈</view>
+    <view class="list-group">
       <view class="act-row tap {{testingConnection ? 'is-disabled' : ''}}" bindtap="onTestConnection">
-        <view class="menu-ico"><icon name="sync" size="28" color="#2563EB" /></view>
+        <view class="menu-ico"><icon name="sync" size="26" color="#3157D5" /></view>
         <view class="menu-copy">
           <text class="act-title">测试连接</text>
           <text class="act-sub {{connectionStatus === 'ok' ? 'is-ok' : (connectionStatus === 'fail' ? 'is-fail' : '')}}"
                 wx:if="{{connectionText}}">{{connectionText}}</text>
         </view>
-        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
+        <view class="act-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
       </view>
       <view class="act-row tap" bindtap="onOpenLinks">
-        <view class="menu-ico"><icon name="grid" size="28" color="#2563EB" /></view>
+        <view class="menu-ico"><icon name="grid" size="26" color="#3157D5" /></view>
         <view class="menu-copy"><text class="act-title">常用链接</text></view>
-        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
+        <view class="act-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
       </view>
       <view class="act-row tap" bindtap="onOpenFeedback">
-        <view class="menu-ico"><icon name="doc" size="28" color="#2563EB" /></view>
+        <view class="menu-ico"><icon name="doc" size="26" color="#3157D5" /></view>
         <view class="menu-copy"><text class="act-title">问题反馈</text></view>
-        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
+        <view class="act-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
       </view>
       <view class="act-row tap" bindtap="onOpenMyFeedback">
-        <view class="menu-ico"><icon name="clipboard" size="28" color="#2563EB" /></view>
+        <view class="menu-ico"><icon name="clipboard" size="26" color="#3157D5" /></view>
         <view class="menu-copy"><text class="act-title">我的反馈</text></view>
         <text class="act-badge" wx:if="{{fbUnread > 0}}">{{fbUnread > 99 ? '99+' : fbUnread}}</text>
-        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
+        <view class="act-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
       </view>
       <view class="act-row tap" bindtap="onOpenAppreciate">
-        <view class="menu-ico"><icon name="award" size="28" color="#2563EB" /></view>
+        <view class="menu-ico"><icon name="award" size="26" color="#3157D5" /></view>
         <view class="menu-copy"><text class="act-title">赞赏支持</text></view>
-        <view class="act-arrow"><icon name="next" size="26" color="#64748B" /></view>
+        <view class="act-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
       </view>
     </view>
 
@@ -206,8 +205,8 @@
     </view>
   </view>
 
-  <!-- 版本标识 -->
-  <view class="version-tip">v1.2.0 · build {{build}}</view>
+  <!-- 版本标识: 版本号来自内置更新记录, build 来自 config.BUILD -->
+  <view class="version-tip">{{appVersion ? appVersion + ' · ' : ''}}build {{build}}</view>
 
   </scroll-view>
 
@@ -220,7 +219,7 @@
     <view class="fb-card">
       <view class="fb-head">
         <text class="fb-title">问题反馈</text>
-        <view class="fb-close tap" bindtap="onFbClose"><icon name="close" size="26" color="#64748B" /></view>
+        <view class="fb-close tap" bindtap="onFbClose"><icon name="close" size="26" color="#6B7684" /></view>
       </view>
 
       <view class="fb-label">反馈类型</view>
@@ -252,7 +251,7 @@
     <view class="fb-card">
       <view class="fb-head">
         <text class="fb-title">我的反馈</text>
-        <view class="fb-close tap" bindtap="onMyFbClose"><icon name="close" size="26" color="#64748B" /></view>
+        <view class="fb-close tap" bindtap="onMyFbClose"><icon name="close" size="26" color="#6B7684" /></view>
       </view>
 
       <view class="myfb-list">
@@ -292,7 +291,7 @@
     <view class="fb-card">
       <view class="fb-head">
         <text class="fb-title">常用链接</text>
-        <view class="fb-close tap" bindtap="onLinksClose"><icon name="close" size="26" color="#64748B" /></view>
+        <view class="fb-close tap" bindtap="onLinksClose"><icon name="close" size="26" color="#6B7684" /></view>
       </view>
 
       <view class="link-tip">点击复制链接，在浏览器粘贴打开 · 长按查看完整网址</view>
@@ -325,7 +324,7 @@
     <view class="fb-card sub-card">
       <view class="fb-head">
         <text class="fb-title">消息提醒</text>
-        <view class="fb-close tap" bindtap="onSubscriptionsClose"><icon name="close" size="26" color="#64748B" /></view>
+        <view class="fb-close tap" bindtap="onSubscriptionsClose"><icon name="close" size="26" color="#6B7684" /></view>
       </view>
       <view class="sub-tip">微信每次授权可发送一条；勾选“总是保持以上选择”后，可继续点击累积额度。</view>
       <view class="notice-card sub-list">
@@ -349,7 +348,7 @@
     <view class="fb-card appreciate-card">
       <view class="fb-head">
         <text class="fb-title">赞赏支持</text>
-        <view class="fb-close tap" bindtap="onCloseAppreciate"><icon name="close" size="26" color="#64748B" /></view>
+        <view class="fb-close tap" bindtap="onCloseAppreciate"><icon name="close" size="26" color="#6B7684" /></view>
       </view>
       <image class="appreciate-img" src="/static/appreciate.jpg" mode="widthFix"
              show-menu-by-longpress="{{true}}" />

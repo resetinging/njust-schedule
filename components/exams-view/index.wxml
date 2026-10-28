@@ -18,7 +18,7 @@
         </view>
         <view class="yjs-hint" wx:if="{{!examRows.length}}">暂无考试安排，点下方按钮获取</view>
       </view>
-      <view class="yjs-refresh tap" bindtap="onRefreshYjsExams">
+      <view class="yjs-refresh tap {{refreshing ? 'is-busy' : ''}}" bindtap="onRefreshYjsExams">
         {{refreshing ? '获取中…' : '从研究生系统获取'}}
       </view>
       <view class="yjs-note">数据来自研究生系统「学期考试信息查询」</view>
@@ -44,8 +44,8 @@
           <text class="ph-title">考试安排</text>
           <text class="ph-sub">共 {{exams.length}} 场考试</text>
         </view>
-        <view class="ph-refresh tap {{loading ? 'spin' : ''}}" bindtap="onRefresh">
-          <icon name="refresh" size="32" color="#64748B" />
+        <view class="ph-refresh tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新考试安排">
+          <icon name="refresh" size="32" color="#6B7684" />
         </view>
       </view>
 
@@ -71,16 +71,19 @@
               <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>
               <view wx:if="{{group.urgency === 'done'}}" class="collapse-arrow">
                 <text>{{collapsedDates[group.date] ? '展开' : '折叠'}}</text>
-                <icon name="{{collapsedDates[group.date] ? 'next' : 'prev'}}" size="18" color="#748196" />
+                <icon name="{{collapsedDates[group.date] ? 'next' : 'prev'}}" size="18" color="#6B7684" />
               </view>
             </view>
           </view>
 
           <!-- 考试卡片（已结束且折叠时隐藏） -->
           <block wx:if="{{!(group.urgency === 'done' && collapsedDates[group.date])}}">
-            <view class="exam-card {{group.urgency === 'urgent' ? 'exam-urgent' : ''}} {{group.urgency === 'warning' ? 'exam-warning' : ''}} {{group.urgency === 'done' ? 'exam-done' : ''}}"
+            <view class="exam-card {{exam.cardClass}}"
                   wx:for="{{group.exams}}" wx:key="index" wx:for-item="exam">
-              <view class="exam-course">{{exam.course_name}}</view>
+              <view class="exam-head">
+                <view class="exam-course">{{exam.course_name}}</view>
+                <text class="exam-state {{exam.statusClass}}">{{exam.statusText}}</text>
+              </view>
               <view class="exam-meta">
                 <text class="meta-item">{{exam.time || '待定'}}</text>
                 <text class="meta-item">{{exam.location || '待定'}}</text>
@@ -91,8 +94,14 @@
           </block>
         </block>
       </view>
-      <view id="slot-exams-bottom" class="analytics-slot-marker"></view>
     </block>
+
+    <view id="slot-exams-bottom">
+      <ad-slot unit-id="adunit-8f99eb551760e548"
+               slot-id="slot-exams-bottom"
+               page="exams"
+               ad-type="native" />
+    </view>
 
   </scroll-view>
 

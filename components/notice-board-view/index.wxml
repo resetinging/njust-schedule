@@ -1,0 +1,156 @@
+<view class="notice-root ">
+  <view class="notice-nav">
+    <view class="notice-back tap" aria-label="返回" bindtap="onBack">
+      <icon name="back" size="28" color="#6B7684" />
+      <text>返回</text>
+    </view>
+    <text class="notice-updated" wx:if="{{updated}}">{{updated}}</text>
+  </view>
+
+  <scroll-view class="notice-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+    <view class="notice-content">
+      <view class="notice-tabs">
+        <view class="notice-tab tap {{activeTab === 'announcements' ? 'on' : ''}}"
+              data-tab="announcements" bindtap="onTab">
+          <icon name="megaphone" size="26" color="{{activeTab === 'announcements' ? '#3157D5' : '#748196'}}" />
+          <text>公告</text>
+          <text class="tab-count" wx:if="{{announcements.length}}">{{announcements.length}}</text>
+        </view>
+        <view class="notice-tab tap {{activeTab === 'changelog' ? 'on' : ''}}"
+              data-tab="changelog" bindtap="onTab">
+          <icon name="refresh" size="26" color="{{activeTab === 'changelog' ? '#3157D5' : '#748196'}}" />
+          <text>更新</text>
+          <text class="tab-count" wx:if="{{changelog.length}}">{{changelog.length}}</text>
+        </view>
+        <view class="notice-tab tap {{activeTab === 'contact' ? 'on' : ''}}"
+              data-tab="contact" bindtap="onTab">
+          <icon name="user" size="26" color="{{activeTab === 'contact' ? '#3157D5' : '#748196'}}" />
+          <text>联系</text>
+        </view>
+      </view>
+
+      <view class="load-warning" wx:if="{{errorMsg && errorMsg !== '暂无内容'}}">
+        <icon name="refresh" size="24" color="#A66A0B" />
+        <text class="load-warning-text">公告和联系信息加载失败</text>
+        <text class="load-warning-action tap {{loading ? 'is-busy' : ''}}" bindtap="onRetry">重试</text>
+      </view>
+
+      <view class="notice-loading" wx:if="{{loading}}">
+        <view class="skeleton skeleton-wide"></view>
+        <view class="skeleton"></view>
+        <view class="skeleton skeleton-short"></view>
+      </view>
+
+      <view class="notice-empty" wx:elif="{{errorMsg && !announcements.length && !changelog.length && !community.qq}}">
+        <view class="empty-mark"><icon name="{{errorMsg === '暂无内容' ? 'doc' : 'refresh'}}" size="42" color="#6B7684" /></view>
+        <text class="empty-title">{{errorMsg}}</text>
+        <view class="retry-btn tap {{loading ? 'is-busy' : ''}}" wx:if="{{errorMsg !== '暂无内容'}}" bindtap="onRetry">重新加载</view>
+      </view>
+
+      <block wx:else>
+        <view class="notice-panel" wx:if="{{activeTab === 'announcements'}}">
+          <view class="featured-card priority-{{featured.priority}}" wx:if="{{featured}}">
+            <view class="featured-meta">
+              <text class="type-label">{{featured.type_label}}</text>
+              <text class="priority-label priority-{{featured.priority}}"
+                    wx:if="{{featured.priority_label}}">{{featured.priority_label}}</text>
+              <text class="featured-date">{{featured.published_at}}</text>
+            </view>
+            <text class="featured-title">{{featured.title}}</text>
+            <text class="audience-line" wx:if="{{featured.audience}}">影响范围 · {{featured.audience}}</text>
+            <text class="featured-body {{featured.long && expandedID !== featured.id ? 'is-clamped' : ''}}">{{featured.body}}</text>
+            <view class="action-note" wx:if="{{featured.action}}">
+              <text class="action-label">需要处理</text>
+              <text class="action-text">{{featured.action}}</text>
+            </view>
+            <view class="text-action tap" wx:if="{{featured.long}}"
+                  data-id="{{featured.id}}" bindtap="onToggleAnnouncement">
+              {{expandedID === featured.id ? '收起' : '展开全文'}}
+            </view>
+          </view>
+
+          <view class="section-heading" wx:if="{{announcementRest.length}}">
+            <text>最近公告</text>
+            <text class="section-count">{{announcementRest.length}} 条</text>
+          </view>
+
+          <view class="announcement-list" wx:if="{{announcementRest.length}}">
+            <view class="announcement-item" wx:for="{{announcementRest}}" wx:key="id">
+              <view class="announcement-main" data-id="{{item.id}}" bindtap="onToggleAnnouncement">
+                <view class="announcement-meta">
+                  <text class="type-label">{{item.type_label}}</text>
+                  <text class="priority-label priority-{{item.priority}}"
+                        wx:if="{{item.priority_label}}">{{item.priority_label}}</text>
+                  <text class="announcement-date">{{item.published_at}}</text>
+                </view>
+                <view class="announcement-head">
+                  <text class="announcement-title">{{item.title}}</text>
+                  <text class="expand-state" wx:if="{{item.long}}">
+                    {{expandedID === item.id ? '收起' : '展开'}}
+                  </text>
+                </view>
+                <text class="audience-line" wx:if="{{item.audience}}">影响范围 · {{item.audience}}</text>
+                <text class="announcement-body {{item.long && expandedID !== item.id ? 'is-clamped' : ''}}">{{item.body}}</text>
+                <view class="action-inline" wx:if="{{item.action}}">
+                  <text class="action-label">需要处理</text>
+                  <text>{{item.action}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view class="section-empty" wx:if="{{!announcements.length}}">
+            <icon name="megaphone" size="40" color="#9AA4B0" />
+            <text>{{errorMsg ? '公告加载失败' : '暂时没有公告'}}</text>
+          </view>
+        </view>
+
+        <view class="notice-panel" wx:elif="{{activeTab === 'changelog'}}">
+          <view class="changelog-list" wx:if="{{changelog.length}}">
+            <view class="changelog-item" wx:for="{{changelog}}" wx:key="version">
+              <view class="timeline"><view class="timeline-dot"></view></view>
+              <view class="changelog-card">
+                <view class="changelog-head">
+                  <text class="version">{{item.version}}</text>
+                  <text class="changelog-date">{{item.published_at}}</text>
+                </view>
+                <text class="changelog-title">{{item.title}}</text>
+                <view class="changelog-lines">
+                  <view class="changelog-line" wx:for="{{item.changes}}" wx:for-item="line" wx:key="text">
+                    <text class="change-badge change-{{line.type}}">{{line.type_label}}</text>
+                    <text class="change-text">{{line.text}}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view class="section-empty" wx:else>
+            <icon name="refresh" size="40" color="#9AA4B0" />
+            <text>暂时没有更新记录</text>
+          </view>
+        </view>
+
+        <view class="notice-panel" wx:else>
+          <view class="support-card" wx:if="{{community.qq}}">
+            <view class="support-row">
+              <view class="support-icon"><icon name="user" size="32" color="#3157D5" /></view>
+              <view class="support-copy">
+                <text class="support-label">QQ 交流群</text>
+                <text class="support-name">{{community.name || '课表助手交流群'}}</text>
+                <text class="support-number">{{community.qq}}</text>
+              </view>
+              <view class="copy-btn tap {{copied ? 'is-copied' : ''}}" bindtap="onCopyQQ">
+                {{copied ? '已复制' : '复制'}}
+              </view>
+            </view>
+            <text class="support-note" wx:if="{{community.note}}">{{community.note}}</text>
+          </view>
+          <view class="section-empty" wx:else>
+            <icon name="user" size="40" color="#9AA4B0" />
+            <text>{{errorMsg ? '联系信息加载失败' : '暂未配置交流群'}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+  </scroll-view>
+</view>

@@ -19,8 +19,8 @@
             <text class="credit-hero-total">/ {{view.totalRequired}}</text>
             <text class="credit-hero-label">已修学分</text>
           </view>
-          <view class="credit-refresh tap {{refreshing ? 'spin' : ''}}" bindtap="onRefresh">
-            <icon name="refresh" size="34" color="#2563EB" />
+          <view class="refresh-action tap {{refreshing ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新培养方案">
+            <icon name="refresh" size="34" color="#3157D5" />
           </view>
         </view>
 
@@ -71,7 +71,7 @@
             <text class="cr-title">未通过</text>
             <text class="cr-count">{{view.failed.count}} 门 · {{view.failed.credits}} 学分</text>
           </view>
-          <view class="cr-arrow"><icon name="{{expanded ? 'prev' : 'next'}}" size="24" color="#64748B" /></view>
+          <view class="cr-arrow"><icon name="{{expanded ? 'prev' : 'next'}}" size="24" color="#6B7684" /></view>
         </view>
         <block wx:if="{{expanded}}">
           <view class="cr-sem" wx:for="{{view.failed.groups}}" wx:key="semester">
@@ -91,7 +91,7 @@
             <text class="cr-title">本学期</text>
             <text class="cr-count">{{view.current.count}} 门 · {{view.current.credits}} 学分</text>
           </view>
-          <view class="cr-arrow"><icon name="{{expandedCurrent ? 'prev' : 'next'}}" size="24" color="#64748B" /></view>
+          <view class="cr-arrow"><icon name="{{expandedCurrent ? 'prev' : 'next'}}" size="24" color="#6B7684" /></view>
         </view>
         <block wx:if="{{expandedCurrent}}">
           <view class="cr-sem" wx:for="{{view.current.groups}}" wx:key="semester">
@@ -111,7 +111,7 @@
             <text class="cr-title">后续学期</text>
             <text class="cr-count">{{view.upcoming.count}} 门 · {{view.upcoming.credits}} 学分</text>
           </view>
-          <view class="cr-arrow"><icon name="{{expandedUpcoming ? 'prev' : 'next'}}" size="24" color="#64748B" /></view>
+          <view class="cr-arrow"><icon name="{{expandedUpcoming ? 'prev' : 'next'}}" size="24" color="#6B7684" /></view>
         </view>
         <block wx:if="{{expandedUpcoming}}">
           <view class="cr-sem" wx:for="{{view.upcoming.groups}}" wx:key="semester">
@@ -129,7 +129,12 @@
         <text class="credit-chip" wx:if="{{view.alternativesCount > 0}}">同组未选 {{view.alternativesCount}} 门</text>
       </view>
       <text class="credit-updated" wx:if="{{updated}}">{{updated}}</text>
-      <view id="slot-credit-bottom" class="analytics-slot-marker"></view>
+      <view id="slot-credit-bottom">
+        <ad-slot unit-id="adunit-8f99eb551760e548"
+                 slot-id="slot-credit-bottom"
+                 page="credit"
+                 ad-type="native" />
+      </view>
     </block>
 
   </scroll-view>

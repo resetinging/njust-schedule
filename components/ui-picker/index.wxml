@@ -1,8 +1,11 @@
 <view class="ui-picker-trigger {{disabled ? 'is-disabled' : ''}}" bind:tap="open">
   <slot></slot>
 </view>
-<t-picker visible="{{visible}}" value="{{pickerValue}}" title="{{title}}"
-          bind:confirm="onConfirm" bind:cancel="onCancel"
-          bind:visible-change="onVisibleChange">
-  <t-picker-item options="{{options}}" />
-</t-picker>
+<!-- 选择器常位于 scroll-view 内，挂到页面根节点避免底部弹层被祖先裁剪。 -->
+<root-portal>
+  <t-picker visible="{{visible}}" value="{{pickerValue}}" title="{{title}}"
+            bind:confirm="onConfirm" bind:cancel="onCancel"
+            bind:visible-change="onVisibleChange">
+    <t-picker-item options="{{options}}" />
+  </t-picker>
+</root-portal>

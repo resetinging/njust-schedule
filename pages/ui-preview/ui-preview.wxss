@@ -1,8 +1,8 @@
 page {
-  background: #eef4f1;
+  background: var(--bg-page);
 }
 
 .preview-page {
   min-height: 100vh;
-  background: #eef4f1;
+  background: var(--bg-page);
 }

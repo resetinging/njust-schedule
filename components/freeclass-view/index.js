@@ -160,8 +160,10 @@ Component({
 
   /** 渲染结果(缓存或网络数据共用) */
   _applyResult(res) {
-    const groups = groupRooms(res.rooms || [], res.buildings)
-      .filter(isMainTeaching)              // 只展示四大教学楼
+    const grouped = groupRooms(res.rooms || [], res.buildings)
+    // 孝陵卫保持四大教学楼视图；江阴教学楼名称不固定，不能按同一白名单过滤。
+    const visible = res.campus === '江阴' ? grouped : grouped.filter(isMainTeaching)
+    const groups = visible
       // 默认收起为两行; 展开按钮按实际高度判断, 数量兜底防测量失败。
       .map(g => Object.assign({}, g, {
         expanded: false,

@@ -1,0 +1,152 @@
+<!-- 图书馆公共馆藏：检索卡片 + 结果列表 + 按需逐册馆藏弹层 -->
+<view class="container {{embedded ? 'is-embedded' : ''}}">
+
+  <view class="custom-nav {{embedded ? 'is-embedded' : ''}}"
+        style="{{embedded ? 'padding-top:0;' : 'padding-top:' + statusBarHeight + 'px;'}}">
+    <view class="custom-nav-inner"
+          style="{{embedded ? 'height:88rpx;' : 'height:' + navBarHeight + 'px;'}}padding-right:{{navRight}}px;">
+      <view class="custom-back tap" aria-label="返回" bindtap="onBack">
+        <view class="icon-back"><icon name="back" size="28" color="#6B7684" /></view>
+        <text>返回</text>
+      </view>
+      <text class="custom-nav-title">图书馆库存</text>
+    </view>
+  </view>
+
+  <scroll-view class="view-scroll" scroll-y enhanced show-scrollbar="{{false}}"
+               bindscrolltolower="onScrollToLower" lower-threshold="120">
+    <view class="page-content">
+
+      <!-- ============ 检索条件 ============ -->
+      <view class="search-card">
+        <view class="field-row">
+          <view class="field-chip tap {{fieldIndex === index ? 'is-active' : ''}}"
+                wx:for="{{fields}}" wx:key="key" data-index="{{index}}" bindtap="onFieldTap">
+            {{item.label}}
+          </view>
+        </view>
+        <view class="search-row">
+          <input class="search-input" value="{{keyword}}" placeholder="{{fields[fieldIndex].placeholder}}"
+                 placeholder-class="search-ph" confirm-type="search" maxlength="80"
+                 bindinput="onKeywordInput" bindconfirm="onKeywordConfirm" />
+          <view class="refresh-action search-submit tap {{loading ? 'is-busy' : ''}}"
+                aria-label="查询" bindtap="onSearch">
+            <icon name="search" size="36" color="#FFFFFF" />
+          </view>
+        </view>
+        <text class="search-hint">提交后从服务器分页获取；列表不逐本预取馆藏。</text>
+      </view>
+
+      <!-- ============ 结果概览 ============ -->
+      <view class="result-head" wx:if="{{searched}}">
+        <view class="result-copy">
+          <text class="result-total">共 {{total}} 条</text>
+          <text class="stale-tag" wx:if="{{searchStale}}">旧缓存</text>
+          <text class="updated-text" wx:if="{{searchUpdatedText}}">更新于 {{searchUpdatedText}}</text>
+        </view>
+        <view class="refresh-action tap {{loading ? 'is-busy' : ''}}" aria-label="刷新结果" bindtap="onRefresh">
+          <icon name="refresh" size="30" color="#6B7684" />
+        </view>
+      </view>
+
+      <view class="error-tip" wx:if="{{errorMsg}}">
+        <text class="error-text">{{errorMsg}}</text>
+        <text class="retry-link tap" bindtap="onRetry">重试</text>
+      </view>
+
+      <!-- ============ 书目列表 ============ -->
+      <view class="book-list" wx:if="{{records.length}}">
+        <view class="book-card tap" wx:for="{{records}}" wx:key="marcNo"
+              data-index="{{index}}" bindtap="onOpenDetail">
+          <view class="book-top">
+            <text class="book-title">{{item.title}}</text>
+            <view class="book-tag">{{item.docType}}</view>
+          </view>
+          <text class="book-meta">{{item.metaText}}</text>
+          <text class="book-call" wx:if="{{item.callText}}">{{item.callText}}</text>
+          <view class="book-foot">
+            <text class="book-more">查看馆藏</text>
+            <view class="book-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
+          </view>
+        </view>
+
+        <view class="load-more tap {{loading ? 'is-busy' : ''}}" wx:if="{{hasMore}}" bindtap="onLoadMore">
+          {{loading ? '加载中…' : '加载更多'}}
+        </view>
+        <view class="list-end" wx:elif="{{records.length && !loading}}">已加载全部 {{total}} 条</view>
+      </view>
+
+      <empty-state wx:if="{{searched && !loading && !records.length && !errorMsg}}"
+                   icon="search" title="没有找到相关馆藏"
+                   desc="换个书名、作者、ISBN 或索书号再试试" />
+
+      <!-- ============ 首屏说明（不自动联网） ============ -->
+      <view class="start-card" wx:if="{{!searched && !loading}}">
+        <view class="start-icon"><icon name="search" size="40" color="#3157D5" /></view>
+        <text class="start-title">查图书馆纸本馆藏</text>
+        <text class="start-desc">支持书名 / 作者 / ISBN / 索书号；提交后按服务器分页返回，点开书目再读取逐册馆藏。</text>
+      </view>
+
+    </view>
+  </scroll-view>
+
+  <!-- ============ 逐册馆藏弹层（点击书目后按需请求） ============ -->
+  <t-popup t-class="library-popup" visible="{{showDetail}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click
+           bind:visible-change="onDetailVisibleChange">
+    <view class="detail-sheet" wx:if="{{detailRecord}}">
+      <view class="detail-head">
+        <view class="detail-head-main">
+          <text class="detail-title">{{detailRecord.title}}</text>
+          <text class="detail-sub">{{detailRecord.metaText}}</text>
+          <text class="detail-call" wx:if="{{detailRecord.callText}}">{{detailRecord.callText}}</text>
+        </view>
+        <view class="detail-close tap" aria-label="关闭" bindtap="onDetailClose">
+          <icon name="close" size="30" color="#6B7684" />
+        </view>
+      </view>
+
+      <view class="campus-tabs">
+        <view class="campus-chip tap {{campusScope === item.key ? 'is-active' : ''}}"
+              wx:for="{{campusOptions}}" wx:key="key" data-scope="{{item.key}}" bindtap="onCampusTap">
+          <text>{{item.label}}</text>
+          <text class="campus-count">{{campusCounts[item.key]}}</text>
+        </view>
+      </view>
+
+      <view class="detail-summary">
+        <text>总 {{detailTotal}} 册</text>
+        <text class="summary-dot">·</text>
+        <text class="summary-available">可借 {{detailAvailable}} 册</text>
+        <text class="stale-tag" wx:if="{{detailStale}}">旧缓存</text>
+        <text class="updated-text" wx:if="{{detailUpdatedText}}">更新于 {{detailUpdatedText}}</text>
+      </view>
+
+      <scroll-view scroll-y class="copies-scroll" enhanced show-scrollbar="{{false}}">
+        <view class="detail-tip" wx:if="{{detailLoading}}">正在读取馆藏…</view>
+        <view class="detail-error" wx:elif="{{detailError}}">
+          <text>{{detailError}}</text>
+          <text class="retry-link tap" bindtap="onDetailRetry">重试</text>
+        </view>
+        <view class="detail-tip" wx:elif="{{!copies.length}}">该筛选下暂无馆藏记录</view>
+        <view class="copy-row" wx:for="{{copies}}" wx:key="barcode">
+          <view class="copy-main">
+            <text class="copy-call">{{item.callNo || '索书号未注明'}}</text>
+            <text class="copy-meta">{{item.barcode}}<text wx:if="{{item.volume}}"> · {{item.volume}}</text></text>
+            <text class="copy-loc">{{item.location}}</text>
+          </view>
+          <view class="copy-side">
+            <text class="copy-status {{item.statusClass}}">{{item.status}}</text>
+            <text class="copy-campus">{{item.campus}}</text>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="detail-foot">
+        <text class="detail-note">馆藏状态来自公共 OPAC；统计仅把明确“可借”的册数计入可借。</text>
+        <view class="detail-ok tap" bindtap="onDetailClose">关闭</view>
+      </view>
+    </view>
+  </t-popup>
+
+</view>

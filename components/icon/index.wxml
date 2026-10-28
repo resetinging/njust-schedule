@@ -1,35 +1,55 @@
 <!-- 相对路径(组件内绝对路径不可靠); 路径直接拼, 不用 observer -->
-<!-- 色调按传入色值就近取档: 图标是 PNG, 只有 4 档描边色 -->
+<!--
+  图标 = static/icons/<name>-<tone>.png，只有 4 档描边色：indigo(品牌/强调) / slate(中性深) / grey(中性浅) / white(反白)。
+  tone() 把传入色值归一到这 4 档；file() 的每个分支都只返回真实存在的资源（契约由 tools/test_icon_assets.js 回归）。
+  语义色(成功/提醒/危险)在资源层面统一落 indigo 品牌档，语义由容器底色与文字表达。
+-->
 <wxs module="ico">
 module.exports.tone = function (c) {
   if (c === '#FFFFFF' || c === '#ffffff' || c === '#fff') return 'white'
-  if (c === '#2563EB' || c === '#3157D5' || c === '#2544B5' ||
-      c === '#5D79E0' || c === '#3B82F6' || c === '#60A5FA' ||
-      c === '#2B4C7E' || c === '#3E6CB8' || c === '#6C63B8') return 'indigo'
-  if (c === '#64748B' || c === '#475569') return 'slate'
-  return 'grey'
+  // 品牌与语义强调色 -> indigo 档（PNG 只有 4 档，语义交给容器底色表达）
+  if (c === '#3157D5' || c === '#2544B5' || c === '#5D79E0' ||
+      c === '#2563EB' || c === '#3B82F6' || c === '#60A5FA' ||
+      c === '#2B4C7E' || c === '#3E6CB8' || c === '#6C63B8' ||
+      c === '#6D28D9' || c === '#247B68' || c === '#1F9D82' ||
+      c === '#A66A0B' || c === '#D99025' || c === '#B84750' ||
+      c === '#D75C62') return 'indigo'
+  // 中性深色 -> slate
+  if (c === '#20262D' || c === '#334155' || c === '#59636F' ||
+      c === '#64748B' || c === '#6B7684' || c === '#748196') return 'slate'
+  // 中性浅色 -> grey
+  if (c === '#9AA4B0' || c === '#9AA6B6' || c === '#94A3B8' ||
+      c === '#BFC7D1' || c === '#C3CBD5') return 'grey'
+  // 未知色值按中性深档处理，不强行变品牌色，也不会落到不存在的资源
+  return 'slate'
 }
 
 module.exports.file = function (name, c) {
   var tone = module.exports.tone(c)
-  // 部分线性图标当前只保留 slate 资源；这里做组件级兜底，
-  // 避免旧页面或缓存继续请求不存在的 indigo/grey 文件。
+  // 单一档位资源
   if (name === 'next' || name === 'prev' || name === 'back') return name + '-slate'
   if (name === 'hourglass' || name === 'clock') return name + '-slate'
-  if (name === 'list') return 'list-slate'
-  if (name === 'refresh' || name === 'sync') return tone === 'indigo' ? name + '-indigo' : name + '-slate'
+  if (name === 'list' || name === 'more') return 'list-slate'
   if (name === 'plus') return 'plus-indigo'
-  if (name === 'more') return 'list-slate'
   if (name === 'edit' || name === 'trash') return 'doc-indigo'
-  // 这两个图标没有 grey 资源；非主色档统一回退到已有的 slate 资源。
+  if (name === 'check') return 'award-indigo'
+  if (name === 'clipboard' || name === 'chart' || name === 'award' ||
+      name === 'doc' || name === 'image' || name === 'book') return name + '-indigo'
+  // 双档/三档资源
+  if (name === 'refresh') return tone === 'indigo' ? 'refresh-indigo' : 'refresh-slate'
+  // sync 只有 indigo 档；中性场景用同族「圆箭头」refresh-slate 表达
+  if (name === 'sync') return tone === 'indigo' ? 'sync-indigo' : 'refresh-slate'
   if (name === 'search') return tone === 'white' ? 'search-white' : (tone === 'indigo' ? 'search-indigo' : 'search-slate')
   if (name === 'building') return tone === 'indigo' ? 'building-indigo' : 'building-slate'
   if (name === 'lock') return tone === 'indigo' ? 'user-indigo' : 'user-slate'
   if (name === 'link') return tone === 'indigo' ? 'grid-indigo' : 'grid-grey'
   if (name === 'close') return tone === 'indigo' ? 'close-indigo' : 'close-slate'
-  if (name === 'clipboard' || name === 'chart' || name === 'award' ||
-      name === 'doc' || name === 'image') return name + '-indigo'
-  return name + '-' + tone
+  if (name === 'calendar') return tone === 'grey' ? 'calendar-grey' : (tone === 'indigo' ? 'calendar-indigo' : 'calendar-slate')
+  if (name === 'megaphone') return tone === 'indigo' ? 'megaphone-indigo' : 'megaphone-grey'
+  if (name === 'grid') return tone === 'grey' ? 'grid-grey' : (tone === 'indigo' ? 'grid-indigo' : 'grid-slate')
+  if (name === 'user') return tone === 'grey' ? 'user-grey' : (tone === 'indigo' ? 'user-indigo' : 'user-slate')
+  // 未知图标名兜底到真实存在的资源
+  return 'grid-slate'
 }
 </wxs>
 <image class="icon"

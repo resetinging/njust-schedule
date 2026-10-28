@@ -8,7 +8,13 @@ const fs = require('fs')
 const path = require('path')
 
 const ROOT = path.resolve(process.argv[2] || path.join(__dirname, '..'))
-const store = new Map([['semester', '2026-2027-1']])
+// 图标映射与真实资源：直接执行组件运行时的 wxs 映射，避免测试复制一份实现
+const { loadIconContract } = require('./lib/icon-contract')
+const store = new Map([
+  ['semester', '2026-2027-1'],
+  ['student_id', '924101960123'],
+  ['token', 'test-token']
+])
 const toasts = []
 
 global.wx = {
@@ -796,16 +802,21 @@ function makeInstance() {
     assert.ok(emptyJs.includes("'🔎': 'search'"))
     assert.ok(emptyJs.includes("'📊': 'chart'"))
     assert.ok(emptyJs.includes("award: 'star'"))
-    const iconWxml = fs.readFileSync(
-      path.join(ROOT, 'components', 'icon', 'index.wxml'), 'utf8')
-    assert.ok(iconWxml.includes("name === 'list'"))
+    // 空状态回退图标必须解析到真实资源（list 只有 slate 档）
+    const ico = loadIconContract()
+    ;['#6B7684', '#9AA4B0', '#3157D5'].forEach(color => {
+      const res = ico.file('list', color)
+      assert.ok(ico.exists(res), `list 在 ${color} 下解析到缺失资源 ${res}`)
+    })
   })
   await check('返回和关闭图标使用正式资源', () => {
-    const iconWxml = fs.readFileSync(
-      path.join(ROOT, 'components', 'icon', 'index.wxml'), 'utf8')
-    assert.ok(iconWxml.includes("name === 'next' || name === 'prev' || name === 'back'"))
-    assert.ok(iconWxml.includes("name === 'close'"))
-    assert.ok(!iconWxml.includes("name === 'close') return 'plus-indigo'"))
+    const ico = loadIconContract()
+    ;['next', 'prev', 'back', 'close'].forEach(name => {
+      ;['#6B7684', '#9AA4B0', '#3157D5'].forEach(color => {
+        const res = ico.file(name, color)
+        assert.ok(ico.exists(res), `${name}(${color}) 解析到缺失资源 ${res}`)
+      })
+    })
     const backViews = [
       'pages/main/main.wxml',
       'components/freeclass-view/index.wxml',
@@ -821,14 +832,13 @@ function makeInstance() {
     })
   })
   await check('灰色图标不会请求缺失资源', () => {
-    const iconWxml = fs.readFileSync(
-      path.join(ROOT, 'components', 'icon', 'index.wxml'), 'utf8')
-    assert.ok(iconWxml.includes("name === 'search'"))
-    assert.ok(iconWxml.includes("'search-slate'"))
-    assert.ok(iconWxml.includes("name === 'building'"))
-    assert.ok(iconWxml.includes("'building-slate'"))
-    assert.ok(!iconWxml.includes("'search-grey'"))
-    assert.ok(!iconWxml.includes("'building-grey'"))
+    const ico = loadIconContract()
+    ;['search', 'building', 'calendar', 'megaphone'].forEach(name => {
+      ;['#9AA4B0', '#6B7684', '#3157D5', '#FFFFFF'].forEach(color => {
+        const res = ico.file(name, color)
+        assert.ok(ico.exists(res), `${name}(${color}) 解析到缺失资源 ${res}`)
+      })
+    })
   })
   await check('广告槽位使用原生 IntersectionObserver', () => {
     const analytics = fs.readFileSync(

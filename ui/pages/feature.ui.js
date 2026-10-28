@@ -74,6 +74,12 @@ module.exports = {
                 id: 'audit-entry',
                 props: { icon: 'search', title: '蹭课查询', tone: 'signal' },
                 events: { tap: { action: 'openTool', data: { page: 'audit' } } }
+              },
+              {
+                type: 'ActionCard',
+                id: 'library-entry',
+                props: { icon: 'book', title: '图书馆库存', tone: 'signal' },
+                events: { tap: { action: 'openTool', data: { page: 'library' } } }
               }
             ]
           }

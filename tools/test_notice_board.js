@@ -1,0 +1,78 @@
+const assert = require('assert')
+const fs = require('fs')
+const path = require('path')
+
+const ROOT = path.resolve(__dirname, '..')
+const { RELEASES } = require(path.join(ROOT, 'utils', 'changelog'))
+const LATEST_VERSION = RELEASES[0].version
+const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8')
+
+const appJSON = JSON.parse(read('pages/main/main.json'))
+assert.strictEqual(
+  appJSON.usingComponents['notice-board-view'],
+  '/components/notice-board-view/index'
+)
+
+const mainWXML = read('pages/main/main.wxml')
+assert(mainWXML.includes('<notice-board-view'))
+assert(mainWXML.includes('bind:seen="onAnnSeen"'))
+assert(mainWXML.includes('bind:opennotice="onOpenNotice"'))
+assert(mainWXML.includes('aria-label="打开信息中心"'))
+
+const mainJS = read('pages/main/main.js')
+assert(mainJS.includes("notice: '信息中心'"))
+assert(mainJS.includes("'notice', 'freeclass'"))
+assert(mainJS.includes("notice: 'toolNotice'"))
+assert(mainJS.includes('ann.markSeen(updated)'))
+assert(mainJS.includes('settings.onNoticeSeen(updated)'))
+
+const componentWXML = read('components/notice-board-view/index.wxml')
+assert(componentWXML.includes("activeTab === 'announcements'"))
+assert(componentWXML.includes("activeTab === 'changelog'"))
+assert(!componentWXML.includes('notice-masthead'))
+assert(componentWXML.includes('最近公告'))
+assert(componentWXML.includes('change-badge'))
+assert(componentWXML.includes('support-card'))
+assert(componentWXML.includes('已复制'))
+assert(componentWXML.includes('wx:for="{{item.changes}}"'))
+
+const componentJS = read('components/notice-board-view/index.js')
+assert(componentJS.includes("activeTab: 'announcements'"))
+assert(componentJS.includes('content.markSeen(board.updated)'))
+assert(componentJS.includes("triggerEvent('seen'"))
+assert(componentJS.includes('wx.setClipboardData'))
+assert(!componentJS.includes('this._load(false)'))
+assert(componentJS.includes("item.priority === 'important'"))
+assert(componentJS.includes('copied: true'))
+
+const componentWXSS = read('components/notice-board-view/index.wxss')
+assert(!componentWXSS.includes('@keyframes noticeEnter'), '组件内不应再有整页入场关键帧（入场由 tool-layer 统一管理）')
+assert(componentWXSS.includes('@keyframes panelReveal'))
+assert(componentWXSS.includes('prefers-reduced-motion: reduce'))
+assert(componentWXSS.includes('.priority-urgent'))
+assert(componentWXSS.includes('.support-card'))
+assert(componentWXSS.includes('.change-badge'))
+
+const feedbackAPI = read('utils/api/feedback.js')
+assert(feedbackAPI.includes("'/api/content-board'"))
+assert(feedbackAPI.includes('force: true'))
+assert(feedbackAPI.includes('getContentBoard'))
+
+const contentUtil = read('utils/content-board.js')
+assert(contentUtil.includes("CACHE_KEY = 'cached_content_board'"))
+assert(contentUtil.includes("SEEN_KEY = 'content_board_seen'"))
+assert(contentUtil.includes('ANNOUNCEMENT_TYPE_LABELS'))
+assert(contentUtil.includes('CHANGE_TYPE_LABELS'))
+assert(contentUtil.includes("require('./changelog')"))
+
+const changelog = require('../utils/changelog')
+assert(changelog.RELEASES.length >= 10)
+assert.strictEqual(changelog.RELEASES[0].version, LATEST_VERSION)
+assert.strictEqual(changelog.RELEASES[changelog.RELEASES.length - 1].version, 'v1.0.0')
+
+const settingsJS = read('components/settings-view/index.js')
+assert(settingsJS.includes('onNoticeSeen(updated)'))
+assert(settingsJS.includes('annIsNew: false'))
+assert(!read('components/settings-view/index.wxml').includes('<text class="announce-title">信息中心</text>'))
+
+console.log('Notice board regression test passed [OK]')

@@ -4,10 +4,10 @@
 
   <!-- 顶部公告条: 有新公告(updated 未读)时展示, 查看后隐藏 -->
   <view class="ann-bar tap" wx:if="{{ann.visible}}" bindtap="onAnnTap">
-    <view class="ann-icon"><icon name="megaphone" size="30" color="#2563EB" /></view>
+    <view class="ann-icon"><icon name="megaphone" size="30" color="#3157D5" /></view>
     <text class="ann-tag">公告</text>
     <text class="ann-text">{{ann.text}}</text>
-    <view class="ann-more" wx:if="{{ann.long}}"><text>查看</text><view class="ann-next"><icon name="next" size="22" color="#64748B" /></view></view>
+    <view class="ann-more" wx:if="{{ann.long}}"><text>查看</text><view class="ann-next"><icon name="next" size="22" color="#6B7684" /></view></view>
     <text class="ann-close tap" catchtap="onAnnClose">×</text>
   </view>
 
@@ -15,7 +15,7 @@
        横滑手势在课表页用于切换周次; 已访问过的 Tab 保留挂载,
        用内置 view 包装后 hidden 隐藏(自定义组件直接 hidden 不生效),
        从而保留各自的滚动位置与周次状态 -->
-  <view class="main-body" style="height: {{swiperHeight}}px">
+  <view class="main-body">
     <!-- ① 功能页(一级) -->
     <view class="tab-wrap" hidden="{{current !== 0}}">
       <view class="feat-page {{current === 0 ? 'is-active' : ''}}">
@@ -23,9 +23,9 @@
           <view class="feature-title-wrap">
             <text class="feature-title">功能</text>
           </view>
-          <view class="feature-notify tap" aria-label="查看公告" bindtap="onAnnTap">
-            <icon name="megaphone" size="30" color="#334155" />
-            <view class="feature-notify-dot" wx:if="{{ann.visible}}"></view>
+          <view class="feature-notify tap" aria-label="打开信息中心" bindtap="onOpenNotice">
+            <icon name="megaphone" size="30" color="#20262D" />
+            <view class="feature-notify-dot" wx:if="{{ann.unread}}"></view>
           </view>
         </view>
 
@@ -36,28 +36,28 @@
           <view class="feature-tile tone-brand tap" data-sub="exams" bindtap="onOpenFeature">
             <view class="feature-tile-top">
               <view class="feature-icon"><icon name="doc" size="34" color="#3157D5" /></view>
-              <view class="feature-arrow"><icon name="next" size="22" color="#9AA6B6" /></view>
+              <view class="feature-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
             </view>
             <text class="feature-tile-name">考试安排</text>
           </view>
           <view class="feature-tile tone-success tap" wx:if="{{!isGraduate}}" data-sub="eval" bindtap="onOpenFeature">
             <view class="feature-tile-top">
-              <view class="feature-icon"><icon name="clipboard" size="34" color="#1F9D82" /></view>
-              <view class="feature-arrow"><icon name="next" size="22" color="#9AA6B6" /></view>
+              <view class="feature-icon"><icon name="clipboard" size="34" color="#247B68" /></view>
+              <view class="feature-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
             </view>
             <text class="feature-tile-name">教学评价</text>
           </view>
           <view class="feature-tile tone-signal tap" data-sub="grades" bindtap="onOpenFeature">
             <view class="feature-tile-top">
-              <view class="feature-icon"><icon name="chart" size="34" color="#D99025" /></view>
-              <view class="feature-arrow"><icon name="next" size="22" color="#9AA6B6" /></view>
+              <view class="feature-icon"><icon name="chart" size="34" color="#A66A0B" /></view>
+              <view class="feature-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
             </view>
             <text class="feature-tile-name">成绩查询</text>
           </view>
           <view class="feature-tile tone-violet tap" data-sub="credit" bindtap="onOpenFeature">
             <view class="feature-tile-top">
               <view class="feature-icon"><icon name="award" size="34" color="#6C63B8" /></view>
-              <view class="feature-arrow"><icon name="next" size="22" color="#9AA6B6" /></view>
+              <view class="feature-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
             </view>
             <text class="feature-tile-name">学分进度</text>
           </view>
@@ -70,27 +70,39 @@
           <view class="feature-tile tone-brand tap" data-page="freeclass" bindtap="onOpenNavPage">
             <view class="feature-tile-top">
               <view class="feature-icon"><icon name="building" size="34" color="#3157D5" /></view>
-              <view class="feature-arrow"><icon name="next" size="22" color="#9AA6B6" /></view>
+              <view class="feature-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
             </view>
             <text class="feature-tile-name">空教室</text>
           </view>
           <view class="feature-tile tone-success tap" data-page="gallery" bindtap="onOpenNavPage">
             <view class="feature-tile-top">
-              <view class="feature-icon"><icon name="image" size="34" color="#1F9D82" /></view>
-              <view class="feature-arrow"><icon name="next" size="22" color="#9AA6B6" /></view>
+              <view class="feature-icon"><icon name="image" size="34" color="#247B68" /></view>
+              <view class="feature-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
             </view>
             <text class="feature-tile-name">校园图鉴</text>
           </view>
           <view class="feature-tile tone-violet tap" data-page="audit" bindtap="onOpenNavPage">
             <view class="feature-tile-top">
               <view class="feature-icon"><icon name="search" size="34" color="#6C63B8" /></view>
-              <view class="feature-arrow"><icon name="next" size="22" color="#9AA6B6" /></view>
+              <view class="feature-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
             </view>
             <text class="feature-tile-name">蹭课查询</text>
           </view>
+          <view class="feature-tile tone-signal tap" data-page="library" bindtap="onOpenNavPage">
+            <view class="feature-tile-top">
+              <view class="feature-icon"><icon name="book" size="34" color="#A66A0B" /></view>
+              <view class="feature-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
+            </view>
+            <text class="feature-tile-name">图书馆库存</text>
+          </view>
         </view>
 
-        <view id="slot-feature-bottom" class="analytics-slot-marker"></view>
+        <view id="slot-feature-bottom" class="feature-ad-slot">
+          <ad-slot unit-id="adunit-8f99eb551760e548"
+                   slot-id="slot-feature-bottom"
+                   page="feature"
+                   ad-type="native" />
+        </view>
 
       </view>
     </view>
@@ -98,33 +110,47 @@
     <!-- ③ 课表 -->
     <view class="tab-wrap {{current === 1 ? 'is-active' : ''}}" hidden="{{current !== 1}}">
       <schedule-view wx:if="{{visited[0]}}" id="tabview0"
-                     bind:auditfavorites="onOpenAuditFavorites" />
+                     bind:auditfavorites="onOpenAuditFavorites"
+                     bind:popupstate="onPopupState" />
     </view>
 
     <!-- ④ 我的 -->
     <view class="tab-wrap {{current === 2 ? 'is-active' : ''}}" hidden="{{current !== 2}}">
-      <settings-view wx:if="{{visited[4]}}" id="tabview4" />
+      <settings-view wx:if="{{visited[4]}}" id="tabview4" bind:opennotice="onOpenNotice"
+                     bind:popupstate="onPopupState" />
     </view>
   </view>
 
-  <!-- 自定义 tabBar(手动引用: main 不在 tabBar list 中, 需自渲染) -->
-  <custom-tab-bar id="tabbar" />
+  <!-- 自定义 tabBar(手动引用: main 不在 tabBar list 中, 需自渲染)；
+       一级页打开底部弹层时隐藏，避免与弹层遮罩/内容叠层（弹层关闭后恢复） -->
+  <view class="tabbar-slot" hidden="{{popupOpen}}">
+    <custom-tab-bar id="tabbar" />
+  </view>
 
   <!-- 二级页由一个固定层统一管理，避免 page-container 与组件动画叠加。 -->
   <view wx:if="{{toolRendered}}"
         class="tool-layer {{toolVisible ? 'is-visible' : 'is-closing'}}"
         aria-hidden="{{!toolVisible}}">
-    <freeclass-view wx:if="{{toolPage === 'freeclass'}}"
+    <notice-board-view wx:if="{{toolPage === 'notice'}}"
+                       id="toolNotice"
+                       bind:close="onToolClose"
+                       bind:seen="onAnnSeen" />
+    <freeclass-view wx:elif="{{toolPage === 'freeclass'}}"
                     embedded="{{true}}"
                     bind:close="onToolClose"
                     bind:login="onToolLogin" />
     <gallery-view wx:elif="{{toolPage === 'gallery'}}"
                   embedded="{{true}}"
                   bind:close="onToolClose" />
+    <library-view wx:elif="{{toolPage === 'library'}}"
+                  id="toolLibrary"
+                  embedded="{{true}}"
+                  bind:close="onToolClose"
+                  bind:popupstate="onPopupState" />
     <view wx:elif="{{toolPage === 'exams' || toolPage === 'eval' || toolPage === 'grades' || toolPage === 'credit' || toolPage === 'audit'}}"
           class="subject-shell">
       <view class="sub-back tap" aria-label="返回功能" bindtap="onToolClose">
-        <view class="icon-back"><icon name="back" size="28" color="#64748B" /></view>
+        <view class="icon-back"><icon name="back" size="28" color="#6B7684" /></view>
         <text>返回</text>
       </view>
       <exams-view wx:if="{{toolPage === 'exams'}}" id="toolExams" />

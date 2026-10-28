@@ -7,6 +7,11 @@ function getAnnouncement() {
   return request('GET', '/api/announcement')
 }
 
+function getContentBoard() {
+  // 公开内容不依赖登录态；离线模式也应尝试刷新，失败时由本地缓存兜底。
+  return request('GET', '/api/content-board', {}, { force: true })
+}
+
 /**
  * 空教室查询(需登录)
  * @param {object} opts { campus: '孝陵卫'|'江阴', weekday: 1-7(周一=1),
@@ -36,4 +41,10 @@ function markFeedbackRead() {
 
 /** 获取系统状态（登录状态、学期等） */
 
-module.exports = { getAnnouncement, submitFeedback, getMyFeedback, markFeedbackRead }
+module.exports = {
+  getAnnouncement,
+  getContentBoard,
+  submitFeedback,
+  getMyFeedback,
+  markFeedbackRead
+}

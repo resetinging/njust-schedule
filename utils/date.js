@@ -246,6 +246,194 @@ function getDateLabel(firstWeekDate, weekNum, dayOfWeek) {
   return `${date.getMonth() + 1}.${date.getDate()}`
 }
 
+/**
+ * ============================================================
+ * 考试时间与状态（限定考试领域，不改变周次/评教函数语义）
+ * ------------------------------------------------------------
+ * - 考试时刻按 Asia/Shanghai（UTC+8，无夏令时）解释：用 UTC 数学构造，
+ *   不依赖宿主系统时区，因此 Node 测试与真机结果一致。
+ * - 缺日期 / 非法日期 / 缺时段 / 非法时段 → unknown（“时间待定”），绝不臆测 done。
+ * - 只有开始没有结束 → 考前 upcoming；开考后 ongoing（结束待定）；当天结束仍未确认 → unknown，
+ *   不把“未确认结束”的考试标成 done。
+ * - 结束时间早于开始时间 → 视为跨午夜，结束落在次日。
+ * ============================================================ */
+
+const EXAM_TZ_OFFSET_MINUTES = 8 * 60
+
+/** 上海墙钟 → 绝对毫秒（秒可选） */
+function examTimestamp(year, month, day, hour, minute, second) {
+  return Date.UTC(year, month - 1, day, hour || 0, minute || 0, second || 0) -
+    EXAM_TZ_OFFSET_MINUTES * 60 * 1000
+}
+
+/** 严格解析考试日期 "YYYY-MM-DD" / "YYYY/MM/DD"（校验真实日历，拒绝 2026-02-30） */
+function parseExamDate(str) {
+  if (str === null || str === undefined) return null
+  const text = String(str).trim()
+  const m = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+  if (!m) return null
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  if (y < 1900 || y > 2999 || mo < 1 || mo > 12 || d < 1 || d > 31) return null
+  const dt = new Date(Date.UTC(y, mo - 1, d))
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null
+  return { y, mo, d }
+}
+
+function isValidHm(hour, minute) {
+  return Number.isInteger(hour) && hour >= 0 && hour <= 23 &&
+    Number.isInteger(minute) && minute >= 0 && minute <= 59
+}
+
+/**
+ * 解析考试时段，兼容教务实际返回：
+ *   "15:50~17:50" / "19:00-21:00" / "15:50～17:50" / "15:50 — 17:50"
+ *   单开始 "19:00"、只有开始 "19:00-"（结束待定）
+ * 返回 { start:{h,mi}, end:{h,mi}|null } 或 null（不可判断）
+ */
+function parseExamTimeRange(str) {
+  if (str === null || str === undefined) return null
+  const text = String(str).trim()
+  if (!text || text === '-' || text === '—' || text === '–') return null
+  if (/待定|未知|未定|待确认/.test(text)) return null
+  const m = text.match(/(\d{1,2})\s*[:：]\s*(\d{2})\s*(?:[-~～—–至]\s*(\d{1,2})\s*[:：]\s*(\d{2}))?/)
+  if (!m) return null
+  const sh = Number(m[1])
+  const sm = Number(m[2])
+  if (!isValidHm(sh, sm)) return null
+  // 匹配后残留的非分隔符内容视为脏数据（如 "19:00-abc"），保守按不可判断处理
+  const prefix = text.slice(0, m.index).trim()
+  const suffix = text.slice(m.index + m[0].length).trim()
+  if (prefix) return null
+  if (suffix && !/^[-~～—–至]+$/.test(suffix)) return null
+  let end = null
+  if (m[3] !== undefined && m[4] !== undefined) {
+    const eh = Number(m[3])
+    const em = Number(m[4])
+    if (!isValidHm(eh, em)) return null
+    end = { h: eh, mi: em }
+  }
+  return { start: { h: sh, mi: sm }, end }
+}
+
+/**
+ * 单场考试状态。
+ * @param {{date?:string,time?:string}} exam
+ * @param {number} [nowMs] 固定时钟（毫秒），缺省 Date.now()
+ * @returns {{status:'upcoming'|'ongoing'|'done'|'unknown', hasDate:boolean, hasTime:boolean,
+ *   startMs:number|null, endMs:number|null, crossMidnight:boolean, endUnconfirmed:boolean}}
+ */
+function getExamTiming(exam, nowMs) {
+  const now = Number.isFinite(nowMs) ? nowMs : Date.now()
+  const base = {
+    status: 'unknown', hasDate: false, hasTime: false,
+    startMs: null, endMs: null, crossMidnight: false, endUnconfirmed: false
+  }
+  const d = parseExamDate(exam && exam.date)
+  if (!d) return base
+  base.hasDate = true
+  const range = parseExamTimeRange(exam && exam.time)
+  if (!range) return base
+  base.hasTime = true
+  const startMs = examTimestamp(d.y, d.mo, d.d, range.start.h, range.start.mi, 0)
+  base.startMs = startMs
+  if (!range.end) {
+    base.endUnconfirmed = true
+    if (now < startMs) {
+      base.status = 'upcoming'
+      return base
+    }
+    // 当天终点 = 次日 00:00:00（不含）：在此之前视为进行中（结束待定）
+    const dayEnd = examTimestamp(d.y, d.mo, d.d, 0, 0, 0) + 24 * 60 * 60 * 1000
+    base.status = now < dayEnd ? 'ongoing' : 'unknown'
+    return base
+  }
+  if (range.end.h === range.start.h && range.end.mi === range.start.mi) {
+    // 开始==结束：时长不可判断（不臆造 24 小时跨午夜），保守按“结束待定”处理
+    base.endUnconfirmed = true
+    if (now < startMs) {
+      base.status = 'upcoming'
+      return base
+    }
+    const dayEnd = examTimestamp(d.y, d.mo, d.d, 0, 0, 0) + 24 * 60 * 60 * 1000
+    base.status = now < dayEnd ? 'ongoing' : 'unknown'
+    return base
+  }
+  let endMs = examTimestamp(d.y, d.mo, d.d, range.end.h, range.end.mi, 0)
+  if (endMs < startMs) {
+    // 仅“结束早于开始”才视为跨午夜；相等已在上面保守处理
+    endMs += 24 * 60 * 60 * 1000
+    base.crossMidnight = true
+  }
+  base.endMs = endMs
+  if (now < startMs) base.status = 'upcoming'
+  else if (now < endMs) base.status = 'ongoing'
+  else base.status = 'done'
+  return base
+}
+
+/** 可读倒计时（<1 小时用分钟；不出现负小时/0h/NaN） */
+function formatExamCountdown(timing, nowMs) {
+  const now = Number.isFinite(nowMs) ? nowMs : Date.now()
+  if (!timing || timing.status === 'unknown') {
+    return { bigNum: '--', bigLabel: '时间待定', statusText: '时间待定', cls: 'unknown' }
+  }
+  if (timing.status === 'done') {
+    return { bigNum: '✓', bigLabel: '已结束', statusText: '已结束', cls: 'done' }
+  }
+  if (timing.status === 'ongoing') {
+    return {
+      bigNum: '进行中',
+      bigLabel: timing.endUnconfirmed ? '结束待定' : '考试中',
+      statusText: timing.endUnconfirmed ? '已开始（结束待定）' : '进行中',
+      cls: 'ongoing'
+    }
+  }
+  const diff = timing.startMs - now
+  const mins = Math.max(1, Math.ceil(diff / 60000))
+  if (diff < 60 * 60 * 1000) {
+    return { bigNum: String(mins), bigLabel: '分钟后开始', statusText: '还有 ' + mins + ' 分钟', cls: 'urgent' }
+  }
+  const hours = Math.floor(diff / (60 * 60 * 1000))
+  if (hours < 24) {
+    return { bigNum: String(hours), bigLabel: '小时后开始', statusText: '还有 ' + hours + ' 小时', cls: 'urgent' }
+  }
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000))
+  const remainHours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+  if (days <= 3) {
+    return { bigNum: String(days), bigLabel: '天后开始', statusText: '还有 ' + days + '天' + remainHours + '小时', cls: 'urgent' }
+  }
+  if (days <= 7) {
+    return { bigNum: String(days), bigLabel: '天后开始', statusText: '还有 ' + days + '天' + remainHours + '小时', cls: 'warning' }
+  }
+  return { bigNum: String(days), bigLabel: '天后开始', statusText: '还有 ' + days + ' 天', cls: '' }
+}
+
+/**
+ * 同日分组的整体状态：
+ *  - 有任何 ongoing → ongoing（优先展示进行中，不可折叠）
+ *  - 全部 done（且至少一场）→ done（允许折叠）
+ *  - 否则取最近一场 upcoming 的文案
+ *  - 其余（含无法判断时间的记录、或只有 unknown+done 混合）→ unknown
+ */
+function getExamGroupStatus(timings, nowMs) {
+  const list = Array.isArray(timings) ? timings : []
+  if (!list.length) return { status: 'unknown', text: '时间待定' }
+  const ongoing = list.find(t => t.status === 'ongoing')
+  if (ongoing) {
+    const cd = formatExamCountdown(ongoing, nowMs)
+    return { status: 'ongoing', text: cd.statusText }
+  }
+  if (list.every(t => t.status === 'done')) return { status: 'done', text: '已结束' }
+  const upcoming = list.filter(t => t.status === 'upcoming').sort((a, b) => a.startMs - b.startMs)[0]
+  if (upcoming) {
+    const cd = formatExamCountdown(upcoming, nowMs)
+    return { status: 'upcoming', text: cd.statusText }
+  }
+  return { status: 'unknown', text: '时间待定' }
+}
+
 module.exports = {
   nowDate,
   calcCurrentWeek,
@@ -260,5 +448,11 @@ module.exports = {
   timeUntil,
   timeUntilDeadline,
   parseDateStr,
-  WEEKDAY_NAMES
+  WEEKDAY_NAMES,
+  examTimestamp,
+  parseExamDate,
+  parseExamTimeRange,
+  getExamTiming,
+  formatExamCountdown,
+  getExamGroupStatus
 }

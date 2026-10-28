@@ -1,37 +1,44 @@
+/* ==========================================================================
+   自定义底部导航（Island：悬浮胶囊）：唯一允许使用毛玻璃的覆盖层
+   - --nav-bg 为接近实色的 rgba(.96)，backdrop-filter 不可用时仍是可读的实色回退
+   - 保留「功能 / 课表 / 我的」文字，图标只做辅助，避免歧义
+   ========================================================================== */
+
 .tab-bar {
   position: absolute;
-  right: 16rpx;
-  bottom: calc(14rpx + env(safe-area-inset-bottom));
-  left: 16rpx;
+  right: 20rpx;
+  bottom: calc(16rpx + env(safe-area-inset-bottom));
+  left: 20rpx;
   z-index: 999;
   display: flex;
-  height: 92rpx;
+  height: 96rpx;
+  padding: 6rpx;
+  box-sizing: border-box;
   overflow: hidden;
-  border: 1rpx solid var(--glass-line);
-  border-radius: 24rpx;
-  background: var(--glass-bg-strong);
-  box-shadow: var(--glass-shadow);
-  -webkit-backdrop-filter: blur(24rpx) saturate(150%);
-  backdrop-filter: blur(24rpx) saturate(150%);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(20rpx) saturate(140%);
+  backdrop-filter: blur(20rpx) saturate(140%);
+  box-shadow: var(--shadow-nav);
 }
 
 .tab-bar-item {
   position: relative;
   display: flex;
-  min-height: 92rpx;
+  min-height: 84rpx;
   flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 8rpx 0 6rpx;
+  margin: 0 2rpx;
+  padding: 6rpx 0;
+  border-radius: var(--radius-pill);
   color: var(--text-hint);
-  transition: color var(--motion-fast) var(--ease-standard),
-              transform var(--motion-fast) var(--ease-spring);
 }
 
 .tab-bar-item:active {
   color: var(--primary);
-  transform: scale(.96);
 }
 
 .tab-emoji-wrap {
@@ -40,9 +47,8 @@
   justify-content: center;
   width: 52rpx;
   height: 44rpx;
-  border-radius: 14rpx;
-  transition: background-color var(--motion-base) var(--ease-standard),
-              transform var(--motion-base) var(--ease-spring);
+  border-radius: var(--radius-pill);
+  transition: background-color var(--motion-base) var(--ease-standard);
 }
 
 .tab-ico {
@@ -59,33 +65,43 @@
 }
 
 .tab-bar-item.on {
+  background: var(--primary-soft);
   color: var(--primary);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .tab-bar-item.on .tab-emoji-wrap {
   background: var(--primary-soft);
-  transform: translateY(-1rpx);
 }
 
+/* 选中指示线：只做横向展开，不位移，避免与页面切换叠加 */
 .tab-active-line {
   position: absolute;
   right: 50%;
   bottom: 4rpx;
   width: 24rpx;
-  height: 5rpx;
+  height: 4rpx;
   border-radius: var(--radius-pill);
   background: var(--primary);
   transform: translateX(50%);
-  animation: tab-line-in var(--motion-base) var(--ease-spring) both;
+  animation: tab-line-in var(--motion-base) var(--ease-out) both;
 }
 
 @keyframes tab-line-in {
   from { opacity: 0; transform: translateX(50%) scaleX(.4); }
-  to { opacity: 1; transform: translateX(50%) scaleX(1); }
+  to   { opacity: 1; transform: translateX(50%) scaleX(1); }
 }
 
 @media (max-width: 360px) {
   .tab-bar { right: 12rpx; left: 12rpx; }
   .tab-text { font-size: 20rpx; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-bar-item,
+  .tab-emoji-wrap,
+  .tab-active-line {
+    animation: none;
+    transition-duration: .01ms !important;
+  }
 }

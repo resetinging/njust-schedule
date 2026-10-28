@@ -8,7 +8,10 @@
     "settings-view": "/components/settings-view/index",
     "freeclass-view": "/components/freeclass-view/index",
     "gallery-view": "/components/gallery-view/index",
+    "library-view": "/components/library-view/index",
     "audit-course-view": "/components/audit-course-view/index",
+    "notice-board-view": "/components/notice-board-view/index",
+    "ad-slot": "/components/ad-slot/index",
     "custom-tab-bar": "/custom-tab-bar/index",
     "icon": "/components/icon/index"
   }

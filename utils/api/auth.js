@@ -31,6 +31,7 @@ function ssoQrStatus(qrId) {
         storage.setStudentName(res.student_name || '')
         storage.setSemester(res.semester || '')
         storage.set(TOKEN_KEY, res.token)
+        storage.setOffline(false)
         storage.remove('manual_logout')
         if (res.credential_delete_token) {
           storage.set('credential_delete_token', res.credential_delete_token)

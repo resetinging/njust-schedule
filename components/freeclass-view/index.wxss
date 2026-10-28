@@ -1,10 +1,22 @@
-/* 空教室查询页 · 清透课堂: 白卡 + 细描边 + 浅蓝软底 */
+/* ==========================================================================
+   空教室查询 · 样式统一
+   --------------------------------------------------------------------------
+   · 颜色 / 圆角 / 间距 / 阴影 / 动效全部引用 styles/design-system.wxss 令牌
+   · 普通分区无投影、无渐变、无装饰圆；按压反馈由基座 .tap 提供
+   · 结果按教学楼分组：一张白面 + 组间分隔线，教室用固定列网格保证等宽与顺序
+   · 保留：江阴全部楼宇由 JS 原样传入、孝陵卫四大教学楼过滤在 JS 内完成，
+     WXML 分组渲染与折叠/展开逻辑未改动
+   ========================================================================== */
+
+/* ============================================================
+   容器与滚动
+   ============================================================ */
 
 .container {
-  height: 100vh;
-  min-height: 0;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
   background: var(--bg-page);
@@ -17,17 +29,19 @@
 }
 
 .page-content {
-  padding-bottom: calc(60rpx + env(safe-area-inset-bottom));
+  padding: var(--space-md) var(--space-page) calc(48rpx + env(safe-area-inset-bottom));
 }
+
+/* ============================================================
+   顶部导航（sticky 与层级保持原值，避免影响 ui-picker 底部弹层）
+   ============================================================ */
 
 .custom-nav {
   position: sticky;
   top: 0;
   z-index: 80;
-  background: var(--glass-bg);
-  border-bottom: 1rpx solid var(--line);
-  -webkit-backdrop-filter: blur(22rpx) saturate(150%);
-  backdrop-filter: blur(22rpx) saturate(150%);
+  background: var(--bg-card);
+  border-bottom: var(--bw-card) solid var(--line);
 }
 
 .custom-nav.is-embedded {
@@ -42,27 +56,28 @@
   position: relative;
   display: flex;
   align-items: center;
-  padding-left: 20rpx;
+  padding-left: var(--space-xs);
   box-sizing: border-box;
 }
 
+/* 返回：88rpx 热区，中性底，无投影 */
 .custom-back {
   display: inline-flex;
   align-items: center;
-  gap: 5rpx;
-  height: 54rpx;
-  padding: 0 16rpx 0 12rpx;
-  border: 1rpx solid var(--line);
+  gap: var(--space-xs);
+  min-height: 88rpx;
+  padding: 0 var(--space-md) 0 var(--space-xs);
+  border: none;
   border-radius: var(--radius-pill);
-  background: var(--glass-bg-strong);
+  background: transparent;
   color: var(--text-secondary);
-  font-size: 23rpx;
-  font-weight: 650;
-  box-shadow: var(--shadow-card);
+  font-size: var(--fs-sub);
+  font-weight: 600;
 }
 
-.custom-back:active {
-  transform: scale(.94);
+.icon-back {
+  display: inline-flex;
+  align-items: center;
 }
 
 .custom-nav-title {
@@ -70,384 +85,270 @@
   left: 50%;
   transform: translateX(-50%);
   color: var(--text-primary);
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   font-weight: 700;
   pointer-events: none;
 }
 
-.icon-back {
-  display: inline-flex;
-}
-
 /* ============================================================
-顶部头卡: 浅蓝软底 + 细描边
-============================================================ */
-.hero {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  margin: 20rpx 24rpx 0;
-  padding: 30rpx 28rpx;
-  border-radius: var(--radius-card);
-  background: var(--hero-bg);
-  border: var(--bw-card) solid var(--hero-border);
-  box-shadow: var(--shadow-card);
-}
+   筛选项：图标 / 标签固定列宽，值右对齐成列
+   （每行由 ui-picker 包裹，不能依赖相邻兄弟选择器，故用行间距 + 软底控件行）
+   ============================================================ */
 
-.hero-icon {
-  width: 88rpx;
-  height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  font-size: 48rpx;
-}
-
-.hero-text {
-  flex: 1;
-}
-
-.hero-title {
-  color: var(--hero-title);
-  font-size: 34rpx;
-  font-weight: 700;
-  letter-spacing: 2rpx;
-}
-
-.hero-desc {
-  margin-top: 6rpx;
-  color: var(--hero-sub);
-  font-size: 23rpx;
-}
-
-/* ============================================================
-筛选卡片
-============================================================ */
 .filter-card {
-  margin: 20rpx 24rpx 0;
-  padding: 6rpx 26rpx;
+  margin-top: var(--space-md);
+  padding: var(--space-xs) var(--space-xs) 0;
   background: var(--bg-card);
-  border-radius: var(--radius-card);
-  border: var(--bw-card) solid var(--line);
-  box-shadow: var(--shadow-card);
+  border: none;
+  border-radius: var(--radius-island);
+  box-shadow: var(--shadow-island);
 }
 
 .filter-row {
   display: flex;
   align-items: center;
-  padding: 27rpx 0;
-  border-bottom: 1rpx solid var(--line-soft);
-  transition: background-color var(--motion-fast) var(--ease-standard),
-              transform var(--motion-base) var(--ease-spring);
-}
-
-.filter-row:last-child {
-  border-bottom: none;
-}
-
-.filter-row:active {
-  background: var(--bg-hover);
-  transform: scale(.99);
+  gap: var(--space-sm);
+  min-height: 88rpx;
+  margin-bottom: var(--space-xs);
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--bg-sunken);
 }
 
 .filter-icon {
-  width: 44rpx;
-  font-size: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  flex: none;
 }
 
 .filter-label {
-  width: 150rpx;
-  font-size: 27rpx;
-  color: var(--text-hint);
+  flex: none;
+  width: 160rpx;
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
 }
 
 .filter-value {
   flex: 1;
-  text-align: right;
-  font-size: 29rpx;
-  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
   color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.filter-row .arrow {
-  width: 40rpx;
-  height: 40rpx;
+.arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 14rpx;
+  width: 40rpx;
+  height: 40rpx;
+  margin-left: var(--space-xs);
+  flex: none;
 }
 
 /* ============================================================
-结果摘要: 浅蓝软底 + 细描边
-============================================================ */
+   结果摘要（留白分区，不再用浮动卡片）
+   ============================================================ */
+
 .result-bar {
   display: flex;
   align-items: center;
-  margin: 20rpx 24rpx 0;
-  padding: 20rpx 26rpx;
-  border-radius: var(--radius-card);
-  background: var(--hero-bg);
-  border: var(--bw-card) solid var(--hero-border);
-  box-shadow: var(--shadow-card);
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
 }
 
 .result-summary {
   flex: 1;
-  margin-right: 16rpx;
+  min-width: 0;
   color: var(--text-muted);
-  font-size: 23rpx;
+  font-size: var(--fs-sub);
   line-height: 1.5;
 }
 
 .result-count-box {
   display: flex;
   align-items: baseline;
+  flex: none;
 }
 
 .result-count-num {
-  color: var(--hero-title);
-  font-size: 46rpx;
-  font-weight: 800;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: var(--fs-page-title);
+  font-weight: 700;
   line-height: 1;
 }
 
 .result-count-unit {
-  margin-left: 6rpx;
+  margin-left: var(--space-xs);
   color: var(--text-muted);
-  font-size: 22rpx;
+  font-size: var(--fs-cap);
 }
 
-/* 数据来源提示 */
+/* 数据来源提示（缓存秒开 / 后台刷新 / 离线） */
 .cache-note {
-  margin: 10rpx 30rpx 0;
+  margin-top: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
   text-align: right;
-  font-size: 22rpx;
-  color: var(--signal-deep);
 }
 
 /* ============================================================
-教学楼分组
-============================================================ */
+   教学楼分组：一张白面 + 组间分隔线
+   ============================================================ */
+
 .group-list {
-  padding: 4rpx 24rpx;
+  margin-top: var(--space-xs);
+  background: var(--bg-card);
+  border: var(--bw-card) solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
 }
 
 .group-card {
-  margin-top: 20rpx;
-  padding: 24rpx 24rpx 8rpx;
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  border: var(--bw-card) solid var(--line);
-  box-shadow: var(--shadow-card);
+  padding: var(--space-lg);
+}
+
+.group-card + .group-card {
+  border-top: var(--bw-card) solid var(--line-soft);
 }
 
 .group-head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding-bottom: 8rpx;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
 }
 
 .group-name-wrap {
   display: flex;
   align-items: center;
-  gap: 10rpx;
+  gap: var(--space-xs);
+  min-width: 0;
 }
 
 .group-emoji {
-  font-size: 30rpx;
+  display: flex;
+  align-items: center;
+  flex: none;
 }
 
 .group-name {
-  font-size: 30rpx;
-  font-weight: 700;
+  overflow: hidden;
   color: var(--text-primary);
+  font-size: var(--fs-section);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .group-badge {
-  padding: 6rpx 20rpx;
+  flex: none;
+  padding: var(--space-xxs) var(--space-sm);
   border-radius: var(--radius-pill);
-  background: var(--primary-line);
-  color: var(--primary);
-  font-size: 22rpx;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: var(--fs-cap);
   font-weight: 600;
 }
 
+/* 折叠裁剪容器：仅负责裁掉两行以外的教室；展开后由外层 scroll-view 连续滚动 */
 .group-chips {
-  overflow: hidden;          /* 折叠时裁剪多余行 */
+  overflow: hidden;
 }
 
-/* 默认只展示两行教室 chip: 行盒 58rpx + 上下间距 20rpx → 2 行 = 156rpx
-   (chip 行高固定, 保证不同机型下第二行不会被裁切; 是否溢出由 JS 实测) */
+/* 两行教室：行高 72rpx + 行距 12rpx → 72 * 2 + 12 = 156rpx。
+   156rpx 是 components/freeclass-view/index.js 中 COLLAPSED_HEIGHT_RPX 的
+   溢出实测基准，改动网格行高/行距时必须同步该常量（本次未改 JS）。 */
 .group-chips.is-collapsed {
   max-height: 156rpx;
 }
 
+/* 稳定网格：固定 4 列等宽、按 DOM 顺序换行，数量多时不会被压缩变形 */
 .chips-inner {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-sm);
 }
 
 .room-chip {
-  margin: 10rpx 12rpx 10rpx 0;
-  padding: 12rpx 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 72rpx;
+  padding: 0 var(--space-xs);
+  overflow: hidden;
+  border: var(--bw-card) solid var(--line-soft);
+  border-radius: var(--radius-chip);
   background: var(--bg-sunken);
-  border: var(--bw-card) solid var(--line);
-  border-radius: var(--radius-pill);
-  font-size: 24rpx;
-  line-height: 30rpx;
   color: var(--text-secondary);
+  font-size: var(--fs-sub);
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .group-toggle {
-  margin: 2rpx 0 14rpx;
-  padding: 10rpx 0 4rpx;
-  text-align: center;
-  font-size: 24rpx;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 88rpx;
+  margin-top: var(--space-xs);
   color: var(--primary);
+  font-size: var(--fs-sub);
+  font-weight: 600;
 }
 
-.group-toggle:active {
-  opacity: 0.6;
-}
-
-.group-toggle .toggle-arrow {
+.toggle-arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 8rpx;
-  vertical-align: middle;
 }
 
 /* ============================================================
-加载 / 错误 / 未登录
-============================================================ */
+   加载 / 错误 / 未登录
+   ============================================================ */
+
 .loading-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 110rpx 40rpx;
-}
-
-.loading-text {
-  margin-top: 24rpx;
-  font-size: 26rpx;
-  color: var(--text-hint);
+  padding: 96rpx var(--space-xl);
 }
 
 .err-tip {
-  margin: 24rpx;
-  padding: 20rpx 24rpx;
+  margin-top: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-control);
   background: var(--danger-soft);
   color: var(--danger);
-  border-radius: var(--radius-ctrl);
-  font-size: 26rpx;
+  font-size: var(--fs-sub);
   text-align: center;
 }
 
 .login-wrap {
-  padding-top: 120rpx;
+  padding-top: 96rpx;
 }
 
-/* Layout pass: keep query controls and result groups on the same edge grid. */
-.page-content {
-  padding-left: 20rpx;
-  padding-right: 20rpx;
-}
+/* ============================================================
+   减少动态效果：本页无自定义动效，仅收掉残余过渡，其余由基座统一处理
+   ============================================================ */
 
-.hero {
-  margin-left: 0;
-  margin-right: 0;
-  border-radius: 20rpx;
-  box-shadow: var(--shadow-soft);
-}
-
-.filter-card,
-.result-bar,
-.group-card {
-  margin-left: 0;
-  margin-right: 0;
-  border-radius: 18rpx;
-  box-shadow: var(--shadow-soft);
-}
-
-/* 高保真收口: 页面直接从筛选开始, 避免重复标题卡占用首屏。 */
-.filter-card {
-  margin-top: 14rpx;
-  padding-top: 2rpx;
-  padding-bottom: 2rpx;
-  background: rgba(255, 255, 255, .78);
-  -webkit-backdrop-filter: blur(22rpx) saturate(155%);
-  backdrop-filter: blur(22rpx) saturate(155%);
-}
-
-.filter-row {
-  padding-top: 23rpx;
-  padding-bottom: 23rpx;
-}
-
-.result-bar {
-  background: rgba(239, 246, 255, .76);
-  border-color: rgba(219, 234, 254, .88);
-}
-
-.group-card {
-  background: rgba(255, 255, 255, .76);
-}
-
-/* Shared surface rhythm for the room finder. */
-.custom-nav {
-  background: rgba(245, 247, 249, .84);
-  border-bottom-color: var(--line);
-  -webkit-backdrop-filter: blur(24rpx) saturate(145%);
-  backdrop-filter: blur(24rpx) saturate(145%);
-}
-
-.custom-back {
-  min-height: 56rpx;
-  height: 56rpx;
-  border-color: var(--line);
-  background: var(--surface-tint-strong);
-  box-shadow: var(--shadow-soft);
-}
-
-.filter-card,
-.result-bar,
-.group-card {
-  border-color: var(--line);
-  box-shadow: var(--shadow-soft);
-}
-
-.filter-card {
-  margin-top: 10rpx;
-  background: var(--surface-tint-strong);
-}
-
-.filter-row {
-  min-height: 64rpx;
-  border-radius: 14rpx;
-}
-
-.filter-row:active,
-.group-toggle:active {
-  transform: scale(.985);
-}
-
-.result-bar {
-  background: rgba(239, 246, 255, .68);
-}
-
-.group-card {
-  background: var(--surface-tint-strong);
-  transition: transform var(--motion-base) var(--ease-spring),
-              box-shadow var(--motion-base) var(--ease-standard);
-}
-
-.room-chip {
-  background: rgba(241, 245, 249, .84);
-  border-color: var(--line-soft);
+@media (prefers-reduced-motion: reduce) {
+  .filter-row,
+  .group-card,
+  .room-chip,
+  .custom-back {
+    transition: none;
+  }
 }

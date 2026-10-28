@@ -15,6 +15,9 @@ const analytics = require('../../utils/analytics')
 const gpaUtil = require('../../utils/gpa')
 const creditUtil = require('../../utils/credit')
 const { getDefaultFirstWeekDate } = require('../../utils/date')
+const changelog = require('../../utils/changelog')
+// 版本号与内置更新记录同源, 避免设置页硬编码版本再次漂移
+const APP_VERSION = (changelog.RELEASES && changelog.RELEASES[0] && changelog.RELEASES[0].version) || ''
 // 常用链接数据源(容错加载: 模块异常时降级为空列表,
 // 避免 require 失败导致整个组件定义抛错、页面全白)
 let linksData = { LINK_GROUPS: [], totalCount: () => 0 }
@@ -36,6 +39,7 @@ Component({
 
   data: {
     isLoggedIn: false,
+    appVersion: APP_VERSION,   // 与内置更新记录同源
     fontMode: 'pixel',      // 字体档位: pixel | system
     fontSwitching: false,
     studentId: '',
@@ -85,11 +89,9 @@ Component({
     // 赞赏支持弹窗(展示赞赏码; 长按可保存/识别)
     showAppreciate: false,
 
-    // 公告栏(常驻: 展示当前公告; 展开即视为已读, 主页面顶部横幅随之隐藏)
+    // 信息中心入口(常驻: 展示最新公告摘要; 有新内容时显示"新")
     announcement: '',
     annUpdated: '',        // 公告更新时间(已读标记)
-    annExpanded: false,    // 长公告展开全文
-    annLong: false,        // 超过折叠阈值(需要"查看全文"提示)
     annIsNew: false,       // 未读新公告(显示"新"标记, 展开查看后消失)
 
     // 常用链接弹窗
@@ -105,7 +107,6 @@ Component({
     connectionStatus: '',   // '' | ok | fail
     connectionText: '',
 
-    entering: false,
     active: false        // 懒渲染: main 激活时才渲染内容
   },
 
@@ -119,12 +120,26 @@ Component({
       this._stopQrPoll()      // 组件销毁时停止扫码轮询
       if (this._fontTimer) clearTimeout(this._fontTimer)
       if (this._fontDoneTimer) clearTimeout(this._fontDoneTimer)
-      if (this._entranceTimer) clearTimeout(this._entranceTimer)
       analytics.disconnectSlots(this)
     }
   },
 
+  observers: {
+    'showFeedback, showMyFeedback, showLinks, showSubscriptions, showAppreciate'() {
+      this._syncPopupState()
+    }
+  },
+
   methods: {
+    /** 弹层开关唯一真值来源：任一弹层可见即通知主页面隐藏浮动 TabBar */
+    _syncPopupState() {
+      const open = !!(this.data.showFeedback || this.data.showMyFeedback ||
+        this.data.showLinks || this.data.showSubscriptions || this.data.showAppreciate)
+      if (open === this._popupOpen) return
+      this._popupOpen = open
+      this.triggerEvent('popupstate', { open })
+    },
+
     /** 切换字体档位(像素 / 系统) */
     onPickFont(e) {
       const mode = e.currentTarget.dataset.mode
@@ -165,56 +180,37 @@ Component({
       this._loadAnnouncement()
       // 我的反馈未读回复(小红点)
       if (this.data.isLoggedIn) this._loadMyFeedback(false)
-      const reveal = () => this._playEntrance(done)
-      // 等登录态、本地指标和字体状态都写入后再显示内容，避免闪现登录态。
+      // 入场动画由 main 的 tabPageIn 统一播放；这里只负责「内容准备好再切换显示」，
+      // 避免首次挂载时先闪一个空壳或登录态。
+      const reveal = () => {
+        if (typeof done === 'function') done()
+      }
       if (this.data.active) reveal()
       else this.setData({ active: true }, reveal)
-    },
-
-    _playEntrance(done) {
-      if (this._entranceTimer) clearTimeout(this._entranceTimer)
-      const play = () => {
-        this.setData({ entering: true }, () => {
-          if (typeof done === 'function') done()
-        })
-        this._entranceTimer = setTimeout(() => {
-          this._entranceTimer = null
-          this.setData({ entering: false })
-        }, 680)
-      }
-      if (this.data.entering) this.setData({ entering: false }, play)
-      else play()
     },
 
     /** 拉取公告并展示(有无新公告都常驻显示; 30s 节流) */
     _loadAnnouncement() {
       ann.load().then(a => {
-        const show = a.enabled && !!a.text
-        if (!show) {
-          if (this.data.announcement) this.setData({ announcement: '', annLong: false, annExpanded: false, annIsNew: false })
-          return
-        }
         this.setData({
-          announcement: a.text,
+          announcement: a.enabled ? a.text : '',
           annUpdated: a.updated,
-          annLong: a.text.length > 24,   // 超过 24 字默认折叠, 点击展开
-          annExpanded: false,
           annIsNew: ann.isNew(a.updated)  // 未读 → 显示"新"标记
         })
       })
     },
 
-    /** 点击公告栏: 展开/收起; 用户查看后标记已读, 并通知主页面隐藏顶部横幅 */
-    onToggleAnnounce() {
-      if (!this.data.announcement) return
-      if (!this.data.annExpanded && this.data.annUpdated) {
-        ann.markSeen(this.data.annUpdated)
-        this.setData({ annIsNew: false })   // 已读: 移除"新"标记
-        const pages = getCurrentPages()
-        const page = pages[pages.length - 1]
-        if (page && typeof page.onAnnSeen === 'function') page.onAnnSeen()
-      }
-      this.setData({ annExpanded: !this.data.annExpanded })
+    /** 打开正式信息中心 */
+    onOpenNotice() {
+      this.triggerEvent('opennotice')
+    },
+
+    /** 信息中心已打开时同步移除卡片上的未读标记 */
+    onNoticeSeen(updated) {
+      this.setData({
+        annUpdated: updated || this.data.annUpdated,
+        annIsNew: false
+      })
     },
 
     /** 刷新页面状态 */

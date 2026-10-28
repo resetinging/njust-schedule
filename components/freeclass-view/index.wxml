@@ -6,7 +6,7 @@
     <view class="custom-nav-inner"
           style="{{embedded ? 'height:88rpx;' : 'height:' + navBarHeight + 'px;'}}padding-right:{{navRight}}px;">
       <view class="custom-back tap" aria-label="返回" bindtap="goBack">
-        <view class="icon-back"><icon name="back" size="28" color="#64748B" /></view>
+        <view class="icon-back"><icon name="back" size="28" color="#6B7684" /></view>
         <text>返回</text>
       </view>
       <text class="custom-nav-title">空教室查询</text>
@@ -23,42 +23,42 @@
     <view class="filter-card">
       <ui-picker range="{{campusList}}" value="{{campusIndex}}" title="选择校区" bind:change="onCampusChange">
         <view class="filter-row tap">
-          <view class="filter-icon"><icon name="building" size="30" color="#64748B" /></view>
+          <view class="filter-icon"><icon name="building" size="30" color="#6B7684" /></view>
           <text class="filter-label">校区</text>
           <text class="filter-value">{{campusList[campusIndex]}}</text>
-          <view class="arrow"><icon name="next" size="26" color="#64748B" /></view>
+          <view class="arrow"><icon name="next" size="26" color="#6B7684" /></view>
         </view>
       </ui-picker>
       <ui-picker range="{{weekdayList}}" value="{{weekdayIndex}}" title="选择星期" bind:change="onWeekdayChange">
         <view class="filter-row tap">
-          <view class="filter-icon"><icon name="calendar" size="30" color="#64748B" /></view>
+          <view class="filter-icon"><icon name="calendar" size="30" color="#6B7684" /></view>
           <text class="filter-label">星期</text>
           <text class="filter-value">{{weekdayList[weekdayIndex]}}</text>
-          <view class="arrow"><icon name="next" size="26" color="#64748B" /></view>
+          <view class="arrow"><icon name="next" size="26" color="#6B7684" /></view>
         </view>
       </ui-picker>
       <ui-picker range="{{weekList}}" value="{{weekIndex}}" title="选择周次" bind:change="onWeekChange">
         <view class="filter-row tap">
-          <view class="filter-icon"><icon name="calendar" size="30" color="#64748B" /></view>
+          <view class="filter-icon"><icon name="calendar" size="30" color="#6B7684" /></view>
           <text class="filter-label">周次</text>
           <text class="filter-value">{{weekList[weekIndex]}}</text>
-          <view class="arrow"><icon name="next" size="26" color="#64748B" /></view>
+          <view class="arrow"><icon name="next" size="26" color="#6B7684" /></view>
         </view>
       </ui-picker>
       <ui-picker range="{{slotList}}" range-key="label" value="{{startIndex}}" title="选择开始时段" bind:change="onStartChange">
         <view class="filter-row tap">
-          <view class="filter-icon"><icon name="clock" size="30" color="#64748B" /></view>
+          <view class="filter-icon"><icon name="clock" size="30" color="#6B7684" /></view>
           <text class="filter-label">开始时段</text>
           <text class="filter-value">{{slotList[startIndex].label}}</text>
-          <view class="arrow"><icon name="next" size="26" color="#64748B" /></view>
+          <view class="arrow"><icon name="next" size="26" color="#6B7684" /></view>
         </view>
       </ui-picker>
       <ui-picker range="{{slotList}}" range-key="label" value="{{endIndex}}" title="选择结束时段" bind:change="onEndChange">
         <view class="filter-row tap">
-          <view class="filter-icon"><icon name="hourglass" size="30" color="#64748B" /></view>
+          <view class="filter-icon"><icon name="hourglass" size="30" color="#6B7684" /></view>
           <text class="filter-label">结束时段</text>
           <text class="filter-value">{{slotList[endIndex].label}}</text>
-          <view class="arrow"><icon name="next" size="26" color="#64748B" /></view>
+          <view class="arrow"><icon name="next" size="26" color="#6B7684" /></view>
         </view>
       </ui-picker>
     </view>
@@ -82,7 +82,7 @@
         <view class="group-card">
           <view class="group-head">
             <view class="group-name-wrap">
-              <view class="group-emoji"><icon name="building" size="30" color="#2563EB" /></view>
+              <view class="group-emoji"><icon name="building" size="30" color="#3157D5" /></view>
               <text class="group-name">{{grp.label}}</text>
             </view>
             <view class="group-badge">{{grp.rooms.length}} 间</view>
@@ -94,7 +94,7 @@
           </view>
           <view class="group-toggle tap" wx:if="{{grp.overflow}}" data-index="{{index}}" bindtap="onToggleGroup">
             <text>{{grp.expanded ? '收起' : '展开全部 ' + grp.rooms.length + ' 间'}}</text>
-            <view class="toggle-arrow"><icon name="{{grp.expanded ? 'prev' : 'next'}}" size="24" color="#2563EB" /></view>
+            <view class="toggle-arrow"><icon name="{{grp.expanded ? 'prev' : 'next'}}" size="24" color="#3157D5" /></view>
           </view>
         </view>
       </block>
@@ -103,14 +103,18 @@
     <!-- 无空闲 -->
     <empty-state wx:elif="{{searched && !loading && !errorMsg}}" icon="building" title="该时段没有空闲教室"
                  desc="试试放宽时段范围、换个星期或校区" />
-    <view id="slot-freeclass-bottom" class="analytics-slot-marker"></view>
-
     <!-- 查询中 -->
     <view class="loading-box" wx:if="{{loading}}">
       <t-loading theme="circular" size="44rpx" text="正在查询空闲教室…" />
     </view>
     <!-- 错误 -->
     <view class="err-tip" wx:elif="{{errorMsg}}">{{errorMsg}}</view>
+    <view id="slot-freeclass-bottom">
+      <ad-slot unit-id="adunit-8f99eb551760e548"
+               slot-id="slot-freeclass-bottom"
+               page="freeclass"
+               ad-type="native" />
+    </view>
   </block>
 
   <!-- ============ 未登录 ============ -->
