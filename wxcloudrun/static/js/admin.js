@@ -488,6 +488,11 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (t === 'analytics' && !tabLoaded.analytics) { tabLoaded.analytics = true; loadAnalytics(); }
     if (t === 'users' && !tabLoaded.users) { tabLoaded.users = true; loadUsers(); }
     if (t === 'grades' && !tabLoaded.grades) { tabLoaded.grades = true; loadGradeStats(); }
+    if (t === 'services' && !tabLoaded.services) {
+      tabLoaded.services = true;
+      loadCampusServices();
+      loadCampusServiceLeads();
+    }
     if (t === 'feedback' && !tabLoaded.feedback) { tabLoaded.feedback = true; loadFeedback(); }
     if (t === 'system') {
       tabLoaded.system = true;
@@ -503,6 +508,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 let contentBoardState = {
   updated: '',
   announcements: [],
+  competitions: [],
   community: { name: '', qq: '', note: '' }
 };
 
@@ -554,14 +560,58 @@ function normalizeAnnouncementItem(item) {
   }, item || {});
 }
 
+function normalizeCompetitionItem(item) {
+  return Object.assign({
+    id: boardID('comp'),
+    title: '',
+    summary: '',
+    body: '',
+    published_at: boardDate(),
+    deadline: '',
+    source_url: '',
+    enabled: true
+  }, item || {});
+}
+
 function normalizeBoard(board) {
   const value = board || {};
   return {
     updated: value.updated || '',
     announcements: (Array.isArray(value.announcements) ? value.announcements : [])
       .map(normalizeAnnouncementItem),
+    competitions: (Array.isArray(value.competitions) ? value.competitions : [])
+      .map(normalizeCompetitionItem),
     community: Object.assign({ name: '', qq: '', note: '' }, value.community || {})
   };
+}
+
+function renderCompetitionEditor(item, index) {
+  return `
+    <article class="bc-editor-item" data-type="competition" data-index="${index}">
+      <div class="bc-item-head">
+        <strong>竞赛 ${index + 1}</strong>
+        <button class="ghost tiny" data-action="remove">删除</button>
+      </div>
+      <div class="bc-fields two">
+        <label>标题<input class="bc-input" data-field="title" maxlength="100"
+          value="${esc(item.title || '')}" placeholder="竞赛名称"></label>
+        <label>发布日期<input class="bc-input" data-field="published_at" type="date"
+          value="${esc(String(item.published_at || '').slice(0, 10))}"></label>
+      </div>
+      <div class="bc-fields two">
+        <label>截止日期（可空）<input class="bc-input" data-field="deadline" type="date"
+          value="${esc(String(item.deadline || '').slice(0, 10))}"></label>
+        <label>原文链接<input class="bc-input" data-field="source_url" maxlength="500"
+          value="${esc(item.source_url || '')}" placeholder="https://xspace.njust.edu.cn/..."></label>
+      </div>
+      <label>摘要（可空，最多 300 字）<textarea class="ann-input bc-body" data-field="summary" maxlength="300"
+        placeholder="用于竞赛列表的简短说明">${esc(item.summary || '')}</textarea></label>
+      <label>正文（可空，最多 3000 字）<textarea class="ann-input bc-body" data-field="body" maxlength="3000"
+        placeholder="更多说明；摘要和正文至少填一项">${esc(item.body || '')}</textarea></label>
+      <div class="bc-flags">
+        <label class="chk-label"><input type="checkbox" data-field="enabled" ${item.enabled ? 'checked' : ''}> 显示</label>
+      </div>
+    </article>`;
 }
 
 function renderAnnouncementEditor(item, index) {
@@ -608,6 +658,9 @@ function renderContentBoardEditors() {
   $('bcAnnouncements').innerHTML = contentBoardState.announcements
     .map(renderAnnouncementEditor).join('') ||
     '<p class="bc-empty">暂无公告，点击“新增公告”开始编辑。</p>';
+  $('bcCompetitions').innerHTML = contentBoardState.competitions
+    .map(renderCompetitionEditor).join('') ||
+    '<p class="bc-empty">暂无竞赛，点击“新增竞赛”开始录入。</p>';
   $('bcQQName').value = contentBoardState.community.name || '';
   $('bcQQ').value = contentBoardState.community.qq || '';
   $('bcQQNote').value = contentBoardState.community.note || '';
@@ -646,6 +699,7 @@ function bindBoardEditor(containerId, listName) {
 }
 
 bindBoardEditor('bcAnnouncements', 'announcements');
+bindBoardEditor('bcCompetitions', 'competitions');
 
 async function loadContentBoard() {
   try {
@@ -681,6 +735,20 @@ $('bcAddAnnouncement').addEventListener('click', () => {
   renderContentBoardEditors();
 });
 
+$('bcAddCompetition').addEventListener('click', () => {
+  contentBoardState.competitions.push({
+    id: boardID('comp'),
+    title: '',
+    summary: '',
+    body: '',
+    published_at: boardDate(),
+    deadline: '',
+    source_url: '',
+    enabled: true
+  });
+  renderContentBoardEditors();
+});
+
 $('bcSave').addEventListener('click', async () => {
   contentBoardState.community = {
     name: $('bcQQName').value.trim(),
@@ -699,6 +767,259 @@ $('bcSave').addEventListener('click', async () => {
   renderContentBoardEditors();
   alert('信息中心已保存，小程序端即时生效');
 });
+
+// ============================================================
+// 校园服务
+// ============================================================
+const CAMPUS_CATEGORIES = [
+  ['operator', '运营商套餐'],
+  ['materials', '复习资料'],
+  ['graduate', '保研咨询'],
+  ['exam', '考研培训']
+];
+const CAMPUS_SCOPES = [
+  ['all', '全部校区'],
+  ['nanjing', '南京校区'],
+  ['jiangyin', '江阴校区']
+];
+const CAMPUS_LEAD_STATUSES = [
+  ['new', '新线索'],
+  ['contacted', '已联系'],
+  ['converted', '已转化'],
+  ['invalid', '无效']
+];
+
+let campusServicesState = [];
+let campusLeadsState = [];
+
+function normalizeCampusService(item) {
+  return Object.assign({
+    id: boardID('campus'),
+    category: 'graduate',
+    provider_name: '',
+    title: '',
+    summary: '',
+    details: '',
+    audience: '',
+    price_label: '',
+    campus_scope: 'all',
+    qualification_note: '',
+    sponsored: true,
+    verified: false,
+    enabled: false,
+    priority: 0,
+    start_date: boardDate(),
+    end_date: ''
+  }, item || {});
+}
+
+function renderCampusServiceEditor(item, index) {
+  return `
+    <article class="bc-editor-item" data-index="${index}">
+      <div class="bc-item-head">
+        <strong>${esc(item.title || '新校园服务')}</strong>
+        <button class="ghost tiny" data-action="remove">删除</button>
+      </div>
+      <div class="bc-fields two">
+        <label>服务标题<input class="bc-input" data-field="title" maxlength="120"
+          value="${esc(item.title || '')}" placeholder="例如：考研数学基础咨询"></label>
+        <label>商家或机构<input class="bc-input" data-field="provider_name" maxlength="100"
+          value="${esc(item.provider_name || '')}" placeholder="已核验的商家名称"></label>
+      </div>
+      <div class="bc-fields three">
+        <label>分类<select class="bc-input" data-field="category">
+          ${boardOptions(CAMPUS_CATEGORIES, item.category)}
+        </select></label>
+        <label>校区<select class="bc-input" data-field="campus_scope">
+          ${boardOptions(CAMPUS_SCOPES, item.campus_scope)}
+        </select></label>
+        <label>排序（-100 至 100）<input class="bc-input" data-field="priority" type="number"
+          min="-100" max="100" value="${Number(item.priority) || 0}"></label>
+      </div>
+      <div class="bc-fields three">
+        <label>开始日期<input class="bc-input" data-field="start_date" type="date"
+          value="${esc(String(item.start_date || '').slice(0, 10))}"></label>
+        <label>结束日期（可空）<input class="bc-input" data-field="end_date" type="date"
+          value="${esc(String(item.end_date || '').slice(0, 10))}"></label>
+        <label>价格说明<input class="bc-input" data-field="price_label" maxlength="100"
+          value="${esc(item.price_label || '')}" placeholder="例如：99 元起 / 面议"></label>
+      </div>
+      <div class="bc-fields two">
+        <label>适用人群<input class="bc-input" data-field="audience" maxlength="120"
+          value="${esc(item.audience || '')}" placeholder="例如：准备保研的大三学生"></label>
+        <label>资质说明（公开）<input class="bc-input" data-field="qualification_note" maxlength="200"
+          value="${esc(item.qualification_note || '')}" placeholder="例如：已核验营业执照与授权"></label>
+      </div>
+      <label>卡片摘要（最多 300 字）<textarea class="ann-input bc-action" data-field="summary" maxlength="300"
+        placeholder="摘要和详情至少填写一项">${esc(item.summary || '')}</textarea></label>
+      <label>服务详情（最多 6000 字）<textarea class="ann-input bc-body" data-field="details" maxlength="6000"
+        placeholder="服务内容、价格边界、有效期和售后说明">${esc(item.details || '')}</textarea></label>
+      <div class="bc-flags">
+        <label class="chk-label"><input type="checkbox" data-field="sponsored" ${item.sponsored ? 'checked' : ''}> 合作推广</label>
+        <label class="chk-label"><input type="checkbox" data-field="verified" ${item.verified ? 'checked' : ''}> 已完成审核</label>
+        <label class="chk-label"><input type="checkbox" data-field="enabled" ${item.enabled ? 'checked' : ''}> 上架</label>
+      </div>
+    </article>`;
+}
+
+function renderCampusServices() {
+  $('campusServiceList').innerHTML = campusServicesState
+    .map(renderCampusServiceEditor).join('') ||
+    '<p class="bc-empty">暂无校园服务，点击“新增服务”开始录入。</p>';
+}
+
+function bindCampusServiceEditor() {
+  const container = $('campusServiceList');
+  const update = (event) => {
+    const field = event.target.dataset.field;
+    const card = event.target.closest('[data-index]');
+    if (!field || !card) return;
+    const item = campusServicesState[Number(card.dataset.index)];
+    if (!item) return;
+    if (event.target.type === 'checkbox') {
+      item[field] = event.target.checked;
+    } else if (event.target.type === 'number') {
+      item[field] = Number(event.target.value) || 0;
+    } else {
+      item[field] = event.target.value;
+    }
+  };
+  container.addEventListener('input', update);
+  container.addEventListener('change', update);
+  container.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="remove"]');
+    const card = event.target.closest('[data-index]');
+    if (!button || !card || !confirm('删除这条校园服务？保存后生效。')) return;
+    campusServicesState.splice(Number(card.dataset.index), 1);
+    renderCampusServices();
+  });
+}
+
+async function loadCampusServices() {
+  try {
+    const response = await api('/api/admin/campus-services');
+    if (!response.success) throw new Error(response.message || '读取失败');
+    campusServicesState = (response.services || []).map(normalizeCampusService);
+    renderCampusServices();
+  } catch (error) {
+    alert('校园服务读取失败: ' + error.message);
+  }
+}
+
+$('campusAddService').addEventListener('click', () => {
+  campusServicesState.unshift(normalizeCampusService({}));
+  renderCampusServices();
+});
+
+$('campusSaveServices').addEventListener('click', async () => {
+  const button = $('campusSaveServices');
+  button.disabled = true;
+  try {
+    const response = await api('/api/admin/campus-services', {
+      method: 'POST',
+      body: JSON.stringify({ services: campusServicesState })
+    });
+    if (!response.success) throw new Error(response.message || '保存失败');
+    campusServicesState = (response.services || []).map(normalizeCampusService);
+    renderCampusServices();
+    $('campusServicesStatus').textContent = '已保存 ' + new Date().toLocaleString('zh-CN');
+  } catch (error) {
+    alert('校园服务保存失败: ' + error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+function campusLeadStatusOptions(selected) {
+  return CAMPUS_LEAD_STATUSES.map(([value, label]) =>
+    `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`
+  ).join('');
+}
+
+function renderCampusLeads() {
+  const box = $('campusLeadList');
+  if (!campusLeadsState.length) {
+    box.innerHTML = '<p class="bc-empty">暂无咨询线索。</p>';
+    return;
+  }
+  box.innerHTML = campusLeadsState.map(item => `
+    <div class="campus-lead-row" data-lead-id="${item.id}">
+      <div class="campus-lead-main">
+        <strong>${esc(item.service_title || item.service_id)}</strong>
+        <span>${esc(item.provider_name || '未知商家')} · ${esc(item.contact_type === 'phone' ? '手机号' : '微信号')}</span>
+        <b class="campus-lead-contact">${esc(item.contact_mask)}</b>
+      </div>
+      <div class="campus-lead-note">${esc(item.note || '无补充说明')}</div>
+      <div class="campus-lead-meta">
+        <span>${esc(item.created_at || '-')}</span>
+        <span>到期 ${esc(item.expires_at || '-')}</span>
+      </div>
+      <div class="campus-lead-actions">
+        <select class="bc-input campus-lead-status">${campusLeadStatusOptions(item.status)}</select>
+        <input class="bc-input campus-lead-admin-note" maxlength="300"
+          value="${esc(item.admin_note || '')}" placeholder="跟进备注">
+        <button class="ghost tiny campus-lead-reveal">查看联系方式</button>
+        <button class="ghost tiny campus-lead-save">保存状态</button>
+      </div>
+    </div>`).join('');
+}
+
+function readyCampusLeadRow(button) {
+  const row = button.closest('[data-lead-id]');
+  if (!row) return null;
+  return {
+    row,
+    id: Number(row.dataset.leadId),
+    status: row.querySelector('.campus-lead-status').value,
+    note: row.querySelector('.campus-lead-admin-note').value.trim()
+  };
+}
+
+$('campusLeadList').addEventListener('click', async (event) => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  const current = readyCampusLeadRow(button);
+  if (!current || !current.id) return;
+  button.disabled = true;
+  try {
+    if (button.classList.contains('campus-lead-reveal')) {
+      const response = await api(`/api/admin/campus-service-leads/${current.id}/reveal`, { method: 'POST' });
+      if (!response.success) throw new Error(response.message || '读取失败');
+      current.row.querySelector('.campus-lead-contact').textContent = response.contact;
+      button.textContent = '已显示';
+      return;
+    }
+    if (button.classList.contains('campus-lead-save')) {
+      const response = await api(`/api/admin/campus-service-leads/${current.id}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status: current.status, admin_note: current.note })
+      });
+      if (!response.success) throw new Error(response.message || '保存失败');
+      button.textContent = '已保存';
+      setTimeout(() => { button.textContent = '保存状态'; }, 1200);
+    }
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+async function loadCampusServiceLeads() {
+  try {
+    const status = $('campusLeadStatus').value;
+    const response = await api('/api/admin/campus-service-leads' + (status ? '?status=' + encodeURIComponent(status) : ''));
+    if (!response.success) throw new Error(response.message || '读取失败');
+    campusLeadsState = response.leads || [];
+    renderCampusLeads();
+  } catch (error) {
+    alert('咨询线索读取失败: ' + error.message);
+  }
+}
+
+$('campusLeadStatus').addEventListener('change', loadCampusServiceLeads);
+$('campusRefreshLeads').addEventListener('click', loadCampusServiceLeads);
+bindCampusServiceEditor();
 
 // ============================================================
 // 问题反馈管理

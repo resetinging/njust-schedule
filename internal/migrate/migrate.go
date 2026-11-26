@@ -11,9 +11,12 @@ import (
 )
 
 const (
-	BaselineVersion       = "1000_webgo_schema_v1"
-	Version               = "1001_general_education_syllabi"
-	generalEducationTable = "general_education_syllabi"
+	BaselineVersion         = "1000_webgo_schema_v1"
+	generalEducationVersion = "1001_general_education_syllabi"
+	Version                 = "1002_campus_services"
+	generalEducationTable   = "general_education_syllabi"
+	campusServicesTable     = "campus_services"
+	campusServiceLeadsTable = "campus_service_leads"
 )
 
 const lockName = "njust_schedule_schema_migration"
@@ -21,6 +24,45 @@ const usageEventDedupeIndex = "ix_usage_events_event_key_dedupe"
 const usageEventDuplicateTable = "usage_event_key_duplicates"
 
 const generalEducationCreateTable = `CREATE TABLE IF NOT EXISTS general_education_syllabi (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, semester VARCHAR(50) NOT NULL DEFAULT '', course_code VARCHAR(50) NOT NULL DEFAULT '', course_name VARCHAR(200) NOT NULL DEFAULT '', department VARCHAR(200) NOT NULL DEFAULT '', credit VARCHAR(20) NOT NULL DEFAULT '', hours VARCHAR(20) NOT NULL DEFAULT '', assessment VARCHAR(50) NOT NULL DEFAULT '', attribute VARCHAR(50) NOT NULL DEFAULT '', syllabus_id VARCHAR(64) NOT NULL DEFAULT '', has_syllabus TINYINT(1) NOT NULL DEFAULT 0, detail_json MEDIUMTEXT NULL, detail_fetched_at DATETIME NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+
+const campusServicesCreateTable = `CREATE TABLE IF NOT EXISTS campus_services (
+	id VARCHAR(64) NOT NULL PRIMARY KEY,
+	category VARCHAR(24) NOT NULL DEFAULT '',
+	provider_name VARCHAR(100) NOT NULL DEFAULT '',
+	title VARCHAR(120) NOT NULL DEFAULT '',
+	summary VARCHAR(300) NOT NULL DEFAULT '',
+	details TEXT NULL,
+	audience VARCHAR(120) NOT NULL DEFAULT '',
+	price_label VARCHAR(100) NOT NULL DEFAULT '',
+	campus_scope VARCHAR(20) NOT NULL DEFAULT 'all',
+	qualification_note VARCHAR(200) NOT NULL DEFAULT '',
+	sponsored TINYINT(1) NOT NULL DEFAULT 1,
+	verified TINYINT(1) NOT NULL DEFAULT 0,
+	enabled TINYINT(1) NOT NULL DEFAULT 0,
+	priority INT NOT NULL DEFAULT 0,
+	start_at DATE NOT NULL,
+	end_at DATE NULL,
+	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+
+const campusServiceLeadsCreateTable = `CREATE TABLE IF NOT EXISTS campus_service_leads (
+	id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	service_id VARCHAR(64) NOT NULL DEFAULT '',
+	student_key VARCHAR(64) NOT NULL DEFAULT '',
+	contact_type VARCHAR(16) NOT NULL DEFAULT '',
+	contact_ciphertext TEXT NULL,
+	contact_mask VARCHAR(64) NOT NULL DEFAULT '',
+	dedupe_key VARCHAR(64) NOT NULL DEFAULT '',
+	note VARCHAR(300) NOT NULL DEFAULT '',
+	consent_version VARCHAR(32) NOT NULL DEFAULT '',
+	consented_at DATETIME NOT NULL,
+	status VARCHAR(20) NOT NULL DEFAULT 'new',
+	admin_note VARCHAR(300) NOT NULL DEFAULT '',
+	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	expires_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
 
 type columnSpec struct {
 	table, name, definition string
@@ -39,7 +81,8 @@ type autoSafeMigration struct {
 // 只登记完全增量、可重复执行且失败后能安全重试的迁移。
 // 其余迁移必须由操作员在目标版本容器中运行 /app/migrate。
 var autoSafeMigrations = []autoSafeMigration{
-	{from: BaselineVersion, to: Version, apply: applyGeneralEducationMigration},
+	{from: BaselineVersion, to: generalEducationVersion, apply: applyGeneralEducationMigration},
+	{from: generalEducationVersion, to: Version, apply: applyCampusServicesMigration},
 }
 
 type queryer interface {
@@ -57,6 +100,8 @@ var requiredColumns = []columnSpec{
 	{"audit_courses", "semester", "VARCHAR(50) NOT NULL DEFAULT ''"}, {"audit_courses", "course_name", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"audit_courses", "class_info", "TEXT NULL"}, {"audit_courses", "teacher", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"audit_courses", "classroom", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"audit_courses", "day_of_week", "INT NOT NULL DEFAULT 0"}, {"audit_courses", "start_period", "INT NOT NULL DEFAULT 0"}, {"audit_courses", "end_period", "INT NOT NULL DEFAULT 0"}, {"audit_courses", "weeks", "VARCHAR(100) NOT NULL DEFAULT ''"}, {"audit_courses", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"},
 	{"audit_favorites", "student_id", "VARCHAR(50) NOT NULL DEFAULT ''"}, {"audit_favorites", "semester", "VARCHAR(50) NOT NULL DEFAULT ''"}, {"audit_favorites", "favorite_key", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"audit_favorites", "course_name", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"audit_favorites", "class_info", "TEXT NULL"}, {"audit_favorites", "teacher", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"audit_favorites", "classroom", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"audit_favorites", "schedules_json", "TEXT NULL"}, {"audit_favorites", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"}, {"audit_favorites", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"},
 	{"general_education_syllabi", "semester", "VARCHAR(50) NOT NULL DEFAULT ''"}, {"general_education_syllabi", "course_code", "VARCHAR(50) NOT NULL DEFAULT ''"}, {"general_education_syllabi", "course_name", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"general_education_syllabi", "department", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"general_education_syllabi", "credit", "VARCHAR(20) NOT NULL DEFAULT ''"}, {"general_education_syllabi", "hours", "VARCHAR(20) NOT NULL DEFAULT ''"}, {"general_education_syllabi", "assessment", "VARCHAR(50) NOT NULL DEFAULT ''"}, {"general_education_syllabi", "attribute", "VARCHAR(50) NOT NULL DEFAULT ''"}, {"general_education_syllabi", "syllabus_id", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"general_education_syllabi", "has_syllabus", "TINYINT(1) NOT NULL DEFAULT 0"}, {"general_education_syllabi", "detail_json", "MEDIUMTEXT NULL"}, {"general_education_syllabi", "detail_fetched_at", "DATETIME NULL"}, {"general_education_syllabi", "updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"},
+	{"campus_services", "id", "VARCHAR(64) NOT NULL PRIMARY KEY"}, {"campus_services", "category", "VARCHAR(24) NOT NULL DEFAULT ''"}, {"campus_services", "provider_name", "VARCHAR(100) NOT NULL DEFAULT ''"}, {"campus_services", "title", "VARCHAR(120) NOT NULL DEFAULT ''"}, {"campus_services", "summary", "VARCHAR(300) NOT NULL DEFAULT ''"}, {"campus_services", "details", "TEXT NULL"}, {"campus_services", "audience", "VARCHAR(120) NOT NULL DEFAULT ''"}, {"campus_services", "price_label", "VARCHAR(100) NOT NULL DEFAULT ''"}, {"campus_services", "campus_scope", "VARCHAR(20) NOT NULL DEFAULT 'all'"}, {"campus_services", "qualification_note", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"campus_services", "sponsored", "TINYINT(1) NOT NULL DEFAULT 1"}, {"campus_services", "verified", "TINYINT(1) NOT NULL DEFAULT 0"}, {"campus_services", "enabled", "TINYINT(1) NOT NULL DEFAULT 0"}, {"campus_services", "priority", "INT NOT NULL DEFAULT 0"}, {"campus_services", "start_at", "DATE NOT NULL"}, {"campus_services", "end_at", "DATE NULL"}, {"campus_services", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"}, {"campus_services", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"},
+	{"campus_service_leads", "id", "BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY"}, {"campus_service_leads", "service_id", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"campus_service_leads", "student_key", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"campus_service_leads", "contact_type", "VARCHAR(16) NOT NULL DEFAULT ''"}, {"campus_service_leads", "contact_ciphertext", "TEXT NULL"}, {"campus_service_leads", "contact_mask", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"campus_service_leads", "dedupe_key", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"campus_service_leads", "note", "VARCHAR(300) NOT NULL DEFAULT ''"}, {"campus_service_leads", "consent_version", "VARCHAR(32) NOT NULL DEFAULT ''"}, {"campus_service_leads", "consented_at", "DATETIME NOT NULL"}, {"campus_service_leads", "status", "VARCHAR(20) NOT NULL DEFAULT 'new'"}, {"campus_service_leads", "admin_note", "VARCHAR(300) NOT NULL DEFAULT ''"}, {"campus_service_leads", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"}, {"campus_service_leads", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"}, {"campus_service_leads", "expires_at", "DATETIME NOT NULL"},
 	{"user_settings", "student_id", "VARCHAR(50) NOT NULL"}, {"user_settings", "k", "VARCHAR(100) NOT NULL"}, {"user_settings", "v", "TEXT NULL"}, {"user_settings", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"},
 	{"reminder_tasks", "student_id", "VARCHAR(50) NOT NULL DEFAULT ''"}, {"reminder_tasks", "semester", "VARCHAR(50) NOT NULL DEFAULT ''"}, {"reminder_tasks", "kind", "VARCHAR(20) NOT NULL DEFAULT 'grade'"}, {"reminder_tasks", "course_key", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"reminder_tasks", "course_name", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"reminder_tasks", "teacher_key", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"reminder_tasks", "teacher_snapshot", "VARCHAR(200) NOT NULL DEFAULT ''"}, {"reminder_tasks", "assessment_type", "VARCHAR(20) NOT NULL DEFAULT ''"}, {"reminder_tasks", "stage", "VARCHAR(30) NOT NULL DEFAULT 'scheduled'"}, {"reminder_tasks", "course_end_at", "DATETIME NULL"}, {"reminder_tasks", "exam_wait_started_at", "DATETIME NULL"}, {"reminder_tasks", "grade_wait_started_at", "DATETIME NULL"}, {"reminder_tasks", "exam_at", "DATETIME NULL"}, {"reminder_tasks", "exam_finished_at", "DATETIME NULL"}, {"reminder_tasks", "grade_first_seen_at", "DATETIME NULL"}, {"reminder_tasks", "next_check_at", "DATETIME NULL"}, {"reminder_tasks", "last_check_at", "DATETIME NULL"}, {"reminder_tasks", "sent_at", "DATETIME NULL"}, {"reminder_tasks", "expires_at", "DATETIME NULL"}, {"reminder_tasks", "fail_count", "INT NOT NULL DEFAULT 0"}, {"reminder_tasks", "status", "VARCHAR(20) NOT NULL DEFAULT 'active'"}, {"reminder_tasks", "updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"},
 	{"usage_events", "event_key", "VARCHAR(96) NOT NULL"}, {"usage_events", "analytics_id", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"usage_events", "visitor_hash", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"usage_events", "session_id", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"usage_events", "event_name", "VARCHAR(40) NOT NULL DEFAULT ''"}, {"usage_events", "page", "VARCHAR(40) NOT NULL DEFAULT ''"}, {"usage_events", "feature", "VARCHAR(40) NOT NULL DEFAULT ''"}, {"usage_events", "slot_id", "VARCHAR(64) NOT NULL DEFAULT ''"}, {"usage_events", "ad_type", "VARCHAR(24) NOT NULL DEFAULT ''"}, {"usage_events", "visible_ms", "INT NOT NULL DEFAULT 0"}, {"usage_events", "properties_json", "TEXT NULL"}, {"usage_events", "app_version", "VARCHAR(40) NOT NULL DEFAULT ''"}, {"usage_events", "platform", "VARCHAR(24) NOT NULL DEFAULT ''"}, {"usage_events", "client_ts", "DATETIME NULL"}, {"usage_events", "created_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"},
@@ -77,6 +122,8 @@ var createTables = []string{
 	`CREATE TABLE IF NOT EXISTS audit_courses (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, semester VARCHAR(50) NOT NULL DEFAULT '', course_name VARCHAR(200) NOT NULL DEFAULT '', class_info TEXT NULL, teacher VARCHAR(200) NOT NULL DEFAULT '', classroom VARCHAR(200) NOT NULL DEFAULT '', day_of_week INT NOT NULL DEFAULT 0, start_period INT NOT NULL DEFAULT 0, end_period INT NOT NULL DEFAULT 0, weeks VARCHAR(100) NOT NULL DEFAULT '', updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	`CREATE TABLE IF NOT EXISTS audit_favorites (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, student_id VARCHAR(50) NOT NULL DEFAULT '', semester VARCHAR(50) NOT NULL DEFAULT '', favorite_key VARCHAR(64) NOT NULL DEFAULT '', course_name VARCHAR(200) NOT NULL DEFAULT '', class_info TEXT NULL, teacher VARCHAR(200) NOT NULL DEFAULT '', classroom VARCHAR(200) NOT NULL DEFAULT '', schedules_json TEXT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	generalEducationCreateTable,
+	campusServicesCreateTable,
+	campusServiceLeadsCreateTable,
 	`CREATE TABLE IF NOT EXISTS reminder_tasks (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, student_id VARCHAR(50) NOT NULL DEFAULT '', semester VARCHAR(50) NOT NULL DEFAULT '', kind VARCHAR(20) NOT NULL DEFAULT 'grade', course_key VARCHAR(64) NOT NULL DEFAULT '', course_name VARCHAR(200) NOT NULL DEFAULT '', teacher_key VARCHAR(64) NOT NULL DEFAULT '', teacher_snapshot VARCHAR(200) NOT NULL DEFAULT '', assessment_type VARCHAR(20) NOT NULL DEFAULT '', stage VARCHAR(30) NOT NULL DEFAULT 'scheduled', course_end_at DATETIME NULL, exam_wait_started_at DATETIME NULL, grade_wait_started_at DATETIME NULL, exam_at DATETIME NULL, exam_finished_at DATETIME NULL, grade_first_seen_at DATETIME NULL, next_check_at DATETIME NULL, last_check_at DATETIME NULL, sent_at DATETIME NULL, expires_at DATETIME NULL, fail_count INT NOT NULL DEFAULT 0, status VARCHAR(20) NOT NULL DEFAULT 'active', updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	`CREATE TABLE IF NOT EXISTS usage_events (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, event_key VARCHAR(96) NOT NULL, analytics_id VARCHAR(64) NOT NULL DEFAULT '', visitor_hash VARCHAR(64) NOT NULL DEFAULT '', session_id VARCHAR(64) NOT NULL DEFAULT '', event_name VARCHAR(40) NOT NULL DEFAULT '', page VARCHAR(40) NOT NULL DEFAULT '', feature VARCHAR(40) NOT NULL DEFAULT '', slot_id VARCHAR(64) NOT NULL DEFAULT '', ad_type VARCHAR(24) NOT NULL DEFAULT '', visible_ms INT NOT NULL DEFAULT 0, properties_json TEXT NULL, app_version VARCHAR(40) NOT NULL DEFAULT '', platform VARCHAR(24) NOT NULL DEFAULT '', client_ts DATETIME NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	`CREATE TABLE IF NOT EXISTS usage_user_daily (date DATE NOT NULL, analytics_id VARCHAR(64) NOT NULL, open_count INT NOT NULL DEFAULT 0, session_count INT NOT NULL DEFAULT 0, active_seconds INT NOT NULL DEFAULT 0, page_views INT NOT NULL DEFAULT 0, event_count INT NOT NULL DEFAULT 0, feature_actions INT NOT NULL DEFAULT 0, first_seen_at DATETIME NULL, last_seen_at DATETIME NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY(date,analytics_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -92,6 +139,11 @@ var indexes = []indexSpec{
 	{"feedback", "ix_feedback_student_id", "student_id"}, {"audit_courses", "ix_audit_courses_semester", "semester"}, {"audit_courses", "ix_audit_courses_semester_name", "semester,course_name"}, {"audit_courses", "ix_audit_courses_semester_teacher", "semester,teacher"},
 	{"audit_favorites", "uq_audit_favorite", "student_id,semester,favorite_key"}, {"audit_favorites", "ix_audit_favorites_user_semester", "student_id,semester"},
 	{"general_education_syllabi", "uq_general_education_course", "semester,course_code"}, {"general_education_syllabi", "ix_general_education_semester", "semester"}, {"general_education_syllabi", "ix_general_education_name", "semester,course_name"},
+	{"campus_services", "ix_campus_services_public", "enabled,verified,category,campus_scope,start_at,end_at,priority"},
+	{"campus_service_leads", "uq_campus_service_lead_dedupe", "dedupe_key"},
+	{"campus_service_leads", "ix_campus_service_leads_status", "status,id"},
+	{"campus_service_leads", "ix_campus_service_leads_service", "service_id,id"},
+	{"campus_service_leads", "ix_campus_service_leads_expires", "expires_at"},
 	{"reminder_tasks", "uq_reminder_task", "student_id,semester,kind,course_key,teacher_key"}, {"reminder_tasks", "ix_reminder_due", "kind,status,next_check_at"}, {"reminder_tasks", "ix_reminder_user", "student_id,semester,kind"},
 	{"usage_events", "uq_usage_events_event_key", "event_key"}, {"usage_events", "ix_usage_events_name_time", "event_name,created_at"}, {"usage_events", "ix_usage_events_user_time", "analytics_id,created_at"}, {"usage_events", "ix_usage_events_slot_time", "slot_id,created_at"}, {"usage_events", "ix_usage_events_page_time", "page,created_at"},
 	{"usage_user_daily", "ix_usage_user_daily_date", "date"}, {"usage_slot_user_daily", "ix_usage_slot_daily_date", "date"}, {"usage_slot_user_daily", "ix_usage_slot_daily_slot", "slot_id,date"},
@@ -249,6 +301,23 @@ func applyGeneralEducationMigration(ctx context.Context, conn *sql.Conn, logger 
 	}
 	for _, index := range indexes {
 		if index.table != generalEducationTable {
+			continue
+		}
+		if err := ensureIndex(ctx, conn, logger, index); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func applyCampusServicesMigration(ctx context.Context, conn *sql.Conn, logger *slog.Logger) error {
+	for _, statement := range []string{campusServicesCreateTable, campusServiceLeadsCreateTable} {
+		if _, err := conn.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("创建校园服务表失败: %w", err)
+		}
+	}
+	for _, index := range indexes {
+		if index.table != campusServicesTable && index.table != campusServiceLeadsTable {
 			continue
 		}
 		if err := ensureIndex(ctx, conn, logger, index); err != nil {
@@ -558,6 +627,11 @@ func verifySchemaVersion(ctx context.Context, db queryer, version string) error 
 	switch version {
 	case BaselineVersion:
 		excludedTables[generalEducationTable] = true
+		excludedTables[campusServicesTable] = true
+		excludedTables[campusServiceLeadsTable] = true
+	case generalEducationVersion:
+		excludedTables[campusServicesTable] = true
+		excludedTables[campusServiceLeadsTable] = true
 	case Version:
 	default:
 		return fmt.Errorf("未知数据库迁移版本 %s", version)

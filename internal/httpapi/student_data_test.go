@@ -79,6 +79,7 @@ func TestRunRefreshAllStopsAfterSessionExpiry(t *testing.T) {
 }
 
 func TestRefreshCETEmptyResultReturnsNotFoundWithoutReplacingSnapshot(t *testing.T) {
+	t.Setenv("ALLOW_LIVE_REFRESH", "1")
 	manager, err := session.NewManager(time.Hour, 10, "", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -180,6 +181,7 @@ func TestSessionTimeoutContextCancelledWhenSessionDeleted(t *testing.T) {
 }
 
 func TestRefreshSchedulePersistsRequestedSemester(t *testing.T) {
+	t.Setenv("ALLOW_LIVE_REFRESH", "1")
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
@@ -241,6 +243,7 @@ func TestRefreshSchedulePersistsRequestedSemester(t *testing.T) {
 }
 
 func TestRefreshAllPersistsRequestedSemesterWhenDomainsFail(t *testing.T) {
+	t.Setenv("ALLOW_LIVE_REFRESH", "1")
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)

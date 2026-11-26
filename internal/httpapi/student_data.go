@@ -30,6 +30,13 @@ func (s *Server) courses(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "semester": currentSemester(), "count": 0,
+			"courses": []store.Course{}, "partner_mode": true,
+		})
+		return
+	}
 	if isGraduate(sess) {
 		payload, err := s.graduateCourses(r.Context(), sess, false)
 		if err != nil {
@@ -70,6 +77,13 @@ func (s *Server) exams(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "semester": currentSemester(), "count": 0,
+			"exams": []store.Exam{}, "partner_mode": true,
+		})
+		return
+	}
 	if isGraduate(sess) {
 		payload, err := s.graduateTable(r.Context(), sess, "exams", false)
 		if err != nil {
@@ -92,8 +106,20 @@ func (s *Server) exams(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshSchedule(w http.ResponseWriter, r *http.Request) {
+	if !s.allowLiveRefresh() {
+		writeNoManualRefresh(w)
+		return
+	}
 	sess, ok := s.requireSession(w, r)
 	if !ok {
+		return
+	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "refreshed": false, "partner_mode": true,
+			"message": "合作商验收账号无学生课表数据", "count": 0,
+			"semester": currentSemester(),
+		})
 		return
 	}
 	if isGraduate(sess) {
@@ -138,13 +164,25 @@ func (s *Server) refreshExams(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "refreshed": false, "partner_mode": true,
+			"message": "合作商验收账号无学生考试数据", "count": 0,
+		})
+		return
+	}
+	// 考试刷新是明确的产品能力，独立于全局手动刷新开关；仍按用户限流，避免被当作教务刷数入口。
+	if s.rateLimited("exam-refresh:"+sess.StudentID, 3, time.Minute) {
+		writeError(w, http.StatusTooManyRequests, "考试刷新过于频繁，请稍后再试")
+		return
+	}
 	if isGraduate(sess) {
 		payload, err := s.graduateTable(r.Context(), sess, "exams", true)
 		if err != nil {
 			mapJWCError(w, err, "获取研究生考试失败")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"success": true, "count": payload["count"]})
+		writeJSON(w, http.StatusOK, map[string]any{"success": true, "refreshed": true, "count": payload["count"]})
 		return
 	}
 	semester := s.semesterFor(r, sess)
@@ -172,12 +210,25 @@ func (s *Server) refreshExams(w http.ResponseWriter, r *http.Request) {
 	if len(values) == 0 {
 		message = "成功获取 0 场考试（本学期暂无考试安排）"
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": message, "count": len(values)})
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "refreshed": true, "message": message, "count": len(values)})
 }
 
 func (s *Server) refreshAll(w http.ResponseWriter, r *http.Request) {
+	if !s.allowLiveRefresh() {
+		writeNoManualRefresh(w)
+		return
+	}
 	sess, ok := s.requireSession(w, r)
 	if !ok {
+		return
+	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "refreshed": false, "partner_mode": true,
+			"message":  "合作商验收账号无学生数据",
+			"schedule": map[string]any{"ok": false, "success": false, "count": 0},
+			"exams":    map[string]any{"ok": false, "success": false, "count": 0},
+		})
 		return
 	}
 	if isGraduate(sess) {
@@ -295,6 +346,13 @@ func (s *Server) grades(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "semester": "__all__", "count": 0,
+			"grades": []store.Grade{}, "available_semesters": []string{}, "partner_mode": true,
+		})
+		return
+	}
 	if isGraduate(sess) {
 		payload, err := s.graduateTable(r.Context(), sess, "grades", false)
 		if err != nil {
@@ -337,8 +395,19 @@ func (s *Server) grades(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshGrades(w http.ResponseWriter, r *http.Request) {
+	if !s.allowLiveRefresh() {
+		writeNoManualRefresh(w)
+		return
+	}
 	sess, ok := s.requireSession(w, r)
 	if !ok {
+		return
+	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "refreshed": false, "partner_mode": true,
+			"message": "合作商验收账号无学生成绩数据", "count": 0,
+		})
 		return
 	}
 	if isGraduate(sess) {
@@ -379,6 +448,12 @@ func (s *Server) cetScores(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "scores": []store.CETScore{}, "partner_mode": true,
+		})
+		return
+	}
 	values, err := s.store.CETScores(r.Context(), sess.StudentID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取四六级成绩失败")
@@ -391,8 +466,19 @@ func (s *Server) cetScores(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshCET(w http.ResponseWriter, r *http.Request) {
+	if !s.allowLiveRefresh() {
+		writeNoManualRefresh(w)
+		return
+	}
 	sess, ok := s.requireSession(w, r)
 	if !ok {
+		return
+	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "refreshed": false, "partner_mode": true,
+			"message": "合作商验收账号无四六级成绩", "scores": []store.CETScore{},
+		})
 		return
 	}
 	values, err := doOnceValue(r.Context(), s, "cet:"+sess.StudentID, func(ctx context.Context) ([]store.CETScore, error) {
@@ -430,6 +516,12 @@ func (s *Server) evaluations(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "count": 0, "evaluations": []store.Evaluation{}, "partner_mode": true,
+		})
+		return
+	}
 	values, err := s.store.Evaluations(r.Context(), sess.StudentID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取评价数据失败")
@@ -442,8 +534,19 @@ func (s *Server) evaluations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshEvaluations(w http.ResponseWriter, r *http.Request) {
+	if !s.allowLiveRefresh() {
+		writeNoManualRefresh(w)
+		return
+	}
 	sess, ok := s.requireSession(w, r)
 	if !ok {
+		return
+	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "refreshed": false, "partner_mode": true,
+			"message": "合作商验收账号无评教数据", "count": 0,
+		})
 		return
 	}
 	values, err := doOnceValue(r.Context(), s, "evaluations:"+sess.StudentID, func(ctx context.Context) ([]store.Evaluation, error) {
@@ -509,7 +612,7 @@ func (s *Server) startPrefetch(sess *session.Session, semester, mode string) {
 		startedAt := time.Now().Unix()
 		sess.SetRefreshState(map[string]any{"state": "running", "started_at": startedAt, "updated_at": startedAt})
 		if isGraduate(sess) {
-			ok, failed := s.prefetchGraduate(sess)
+			ok, failed := s.prefetchGraduate(s.ctx, sess)
 			if s.ctx.Err() != nil || sess.Context().Err() != nil {
 				return
 			}
@@ -524,7 +627,7 @@ func (s *Server) startPrefetch(sess *session.Session, semester, mode string) {
 			sess.SetRefreshState(map[string]any{"state": state, "started_at": startedAt, "fetched_at": now, "updated_at": now, "ok": ok, "failed": failed})
 			return
 		}
-		ok, failed := s.prefetchUndergraduate(sess, semester)
+		ok, failed := s.prefetchUndergraduate(s.ctx, sess, semester)
 		if s.ctx.Err() != nil || sess.Context().Err() != nil {
 			return
 		}
@@ -547,8 +650,8 @@ func (s *Server) startPrefetch(sess *session.Session, semester, mode string) {
 	}()
 }
 
-func (s *Server) prefetchGraduate(sess *session.Session) (ok, failed []string) {
-	ctx, cancel := contextWithSessionTimeout(s.ctx, sess, 2*time.Minute)
+func (s *Server) prefetchGraduate(parent context.Context, sess *session.Session) (ok, failed []string) {
+	ctx, cancel := contextWithSessionTimeout(parent, sess, 2*time.Minute)
 	defer cancel()
 	steps := []prefetchStep{
 		{"courses", func() error { _, err := s.graduateCourses(ctx, sess, true); return err }},
@@ -558,8 +661,8 @@ func (s *Server) prefetchGraduate(sess *session.Session) (ok, failed []string) {
 	return runPrefetchSteps(steps)
 }
 
-func (s *Server) prefetchUndergraduate(sess *session.Session, semester string) (ok, failed []string) {
-	ctx, cancel := contextWithSessionTimeout(s.ctx, sess, 4*time.Minute)
+func (s *Server) prefetchUndergraduate(parent context.Context, sess *session.Session, semester string) (ok, failed []string) {
+	ctx, cancel := contextWithSessionTimeout(parent, sess, 4*time.Minute)
 	defer cancel()
 	steps := []prefetchStep{
 		{"calendar", func() error { _, err := s.fetchCalendar(ctx, sess, semester); return err }},

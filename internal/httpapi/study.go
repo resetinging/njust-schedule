@@ -96,6 +96,13 @@ func (s *Server) calendar(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "partner_mode": true, "semester": currentSemester(),
+			"weeks": []any{}, "first_monday": "",
+		})
+		return
+	}
 	semester := s.semesterFor(r, sess)
 	raw, err := s.store.Setting(r.Context(), calendarKey(semester))
 	if err != nil {
@@ -138,8 +145,19 @@ func (s *Server) calendar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshCalendar(w http.ResponseWriter, r *http.Request) {
+	if !s.allowLiveRefresh() {
+		writeNoManualRefresh(w)
+		return
+	}
 	sess, ok := s.requireSession(w, r)
 	if !ok {
+		return
+	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true, "refreshed": false, "partner_mode": true,
+			"message": "合作商验收账号无学生校历数据",
+		})
 		return
 	}
 	semester := s.semesterFor(r, sess)
@@ -200,6 +218,10 @@ func (s *Server) programme(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshProgramme(w http.ResponseWriter, r *http.Request) {
+	if !s.allowLiveRefresh() {
+		writeNoManualRefresh(w)
+		return
+	}
 	s.serveUserStudy(w, r, "programme", "培养方案", func(ctx context.Context, sess *session.Session) (map[string]any, error) {
 		return s.fetchProgramme(ctx, sess)
 	}, true)
@@ -224,6 +246,10 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshProfile(w http.ResponseWriter, r *http.Request) {
+	if !s.allowLiveRefresh() {
+		writeNoManualRefresh(w)
+		return
+	}
 	s.serveUserStudy(w, r, "profile", "学籍信息", func(ctx context.Context, sess *session.Session) (map[string]any, error) {
 		return s.fetchProfile(ctx, sess)
 	}, true)
@@ -232,6 +258,18 @@ func (s *Server) refreshProfile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveUserStudy(w http.ResponseWriter, r *http.Request, key, label string, fetch func(context.Context, *session.Session) (map[string]any, error), force bool) {
 	sess, ok := s.requireSession(w, r)
 	if !ok {
+		return
+	}
+	if sess.IsPartner() {
+		empty := map[string]any{"success": true, "partner_mode": true}
+		if key == "programme" {
+			empty["supported"] = true
+			empty["courses"] = []any{}
+			empty["count"] = 0
+		} else {
+			empty["empty"] = true
+		}
+		writeJSON(w, http.StatusOK, empty)
 		return
 	}
 	raw, err := s.store.UserSetting(r.Context(), sess.StudentID, key)

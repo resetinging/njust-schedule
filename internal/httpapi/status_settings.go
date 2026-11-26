@@ -21,20 +21,28 @@ func (s *Server) metrics(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	sess, loggedIn := s.session(r)
 	sid, name, method, accountType := "", "", "", "undergraduate"
+	role := "student"
 	semester := currentSemester()
 	hasCourses, hasExams := false, false
 	refreshState := map[string]any{"state": "idle", "updated_at": int64(0)}
+	partnerMode := false
 	if loggedIn {
 		sid, name, method, accountType = sess.StudentID, sess.StudentName, sess.LoginMethod, sess.AccountType
-		semester = s.semesterFor(r, sess)
-		courses, exams, err := s.store.CountUserData(r.Context(), sid, semester)
-		if err == nil {
-			hasCourses, hasExams = courses > 0, exams > 0
-		} else {
-			s.logger.Warn("读取用户数据状态失败", "sid_prefix", maskedSID(sid), "semester", semester, "error", err)
+		if sess.Role != "" {
+			role = sess.Role
 		}
-		if isGraduate(sess) {
-			hasCourses = true
+		partnerMode = sess.IsPartner()
+		semester = s.semesterFor(r, sess)
+		if !partnerMode {
+			courses, exams, err := s.store.CountUserData(r.Context(), sid, semester)
+			if err == nil {
+				hasCourses, hasExams = courses > 0, exams > 0
+			} else {
+				s.logger.Warn("读取用户数据状态失败", "sid_prefix", maskedSID(sid), "semester", semester, "error", err)
+			}
+			if isGraduate(sess) {
+				hasCourses = true
+			}
 		}
 		if state := sess.GetRefreshState(); state != nil {
 			refreshState = state
@@ -44,7 +52,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.logger.Warn("读取默认教学周次失败", "error", err)
 	}
-	if loggedIn && semester != "" {
+	if loggedIn && !partnerMode && semester != "" {
 		if value, settingErr := s.store.UserSetting(r.Context(), sid, "first_week_date:"+semester); settingErr != nil {
 			s.logger.Warn("读取用户教学周次失败", "sid_prefix", maskedSID(sid), "semester", semester, "error", settingErr)
 		} else if value != "" {
@@ -52,20 +60,42 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	network := s.networkStatus(r.Context(), false)
+	capabilities := map[string]bool{
+		"courses": true, "exams": true, "evaluation": true, "grades": true,
+		"credit": true, "freeclass": true, "gallery": true, "audit": true,
+		"library": true, "services": true, "notice": true, "feedback": true,
+	}
+	if partnerMode {
+		capabilities = map[string]bool{
+			"courses": true, "exams": true, "evaluation": true, "grades": true,
+			"credit": true, "freeclass": true, "gallery": true, "audit": true,
+			"library": true, "services": true, "notice": true, "feedback": true,
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"logged_in": loggedIn, "student_id": sid, "student_name": name,
 		"semester": semester, "has_courses": hasCourses, "has_exams": hasExams,
-		"login_method": method, "account_type": accountType, "auto_login_attempted": false,
+		"login_method": method, "account_type": accountType, "role": role,
+		"partner_mode": partnerMode, "capabilities": capabilities, "auto_login_attempted": false,
 		"auto_login_error": "", "server_time": time.Now().In(beijing).Format("2006-01-02 15:04:05"),
 		"first_week_date": firstWeek, "network": network, "data_refresh": refreshState,
 		"api_version": 5,
-		"features":    []string{"yjs", "freeclass", "font_subset", "refresh_dedupe", "credential_relogin", "prefetch_status", "usage_analytics", "audit_courses", "general_education", "library", "qr_login", "webgo"},
+		"features":    []string{"yjs", "freeclass", "font_subset", "refresh_dedupe", "credential_relogin", "prefetch_status", "usage_analytics", "audit_courses", "general_education", "library", "qr_login", "partner_preview", "webgo"},
 	})
 }
 
 func (s *Server) prefetchStatus(w http.ResponseWriter, r *http.Request) {
 	sess, ok := s.requireSession(w, r)
 	if !ok {
+		return
+	}
+	if sess.IsPartner() {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data_refresh": map[string]any{
+				"state": "done", "updated_at": time.Now().Unix(), "ok": []string{}, "failed": []string{},
+			},
+		})
 		return
 	}
 	state := sess.GetRefreshState()

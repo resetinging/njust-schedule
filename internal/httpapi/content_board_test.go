@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/resetinging/njust-schedule/internal/config"
 	"github.com/resetinging/njust-schedule/internal/store"
 )
 
@@ -141,7 +142,7 @@ func TestContentBoardEndpointReturnsPublicPayload(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
 	body := recorder.Body.String()
-	if !strings.Contains(body, `"title":"公告"`) || !strings.Contains(body, `"qq":"123456789"`) {
+	if !strings.Contains(body, `"title":"公告"`) || !strings.Contains(body, `"qq":"123456789"`) || !strings.Contains(body, `"competitions":[]`) {
 		t.Fatalf("unexpected body: %s", body)
 	}
 	if err = mock.ExpectationsWereMet(); err != nil {
@@ -176,5 +177,96 @@ func TestLegacyAnnouncementEndpointUsesLatestBoardItem(t *testing.T) {
 	}
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func validCompetition() contentCompetition {
+	return contentCompetition{
+		ID: "comp-1", Title: "高等数学竞赛", Summary: "报名通知",
+		PublishedAt: "2026-10-20", Deadline: "2026-11-01",
+		SourceURL: "https://xspace.njust.edu.cn/14263/list.htm", Enabled: true,
+	}
+}
+
+func TestValidateContentBoardCompetitions(t *testing.T) {
+	board := contentBoard{Announcements: []contentAnnouncement{}, Competitions: []contentCompetition{validCompetition()}}
+	normalizeContentBoard(&board, "2026-10-19 12:00:00")
+	if err := validateContentBoard(board); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name string
+		edit func(*contentCompetition)
+		want string
+	}{
+		{name: "缺少 ID", edit: func(c *contentCompetition) { c.ID = "" }, want: "竞赛 ID 无效或重复"},
+		{name: "缺少标题", edit: func(c *contentCompetition) { c.Title = " " }, want: "标题不能为空"},
+		{name: "摘要正文都空", edit: func(c *contentCompetition) { c.Summary = ""; c.Body = "" }, want: "摘要或正文不能为空"},
+		{name: "缺少发布日期", edit: func(c *contentCompetition) { c.PublishedAt = "" }, want: "发布日期格式无效"},
+		{name: "发布日期非法", edit: func(c *contentCompetition) { c.PublishedAt = "2026-13-01" }, want: "发布日期格式无效"},
+		{name: "截止日期非法", edit: func(c *contentCompetition) { c.Deadline = "2026-02-30" }, want: "截止日期格式无效"},
+		{name: "截止早于发布", edit: func(c *contentCompetition) { c.Deadline = "2026-10-01" }, want: "截止日期不能早于发布日期"},
+		{name: "http 链接", edit: func(c *contentCompetition) { c.SourceURL = "http://xspace.njust.edu.cn/a" }, want: "官方 HTTPS"},
+		{name: "非官方域名", edit: func(c *contentCompetition) { c.SourceURL = "https://evil.example.com/a" }, want: "njust.edu.cn"},
+		{name: "仿冒子域", edit: func(c *contentCompetition) { c.SourceURL = "https://njust.edu.cn.evil.com/a" }, want: "njust.edu.cn"},
+		{name: "缺少链接", edit: func(c *contentCompetition) { c.SourceURL = "" }, want: "原文链接不能为空"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			item := validCompetition()
+			tc.edit(&item)
+			invalid := contentBoard{Announcements: []contentAnnouncement{}, Competitions: []contentCompetition{item}}
+			if err := validateContentBoard(invalid); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error=%v, want contains %q", err, tc.want)
+			}
+		})
+	}
+
+	for _, source := range []string{
+		"https://xspace.njust.edu.cn/14263/list.htm",
+		"https://jwc.njust.edu.cn/7f/f9/c1217a294905/page.htm",
+		"https://njust.edu.cn/a",
+	} {
+		item := validCompetition()
+		item.SourceURL = source
+		valid := contentBoard{Announcements: []contentAnnouncement{}, Competitions: []contentCompetition{item}}
+		if err := validateContentBoard(valid); err != nil {
+			t.Fatalf("合法官方 HTTPS 被拒绝 %s: %v", source, err)
+		}
+	}
+}
+
+func TestPublicContentBoardCompetitionsFiltersAndSorts(t *testing.T) {
+	board := contentBoard{
+		Announcements: []contentAnnouncement{},
+		Competitions: []contentCompetition{
+			{ID: "old", Title: "旧竞赛", Summary: "旧", PublishedAt: "2026-10-01", Enabled: true},
+			{ID: "new", Title: "新竞赛", Body: "新正文", PublishedAt: "2026-10-20", Deadline: "", SourceURL: "https://xspace.njust.edu.cn/new", Enabled: true},
+			{ID: "disabled", Title: "隐藏竞赛", Summary: "隐藏", PublishedAt: "2026-10-30", Enabled: false},
+		},
+	}
+	public := publicContentBoard(board)
+	if len(public.Competitions) != 2 || public.Competitions[0].ID != "new" || public.Competitions[1].ID != "old" {
+		t.Fatalf("competitions = %+v", public.Competitions)
+	}
+	if public.Competitions[0].Deadline != "" {
+		t.Fatalf("deadline should stay empty: %+v", public.Competitions[0])
+	}
+}
+
+func TestAdminSaveContentBoardRejectsInvalidCompetitionSource(t *testing.T) {
+	server := &Server{cfg: config.Config{SessionKey: make([]byte, 32), AdminPassword: "secret"}}
+	body := `{"board":{"announcements":[],"competitions":[{"id":"c1","title":"竞赛","summary":"摘要","published_at":"2026-10-20","source_url":"http://evil.example.com/a","enabled":true}],"community":{}}}`
+	request := httptest.NewRequest(http.MethodPost, "/api/admin/content-board", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Admin-Token", server.issueAdminToken())
+	recorder := httptest.NewRecorder()
+	server.adminSaveContentBoard(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "原文链接") {
+		t.Fatalf("unexpected body: %s", recorder.Body.String())
 	}
 }

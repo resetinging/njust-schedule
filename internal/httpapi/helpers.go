@@ -240,37 +240,97 @@ func validISODate(value string) bool {
 	return err == nil && parsed.Year() >= 2000 && parsed.Year() <= 2100
 }
 
+// cacheGet 只返回新鲜值。普通缓存（retention==expiresAt）过期即删除；
+// 带 stale retention 的条目在新鲜期结束后只返回 miss，但保留给 cacheLookup/cleanup，
+// 不能因为一次 fresh-only 读取就把仍可回退的旧缓存删掉。
 func (s *Server) cacheGet(key string) (any, bool) {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 	item, ok := s.cache[key]
-	if !ok || time.Now().After(item.expiresAt) {
-		delete(s.cache, key)
+	if !ok {
 		return nil, false
 	}
-	return item.value, true
+	now := time.Now()
+	if now.Before(item.expiresAt) {
+		return item.value, true
+	}
+	if now.Before(cacheDeadline(item)) {
+		return nil, false
+	}
+	delete(s.cache, key)
+	return nil, false
 }
 
 func (s *Server) cacheSet(key string, value any, ttl time.Duration) {
+	s.cacheStore(key, value, ttl, 0)
+}
+
+// cacheSetRetained 用于“上游失败可回退旧缓存”的功能：
+// retainTTL 从新鲜期结束时刻开始计算（例如 fresh=30m, retain=24h → 总保留 24h30m）。
+func (s *Server) cacheSetRetained(key string, value any, freshTTL, retainTTL time.Duration) {
+	s.cacheStore(key, value, freshTTL, retainTTL)
+}
+
+func (s *Server) cacheStore(key string, value any, freshTTL, retainTTL time.Duration) {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 	if s.cache == nil {
 		s.cache = map[string]cacheEntry{}
 	}
 	now := time.Now()
-	s.cache[key] = cacheEntry{value: value, expiresAt: now.Add(ttl), storedAt: now}
-	if len(s.cache) > 4096 {
-		for cacheKey, item := range s.cache {
-			if now.After(item.expiresAt) {
-				delete(s.cache, cacheKey)
+	expiresAt := now.Add(freshTTL)
+	retainUntil := expiresAt
+	if retainTTL > 0 {
+		retainUntil = expiresAt.Add(retainTTL)
+	}
+	// 覆盖同 key 时整体替换，不保留旧值的 stale 期限。
+	s.cache[key] = cacheEntry{value: value, expiresAt: expiresAt, retainUntil: retainUntil, storedAt: now}
+	s.evictCacheLocked(now)
+}
+
+func cacheDeadline(item cacheEntry) time.Time {
+	if !item.retainUntil.IsZero() {
+		return item.retainUntil
+	}
+	return item.expiresAt
+}
+
+// evictCacheLocked 保证真正有界：插入超过上限时做一次线性扫描，优先淘汰 retention
+// 已结束的条目；若都未结束，再淘汰最旧 storedAt 的 1 项（FIFO，O(n)，无需分配/排序）。
+// 替换同 key 不增加容量。
+// 注意：容量压力下可淘汰仍在 stale retention 内的最旧条目；这与“cleanup/读取不会仅因
+// 过 fresh 期而删除 retained 项”是两条独立不变量。
+func (s *Server) evictCacheLocked(now time.Time) {
+	for len(s.cache) > cacheMaxEntries {
+		oldestKey := ""
+		var oldestStored time.Time
+		expiredKey := ""
+		for key, item := range s.cache {
+			if now.After(cacheDeadline(item)) {
+				if expiredKey == "" {
+					expiredKey = key
+				}
+				continue
+			}
+			if oldestKey == "" || item.storedAt.Before(oldestStored) {
+				oldestKey = key
+				oldestStored = item.storedAt
 			}
 		}
+		if expiredKey != "" {
+			delete(s.cache, expiredKey)
+			continue
+		}
+		if oldestKey == "" {
+			return
+		}
+		delete(s.cache, oldestKey)
 	}
 }
 
-// cacheLookup 读取缓存并区分「新鲜」与「过期但仍在旧值宽限期内」。
-// staleTTL 为 0 时过期即删除；只有需要“上游失败回退旧缓存”的功能才使用宽限期。
-func (s *Server) cacheLookup(key string, staleTTL time.Duration) (any, bool, time.Time, bool) {
+// cacheLookup 读取缓存并区分「新鲜」与「过期但仍在 retention 宽限期内」。
+// 宽限期由 cacheSetRetained 在写入时决定，避免 cleanup 与读取对 stale 的期限理解不一致。
+func (s *Server) cacheLookup(key string) (any, bool, time.Time, bool) {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 	item, ok := s.cache[key]
@@ -278,14 +338,11 @@ func (s *Server) cacheLookup(key string, staleTTL time.Duration) (any, bool, tim
 		return nil, false, time.Time{}, false
 	}
 	now := time.Now()
-	if now.Before(item.expiresAt) {
-		return item.value, true, item.storedAt, true
+	if now.After(cacheDeadline(item)) {
+		delete(s.cache, key)
+		return nil, false, time.Time{}, false
 	}
-	if staleTTL > 0 && now.Before(item.expiresAt.Add(staleTTL)) {
-		return item.value, false, item.storedAt, true
-	}
-	delete(s.cache, key)
-	return nil, false, time.Time{}, false
+	return item.value, now.Before(item.expiresAt), item.storedAt, true
 }
 
 func (s *Server) cacheDeletePrefix(prefix string) {

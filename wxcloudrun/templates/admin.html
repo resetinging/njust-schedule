@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>课表助手 · 控制面板</title>
-  <link rel="stylesheet" href="/static/css/admin.css?v=20261020-2">
+  <link rel="stylesheet" href="/static/css/admin.css?v=20261124-1">
 </head>
 <body>
 
@@ -46,6 +46,7 @@
       <button class="tab" data-tab="sessions">在线会话</button>
       <button class="tab" data-tab="grades">成绩统计</button>
       <button class="tab" data-tab="announce">📢 信息中心</button>
+      <button class="tab" data-tab="services">🏷️ 校园服务</button>
       <button class="tab" data-tab="feedback">✉️ 反馈</button>
       <button class="tab" data-tab="system">⚙️ 系统</button>
     </nav>
@@ -198,6 +199,17 @@
           <div id="bcAnnouncements" class="bc-editor-list"></div>
         </section>
 
+        <section class="bc-section">
+          <div class="bc-head">
+            <div>
+              <strong>竞赛</strong>
+              <span class="dim">仅允许官方 HTTPS 原文链接（xspace.njust.edu.cn 或 njust.edu.cn 子域）；截止日期可为空</span>
+            </div>
+            <button id="bcAddCompetition" class="ghost small">新增竞赛</button>
+          </div>
+          <div id="bcCompetitions" class="bc-editor-list"></div>
+        </section>
+
         <section class="bc-section bc-community">
           <div class="bc-head">
             <div>
@@ -216,6 +228,47 @@
           <span id="bcUpdated" class="dim"></span>
           <button id="bcSave" class="primary ann-save">保存信息中心</button>
         </div>
+      </div>
+    </section>
+
+    <section id="panel-services" class="panel">
+      <div class="card">
+        <h3>🏷️ 校园服务</h3>
+        <p class="dim service-intro">服务必须完成审核后才能上架。公开页只返回已审核、已启用且处于有效期内的条目。</p>
+        <section class="bc-section">
+          <div class="bc-head">
+            <div>
+              <strong>服务条目</strong>
+              <span class="dim">运营商套餐、复习资料、保研咨询、考研培训</span>
+            </div>
+            <button id="campusAddService" class="ghost small">新增服务</button>
+          </div>
+          <div id="campusServiceList" class="bc-editor-list"></div>
+        </section>
+        <div class="ann-actions">
+          <span id="campusServicesStatus" class="dim"></span>
+          <button id="campusSaveServices" class="primary ann-save">保存校园服务</button>
+        </div>
+      </div>
+
+      <div class="card service-leads-card">
+        <div class="panel-tool service-lead-tool">
+          <div>
+            <h3>咨询线索</h3>
+            <span class="dim">联系方式默认脱敏；查看完整联系方式会产生管理员操作。</span>
+          </div>
+          <div class="btn-group">
+            <select id="campusLeadStatus" class="ghost small">
+              <option value="">全部状态</option>
+              <option value="new">新线索</option>
+              <option value="contacted">已联系</option>
+              <option value="converted">已转化</option>
+              <option value="invalid">无效</option>
+            </select>
+            <button id="campusRefreshLeads" class="ghost small">刷新线索</button>
+          </div>
+        </div>
+        <div id="campusLeadList" class="board-list"></div>
       </div>
     </section>
 
@@ -293,6 +346,6 @@
     <div id="drawerBody" class="drawer-body"></div>
   </div>
 
-  <script src="/static/js/admin.js?v=20261020-2"></script>
+  <script src="/static/js/admin.js?v=20261124-1"></script>
 </body>
 </html>

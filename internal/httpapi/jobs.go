@@ -14,6 +14,16 @@ func envEnabled(name string) bool {
 
 func (s *Server) startJobs() {
 	s.runLoop("state-cleanup", time.Minute, false, s.cleanupRuntimeState)
+	s.runDaily("campus-lead-cleanup", 3, 30, func(ctx context.Context) {
+		removed, err := s.store.PurgeExpiredCampusServiceLeads(ctx)
+		if err != nil {
+			s.logger.Warn("校园服务咨询线索清理失败", "error", err)
+			return
+		}
+		if removed > 0 {
+			s.logger.Info("校园服务咨询线索已清理", "removed", removed)
+		}
+	})
 	s.runLoop("network-probe", 5*time.Minute, true, func(ctx context.Context) {
 		s.networkStatus(ctx, true)
 	})
@@ -37,6 +47,10 @@ func (s *Server) startJobs() {
 	}
 	if envEnabled("FREE_CLASSROOM_PREWARM") {
 		s.runDaily("freeclass-prewarm", 0, 2, s.prewarmFreeClassrooms)
+	}
+	if envBool("USER_DATA_DAILY_SYNC", true) {
+		// 与空教室同款：启动先补跑一次，之后每日北京时间 00:20 批量预热用户数据。
+		s.runDaily("user-data-daily-sync", userDataSyncDefaultHour, userDataSyncDefaultMin, s.prewarmUserData)
 	}
 	if envEnabled("EXAM_REMINDER") && s.cfg.MPAppID != "" && s.cfg.MPSecret != "" {
 		s.runLoop("reminder", 10*time.Minute, true, s.runReminderJobs)
@@ -103,7 +117,7 @@ func (s *Server) cleanupRuntimeState(_ context.Context) {
 	now := time.Now()
 	s.cacheMu.Lock()
 	for key, item := range s.cache {
-		if now.After(item.expiresAt) {
+		if now.After(cacheDeadline(item)) {
 			delete(s.cache, key)
 		}
 	}

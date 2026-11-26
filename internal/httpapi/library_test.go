@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -172,7 +173,7 @@ func TestLibrarySearchInputValidation(t *testing.T) {
 		"/api/library/search",
 		"/api/library/search?q=" + url.QueryEscape("数学") + "&field=subject",
 		"/api/library/search?q=" + url.QueryEscape("数学") + "&page=0",
-		"/api/library/search?q=" + url.QueryEscape("数学") + "&page=51",
+		"/api/library/search?q=" + url.QueryEscape("数学") + "&page=" + strconv.Itoa(library.MaxPage+1),
 		"/api/library/search?q=" + url.QueryEscape(strings.Repeat("书", 81)),
 	}
 	for _, target := range cases {

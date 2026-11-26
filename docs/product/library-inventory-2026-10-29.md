@@ -19,6 +19,9 @@
 - 交互：
   - 四个字段胶囊（书名/作者/ISBN/索书号）+ 输入框 + 圆形查询按钮（统一 `.refresh-action`，请求中 `is-busy` 单层旋转）；
   - 结果概览「共 N 条 + 旧缓存/更新时间 + 刷新」；书目卡片展示题名、作者/出版社/年份、索书号/ISBN、文献类型；
+- 输入框与字段只是**草稿**，只有点查询才提交；翻页、刷新、失败重试严格使用已提交条件快照；字段切换会清空旧结果并使在途请求失效，避免把旧字段结果冒充新字段。
+- 第 N 页失败时记录失败条件与页码，重试原页；首屏失败重试第 1 页并替换列表，不会把已成功页重复 append。
+- 到达服务端页上限时保留真实 total，显示“已展示前 N 条，共 total 条（受查询上限限制）”。
   - 加载更多、出错重试、无结果空态；
   - 点书目打开 `t-popup`（`--td-popup-distance-top: 12vh`），展示题名/元数据、全部/南京/江阴胶囊（含校区册数）、总册/可借册、逐册索书号/条码/馆藏地/状态；打开时通过 `popupstate` 隐藏浮动底栏；
   - “可借”只认状态明确等于「可借」的册；借出/在馆/不可借/未知保留原状态且不计入可借。
@@ -33,7 +36,7 @@
 
 `GET /api/library/search?field=title|author|isbn|callno&q=<关键词>&page=1&page_size=20`
 
-- `q`：必填，1–80 字符，拒绝控制字符；`field` 缺省 `title`；`page` 1–50；`page_size` 1–50（缺省 20）。
+- `q`：必填，1–80 字符，拒绝控制字符；`field` 缺省 `title`；`page` 1–200（MaxPage=200，默认 20 条/页，覆盖真实 2582 条）；`page_size` 1–50（缺省 20）。
 - 显式非法分页参数返回 400（不静默回退）。
 
 成功响应示例：
@@ -66,7 +69,9 @@
 ```
 
 - `total` 是本次关键词命中的结果总数（不是全馆藏书量），来自上游真实 `total`；不得伪造。
-- `has_more = page * page_size < total`。
+- `has_more = page < max_page && page * page_size < total`；到达 `max_page` 后不再声明 `has_more`（下一页会 400）。
+- 当 `total > max_page * page_size` 时返回 `truncated: true` 和 `max_page`；前端显示“已展示前 N 条，共 total 条（受查询上限限制）”，不会简单把 `has_more` 置 false 后谎称已加载全部；`total` 始终是上游真实总数。
+- 严格校验 HTTP 200 JSON：`total` 必须存在且为非负整数，`content` 必须存在且为数组；`{}`、`null`、`{"message":"upstream unavailable"}`、`{"total":12}`、`total` 为字符串/负数、`content` 为 null/对象、记录缺少标题/书目 ID/非法 num 都按错误处理，**不得缓存或返回空结果覆盖旧缓存**。只有 `{"total":0,"content":[]}` 是合法空结果；`total>0` 但首页 `content=[]` 也视为结构不一致。非空 `content` 必须满足 `offset+len(content)<=total`（`offset=(page-1)*page_size`），`offset>=total` 的越界页不得出现非空 content；最后页允许部分采样，不强制每页塞满。
 - 上游失败无旧缓存时返回 502 `{success:false,message:"图书馆检索服务暂时不可用，请稍后再试"}`，绝不把失败返回成空列表。
 
 ### 3.2 单本馆藏
@@ -117,12 +122,14 @@
   - 明细 HTML 缺少 `table#item` → 业务错误；`table#item` 存在但无数据行 → 合法空馆藏；
   - 响应体上限 2 MiB、HTTP 超时 12s，超限/超时按上游失败处理。
 - `ajax_adv_lend_avl.php` 正文为“出错啦”，不得使用其结果作为库存。
-- 已知限制：本次实现会话中，上游在少量只读请求后触发限流（503）；真实正向检索需在正常网络下复验。`internal/library/testdata/` 中 `search_empty.json`、`item_empty.html`、`adv_info.json` 为真实抓取；`search_handoff.json`、`item_handoff.html`、`item_unknown_status.html` 为按交接已核验结构与真实表头构造的样例，不含真实用户数据。
+- 2026-11-01 已完成真实匿名只读复验：题名「高等数学」返回 `total=2582`，首页 20 条，首本为「高等数学:理工类.上册.第3版」（ISBN 978-7-5608-5255-3）；该书目真实 5 册馆藏全部可借（南京 3、江阴 2）。此前 2026-10-29 的 503 是短时限流，不是接口不可用；文档不再把“无法验证”作为限制。
+- `internal/library/testdata/` 中 `search_empty.json`、`item_empty.html`、`adv_info.json` 为真实抓取；`search_handoff.json`、`item_handoff.html`、`item_unknown_status.html` 为按已核验结构与真实表头构造的样例，不含真实用户数据。
 
 ## 5. 缓存、并发与限流
 
-- 缓存为 `Server` 进程内共享有界缓存（现有实现，上限 4096，过期淘汰）；只存公开书目/馆藏，不含用户搜索词或凭据。
-- 检索：新鲜 TTL 30 分钟；单本馆藏：5 分钟；上游失败时可回退到过期 24 小时内的旧值并令响应 `stale: true`、`updated_at` 为写入时间；无缓存则明确 502。
+- 缓存为 `Server` 进程内共享缓存，**真正有界 4096**：超限时单次线性扫描优先清理 retention 已结束条目，否则按 `storedAt` 淘汰最旧 1 项；同 key 替换不增加容量。并发安全。cache key 包含检索字段/关键词/页码；只存公开书目/馆藏，不在服务端持久化搜索历史，也不保存身份凭据、Cookie/Token。
+- 检索：新鲜 TTL 30 分钟；单本馆藏：5 分钟；stale 宽限期 **24 小时，从新鲜期结束时刻起算**（总保留 = fresh + 24h）。`cleanupRuntimeState` 按 retention 截止时间清理，因此每分钟清理不会误删仍在 stale 宽限期的图书馆缓存；`cacheGet` 只返回 fresh，fresh 过期但 retention 未结束时返回 miss 且保留条目给 `cacheLookup`，普通缓存仍按 expiresAt 删除；容量压力下可淘汰最旧项。上游失败可回退并标记 `stale: true`、`updated_at` 为写入时间；无缓存则明确 502。
+- 普通业务（空教室、通识目录等）仍使用原语义：`cacheSet` 的 retention = fresh 过期时间，cleanup 到点删除，不保留 stale。
 - 同 key 并发通过现有 `doOnceValue` 合并（同一时刻只打一次上游，等待者共享结果）。
 - 上游并发上限：`LIBRARY_MAX_CONCURRENT`（缺省 3），超出排队/受请求 context 取消。
 - 限流：按客户端 IP，检索 40 次/分钟、明细 80 次/分钟，超出 429。
@@ -150,8 +157,8 @@ go test -count=1 ./...
 go vet ./...
 ```
 
-- `internal/library`：真实 JSON/HTML 结构解析、真实空响应、业务错误（JSON err / “出错啦”）、HTTP 503、非法关键词/字段/页码、ID 校验与 URL 固定、未知状态不计可借、空馆藏合法、HTTP 200 错误、响应体上限、context 取消、校区过滤统计一致（12 项 `Test*`）。
-- `internal/httpapi`：未登录 401、本科/研究生共享、参数校验（缺失/非法/超长）、成功响应与共享缓存（二次不打上游）、stale 回退与无缓存 502、单飞合并、限流 429、上游并发上限、详情校区过滤与 campus_counts、未知状态、非法 marc/校区（11 项 `Test*`）。
+- `internal/library`：真实 JSON/HTML 结构解析、真实空响应、业务错误（JSON err / “出错啦”）、HTTP 503、非法关键词/字段/页码、ID 校验与 URL 固定、未知状态不计可借、空馆藏合法、HTTP 200 错误、响应体上限、context 取消、校区过滤统计一致；新增严格拒绝 `{}`/null/message/缺 content/类型错误/缺字段/超页大小、total/content 范围一致性，以及 MaxPage 边界（18 项 `Test*`）。
+- `internal/httpapi`：未登录 401、本科/研究生共享、参数校验（缺失/非法/超长）、成功响应与共享缓存（二次不打上游）、stale 回退与无缓存 502、单飞合并、限流 429、上游并发上限、详情校区过滤与 campus_counts、未知状态、非法 marc/校区；新增真实 cleanup 后 stale 回退、错误结构不覆盖旧缓存、按请求 pageCount 生成的分页/truncated/max_page、cacheGet retention、容量淘汰/替换/并发（20 项 `Test*`）。
 - 全量 `go test -count=1 ./...` 全绿（串行 `-p 1`；有测试的 11 个包），`go vet ./...` 通过。本机环境在并行构建时曾因分页文件不足出现 `runtime: cannot allocate memory`，串行重跑通过（环境资源限制，不是测试失败）。
 
 前端：
@@ -193,7 +200,8 @@ PYTHONIOENCODING=utf-8 python tools/verify_privacy.py .
 ## 9. 已知限制
 
 - 未做真机、320/430 宽度验收；只在 390 宽开发者工具模拟器验证。
-- 本次会话上游限流导致正向真实检索未拿到数据；已用真实表头/空响应 fixture + 交接核验结构做解析测试，上线前需在正常网络复验一次。
+- 上游不做全库抓取或自动翻完所有页；单次检索最多 200 页，超出时明确提示 truncated，不会伪造“全部加载”。
 - 多实例部署时缓存不共享（未引入 Redis/DB）；需要跨实例一致时应再加 Redis 缓存层。
 - 搜索为全馆范围，暂不支持在搜索层按校区筛选（上游 `filters` 的校区精确格式未验证）；校区筛选只作用于已选书目的库存明细，且统计与明细一致。
 - 不展示热门榜（非核心，且含非图书条目需另行过滤）。
+- 2026-10-29 曾观察到短时 503 限流；2026-11-01 已真实只读复验成功。上线前仍建议在部署环境抽一次检索+明细。

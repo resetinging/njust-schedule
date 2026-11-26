@@ -1,6 +1,10 @@
 package jwc
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/resetinging/njust-schedule/internal/store"
+)
 
 func TestJSONParsersDiscardIncompleteRows(t *testing.T) {
 	courses := parseCourseItems([]map[string]any{
@@ -33,6 +37,52 @@ func TestParseExamTableAcceptsEmptyStandardTable(t *testing.T) {
 	values, ok := parseExamTable(doc)
 	if !ok || len(values) != 0 {
 		t.Fatalf("parseExamTable() ok=%v len=%d", ok, len(values))
+	}
+}
+
+func TestParseExamTableReadsCompleteSchedule(t *testing.T) {
+	doc, err := parseDocument([]byte(`<table id="dataList">
+<tr><td>序号</td><td>考试场次</td><td>课程编号</td><td>课程名称</td><td>考试时间</td><td>考场</td><td>座位号</td></tr>
+<tr><td>1</td><td>期末考试</td><td>001</td><td>火炮弹道学</td><td>2026-12-20 09:00~11:00</td><td>Ⅳ-A111</td><td>12</td></tr>
+</table>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, ok := parseExamTable(doc)
+	if !ok || len(values) != 1 {
+		t.Fatalf("parseExamTable() ok=%v values=%#v", ok, values)
+	}
+	if values[0].CourseName != "火炮弹道学" || values[0].Date != "2026-12-20" ||
+		values[0].Time != "09:00~11:00" || values[0].Location != "Ⅳ-A111" || values[0].Seat != "12" {
+		t.Fatalf("unexpected exam: %#v", values[0])
+	}
+}
+
+func TestMergeExamDetailsFillsMissingDateTimeAndRoom(t *testing.T) {
+	primary := []store.Exam{{CourseName: "火炮弹道学", Location: "Ⅳ-A111", Type: "期末考试"}}
+	fallback := []store.Exam{{CourseName: "火炮弹道学", Date: "2026-12-20", Time: "09:00~11:00", Location: "Ⅳ-A111", Seat: "12"}}
+	merged := mergeExamDetails(primary, fallback)
+	if len(merged) != 1 {
+		t.Fatalf("merged = %#v", merged)
+	}
+	if merged[0].Date != "2026-12-20" || merged[0].Time != "09:00~11:00" || merged[0].Seat != "12" {
+		t.Fatalf("unexpected merged exam: %#v", merged[0])
+	}
+}
+
+func TestMergeExamDetailsPrefersUpdatedHTMLRoom(t *testing.T) {
+	primary := []store.Exam{{
+		CourseName: "火炮弹道学", Date: "2026-12-20", Time: "09:00~11:00", Location: "Ⅳ-A202",
+	}}
+	fallback := []store.Exam{{
+		CourseName: "火炮弹道学", Date: "2026-12-20", Time: "09:00~11:00", Location: "Ⅳ-A111",
+	}}
+	merged := mergeExamDetails(primary, fallback)
+	if len(merged) != 1 {
+		t.Fatalf("merged = %#v", merged)
+	}
+	if merged[0].Location != "Ⅳ-A202" {
+		t.Fatalf("updated HTML room should win: %#v", merged[0])
 	}
 }
 

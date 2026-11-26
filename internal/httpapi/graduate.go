@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/resetinging/njust-schedule/internal/jwc"
 	"github.com/resetinging/njust-schedule/internal/session"
@@ -13,6 +14,19 @@ import (
 
 func isGraduate(sess *session.Session) bool {
 	return sess != nil && (strings.EqualFold(sess.AccountType, "graduate") || strings.HasPrefix(sess.StudentID, "1"))
+}
+
+func preferredSemesterInList(semesters []string, now time.Time) string {
+	current := currentSemesterAt(now)
+	for _, value := range semesters {
+		if value == current {
+			return current
+		}
+	}
+	if len(semesters) > 0 {
+		return semesters[0]
+	}
+	return current
 }
 
 func (s *Server) graduateCourses(ctx context.Context, sess *session.Session, force bool) (map[string]any, error) {
@@ -38,13 +52,7 @@ func (s *Server) graduateCourses(ctx context.Context, sess *session.Session, for
 			return nil, err
 		}
 		semesters := normalizeSemesterList(sourceSemesters)
-		semester := ""
-		if len(semesters) > 0 {
-			semester = semesters[0]
-		}
-		if semester == "" {
-			semester = currentSemester()
-		}
+		semester := preferredSemesterInList(semesters, time.Now())
 		if err = s.store.ReplaceCourses(callCtx, sess.StudentID, semester, values); err != nil {
 			return nil, err
 		}
@@ -82,13 +90,12 @@ func (s *Server) graduateTable(ctx context.Context, sess *session.Session, kind 
 		if err != nil {
 			return nil, err
 		}
-		payload := map[string]any{"success": true, "account_type": "graduate", "count": len(table.Rows), "rows": table.Rows, "semesters": table.Semesters}
+		semesters := normalizeSemesterList(table.Semesters)
+		payload := map[string]any{"success": true, "account_type": "graduate", "count": len(table.Rows), "rows": table.Rows, "semesters": semesters}
 		if kind == "grades" {
 			payload["stats"] = table.Stats
 		}
-		if len(table.Semesters) > 0 {
-			payload["semester"] = table.Semesters[0]
-		}
+		payload["semester"] = preferredSemesterInList(semesters, time.Now())
 		s.cacheSet(key, payload, s.cfg.DataCacheTTL)
 		return payload, nil
 	})

@@ -1,6 +1,6 @@
 # 小程序与后端架构
 
-> 状态：现行；最后核对：2026-10-29
+> 状态：现行；最后核对：2026-11-24
 
 本文描述课表助手微信小程序与 Go/WebGo 后端的现行职责、数据流和兼容边界。
 
@@ -12,7 +12,7 @@
         | JSON + X-Auth-Token
         v
     微信云托管 WebGo 服务
-        |-- MySQL：用户数据、共享目录、凭据密文、订阅额度
+        |-- MySQL：用户数据、共享目录、凭据密文、订阅额度、校园服务与咨询线索
         |-- Redis：可选的跨进程登录会话
         |-- 智慧理工 SSO：密码登录、二维码登录
         |-- 强智本科教务 / 研究生教务：抓取与提交
@@ -36,6 +36,7 @@
 | HTTP | internal/httpapi | 路由、认证、响应契约、管理端和后台任务 |
 | 教务网关 | internal/jwc | SSO、Cookie、页面表单解析、数据抓取与提交 |
 | 公共馆藏网关 | internal/library | 匿名 OPAC 检索 JSON / 馆藏 HTML 解析、ID 与响应上限校验 |
+| 校园服务 | internal/campus | 分类、日期、服务文案、联系方式与禁用承诺校验 |
 | 认证 | internal/authn | 加密密码、24 小时信任、30 天持久 Cookie |
 | 会话 | internal/session | X-Auth-Token、LRU、单学号单 token、Redis 恢复 |
 | 数据访问 | internal/store | database/sql 查询、事务和快照替换 |
@@ -90,6 +91,14 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 
 未配置 Redis 时 token 在单实例内存中；配置 Redis 后，会话密文写入 Redis，并使用学号到 token 的映射保证单学号单会话。Redis 写失败时不切换内存会话。
 
+### 4. 合作商验收账号
+
+- 合作商与学生共用 `/api/login-webvpn` 和同一个登录页。
+- 后端先比较 `PARTNER_PREVIEW_USER`；命中时使用 `PARTNER_PREVIEW_PASSWORD` 做恒定时间比较，签发 `role=partner` 会话，不进入学生 SSO。
+- 固定合作商主体没有 Cookie、JWC Client、教务预抓或学生数据；课程、考试、成绩、学业进度、评教和学籍接口返回空数据。
+- 合作商账号可浏览完整功能导航和共享能力；登录按 IP 限制 5 次/分钟，单账号保留一个会话。
+- 合作商密码只保存在后端环境变量，不进入仓库、日志或前端；关闭 `PARTNER_PREVIEW_ENABLED` 即可撤销入口。
+
 ## 四、用户数据
 
 每个用户的数据均以 student_id 隔离：
@@ -107,7 +116,9 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 
 刷新流程先完成教务请求和解析，再在数据库事务中替换对应快照。抓取失败不会先删除旧数据，数据库写入失败会回滚。
 
-普通查询优先读取 MySQL。登录后的预抓和用户主动刷新都会更新版本号；小程序可通过 GET /api/sync/versions 只比较版本，再决定是否下载完整数据。
+普通查询优先读取 MySQL。用户数据由服务端每日 00:20 批量预热（`user-data-daily-sync`，启动时补跑）：遍历有持久教务会话的近期活跃用户，逐项替换快照；失败保留旧数据，只有全部成功才写 `data_cache_at`。登录只在缓存未命中（首次登录、换学期、批量未覆盖）时服务端补抓一次，不再作为常规教务访问路径。
+
+手动刷新接口默认关闭：除 `/api/refresh-exams` 外，`/api/refresh-*` 返回“数据每日凌晨自动更新”提示，不访问教务；仅 `ALLOW_LIVE_REFRESH=1` 可临时回退排障。考试刷新是明确的产品能力，要求登录、独立访问教务并按用户 3 次/分钟限流。小程序通过 GET /api/sync/versions 只比较版本，再决定是否下载完整数据。
 
 ## 五、共享数据
 
@@ -149,6 +160,16 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 - `GET /api/general-education-courses` 按学期、关键词和分页返回目录。
 - `GET /api/general-education-syllabus?course_code=...` 按需读取课程详情页并缓存，避免刷新目录时一次请求数百个详情页。
 
+### 5. 校园服务
+
+- `GET /api/campus-services` 与 `GET /api/campus-services/:id` 公开读取已审核、启用且在有效期内的服务；当前不依赖教务或外部上游。
+- `POST /api/campus-services/:id/leads` 要求本服务登录态，用户必须显式授权联系方式。
+- 服务保存在 `campus_services`，咨询线索保存在 `campus_service_leads`。
+- 联系方式使用 AES-256-GCM 加密，AAD 绑定服务 ID；列表只返回脱敏值，管理员按需解密时写请求日志。
+- 线索默认保留 30 天，每日 03:30 清理（启动时补跑）；同一用户对同一服务、联系方式的重复提交由唯一去重键拦截。
+- 管理后台可维护服务、审核/上架状态和咨询线索；首期没有支付、商户自助账号或小程序交易。
+- 小程序在功能页校园工具的两列网格中使用统一功能卡入口，进入主页面 `services` 二级页；服务簿、详情和咨询表单由单一 `campus-services-view` 承载，咨询与详情共用单个底部弹层。
+
 ## 六、提醒
 
 考试提醒和成绩提醒共用订阅基础设施，但分别记录额度和模板。
@@ -186,6 +207,7 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 | 评教 | /api/evaluations、/api/eval-courses、/api/eval-form、/api/submit-eval、/api/jw-proxy |
 | 学业 | /api/calendar、/api/programme、/api/profile 及对应 refresh 路由 |
 | 通识大纲 | /api/general-education-courses、/api/general-education-syllabus |
+| 校园服务 | /api/campus-services、/api/campus-services/:id、/api/campus-services/:id/leads |
 | 空教室 | /api/free-classrooms |
 | 蹭课 | /api/audit-courses、/api/audit-options、/api/audit-favorites |
 | 同步 | /api/sync/versions |
@@ -206,7 +228,7 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 - 成绩列表没有“绩点”列时 grade_point 写 0，由小程序按成绩计算，不能使用行号兜底。
 - 蹭课目录使用“一行一门课、列=星期×大节”的 43 列课程目录结构，并按旧版规则拆分多教师、多班级、多教室和多周次。
 - 空列表统一返回 [] 而不是 null，包括收藏、管理端用户详情和考试安排。
-- 信息中心使用 settings.content_board_v1 保存公告和 QQ 群信息；公告包含类型、优先级、影响范围、处理提示和生效/失效日期。/api/announcement 从最新有效公告派生，兼容旧前端。更新记录由小程序 utils/changelog.js 代码内置，不依赖后端配置。
+- 信息中心使用 settings.content_board_v1 保存公告、竞赛和 QQ 群信息；公告包含类型、优先级、影响范围、处理提示和生效/失效日期；竞赛包含标题、摘要/正文、发布日期、可空截止日期、官方原文链接和启停状态，由管理员后台维护，服务端校验日期与官方 HTTPS 域名，公开接口只返回启用项并按发布日期倒序。/api/announcement 从最新有效公告派生，兼容旧前端；旧版 JSON 无 competitions 时按空数组兼容。更新记录由小程序 utils/changelog.js 代码内置，不依赖后端配置。
 - 小程序启动预取通过 /api/sync/versions 比较数据版本，不能只依赖本地 30 天 TTL。
 
 ## 八、并发与可靠性
@@ -236,7 +258,7 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 5. 校验必需表、列、关键列类型和迁移版本。
 6. 全部成功后登记 schema_migrations。
 
-服务启动时会先校验当前 Schema。若数据库处于已知基线 `1000_webgo_schema_v1`，只缺少登记在 `autoSafeMigrations` 白名单中的增量版本，则获取 MySQL 命名锁后自动执行安全迁移；`1001_general_education_syllabi` 仅创建独立新表和索引，属于当前唯一安全升级。
+服务启动时会先校验当前 Schema。若数据库处于已知基线 `1000_webgo_schema_v1` 或 `1001_general_education_syllabi`，且只缺少登记在 `autoSafeMigrations` 白名单中的增量版本，则获取 MySQL 命名锁后自动执行安全迁移。当前安全链为 `1000→1001_general_education_syllabi→1002_campus_services`，两步都只创建独立新表和索引。
 
 以下情况禁止自动处理，必须在目标版本容器的 WebShell 中运行完整迁移：
 

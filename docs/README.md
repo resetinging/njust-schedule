@@ -2,7 +2,7 @@
 
 > 状态：现行文档索引
 
-> 最后整理：2026-10-24
+> 最后整理：2026-11-24
 >
 > Agent 接手时按以下顺序阅读：仓库 `AGENTS.md` → 本文 → `HANDOFF.md` → 当前架构 → 对应领域文档。
 
@@ -46,6 +46,11 @@
 | [island-ui-redesign-2026-10-25.md](product/island-ui-redesign-2026-10-25.md) | 现行 | 小程序 Island 悬浮岛式界面规范与执行记录 |
 | [exam-status-fix-2026-10-28.md](product/exam-status-fix-2026-10-28.md) | 现行 | 考试逐场状态、分组、缓存与异步竞态修复说明 |
 | [library-inventory-2026-10-29.md](product/library-inventory-2026-10-29.md) | 现行 | 图书馆公共馆藏检索/逐册库存、OPAC 接口、缓存与测试 |
+| [user-data-daily-sync-2026-11-01.md](product/user-data-daily-sync-2026-11-01.md) | 现行 | 用户数据每日批量同步、登录兜底与手动刷新关闭 |
+| [competition-announcement-integration-2026-11-01.md](product/competition-announcement-integration-2026-11-01.md) | 现行 | 竞赛公告官方源核验、管理员维护、后台校验与信息中心竞赛 Tab |
+| [campus-services-backend-2026-11-24.md](product/campus-services-backend-2026-11-24.md) | 现行 | 校园服务后端、咨询线索加密、管理后台与迁移 |
+| [campus-services-frontend-2026-11-24.md](product/campus-services-frontend-2026-11-24.md) | 现行 | 校园服务入口、服务簿、详情与咨询表单 |
+| [partner-preview-account-2026-11-24.md](product/partner-preview-account-2026-11-24.md) | 现行 | 合作商共享登录、固定验收账号和空数据边界 |
 | [frontend-style-refresh-2026-10-24.md](product/frontend-style-refresh-2026-10-24.md) | 历史基线 | 小程序视觉规范（唯一现行来源）：token、页面规则、验收与执行记录 |
 | [design-style.md](product/design-style.md) | 历史参考 | 旧的紫调渐变风格稿，已被上一条取代，不得据此恢复 |
 | [analytics-ad-plan.md](product/analytics-ad-plan.md) | 现行 | 使用统计、广告槽位和数据口径 |

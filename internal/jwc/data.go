@@ -161,13 +161,76 @@ func (c *Client) coursesHTML(ctx context.Context, semester string) ([]store.Cour
 func (c *Client) Exams(ctx context.Context, semester string) ([]store.Exam, error) {
 	query := url.Values{"method": {"getXsksap"}, "xh": {c.StudentID}, "xnxqid": {semester}}
 	var raw any
-	if err := c.JSON(ctx, http.MethodPost, appURL+"?"+query.Encode(), nil, &raw); err == nil {
-		out := parseExamItems(apiItems(raw))
-		if len(out) > 0 {
-			return out, nil
+	var apiValues []store.Exam
+	apiErr := c.JSON(ctx, http.MethodPost, appURL+"?"+query.Encode(), nil, &raw)
+	if apiErr == nil {
+		apiValues = parseExamItems(apiItems(raw))
+	}
+	htmlValues, htmlErr := c.examsHTML(ctx, semester)
+	if htmlErr == nil && len(htmlValues) > 0 {
+		if len(apiValues) > 0 {
+			// HTML 页面通常是教务最新安排；JSON 接口用于补充课程、座位等字段。
+			return mergeExamDetails(htmlValues, apiValues), nil
+		}
+		return htmlValues, nil
+	}
+	if len(apiValues) > 0 {
+		return apiValues, nil
+	}
+	if apiErr != nil {
+		return nil, apiErr
+	}
+	return nil, htmlErr
+}
+
+func sameExamItem(left, right store.Exam) bool {
+	if strings.TrimSpace(left.CourseName) != strings.TrimSpace(right.CourseName) {
+		return false
+	}
+	leftDate, rightDate := strings.TrimSpace(left.Date), strings.TrimSpace(right.Date)
+	if leftDate != "" && rightDate != "" && leftDate != rightDate {
+		return false
+	}
+	leftTime, rightTime := strings.TrimSpace(left.Time), strings.TrimSpace(right.Time)
+	if leftTime != "" && rightTime != "" && leftTime != rightTime {
+		return false
+	}
+	return true
+}
+
+func mergeExamDetails(primary, fallback []store.Exam) []store.Exam {
+	out := append([]store.Exam(nil), primary...)
+	used := make([]bool, len(fallback))
+	for index := range out {
+		for detailIndex, detail := range fallback {
+			if used[detailIndex] || !sameExamItem(out[index], detail) {
+				continue
+			}
+			if strings.TrimSpace(out[index].Date) == "" {
+				out[index].Date = detail.Date
+			}
+			if strings.TrimSpace(out[index].Time) == "" {
+				out[index].Time = detail.Time
+			}
+			if strings.TrimSpace(out[index].Location) == "" {
+				out[index].Location = detail.Location
+			}
+			if strings.TrimSpace(out[index].Seat) == "" {
+				out[index].Seat = detail.Seat
+			}
+			if strings.TrimSpace(out[index].Type) == "" {
+				out[index].Type = detail.Type
+			}
+			used[detailIndex] = true
+			break
 		}
 	}
-	return c.examsHTML(ctx, semester)
+	for index, detail := range fallback {
+		if !used[index] {
+			out = append(out, detail)
+		}
+	}
+	return out
 }
 
 func parseExamItems(items []map[string]any) []store.Exam {

@@ -22,6 +22,7 @@ type Session struct {
 	StudentName  string         `json:"student_name"`
 	AccountType  string         `json:"account_type"`
 	LoginMethod  string         `json:"login_method"`
+	Role         string         `json:"role"`
 	Cookies      []store.Cookie `json:"cookies"`
 	LastActivity time.Time      `json:"-"`
 	CreatedAt    time.Time      `json:"-"`
@@ -33,6 +34,10 @@ type Session struct {
 	lifecycleCtx context.Context
 	cancel       context.CancelFunc
 	remoteSaved  time.Time
+}
+
+func (s *Session) IsPartner() bool {
+	return s != nil && strings.EqualFold(s.Role, "partner")
 }
 
 func (s *Session) Lock() func() { s.mu.Lock(); return s.mu.Unlock }
@@ -407,7 +412,7 @@ func (m *Manager) remotePayload(s *Session) (string, error) {
 	if s.JWC != nil {
 		cookies = s.JWC.Cookies()
 	}
-	payload := map[string]any{"student_id": s.StudentID, "student_name": s.StudentName, "account_type": s.AccountType, "login_method": s.LoginMethod, "cookies": cookies}
+	payload := map[string]any{"student_id": s.StudentID, "student_name": s.StudentName, "account_type": s.AccountType, "login_method": s.LoginMethod, "role": s.Role, "cookies": cookies}
 	return m.crypto.Encrypt(s.Token, payload)
 }
 

@@ -69,3 +69,29 @@ func TestLoadRejectsInvalidSessionKey(t *testing.T) {
 		t.Fatal("Load() should reject invalid SESSION_KEY")
 	}
 }
+
+func TestPartnerPreviewConfig(t *testing.T) {
+	t.Setenv("MYSQL_ADDRESS", "127.0.0.1:3306")
+	t.Setenv("MYSQL_USERNAME", "root")
+	t.Setenv("MYSQL_PASSWORD", "secret")
+	t.Setenv("ADMIN_PASSWORD", "admin-secret")
+	t.Setenv("SESSION_KEY", base64.StdEncoding.EncodeToString(make([]byte, 32)))
+	t.Setenv("PARTNER_PREVIEW_ENABLED", "1")
+	t.Setenv("PARTNER_PREVIEW_USER", "partner-preview")
+	t.Setenv("PARTNER_PREVIEW_PASSWORD", "strong-preview-password")
+	t.Setenv("PARTNER_PREVIEW_NAME", "合作商甲")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.PartnerPreviewEnabled || cfg.PartnerPreviewUser != "partner-preview" ||
+		cfg.PartnerPreviewPassword != "strong-preview-password" || cfg.PartnerPreviewName != "合作商甲" {
+		t.Fatalf("unexpected partner config: %+v", cfg)
+	}
+
+	t.Setenv("PARTNER_PREVIEW_PASSWORD", "short")
+	if _, err = Load(); err == nil {
+		t.Fatal("short partner password should be rejected")
+	}
+}

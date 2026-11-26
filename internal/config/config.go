@@ -12,58 +12,66 @@ import (
 )
 
 type Config struct {
-	Address               string
-	MySQLAddress          string
-	MySQLUsername         string
-	MySQLPassword         string
-	MySQLDatabase         string
-	RedisURL              string
-	SessionKey            []byte
-	AdminPassword         string
-	SessionTTL            time.Duration
-	DataCacheTTL          time.Duration
-	CredentialTrustTTL    time.Duration
-	PersistentSessionTTL  time.Duration
-	MaxSessions           int
-	JWMaxConcurrent       int
-	LibraryMaxConcurrent  int
-	TrustedProxyHops      int
-	StaticDir             string
-	MPAppID               string
-	MPSecret              string
-	SubscribeExam         string
-	SubscribeGrade        string
-	FreeClassroomSID      string
-	JWCRequestTimeout     time.Duration
-	CaptchaOCRModelPath   string
-	CaptchaOCRRuntimePath string
+	Address                string
+	MySQLAddress           string
+	MySQLUsername          string
+	MySQLPassword          string
+	MySQLDatabase          string
+	RedisURL               string
+	SessionKey             []byte
+	AdminPassword          string
+	PartnerPreviewEnabled  bool
+	PartnerPreviewUser     string
+	PartnerPreviewPassword string
+	PartnerPreviewName     string
+	SessionTTL             time.Duration
+	DataCacheTTL           time.Duration
+	CredentialTrustTTL     time.Duration
+	PersistentSessionTTL   time.Duration
+	MaxSessions            int
+	JWMaxConcurrent        int
+	LibraryMaxConcurrent   int
+	TrustedProxyHops       int
+	StaticDir              string
+	MPAppID                string
+	MPSecret               string
+	SubscribeExam          string
+	SubscribeGrade         string
+	FreeClassroomSID       string
+	JWCRequestTimeout      time.Duration
+	CaptchaOCRModelPath    string
+	CaptchaOCRRuntimePath  string
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		Address:               env("ADDRESS", ":80"),
-		MySQLAddress:          strings.TrimSpace(os.Getenv("MYSQL_ADDRESS")),
-		MySQLUsername:         strings.TrimSpace(os.Getenv("MYSQL_USERNAME")),
-		MySQLPassword:         os.Getenv("MYSQL_PASSWORD"),
-		MySQLDatabase:         env("MYSQL_DATABASE", "flask_demo"),
-		RedisURL:              strings.TrimSpace(os.Getenv("REDIS_URL")),
-		AdminPassword:         os.Getenv("ADMIN_PASSWORD"),
-		SessionTTL:            seconds("SESSION_TTL", 12*time.Hour, time.Minute, 30*24*time.Hour),
-		DataCacheTTL:          seconds("DATA_CACHE_TTL", 30*24*time.Hour, time.Minute, 365*24*time.Hour),
-		CredentialTrustTTL:    seconds("CREDENTIAL_TRUST_TTL", 24*time.Hour, time.Minute, 30*24*time.Hour),
-		PersistentSessionTTL:  seconds("SSO_SESSION_MAX_AGE", 30*24*time.Hour, time.Minute, 365*24*time.Hour),
-		MaxSessions:           integer("MAX_SESSIONS", 200, 1, 100000),
-		JWMaxConcurrent:       integer("JW_MAX_CONCURRENT", 4, 1, 64),
-		LibraryMaxConcurrent:  integer("LIBRARY_MAX_CONCURRENT", 3, 1, 16),
-		TrustedProxyHops:      integer("TRUSTED_PROXY_HOPS", 1, 1, 20),
-		StaticDir:             env("STATIC_DIR", "wxcloudrun/static"),
-		MPAppID:               env("MP_APPID", "wx1d76c0631bdeebac"),
-		MPSecret:              os.Getenv("MP_SECRET"),
-		SubscribeExam:         env("SUBSCRIBE_TPL_EXAM", "ng8fatzWFGkwY5Q5X2QM-BNktLyMLQPaJl2xFi7Z180"),
-		FreeClassroomSID:      env("FREE_CLASSROOM_SID", "924101960123"),
-		JWCRequestTimeout:     seconds("JW_REQUEST_TIMEOUT", 30*time.Second, 5*time.Second, 2*time.Minute),
-		CaptchaOCRModelPath:   env("CAPTCHA_OCR_MODEL_PATH", "common.onnx"),
-		CaptchaOCRRuntimePath: strings.TrimSpace(os.Getenv("ONNXRUNTIME_SHARED_LIBRARY_PATH")),
+		Address:                env("ADDRESS", ":80"),
+		MySQLAddress:           strings.TrimSpace(os.Getenv("MYSQL_ADDRESS")),
+		MySQLUsername:          strings.TrimSpace(os.Getenv("MYSQL_USERNAME")),
+		MySQLPassword:          os.Getenv("MYSQL_PASSWORD"),
+		MySQLDatabase:          env("MYSQL_DATABASE", "flask_demo"),
+		RedisURL:               strings.TrimSpace(os.Getenv("REDIS_URL")),
+		AdminPassword:          os.Getenv("ADMIN_PASSWORD"),
+		PartnerPreviewEnabled:  boolean("PARTNER_PREVIEW_ENABLED", false),
+		PartnerPreviewUser:     env("PARTNER_PREVIEW_USER", "partner-preview"),
+		PartnerPreviewPassword: os.Getenv("PARTNER_PREVIEW_PASSWORD"),
+		PartnerPreviewName:     env("PARTNER_PREVIEW_NAME", "合作商验收"),
+		SessionTTL:             seconds("SESSION_TTL", 12*time.Hour, time.Minute, 30*24*time.Hour),
+		DataCacheTTL:           seconds("DATA_CACHE_TTL", 30*24*time.Hour, time.Minute, 365*24*time.Hour),
+		CredentialTrustTTL:     seconds("CREDENTIAL_TRUST_TTL", 24*time.Hour, time.Minute, 30*24*time.Hour),
+		PersistentSessionTTL:   seconds("SSO_SESSION_MAX_AGE", 30*24*time.Hour, time.Minute, 365*24*time.Hour),
+		MaxSessions:            integer("MAX_SESSIONS", 200, 1, 100000),
+		JWMaxConcurrent:        integer("JW_MAX_CONCURRENT", 4, 1, 64),
+		LibraryMaxConcurrent:   integer("LIBRARY_MAX_CONCURRENT", 3, 1, 16),
+		TrustedProxyHops:       integer("TRUSTED_PROXY_HOPS", 1, 1, 20),
+		StaticDir:              env("STATIC_DIR", "wxcloudrun/static"),
+		MPAppID:                env("MP_APPID", "wx1d76c0631bdeebac"),
+		MPSecret:               os.Getenv("MP_SECRET"),
+		SubscribeExam:          env("SUBSCRIBE_TPL_EXAM", "ng8fatzWFGkwY5Q5X2QM-BNktLyMLQPaJl2xFi7Z180"),
+		FreeClassroomSID:       env("FREE_CLASSROOM_SID", "924101960123"),
+		JWCRequestTimeout:      seconds("JW_REQUEST_TIMEOUT", 30*time.Second, 5*time.Second, 2*time.Minute),
+		CaptchaOCRModelPath:    env("CAPTCHA_OCR_MODEL_PATH", "common.onnx"),
+		CaptchaOCRRuntimePath:  strings.TrimSpace(os.Getenv("ONNXRUNTIME_SHARED_LIBRARY_PATH")),
 	}
 	cfg.SubscribeGrade = env("SUBSCRIBE_TPL_GRADE", cfg.SubscribeExam)
 
@@ -90,6 +98,14 @@ func Load() (Config, error) {
 	}
 	if cfg.AdminPassword == "" {
 		return Config{}, errors.New("ADMIN_PASSWORD 未配置")
+	}
+	if cfg.PartnerPreviewEnabled {
+		if cfg.PartnerPreviewUser == "" || cfg.PartnerPreviewPassword == "" {
+			return Config{}, errors.New("合作商验收账号已启用，但 PARTNER_PREVIEW_USER 或 PARTNER_PREVIEW_PASSWORD 未配置")
+		}
+		if len(cfg.PartnerPreviewUser) > 64 || len(cfg.PartnerPreviewPassword) < 8 || len(cfg.PartnerPreviewPassword) > 1024 {
+			return Config{}, errors.New("合作商验收账号格式无效")
+		}
 	}
 	if len(cfg.SessionKey) == 0 {
 		return Config{}, errors.New("SESSION_KEY 未配置")
@@ -129,6 +145,14 @@ func integer(name string, fallback, minValue, maxValue int) int {
 		return maxValue
 	}
 	return value
+}
+
+func boolean(name string, fallback bool) bool {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv(name)))
+	if raw == "" {
+		return fallback
+	}
+	return raw != "0" && raw != "false" && raw != "off"
 }
 
 func seconds(name string, fallback, minValue, maxValue time.Duration) time.Duration {

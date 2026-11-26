@@ -274,6 +274,46 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; }
 }
 .badge.on { background: rgba(63, 174, 126, .15); color: var(--green); }
 
+/* ---------- 校园服务 ---------- */
+.service-intro { margin-bottom: 14px; line-height: 1.6; }
+.service-leads-card { margin-top: 14px; }
+.service-lead-tool { margin-bottom: 12px; }
+.service-lead-tool h3 { margin: 0 0 4px; }
+.campus-lead-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.15fr) minmax(160px, .9fr) minmax(150px, .75fr) minmax(320px, 1.6fr);
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #26263c;
+}
+.campus-lead-main { display: grid; gap: 3px; min-width: 0; }
+.campus-lead-main strong,
+.campus-lead-main span,
+.campus-lead-note,
+.campus-lead-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.campus-lead-main strong { font-size: 13px; color: var(--text); white-space: nowrap; }
+.campus-lead-main span,
+.campus-lead-meta { color: var(--dim); font-size: 12px; }
+.campus-lead-main b { color: var(--accent); font-size: 13px; letter-spacing: .3px; }
+.campus-lead-note { font-size: 12px; line-height: 1.5; color: var(--dim); }
+.campus-lead-meta { display: grid; gap: 3px; }
+.campus-lead-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.campus-lead-status { width: 92px; }
+.campus-lead-admin-note { width: 150px; }
+.campus-lead-actions .ghost { white-space: nowrap; }
+@media (max-width: 1100px) {
+  .campus-lead-row { grid-template-columns: 1fr 1fr; }
+  .campus-lead-actions { grid-column: 1 / -1; }
+}
+@media (max-width: 660px) {
+  .campus-lead-row { grid-template-columns: 1fr; }
+  .campus-lead-actions { grid-column: auto; }
+}
+
 /* ---------- 成绩统计 ---------- */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }

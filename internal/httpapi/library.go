@@ -16,7 +16,7 @@ import (
 const (
 	librarySearchTTL    = 30 * time.Minute // 书目检索：新鲜 30 分钟
 	libraryItemTTL      = 5 * time.Minute  // 单本馆藏：新鲜 5 分钟
-	libraryStaleTTL     = 24 * time.Hour   // 上游失败时可回退的旧缓存宽限期（不等于新鲜期）
+	libraryStaleTTL     = 24 * time.Hour   // 上游失败可回退的旧缓存宽限期，从新鲜期结束起算（总保留 = fresh + 24h）
 	librarySearchPerMin = 40
 	libraryItemPerMin   = 80
 )
@@ -29,6 +29,8 @@ type librarySearchResponse struct {
 	PageSize  int              `json:"page_size"`
 	Total     int              `json:"total"`
 	HasMore   bool             `json:"has_more"`
+	Truncated bool             `json:"truncated"`
+	MaxPage   int              `json:"max_page"`
 	Records   []library.Record `json:"records"`
 	Stale     bool             `json:"stale"`
 	UpdatedAt int64            `json:"updated_at"`
@@ -88,7 +90,7 @@ func (s *Server) librarySearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cacheKey := fmt.Sprintf("library:search:%s:%d:%d:%s", field.Key, page, pageSize, keyword)
-	if value, fresh, storedAt, ok := s.cacheLookup(cacheKey, libraryStaleTTL); ok && fresh {
+	if value, fresh, storedAt, ok := s.cacheLookup(cacheKey); ok && fresh {
 		if result, ok := value.(library.SearchResult); ok {
 			writeJSON(w, http.StatusOK, buildLibrarySearchResponse(result, field.Key, keyword, false, storedAt))
 			return
@@ -105,12 +107,12 @@ func (s *Server) librarySearch(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return library.SearchResult{}, err
 		}
-		s.cacheSet(cacheKey, res, librarySearchTTL)
+		s.cacheSetRetained(cacheKey, res, librarySearchTTL, libraryStaleTTL)
 		return res, nil
 	})
 	if err != nil {
 		// 上游失败：有旧缓存则回退并标记 stale；无缓存明确报错，绝不返回空结果冒充成功。
-		if value, _, storedAt, ok := s.cacheLookup(cacheKey, libraryStaleTTL); ok {
+		if value, _, storedAt, ok := s.cacheLookup(cacheKey); ok {
 			if staleResult, ok := value.(library.SearchResult); ok {
 				s.logger.Warn("图书馆检索失败，返回旧缓存", "field", field.Key, "page", page)
 				writeJSON(w, http.StatusOK, buildLibrarySearchResponse(staleResult, field.Key, keyword, true, storedAt))
@@ -122,7 +124,7 @@ func (s *Server) librarySearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	storedAt := time.Now()
-	if _, _, cachedStoredAt, ok := s.cacheLookup(cacheKey, libraryStaleTTL); ok {
+	if _, _, cachedStoredAt, ok := s.cacheLookup(cacheKey); ok {
 		storedAt = cachedStoredAt
 	}
 	writeJSON(w, http.StatusOK, buildLibrarySearchResponse(result, field.Key, keyword, false, storedAt))
@@ -160,7 +162,7 @@ func (s *Server) libraryItem(w http.ResponseWriter, r *http.Request) {
 
 	cacheKey := "library:item:" + marcNo
 	load := func(ctx context.Context) (library.Inventory, error) {
-		if value, fresh, _, ok := s.cacheLookup(cacheKey, libraryStaleTTL); ok && fresh {
+		if value, fresh, _, ok := s.cacheLookup(cacheKey); ok && fresh {
 			if inventory, ok := value.(library.Inventory); ok {
 				return inventory, nil
 			}
@@ -175,14 +177,14 @@ func (s *Server) libraryItem(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return library.Inventory{}, err
 			}
-			s.cacheSet(cacheKey, inventory, libraryItemTTL)
+			s.cacheSetRetained(cacheKey, inventory, libraryItemTTL, libraryStaleTTL)
 			return inventory, nil
 		})
 	}
 
 	inventory, err := load(r.Context())
 	if err != nil {
-		if value, _, storedAt, ok := s.cacheLookup(cacheKey, libraryStaleTTL); ok {
+		if value, _, storedAt, ok := s.cacheLookup(cacheKey); ok {
 			if staleInventory, ok := value.(library.Inventory); ok {
 				s.logger.Warn("图书馆馆藏请求失败，返回旧缓存", "marc_no", marcNo)
 				s.writeLibraryItem(w, staleInventory, scope, true, storedAt)
@@ -195,7 +197,7 @@ func (s *Server) libraryItem(w http.ResponseWriter, r *http.Request) {
 	}
 	// 成功返回（缓存命中或刚刚抓取成功）都视为新鲜数据；仅在缓存被并发淘汰时用当前时间兜底。
 	storedAt := time.Now()
-	if _, _, cachedStoredAt, ok := s.cacheLookup(cacheKey, libraryStaleTTL); ok {
+	if _, _, cachedStoredAt, ok := s.cacheLookup(cacheKey); ok {
 		storedAt = cachedStoredAt
 	}
 	s.writeLibraryItem(w, inventory, scope, false, storedAt)
@@ -225,10 +227,14 @@ func buildLibrarySearchResponse(result library.SearchResult, field, keyword stri
 	if result.Records == nil {
 		result.Records = []library.Record{}
 	}
+	truncated := result.Total > library.MaxPage*result.PageSize
+	// 到最大可请求页后不能再声明 has_more（否则客户端请求下一页必 400）；
+	// 但保留真实 total，并用 truncated 告知前端“还有结果未展示”，不谎称已加载全部。
+	hasMore := result.Page < library.MaxPage && result.Page*result.PageSize < result.Total
 	return librarySearchResponse{
 		Success: true, Field: field, Query: keyword,
 		Page: result.Page, PageSize: result.PageSize, Total: result.Total,
-		HasMore: result.Page*result.PageSize < result.Total,
+		HasMore: hasMore, Truncated: truncated, MaxPage: library.MaxPage,
 		Records: result.Records, Stale: stale, UpdatedAt: storedAt.Unix(),
 	}
 }

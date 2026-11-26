@@ -19,7 +19,10 @@ func schemaRowsForVersion(version string) *sqlmock.Rows {
 	rows := sqlmock.NewRows([]string{"TABLE_NAME", "COLUMN_NAME"}).AddRow("settings", "k").AddRow("settings", "v").AddRow("schema_migrations", "version")
 	seen := map[string]bool{"settings.k": true, "settings.v": true, "schema_migrations.version": true}
 	for _, column := range requiredColumns {
-		if version == BaselineVersion && column.table == generalEducationTable {
+		if version == BaselineVersion && (column.table == generalEducationTable || column.table == campusServicesTable || column.table == campusServiceLeadsTable) {
+			continue
+		}
+		if version == generalEducationVersion && (column.table == campusServicesTable || column.table == campusServiceLeadsTable) {
 			continue
 		}
 		key := column.table + "." + column.name
@@ -38,7 +41,10 @@ func completeIndexRows() *sqlmock.Rows {
 func indexRowsForVersion(version string) *sqlmock.Rows {
 	rows := sqlmock.NewRows([]string{"TABLE_NAME", "INDEX_NAME", "COLUMN_NAME", "NON_UNIQUE"})
 	for _, index := range indexes {
-		if version == BaselineVersion && index.table == generalEducationTable {
+		if version == BaselineVersion && (index.table == generalEducationTable || index.table == campusServicesTable || index.table == campusServiceLeadsTable) {
+			continue
+		}
+		if version == generalEducationVersion && (index.table == campusServicesTable || index.table == campusServiceLeadsTable) {
 			continue
 		}
 		nonUnique := 1
@@ -252,6 +258,37 @@ func TestEnsureAppliesRegisteredSafeMigrationFromBaseline(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(0, 0))
 	}
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO schema_migrations(version,applied_at) VALUES (?,NOW())")).
+		WithArgs(generalEducationVersion).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mock.ExpectQuery("SELECT TABLE_NAME,COLUMN_NAME").
+		WillReturnRows(schemaRowsForVersion(generalEducationVersion))
+	expectTextColumns(mock)
+	mock.ExpectQuery("SELECT TABLE_NAME,INDEX_NAME,COLUMN_NAME,NON_UNIQUE").
+		WillReturnRows(indexRowsForVersion(generalEducationVersion))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM schema_migrations WHERE version=?")).
+		WithArgs(generalEducationVersion).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectExec(regexp.QuoteMeta(campusServicesCreateTable)).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(regexp.QuoteMeta(campusServiceLeadsCreateTable)).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	for _, index := range indexes {
+		if index.table != campusServicesTable && index.table != campusServiceLeadsTable {
+			continue
+		}
+		mock.ExpectQuery("SELECT COLUMN_NAME,NON_UNIQUE").
+			WithArgs(index.table, index.name).
+			WillReturnRows(sqlmock.NewRows([]string{"COLUMN_NAME", "NON_UNIQUE"}))
+		kind := "INDEX"
+		if strings.HasPrefix(index.name, "uq_") {
+			kind = "UNIQUE INDEX"
+		}
+		statement := fmt.Sprintf("CREATE %s `%s` ON `%s` (%s)", kind, index.name, index.table, quoteColumns(index.columns))
+		mock.ExpectExec(regexp.QuoteMeta(statement)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+	}
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO schema_migrations(version,applied_at) VALUES (?,NOW())")).
 		WithArgs(Version).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
@@ -269,8 +306,8 @@ func TestEnsureAppliesRegisteredSafeMigrationFromBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(applied) != 1 || applied[0] != Version {
-		t.Fatalf("applied = %#v, want %s", applied, Version)
+	if len(applied) != 2 || applied[0] != generalEducationVersion || applied[1] != Version {
+		t.Fatalf("applied = %#v, want [%s %s]", applied, generalEducationVersion, Version)
 	}
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
@@ -364,7 +401,10 @@ func TestAutoSafeMigrationRequiresKnownBaseline(t *testing.T) {
 	if _, ok := nextAutoSafeMigration(map[string]bool{"0001_student_id": true}); ok {
 		t.Fatal("unexpected safe migration without baseline")
 	}
-	if migration, ok := nextAutoSafeMigration(map[string]bool{BaselineVersion: true}); !ok || migration.to != Version {
+	if migration, ok := nextAutoSafeMigration(map[string]bool{BaselineVersion: true}); !ok || migration.to != generalEducationVersion {
+		t.Fatalf("migration=%#v ok=%v", migration, ok)
+	}
+	if migration, ok := nextAutoSafeMigration(map[string]bool{generalEducationVersion: true}); !ok || migration.to != Version {
 		t.Fatalf("migration=%#v ok=%v", migration, ok)
 	}
 }

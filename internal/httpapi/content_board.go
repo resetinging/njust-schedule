@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -18,6 +19,11 @@ const (
 	maxAnnouncementBody     = 3000
 	maxAnnouncementAudience = 40
 	maxAnnouncementAction   = 200
+	maxContentCompetitions  = 50
+	maxCompetitionTitle     = 100
+	maxCompetitionSummary   = 300
+	maxCompetitionBody      = 3000
+	maxCompetitionURL       = 500
 	// settings.v is MySQL TEXT (65535 bytes); leave headroom for SQL/schema limits.
 	maxContentBoardBytes = 60000
 )
@@ -43,9 +49,22 @@ type contentCommunity struct {
 	Note string `json:"note"`
 }
 
+// 竞赛条目由管理员维护，只允许引用官方 HTTPS 来源；deadline 可为空。
+type contentCompetition struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Summary     string `json:"summary"`
+	Body        string `json:"body"`
+	PublishedAt string `json:"published_at"`
+	Deadline    string `json:"deadline"`
+	SourceURL   string `json:"source_url"`
+	Enabled     bool   `json:"enabled"`
+}
+
 type contentBoard struct {
 	Updated       string                `json:"updated"`
 	Announcements []contentAnnouncement `json:"announcements"`
+	Competitions  []contentCompetition  `json:"competitions"`
 	Community     contentCommunity      `json:"community"`
 }
 
@@ -91,6 +110,7 @@ func legacyContentBoard(settings map[string]string) contentBoard {
 	board := contentBoard{
 		Updated:       updated,
 		Announcements: []contentAnnouncement{},
+		Competitions:  []contentCompetition{},
 		Community:     contentCommunity{},
 	}
 	if text != "" && settings["announcement_enabled"] != "0" {
@@ -117,6 +137,9 @@ func normalizeContentBoard(board *contentBoard, fallbackUpdated string) {
 	if board.Announcements == nil {
 		board.Announcements = []contentAnnouncement{}
 	}
+	if board.Competitions == nil {
+		board.Competitions = []contentCompetition{}
+	}
 	for index := range board.Announcements {
 		item := &board.Announcements[index]
 		item.ID = strings.TrimSpace(item.ID)
@@ -135,6 +158,16 @@ func normalizeContentBoard(board *contentBoard, fallbackUpdated string) {
 		}
 		item.EffectiveAt = strings.TrimSpace(item.EffectiveAt)
 		item.ExpiresAt = strings.TrimSpace(item.ExpiresAt)
+	}
+	for index := range board.Competitions {
+		item := &board.Competitions[index]
+		item.ID = strings.TrimSpace(item.ID)
+		item.Title = strings.TrimSpace(item.Title)
+		item.Summary = strings.TrimSpace(item.Summary)
+		item.Body = strings.TrimSpace(item.Body)
+		item.PublishedAt = strings.TrimSpace(item.PublishedAt)
+		item.Deadline = strings.TrimSpace(item.Deadline)
+		item.SourceURL = strings.TrimSpace(item.SourceURL)
 	}
 	board.Community.Name = strings.TrimSpace(board.Community.Name)
 	board.Community.QQ = strings.TrimSpace(board.Community.QQ)
@@ -188,6 +221,46 @@ func validateContentBoard(board contentBoard) error {
 			return errors.New("公告失效日期不能早于生效日期")
 		}
 	}
+	if len(board.Competitions) > maxContentCompetitions {
+		return fmt.Errorf("竞赛最多 %d 条", maxContentCompetitions)
+	}
+	competitionIDs := map[string]bool{}
+	for _, item := range board.Competitions {
+		if item.ID == "" || len(item.ID) > 100 || competitionIDs[item.ID] {
+			return errors.New("竞赛 ID 无效或重复")
+		}
+		competitionIDs[item.ID] = true
+		title := strings.TrimSpace(item.Title)
+		if title == "" {
+			return errors.New("竞赛标题不能为空")
+		}
+		if len([]rune(title)) > maxCompetitionTitle {
+			return fmt.Errorf("竞赛标题不能超过 %d 字", maxCompetitionTitle)
+		}
+		if strings.TrimSpace(item.Summary) == "" && strings.TrimSpace(item.Body) == "" {
+			return errors.New("竞赛摘要或正文不能为空")
+		}
+		if len([]rune(item.Summary)) > maxCompetitionSummary {
+			return fmt.Errorf("竞赛摘要不能超过 %d 字", maxCompetitionSummary)
+		}
+		if len([]rune(item.Body)) > maxCompetitionBody {
+			return fmt.Errorf("竞赛正文不能超过 %d 字", maxCompetitionBody)
+		}
+		if !validContentDate(item.PublishedAt) {
+			return errors.New("竞赛发布日期格式无效")
+		}
+		if item.Deadline != "" {
+			if !validContentDate(item.Deadline) {
+				return errors.New("竞赛截止日期格式无效")
+			}
+			if item.Deadline < item.PublishedAt {
+				return errors.New("竞赛截止日期不能早于发布日期")
+			}
+		}
+		if err := validateCompetitionSourceURL(item.SourceURL); err != nil {
+			return err
+		}
+	}
 	if len([]rune(board.Community.Name)) > 50 || len([]rune(board.Community.Note)) > 200 {
 		return errors.New("QQ 群名称或说明过长")
 	}
@@ -227,7 +300,46 @@ func publicContentBoard(board contentBoard) contentBoard {
 	if public.Announcements == nil {
 		public.Announcements = []contentAnnouncement{}
 	}
+	public.Competitions = make([]contentCompetition, 0, len(board.Competitions))
+	for _, item := range board.Competitions {
+		if item.Enabled {
+			public.Competitions = append(public.Competitions, item)
+		}
+	}
+	// 竞赛按发布日期倒序；deadline 仅展示，不作为自动隐藏条件。
+	sort.SliceStable(public.Competitions, func(i, j int) bool {
+		if public.Competitions[i].PublishedAt == public.Competitions[j].PublishedAt {
+			return public.Competitions[i].Title < public.Competitions[j].Title
+		}
+		return public.Competitions[i].PublishedAt > public.Competitions[j].PublishedAt
+	})
+	if public.Competitions == nil {
+		public.Competitions = []contentCompetition{}
+	}
 	return public
+}
+
+func validateCompetitionSourceURL(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return errors.New("竞赛原文链接不能为空")
+	}
+	if len([]rune(raw)) > maxCompetitionURL {
+		return errors.New("竞赛原文链接过长")
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil {
+		return errors.New("竞赛原文链接必须是官方 HTTPS 地址")
+	}
+	if parsed.Port() != "" && parsed.Port() != "443" {
+		return errors.New("竞赛原文链接端口无效")
+	}
+	host := strings.ToLower(parsed.Hostname())
+	allowed := host == "xspace.njust.edu.cn" || host == "njust.edu.cn" || strings.HasSuffix(host, ".njust.edu.cn")
+	if !allowed {
+		return errors.New("竞赛原文链接只允许 njust.edu.cn 官方域名")
+	}
+	return nil
 }
 
 func (s *Server) contentBoard(w http.ResponseWriter, r *http.Request) {

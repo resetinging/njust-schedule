@@ -32,7 +32,9 @@ const (
 
 	DefaultPageSize = 20
 	MaxPageSize     = 50
-	MaxPage         = 50
+	// MaxPage 提高为 200：默认 20 条/页可覆盖约 4000 条结果，真实「高等数学」2582 条可完整翻完；
+	// 超出上限由服务端返回 truncated 标记，前端不会谎称“已加载全部”。
+	MaxPage         = 200
 	MaxKeywordRunes = 80
 	maxBodyBytes    = 2 << 20 // 2 MiB
 )
@@ -261,11 +263,11 @@ type searchField struct {
 	FieldValue string `json:"fieldValue"`
 }
 
-type searchResponse struct {
-	Total   int            `json:"total"`
-	Content []searchRecord `json:"content"`
-	Err     bool           `json:"err"`
-	ErrMsg  string         `json:"errMsg"`
+type searchEnvelope struct {
+	Total   *int               `json:"total"`
+	Content *[]json.RawMessage `json:"content"`
+	Err     *bool              `json:"err"`
+	ErrMsg  string             `json:"errMsg"`
 }
 
 type searchRecord struct {
@@ -324,27 +326,50 @@ func (c *Client) Search(ctx context.Context, query Query) (SearchResult, error) 
 	if bytes.Contains(raw, []byte("出错啦")) {
 		return SearchResult{}, fmt.Errorf("%w: 检索接口返回业务错误", ErrBusiness)
 	}
-	var decoded searchResponse
+	var decoded searchEnvelope
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		return SearchResult{}, fmt.Errorf("%w: 检索响应不是有效 JSON", ErrUpstream)
 	}
-	if decoded.Err {
+	if decoded.Err != nil && *decoded.Err {
 		return SearchResult{}, fmt.Errorf("%w: %s", ErrBusiness, sanitizeMessage(decoded.ErrMsg))
 	}
-	if decoded.Total < 0 {
+	// 上游 HTTP 200 也可能返回 {}、null、{"message":...} 或缺少 content 的错误结构；
+	// 只有 total 为非负整数且 content 为数组时才可能是合法结果（空数组合法）。
+	if decoded.Total == nil || decoded.Content == nil {
+		return SearchResult{}, fmt.Errorf("%w: 检索响应缺少 total/content", ErrBusiness)
+	}
+	if *decoded.Total < 0 {
 		return SearchResult{}, fmt.Errorf("%w: 非法 total", ErrBusiness)
 	}
-
-	records := make([]Record, 0, len(decoded.Content))
-	for _, item := range decoded.Content {
-		marcNo := strings.TrimSpace(item.MarcRecNo)
-		if !marcNoPattern.MatchString(marcNo) {
-			// 无法解析/跳转的脏记录不进入结果，避免前端构造非法详情请求。
-			continue
+	if len(*decoded.Content) > query.PageSize {
+		return SearchResult{}, fmt.Errorf("%w: 检索响应超过请求页大小", ErrBusiness)
+	}
+	// 合理性：offset 为当前页首条在完整结果中的位置。
+	// - 非空 content 必须满足 offset+len(content)<=total，且不能出现在 offset>=total 的越界页；
+	// - total>0 时，只有 offset>=total 的空页合法；首页空 content 或 total=0 却非空均非法。
+	offset := (query.Page - 1) * query.PageSize
+	contentLen := len(*decoded.Content)
+	if contentLen == 0 {
+		if *decoded.Total > 0 && offset < *decoded.Total {
+			return SearchResult{}, fmt.Errorf("%w: 检索响应 total 与 content 不一致", ErrBusiness)
 		}
+	} else if offset >= *decoded.Total || offset+contentLen > *decoded.Total {
+		return SearchResult{}, fmt.Errorf("%w: 检索响应 content 超出 total 范围", ErrBusiness)
+	}
+
+	records := make([]Record, 0, len(*decoded.Content))
+	for index, rawRecord := range *decoded.Content {
+		var item searchRecord
+		if err := json.Unmarshal(rawRecord, &item); err != nil {
+			return SearchResult{}, fmt.Errorf("%w: 第 %d 条书目结构不合法", ErrBusiness, index+1)
+		}
+		marcNo := strings.TrimSpace(item.MarcRecNo)
 		title := strings.TrimSpace(item.Title)
-		if title == "" {
-			continue
+		if !marcNoPattern.MatchString(marcNo) || title == "" {
+			return SearchResult{}, fmt.Errorf("%w: 第 %d 条书目缺少标题或书目 ID", ErrBusiness, index+1)
+		}
+		if item.Num < 0 {
+			return SearchResult{}, fmt.Errorf("%w: 第 %d 条书目 num 不合法", ErrBusiness, index+1)
 		}
 		records = append(records, Record{
 			MarcNo:    marcNo,
@@ -358,7 +383,7 @@ func (c *Client) Search(ctx context.Context, query Query) (SearchResult, error) 
 			Num:       item.Num,
 		})
 	}
-	return SearchResult{Total: decoded.Total, Page: query.Page, PageSize: query.PageSize, Records: records}, nil
+	return SearchResult{Total: *decoded.Total, Page: query.Page, PageSize: query.PageSize, Records: records}, nil
 }
 
 // Item 获取一本书的逐册馆藏。只由 MARC ID 构造固定路径，禁止任意 URL。
