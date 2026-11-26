@@ -14,6 +14,10 @@ assert(app.includes('_resumeAfterSessionRecovery()'), '自动重登后必须恢�
 assert(app.includes('this._prefetchAll()'), '会话恢复后必须重新预取数据')
 assert(app.includes('current.onShow()'), '会话恢复后必须重新激活当前视图')
 assert(app.includes('task.then(activateAfterPrefetch, activateAfterPrefetch)'), '数据预取完成后应再次激活当前视图')
+assert(app.includes('waitForSessionReady()'), '页面请求前应等待启动会话校验')
+
+const schedule = read('components/schedule-view/index.js')
+assert(schedule.includes('await app.waitForSessionReady()'), '课表收藏和学期请求必须等待会话校验')
 
 const grades = read('components/grades-view/index.js')
 assert(

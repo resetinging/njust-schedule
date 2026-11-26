@@ -28,8 +28,8 @@ assert(schedule.includes("if (!storage.hasSession()) return"), '课表收藏请�
 assert(audit.includes("if (!storage.hasSession())"), '蹭课收藏请求缺少会话守卫')
 assert.strictEqual(
   (schedule.match(/storage\.hasSession\(\)/g) || []).length,
-  2,
-  'hasSession 只用于要求现成 token 的后台请求'
+  3,
+  'hasSession 用于收藏、学期请求以及会话恢复后的二次校验'
 )
 assert(
   /if \(!storage\.isLoggedIn\(\)\) \{\s+wx\.showToast\(\{ title: '请先在"我的"页面登录'/.test(schedule),

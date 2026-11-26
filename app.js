@@ -35,9 +35,18 @@ App({
       // 智慧理工侧短时间内频繁登录会被风控冻结, 后端也已加会话复用快路径。
       this._checkSession()
       // 后台预取各 Tab 页数据: 延迟启动不阻塞首屏, 滑动切换时零等待
-      setTimeout(() => this._prefetchAll(), 800)
+      setTimeout(() => {
+        this.waitForSessionReady().then(() => this._prefetchAll()).catch(() => {})
+      }, 800)
+    } else {
+      this._sessionReadyPromise = Promise.resolve()
     }
     analytics.onLaunch()
+  },
+
+  /** 等待启动会话校验/自动重登完成，避免旧 token 并发请求制造无意义 401。 */
+  waitForSessionReady() {
+    return this._sessionReadyPromise || Promise.resolve()
   },
 
   onShow() {
@@ -104,10 +113,11 @@ App({
 
   /** 静默校验后端会话: 失效时先尝试自动重登(记住密码), 失败才提示 */
   _checkSession() {
+    if (this._sessionCheckPromise) return this._sessionCheckPromise
     const wasOffline = storage.isOffline()
     const hadToken = !!storage.get('token', '')
     // force=true 必须绕过离线短路；否则 once offline，启动校验永远无法触发自动重登。
-    api.getStatus({ force: true }).then((res) => {
+    this._sessionCheckPromise = api.getStatus({ force: true }).then((res) => {
       // 请求失败(网络超时/5xx)返回 {success:false}, logged_in 为 undefined:
       // 绝不能当作"未登录"清空本地登录态, 静默跳过即可
       if (!res || res.success === false || typeof res.logged_in !== 'boolean') return
@@ -144,7 +154,7 @@ App({
         if (wasOffline || !hadToken) this._resumeAfterSessionRecovery()
         return
       }
-      api.autoRelogin().then((newToken) => {
+      return api.autoRelogin().then((newToken) => {
         if (newToken) {
           // 自动恢复登录成功
           this.globalData.isLoggedIn = true
@@ -169,6 +179,8 @@ App({
     }).catch(() => {
       // 网络失败不打扰用户, 由后续请求的 401 自动重登兜底
     })
+    this._sessionReadyPromise = this._sessionCheckPromise
+    return this._sessionCheckPromise
   },
 
   /** 更新全局登录状态 */

@@ -118,8 +118,13 @@ Component({
      * 学期数据兜底: 已登录但本地缺学期/学期列表时后台静默补拉,
      * 避免顶栏一直"选择学期"、切换列表为空(清缓存/首次登录等场景)
      */
-    _ensureSemesterData() {
+    async _ensureSemesterData() {
       if (!storage.hasSession()) return
+      const app = getApp()
+      if (app && typeof app.waitForSessionReady === 'function') {
+        await app.waitForSessionReady()
+        if (!storage.hasSession()) return
+      }
       const hasCourses = (storage.getCached(this._coursesCacheKey()) || []).length > 0
       const hasSemester = !!this.data.semester
       const hasSemesters = this.data.semesters.length > 0
@@ -369,6 +374,10 @@ Component({
       const cached = this._readAuditFavorites()
       this._auditFavorites = cached
       this._composeCourses()
+      const app = getApp()
+      if (app && typeof app.waitForSessionReady === 'function') {
+        await app.waitForSessionReady()
+      }
       if (!storage.hasSession()) return
       try {
         const res = await api.listAuditFavorites({
