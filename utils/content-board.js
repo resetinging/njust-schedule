@@ -34,6 +34,7 @@ function emptyBoard() {
   return {
     updated: '',
     announcements: [],
+    competitions: [],
     changelog: [],
     community: { name: '', qq: '', note: '' }
   }
@@ -48,6 +49,10 @@ function normalizeBoard(value) {
       .filter(item => item && item.enabled !== false &&
         (!item.expires_at || item.expires_at >= today))
       .map(normalizeAnnouncement),
+    competitions: (Array.isArray(board.competitions) ? board.competitions : [])
+      .filter(item => item && item.enabled !== false)
+      .map(normalizeCompetition)
+      .sort((a, b) => String(b.published_at || '').localeCompare(String(a.published_at || ''))),
     changelog: changelog.RELEASES.map(normalizeChangelog),
     community: Object.assign({ name: '', qq: '', note: '' }, board.community || {})
   }
@@ -73,6 +78,23 @@ function normalizeAnnouncement(item) {
     action: value.action || '',
     effective_at: value.effective_at || '',
     expires_at: value.expires_at || ''
+  })
+}
+
+function normalizeCompetition(item) {
+  const value = item || {}
+  const summary = String(value.summary || '')
+  const body = String(value.body || '')
+  return Object.assign({}, value, {
+    id: value.id || '',
+    title: value.title || '',
+    summary,
+    body,
+    display_summary: summary || body,
+    published_at: value.published_at || '',
+    deadline: value.deadline || '',
+    source_url: value.source_url || '',
+    enabled: value.enabled !== false
   })
 }
 
@@ -159,6 +181,7 @@ function loadLegacy(primaryError) {
       const board = normalizeBoard({
         updated,
         announcements,
+        competitions: [],
         changelog: [],
         community: { name: '', qq: '', note: '' }
       })

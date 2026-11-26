@@ -28,18 +28,16 @@ Component({
   },
 
   attached() {
-    // 三个 tab 恒定显示(考试/评教/成绩 已移入"功能"页, 不再随账号变化)
-    if (this.data.list.length !== ALL_TABS.length) {
-      this.setData({ list: ALL_TABS })
-    }
+    this._refreshList()
   },
 
   methods: {
     /** 研究生账号没有评教(研究生系统不提供), 隐藏该项 */
     _refreshList() {
-      // 三个 tab 恒定显示: 评教的隐藏已改由"功能"页入口判断
       const list = ALL_TABS
-      if (list.length !== (this.data.list || []).length) {
+      const currentKeys = (this.data.list || []).map(item => item.key).join(',')
+      const nextKeys = list.map(item => item.key).join(',')
+      if (currentKeys !== nextKeys) {
         this.setData({ list })
       }
       // 兜底校验(30 秒节流): app 启动时页面还没创建, 拿不到 tabBar 实例,
@@ -53,6 +51,12 @@ Component({
             const changed = storage.get('account_type', '') !== res.account_type
             storage.set('account_type', res.account_type)
             if (changed) this._refreshList()
+          }
+          if (res && res.role) {
+            const changedRole = storage.getRole() !== res.role
+            storage.setRole(res.role)
+            if (res.capabilities) storage.set('partner_capabilities', JSON.stringify(res.capabilities))
+            if (changedRole) this._refreshList()
           }
         }).catch(() => {})
       }

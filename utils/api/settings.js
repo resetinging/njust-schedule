@@ -4,8 +4,8 @@
 const { request } = require('./core')
 const storage = require('../storage')
 
-function getStatus() {
-  return request('GET', '/api/status')
+function getStatus(options) {
+  return request('GET', '/api/status', {}, options)
 }
 
 /** 测试服务端到智慧理工/教务的连通性; force 绕过离线模式短路 */

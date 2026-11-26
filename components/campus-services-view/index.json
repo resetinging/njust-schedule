@@ -1,0 +1,8 @@
+{
+  "component": true,
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "icon": "/components/icon/index",
+    "t-popup": "/miniprogram_npm/tdesign-miniprogram/popup/popup"
+  }
+}

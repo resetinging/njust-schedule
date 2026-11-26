@@ -73,7 +73,10 @@
         <view class="load-more tap {{loading ? 'is-busy' : ''}}" wx:if="{{hasMore}}" bindtap="onLoadMore">
           {{loading ? '加载中…' : '加载更多'}}
         </view>
-        <view class="list-end" wx:elif="{{records.length && !loading}}">已加载全部 {{total}} 条</view>
+        <view class="list-end" wx:elif="{{records.length && !loading}}">
+          <text wx:if="{{truncated}}">已展示前 {{records.length}} 条，共 {{total}} 条（受服务器查询上限 {{maxPage}} 页限制）</text>
+          <text wx:else>已加载全部 {{total}} 条</text>
+        </view>
       </view>
 
       <empty-state wx:if="{{searched && !loading && !records.length && !errorMsg}}"

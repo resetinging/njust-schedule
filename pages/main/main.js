@@ -20,17 +20,19 @@ const TOOL_TITLES = {
   gallery: '校园工具',
   audit: '蹭课查询',
   library: '图书馆库存',
+  services: '校园服务',
   notice: '信息中心'
 }
 
 Page({
   data: {
     current: 1,        // 底栏选中项: 0=功能 1=课表 2=我的
-    toolPage: '',      // 页面内假页: '' | notice | freeclass | gallery | library | exams | eval | grades | credit
+    toolPage: '',      // 页面内假页: '' | notice | freeclass | gallery | library | services | exams | eval | grades | credit
     toolRendered: false, // 二级固定层是否挂载
     toolVisible: false,
     toolClosing: false,
     isGraduate: false, // 研究生账号在功能页隐藏"教学评价"
+    isPartner: false,  // 合作商验收账号使用完整导航，学生数据为空
     popupOpen: false,  // 一级页是否正打开底部弹层(此时隐藏浮动 TabBar)
     fontClass: '',     // 字体档位: '' 像素 | 'font-system' 系统字体
     visited: [true, false, false, false, false, false],  // 已挂载的常驻 Tab: 0=课表, 4=我的
@@ -44,6 +46,7 @@ Page({
       this._pendingProfile = true
     }
     this._syncAccountType()
+    this.syncPartnerMode()
     // 首屏停在"课表"(底栏中间项)
     this._route()
     // 拉取公告(有新公告则顶部横幅展示)
@@ -76,6 +79,7 @@ Page({
 
   onShow() {
     this._syncAccountType()
+    this.syncPartnerMode()
     const fc = font.getClass()
     if (fc !== this.data.fontClass) this.setData({ fontClass: fc })
     // 从非 tab 页(如图鉴页)返回时同步全局状态到激活页(带重试)
@@ -309,7 +313,7 @@ Page({
    * 挂载后再查找组件实例激活; 找不到时短暂重试。
    */
   _openToolPage(page, toolId, mode) {
-    const allowed = ['notice', 'freeclass', 'gallery', 'audit', 'library', 'exams', 'eval', 'grades', 'credit']
+    const allowed = ['notice', 'freeclass', 'gallery', 'audit', 'library', 'services', 'exams', 'eval', 'grades', 'credit']
     if (allowed.indexOf(page) < 0 || this.data.toolVisible ||
         this.data.toolClosing || this.data.toolRendered) return
     analytics.pageView(page)
@@ -397,6 +401,7 @@ Page({
       credit: 'toolCredit',
       audit: 'toolAudit',
       library: 'toolLibrary',
+      services: 'toolServices',
       notice: 'toolNotice'
     }[page] || ''
   },
@@ -465,5 +470,12 @@ Page({
     // 用 selectComponent 同步高亮
     const bar = this.selectComponent('#tabbar')
     if (bar) bar.setData({ selected: this.data.current })
+  },
+
+  syncPartnerMode() {
+    const isPartner = storage.isPartner()
+    if (isPartner !== this.data.isPartner) this.setData({ isPartner })
+    const bar = this.selectComponent('#tabbar')
+    if (bar && typeof bar._refreshList === 'function') bar._refreshList()
   }
 })

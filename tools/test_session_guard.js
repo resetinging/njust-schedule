@@ -26,7 +26,15 @@ const schedule = fs.readFileSync(path.join(ROOT, 'components', 'schedule-view', 
 const audit = fs.readFileSync(path.join(ROOT, 'components', 'audit-course-view', 'index.js'), 'utf8')
 assert(schedule.includes("if (!storage.hasSession()) return"), '课表收藏请求缺少会话守卫')
 assert(audit.includes("if (!storage.hasSession())"), '蹭课收藏请求缺少会话守卫')
-assert.strictEqual((schedule.match(/storage\.hasSession\(\)/g) || []).length, 3)
+assert.strictEqual(
+  (schedule.match(/storage\.hasSession\(\)/g) || []).length,
+  2,
+  'hasSession 只用于要求现成 token 的后台请求'
+)
+assert(
+  /if \(!storage\.isLoggedIn\(\)\) \{\s+wx\.showToast\(\{ title: '请先在"我的"页面登录'/.test(schedule),
+  '课表主动刷新应允许 401 自动重登'
+)
 assert.strictEqual((audit.match(/storage\.hasSession\(\)/g) || []).length, 4)
 
 console.log('Session guard test passed [OK]')

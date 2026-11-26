@@ -39,6 +39,10 @@
         <view class="ui-action-card-icon"><icon name="book" size="36" color="#A66A0B" /></view>
         <view class="ui-action-card-title">图书馆库存</view>
       </view>
+      <view id="services-entry" class="ui-action-card ui-tone-brand" bind:tap="onAction" data-action="openTool" data-page="services">
+        <view class="ui-action-card-icon"><icon name="grid" size="36" color="#3157D5" /></view>
+        <view class="ui-action-card-title">校园服务</view>
+      </view>
     </view>
   </view>
   <view id="main-tabbar" class="ui-tabbar">

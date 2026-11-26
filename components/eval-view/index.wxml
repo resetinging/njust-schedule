@@ -12,8 +12,8 @@
   <empty-state wx:if="{{!loading && batches.length === 0 && !batchCourses.length}}"
                icon="clipboard"
                title="{{errorMsg || '暂无待评价课程'}}"
-               desc="{{semester || '当前学期'}} 没有需要评价的课程"
-               action-text="获取评教数据"
+               desc="{{semester || '当前学期'}} 没有需要评价的课程（数据每日凌晨自动同步）"
+               action-text="{{loading ? '刷新中…' : '刷新评教数据'}}"
                bind:action="onRefresh" />
 
   <!-- ============================================================ -->
@@ -25,7 +25,7 @@
         <text class="ph-title">教学评价</text>
         <text class="ph-sub">{{batches.length}} 个批次</text>
       </view>
-      <view class="ph-refresh tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新教学评价">
+      <view class="ph-refresh refresh-action tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新教学评价">
         <icon name="refresh" size="32" color="#6B7684" />
       </view>
     </view>

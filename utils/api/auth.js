@@ -31,6 +31,7 @@ function ssoQrStatus(qrId) {
         storage.setStudentName(res.student_name || '')
         storage.setSemester(res.semester || '')
         storage.set(TOKEN_KEY, res.token)
+        storage.setRole('student')
         storage.setOffline(false)
         storage.remove('manual_logout')
         if (res.credential_delete_token) {
@@ -93,6 +94,8 @@ function loginWebvpn(studentId, password) {
       storage.setStudentName(res.student_name || '')
       storage.setSemester(res.semester || '')
       storage.set(TOKEN_KEY, res.token || '')
+      storage.setRole(res.role || 'student')
+      if (res.capabilities) storage.set('partner_capabilities', JSON.stringify(res.capabilities))
       if (res.credential_delete_token) {
         storage.set('credential_delete_token', res.credential_delete_token)
       }

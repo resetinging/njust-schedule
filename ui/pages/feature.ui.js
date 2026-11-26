@@ -80,6 +80,12 @@ module.exports = {
                 id: 'library-entry',
                 props: { icon: 'book', title: '图书馆库存', tone: 'signal' },
                 events: { tap: { action: 'openTool', data: { page: 'library' } } }
+              },
+              {
+                type: 'ActionCard',
+                id: 'services-entry',
+                props: { icon: 'grid', title: '校园服务', tone: 'brand' },
+                events: { tap: { action: 'openTool', data: { page: 'services' } } }
               }
             ]
           }

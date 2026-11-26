@@ -1,8 +1,8 @@
 /* ==========================================================================
    主页面外壳（Island）：三个一级视图（功能 / 课表 / 我的）+ 唯一的二级页运动管理者
    - 入场动画只由「一层」负责：主 Tab 切换 200ms Q 弹，子组件不再叠一次整页进场
-   - 功能页保留 7 个入口（研究生隐藏规则在 WXML），课业 2 列 / 校园工具 2 列，
-     全部等宽等高岛卡，第 7 个保持单列宽度、右侧自然留空（不跨列）
+   - 功能页保留 9 个入口（研究生隐藏教学评价时 8 个），课业 2 列 / 校园工具 2 列，
+     全部等宽等高岛卡，末行单卡保持单列宽度、右侧自然留空（不跨列）
    ========================================================================== */
 
 /* 稳定 flex 高度链：page → main-page(100vh, flex column) → main-body(flex:1) → tab-wrap(flex:1)
@@ -101,11 +101,27 @@
   min-width: 0;
 }
 
+.feature-title-line {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
 .feature-title {
   color: var(--text-primary);
   font-size: var(--fs-page-title);
   font-weight: 700;
   line-height: 1.2;
+}
+
+.feature-partner-tag {
+  padding: 3rpx 10rpx;
+  border-radius: var(--radius-xs);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: var(--fs-cap);
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 /* 通知入口：88rpx 热区，方角轻量按钮，不再是装饰圆 */
@@ -154,7 +170,7 @@
   line-height: 1.4;
 }
 
-/* 两列等宽网格：7 个入口保持 2 列排布，末行单卡保持单列宽度、右侧自然留空（不跨列） */
+/* 两列等宽网格：所有入口保持 2 列排布，末行单卡保持单列宽度、右侧自然留空（不跨列） */
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -379,6 +395,13 @@
 .subject-shell > grades-view .container,
 .subject-shell > credit-view .container,
 .subject-shell > audit-course-view .container {
+  height: 100%;
+  min-height: 0;
+}
+
+.tool-layer > campus-services-view {
+  display: block;
+  width: 100%;
   height: 100%;
   min-height: 0;
 }

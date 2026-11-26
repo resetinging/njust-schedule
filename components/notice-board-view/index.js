@@ -16,12 +16,14 @@ Component({
     errorMsg: '',
     updated: '',
     announcements: [],
+    competitions: [],
     featured: null,
     announcementRest: [],
     changelog: [],
     community: { name: '', qq: '', note: '' },
     expandedID: '',
-    copied: false
+    copied: false,
+    copiedCompetitionID: ''
   },
 
   lifetimes: {
@@ -54,6 +56,23 @@ Component({
       this.setData({ expandedID: this.data.expandedID === id ? '' : id })
     },
 
+    onCopyCompetitionLink(e) {
+      const id = e.currentTarget.dataset.id
+      const item = (this.data.competitions || []).find(entry => entry.id === id)
+      if (!item || !item.source_url) return
+      wx.setClipboardData({
+        data: item.source_url,
+        success: () => {
+          if (this._competitionCopyTimer) clearTimeout(this._competitionCopyTimer)
+          this.setData({ copiedCompetitionID: id })
+          this._competitionCopyTimer = setTimeout(() => {
+            this._competitionCopyTimer = null
+            this.setData({ copiedCompetitionID: '' })
+          }, 1400)
+        }
+      })
+    },
+
     onCopyQQ() {
       const qq = this.data.community.qq
       if (!qq) return
@@ -75,7 +94,10 @@ Component({
     },
 
     _load(force) {
-      if (!this.data.announcements.length) this.setData({ loading: true, errorMsg: '' })
+      if (!this.data.announcements.length && !this.data.competitions.length &&
+          !this.data.changelog.length && !this.data.community.qq) {
+        this.setData({ loading: true, errorMsg: '' })
+      }
       content.load(force).then(board => {
         const announcements = (board.announcements || []).map(item => Object.assign({}, item, {
           long: String(item.body || '').length > 80
@@ -87,13 +109,15 @@ Component({
           ? announcements.filter(item => item.id !== featured.id)
           : announcements
         const community = board.community || { name: '', qq: '', note: '' }
+        const competitions = board.competitions || []
         this.setData({
           loading: false,
-          errorMsg: announcements.length || board.changelog.length || community.qq
+          errorMsg: announcements.length || competitions.length || board.changelog.length || community.qq
             ? ''
             : '暂无内容',
           updated: formatUpdated(board.updated),
           announcements,
+          competitions,
           featured,
           announcementRest,
           changelog: board.changelog || [],

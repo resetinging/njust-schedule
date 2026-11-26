@@ -12,10 +12,10 @@ function getCourses(semester) {
 
 function refreshSchedule() {
   return request('POST', '/api/refresh-schedule', {}, { force: true }).then(res => {
-    if (res.success) {
+    if (res.success && res.refreshed !== false && res.semester) {
       // 刷新接口不返回课程数据，只确认刷新成功
       // 后续 loadFromServer() 会通过 GET /api/courses 获取最新数据
-      storage.setSemester(res.semester || '')
+      storage.setSemester(res.semester)
     }
     return res
   })

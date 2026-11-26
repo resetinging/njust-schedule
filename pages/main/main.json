@@ -11,6 +11,7 @@
     "library-view": "/components/library-view/index",
     "audit-course-view": "/components/audit-course-view/index",
     "notice-board-view": "/components/notice-board-view/index",
+    "campus-services-view": "/components/campus-services-view/index",
     "ad-slot": "/components/ad-slot/index",
     "custom-tab-bar": "/custom-tab-bar/index",
     "icon": "/components/icon/index"

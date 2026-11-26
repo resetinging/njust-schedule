@@ -16,6 +16,12 @@
           <text>公告</text>
           <text class="tab-count" wx:if="{{announcements.length}}">{{announcements.length}}</text>
         </view>
+        <view class="notice-tab tap {{activeTab === 'competitions' ? 'on' : ''}}"
+              data-tab="competitions" bindtap="onTab">
+          <icon name="award" size="26" color="{{activeTab === 'competitions' ? '#3157D5' : '#748196'}}" />
+          <text>竞赛</text>
+          <text class="tab-count" wx:if="{{competitions.length}}">{{competitions.length}}</text>
+        </view>
         <view class="notice-tab tap {{activeTab === 'changelog' ? 'on' : ''}}"
               data-tab="changelog" bindtap="onTab">
           <icon name="refresh" size="26" color="{{activeTab === 'changelog' ? '#3157D5' : '#748196'}}" />
@@ -31,7 +37,7 @@
 
       <view class="load-warning" wx:if="{{errorMsg && errorMsg !== '暂无内容'}}">
         <icon name="refresh" size="24" color="#A66A0B" />
-        <text class="load-warning-text">公告和联系信息加载失败</text>
+        <text class="load-warning-text">信息加载失败</text>
         <text class="load-warning-action tap {{loading ? 'is-busy' : ''}}" bindtap="onRetry">重试</text>
       </view>
 
@@ -41,7 +47,7 @@
         <view class="skeleton skeleton-short"></view>
       </view>
 
-      <view class="notice-empty" wx:elif="{{errorMsg && !announcements.length && !changelog.length && !community.qq}}">
+      <view class="notice-empty" wx:elif="{{errorMsg && !announcements.length && !competitions.length && !changelog.length && !community.qq}}">
         <view class="empty-mark"><icon name="{{errorMsg === '暂无内容' ? 'doc' : 'refresh'}}" size="42" color="#6B7684" /></view>
         <text class="empty-title">{{errorMsg}}</text>
         <view class="retry-btn tap {{loading ? 'is-busy' : ''}}" wx:if="{{errorMsg !== '暂无内容'}}" bindtap="onRetry">重新加载</view>
@@ -102,6 +108,30 @@
           <view class="section-empty" wx:if="{{!announcements.length}}">
             <icon name="megaphone" size="40" color="#9AA4B0" />
             <text>{{errorMsg ? '公告加载失败' : '暂时没有公告'}}</text>
+          </view>
+        </view>
+
+        <view class="notice-panel" wx:elif="{{activeTab === 'competitions'}}">
+          <view class="competition-list" wx:if="{{competitions.length}}">
+            <view class="competition-item" wx:for="{{competitions}}" wx:key="id">
+              <view class="competition-head">
+                <text class="competition-title">{{item.title}}</text>
+                <text class="competition-date">{{item.published_at}}</text>
+              </view>
+              <text class="competition-summary" wx:if="{{item.display_summary}}">{{item.display_summary}}</text>
+              <view class="competition-foot">
+                <text class="competition-deadline" wx:if="{{item.deadline}}">截止 {{item.deadline}}</text>
+                <text class="competition-deadline" wx:else>截止日期待定</text>
+                <view class="competition-copy tap {{copiedCompetitionID === item.id ? 'is-copied' : ''}}"
+                      data-id="{{item.id}}" bindtap="onCopyCompetitionLink">
+                  {{copiedCompetitionID === item.id ? '已复制链接' : '复制原文链接'}}
+                </view>
+              </view>
+            </view>
+          </view>
+          <view class="section-empty" wx:else>
+            <icon name="award" size="40" color="#9AA4B0" />
+            <text>暂无竞赛信息</text>
           </view>
         </view>
 

@@ -16,7 +16,9 @@ const STORAGE_KEYS = {
   CET_SCORES: 'cached_cet_scores',
   CACHE_TIME: 'cache_timestamps',
   OFFLINE: 'offline_mode',  // 会话失效但保留本地缓存只读展示
-  MANUAL_LOGOUT: 'manual_logout'  // 手动退出后禁止测试连接自动登录
+  MANUAL_LOGOUT: 'manual_logout', // 手动退出后禁止测试连接自动登录
+  ROLE: 'account_role',
+  PARTNER_CAPABILITIES: 'partner_capabilities'
 }
 
 /** 获取存储值 */
@@ -58,6 +60,12 @@ function setStudentName(n) { set(STORAGE_KEYS.STUDENT_NAME, n) }
 function getSemester() { return get(STORAGE_KEYS.SEMESTER, '') }
 function setSemester(s) { set(STORAGE_KEYS.SEMESTER, s) }
 function isLoggedIn() { return !!getStudentId() }
+function getRole() { return get(STORAGE_KEYS.ROLE, 'student') || 'student' }
+function setRole(value) {
+  const role = String(value || '').toLowerCase() === 'partner' ? 'partner' : 'student'
+  set(STORAGE_KEYS.ROLE, role)
+}
+function isPartner() { return getRole() === 'partner' }
 /** 离线模式: 登录失效后仍展示本地缓存(不打网络, 登录接口除外) */
 function isOffline() { return !!get(STORAGE_KEYS.OFFLINE, false) }
 function setOffline(v) { set(STORAGE_KEYS.OFFLINE, !!v) }
@@ -122,6 +130,7 @@ function clearAll() {
 module.exports = {
   get, set, remove,
   isLoggedIn,
+  getRole, setRole, isPartner,
   getStudentId, setStudentId, getStudentName, setStudentName,
   getSemester, setSemester,
   isOffline, setOffline,

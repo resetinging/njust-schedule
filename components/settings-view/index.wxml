@@ -25,7 +25,23 @@
     <!-- 身份信息区: 姓名/学号/学期 + 指标 + 周次校准合并为一个信息块   -->
     <!-- 内部用「行 + 分隔线」组织, 不做卡片套卡片                     -->
     <!-- ============================================================ -->
-    <view class="identity-panel">
+    <view class="identity-panel partner-identity-panel" wx:if="{{isPartner}}">
+      <view class="identity-head">
+        <view class="identity-avatar"><icon name="user" size="36" color="#3157D5" /></view>
+        <view class="identity-copy">
+          <text class="identity-name">{{studentName || '合作商验收'}}</text>
+          <text class="identity-id">合作商验收账号</text>
+        </view>
+        <text class="identity-semester">验收模式</text>
+      </view>
+      <view class="identity-row identity-row-last">
+        <view class="identity-row-icon"><icon name="grid" size="26" color="#3157D5" /></view>
+        <text class="identity-row-label">可见内容</text>
+        <text class="identity-row-value">按数据可用性显示</text>
+      </view>
+    </view>
+
+    <view class="identity-panel" wx:else>
       <view class="identity-head">
         <view class="identity-avatar"><icon name="user" size="36" color="#3157D5" /></view>
         <view class="identity-copy">
@@ -149,23 +165,23 @@
   <view wx:if="{{!isLoggedIn}}">
     <!-- 登录表单 -->
     <view class="login-card card">
-      <view class="login-title">登录教务系统</view>
+      <view class="login-title">登录</view>
 
       <!-- 教务改版后仅保留智慧理工统一认证登录（教务直连已下线） -->
-      <view class="mode-desc">智慧理工统一认证</view>
+      <view class="mode-desc">学生使用智慧理工账号，合作商使用验收账号</view>
 
       <!-- 学号 -->
       <view class="form-group">
-        <text class="form-label">学号</text>
-        <t-input t-class="form-input" placeholder="请输入学号" clearable
+        <text class="form-label">学号 / 合作商账号</text>
+        <t-input t-class="form-input" placeholder="请输入学号或合作商账号" clearable
                  value="{{studentId}}" bind:change="onStudentIdInput" />
       </view>
 
       <!-- 密码 -->
       <view class="form-group">
-        <text class="form-label">智慧理工密码</text>
+        <text class="form-label">密码</text>
         <view class="pwd-row">
-          <t-input t-class="form-input pwd-input" placeholder="请输入智慧理工密码"
+          <t-input t-class="form-input pwd-input" placeholder="请输入密码"
                    type="{{showPassword ? 'text' : 'password'}}" value="{{password}}"
                    bind:change="onPasswordInput" />
           <view class="pwd-toggle tap" bindtap="onTogglePassword">
@@ -201,7 +217,7 @@
 
     <!-- 提示 -->
     <view class="login-tip">
-      <text>使用智慧理工统一认证账号，无需教务密码</text>
+      <text>学生使用智慧理工统一认证；合作商使用管理员提供的验收账号</text>
     </view>
   </view>
 

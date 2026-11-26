@@ -16,10 +16,11 @@
         <view class="yjs-tr" wx:for="{{examRows}}" wx:key="i">
           <text class="yjs-td" wx:for="{{item.cells}}" wx:for-item="cell" wx:key="*this">{{cell}}</text>
         </view>
-        <view class="yjs-hint" wx:if="{{!examRows.length}}">暂无考试安排，点下方按钮获取</view>
+        <view class="yjs-hint" wx:if="{{!examRows.length}}">暂无考试安排，每日凌晨自动同步</view>
       </view>
-      <view class="yjs-refresh tap {{refreshing ? 'is-busy' : ''}}" bindtap="onRefreshYjsExams">
-        {{refreshing ? '获取中…' : '从研究生系统获取'}}
+      <view class="yjs-refresh tap {{refreshing ? 'is-busy' : ''}}" bindtap="onRefreshYjsExams" aria-label="刷新研究生考试安排">
+        <icon class="{{refreshing ? 'spin' : ''}}" name="refresh" size="28" color="#FFFFFF" />
+        <text>{{refreshing ? '获取中…' : '刷新考试安排'}}</text>
       </view>
       <view class="yjs-note">数据来自研究生系统「学期考试信息查询」</view>
     </block>
@@ -32,8 +33,8 @@
     <empty-state wx:if="{{!loading && exams.length === 0 && !isGraduate}}"
                  icon="doc"
                  title="{{errorMsg || '暂无考试安排'}}"
-                 desc="{{semester || '当前学期'}} 暂时没有考试安排"
-                 action-text="获取考试安排"
+                 desc="{{semester || '当前学期'}} 暂无考试安排，服务端每日凌晨自动同步"
+                 action-text="刷新考试安排"
                  bind:action="onRefresh" />
 
     <!-- 有数据 -->
@@ -44,7 +45,7 @@
           <text class="ph-title">考试安排</text>
           <text class="ph-sub">共 {{exams.length}} 场考试</text>
         </view>
-        <view class="ph-refresh tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新考试安排">
+        <view class="ph-refresh refresh-action tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新考试安排">
           <icon name="refresh" size="32" color="#6B7684" />
         </view>
       </view>

@@ -41,7 +41,7 @@
         <view class="tb-toggle tap" data-mode="{{viewMode === 'grid' ? 'list' : 'grid'}}" bindtap="switchView">
           <icon class="ctrl-icon toggle-icon" name="{{viewMode === 'grid' ? 'list' : 'grid'}}" size="34" color="#6B7684" />
         </view>
-        <view class="refresh-action tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新课表">
+        <view class="refresh-action refresh-btn tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新课表">
           <icon class="ctrl-icon refresh-icon" name="refresh" size="34" color="#6B7684" />
         </view>
         <view class="u-ico-btn tap" bindtap="onAddCustom">
@@ -136,8 +136,8 @@
     <empty-state wx:if="{{!loading && courses.length === 0}}"
                  icon="calendar"
                  title="暂无课表数据"
-                 desc="{{semester || '当前学期'}} 暂时没有课程，可从教务系统获取"
-                 action-text="获取课表"
+                 desc="{{semester || '当前学期'}} 暂无课表数据，服务端每日凌晨自动同步"
+                 action-text="{{loading ? '刷新中…' : '刷新课表'}}"
                  bind:action="onRefresh" />
 
     <view id="slot-schedule-bottom" class="analytics-slot-marker"></view>

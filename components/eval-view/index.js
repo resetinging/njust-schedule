@@ -185,11 +185,14 @@ Component({
       try {
         const res = await api.refreshEvaluations()
         this.setData({ loading: false })
-        if (res.success) {
+        if (res && res.success && res.refreshed !== false) {
           wx.showToast({ title: res.message || '刷新成功', icon: 'success' })
           this.loadFromServer()
+        } else if (res && res.success && res.refreshed === false) {
+          wx.showToast({ title: res.message || '当前显示服务器已同步数据', icon: 'none' })
+          this.loadFromServer(true)
         } else {
-          wx.showToast({ title: res.message || '刷新失败', icon: 'none' })
+          wx.showToast({ title: (res && res.message) || '刷新失败', icon: 'none' })
         }
       } catch (e) {
         this.setData({ loading: false })

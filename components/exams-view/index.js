@@ -23,6 +23,7 @@ const {
 } = require('../../utils/date')
 
 const WEEKDAY = ['日', '一', '二', '三', '四', '五', '六']
+const EXAM_AUTO_REFRESH_MS = 30 * 60 * 1000
 
 Component({
   options: {
@@ -176,6 +177,20 @@ Component({
       this.setData({ semester, examRows: [], loading: false, refreshing: false, errorMsg: '' })
       // 每次激活都重读缓存并按当前时间重算状态（进行中/已结束会随时间变化）
       this.loadCachedData()
+      this._maybeAutoRefresh()
+    },
+
+    _examAutoRefreshKey() {
+      return 'exam_auto_refresh_' + (storage.getStudentId() || '') + '_' + (storage.getSemester() || '')
+    },
+
+    _maybeAutoRefresh() {
+      if (this.data.isGraduate || !storage.hasSession() || this.data.loading || this.data.refreshing) return
+      const key = this._examAutoRefreshKey()
+      const previous = parseInt(storage.get(key, '0'), 10) || 0
+      if (Date.now() - previous < EXAM_AUTO_REFRESH_MS) return
+      storage.set(key, String(Date.now()))
+      this.onRefresh(true)
     },
 
     /** 研究生考试: 只读本地缓存渲染 */
@@ -434,33 +449,43 @@ Component({
       this.setData({ collapsedDates: collapsed })
     },
 
-    /** 刷新(防重复点击) */
-    async onRefresh() {
+    /** 刷新(防重复点击; quiet=true 时用于后台自动刷新) */
+    async onRefresh(quiet) {
+      const isQuiet = quiet === true
       if (this.data.loading) return
       if (!storage.isLoggedIn()) {
         wx.showToast({ title: '请先在"我的"页面登录', icon: 'none' })
         return
       }
+      if (storage.isOffline() && !storage.get('saved_password', '')) {
+        wx.showToast({ title: '登录已过期，请先在"我的"页面重新登录', icon: 'none' })
+        return
+      }
       this.setData({ loading: true })
+      storage.set(this._examAutoRefreshKey(), String(Date.now()))
       const token = this._beginRequest('exams-refresh')
       try {
         const res = await api.refreshExams()
         if (!this._isCurrentRequest(token)) return
         this.setData({ loading: false })
-        if (res && res.success) {
+        if (res && res.success && res.refreshed !== false) {
           analytics.refreshResult('exams', true, 'exams')
-          wx.showToast({ title: '已刷新 ' + (res.count || 0) + ' 场考试', icon: 'success' })
+          if (!isQuiet) wx.showToast({ title: '已刷新 ' + (res.count || 0) + ' 场考试', icon: 'success' })
           // 刷新→加载链继续保持同一身份/学期绑定；loadFromServer 内部再校验
+          if (this._isCurrentRequest(token)) this.loadFromServer()
+        } else if (res && res.success && res.refreshed === false) {
+          analytics.refreshResult('exams', false, 'exams')
+          if (!isQuiet) wx.showToast({ title: res.message || '服务器未开启实时刷新', icon: 'none' })
           if (this._isCurrentRequest(token)) this.loadFromServer()
         } else {
           analytics.refreshResult('exams', false, 'exams')
-          wx.showToast({ title: (res && res.message) || '刷新失败', icon: 'none' })
+          if (!isQuiet) wx.showToast({ title: (res && res.message) || '刷新失败', icon: 'none' })
         }
       } catch (e) {
         if (!this._isCurrentRequest(token)) return
         this.setData({ loading: false })
         analytics.refreshResult('exams', false, 'exams')
-        wx.showToast({ title: '刷新失败', icon: 'none' })
+        if (!isQuiet) wx.showToast({ title: '刷新失败', icon: 'none' })
       }
     }
   }

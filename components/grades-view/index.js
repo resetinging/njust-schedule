@@ -43,6 +43,7 @@ Component({
   data: {
     loading: true,
     refreshing: false,
+    cetRefreshing: false,
     empty: false,
     errorMsg: '',
     semester: '',
@@ -73,7 +74,7 @@ Component({
       this.loadCached()
       // 本地无数据且已登录: 后台静默拉取, 不阻塞显示
       const cached = storage.getCached('cached_grades')
-      if (storage.isLoggedIn() && !(cached && cached.grades && cached.grades.length)) {
+      if (storage.hasSession() && !(cached && cached.grades && cached.grades.length)) {
         this.loadGrades(true)
       }
     },
@@ -110,6 +111,10 @@ Component({
       }
       this.loadGradeSubscribe()
       this.loadCached()                // 重新读缓存(登录后/刷新后数据自动生效)
+      const cached = storage.getCached('cached_grades')
+      if (storage.hasSession() && !(cached && cached.grades && cached.grades.length)) {
+        this.loadGrades(true)
+      }
     },
 
     /** 成绩提醒订阅状态: 只显示后端已启用的 grade 模板 */
@@ -396,18 +401,29 @@ Component({
 
     /** 点击 CET 行刷新四六级 */
     async onRefreshCet() {
-      wx.showLoading({ title: '获取中…' })
+      if (this.data.cetRefreshing) return
+      this.setData({ cetRefreshing: true })
       try {
         const res = await api.refreshCet()
-        wx.hideLoading()
-        if (res.success) {
+        if (res && res.success && res.refreshed !== false) {
           this._cetRaw = res.scores || []
+          storage.setCached('cached_cet_scores', { success: true, scores: this._cetRaw })
+          wx.showToast({ title: res.message || '四六级成绩已更新', icon: 'success' })
+        } else if (res && res.success && res.refreshed === false) {
+          wx.showToast({ title: res.message || '当前显示服务器已同步数据', icon: 'none' })
+          const cachedRes = await api.getCetScores()
+          if (cachedRes && cachedRes.success) {
+            this._cetRaw = cachedRes.scores || []
+            storage.setCached('cached_cet_scores', cachedRes)
+          }
         } else {
-          wx.showToast({ title: res.message || '获取失败', icon: 'none' })
+          wx.showToast({ title: (res && res.message) || '获取失败', icon: 'none' })
         }
         this._render()
       } catch (e) {
-        wx.hideLoading()
+        wx.showToast({ title: '网络异常，请稍后重试', icon: 'none' })
+      } finally {
+        this.setData({ cetRefreshing: false })
       }
     },
 
@@ -417,13 +433,17 @@ Component({
       this.setData({ refreshing: true })
       try {
         const res = await api.refreshGrades()
-        if (res.success) {
+        if (res && res.success && res.refreshed !== false) {
           analytics.refreshResult('grades', true, 'grades')
           wx.showToast({ title: res.message || '刷新成功', icon: 'success' })
           await this.loadGrades()
+        } else if (res && res.success && res.refreshed === false) {
+          analytics.refreshResult('grades', false, 'grades')
+          wx.showToast({ title: res.message || '当前显示服务器已同步数据', icon: 'none' })
+          await this.loadGrades(true)
         } else {
           analytics.refreshResult('grades', false, 'grades')
-          wx.showToast({ title: res.message || '刷新失败', icon: 'none' })
+          wx.showToast({ title: (res && res.message) || '刷新失败', icon: 'none' })
         }
       } catch (e) {
         analytics.refreshResult('grades', false, 'grades')

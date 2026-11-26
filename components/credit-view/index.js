@@ -121,18 +121,33 @@ Component({
     async onRefresh() {
       if (this.data.refreshing) return
       this.setData({ refreshing: true })
-      let ok = true
+      const notices = []
       try {
-        await api.refreshProgramme()
-      } catch (e) { ok = false }
+        const programmeRes = await api.refreshProgramme()
+        if (programmeRes && programmeRes.partner_mode) {
+          notices.push('合作商验收账号无学生培养方案数据')
+        } else if (programmeRes && programmeRes.success === false) {
+          notices.push(programmeRes.message || '培养方案刷新失败')
+        } else if (programmeRes && programmeRes.success && programmeRes.refreshed === false) {
+          notices.push(programmeRes.message || '当前显示服务器已同步数据')
+        }
+      } catch (e) {
+        notices.push('培养方案刷新失败')
+      }
       try {
-        await api.refreshGrades()
-      } catch (e) { /* 成绩刷新失败不阻断展示 */ }
+        const gradesRes = await api.refreshGrades()
+        if (gradesRes && gradesRes.success === false) {
+          notices.push(gradesRes.message || '成绩刷新失败')
+        } else if (gradesRes && gradesRes.success && gradesRes.refreshed === false) {
+          notices.push(gradesRes.message || '当前显示服务器已同步数据')
+        }
+      } catch (e) { /* 成绩刷新失败不阻断已有进度展示 */ }
       await this.loadFromServer(true)
       await this._ensureGrades(true)
       this.loadCached()
       this.setData({ refreshing: false })
-      wx.showToast({ title: ok ? '已更新' : '培养方案刷新失败', icon: ok ? 'success' : 'none' })
+      const notice = notices.find(Boolean)
+      wx.showToast({ title: notice || '已更新', icon: notice ? 'none' : 'success' })
     },
 
     onToggleExpand() {

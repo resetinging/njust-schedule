@@ -171,6 +171,8 @@ function autoRelogin() {
       storage.remove('relogin_fail_ts')
       storage.setOffline(false)
       storage.set(TOKEN_KEY, res.token)
+      storage.setRole(res.role || 'student')
+      if (res.capabilities) storage.set('partner_capabilities', JSON.stringify(res.capabilities))
       if (res.credential_delete_token) {
         storage.set('credential_delete_token', res.credential_delete_token)
       }

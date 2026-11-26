@@ -12,6 +12,7 @@ const settings = require('./api/settings')
 const freeclass = require('./api/freeclass')
 const gallery = require('./api/gallery')
 const library = require('./api/library')
+const campusServices = require('./api/campus-services')
 const refresh = require('./api/refresh')
 const study = require('./api/study')
 const subscribe = require('./api/subscribe')
@@ -21,6 +22,6 @@ const analytics = require('./api/analytics')
 
 const api = Object.assign({}, core, auth, schedule, exams, grades, evalApi,
   feedback, settings, freeclass, gallery, library, refresh, study, subscribe, audit,
-  sync, analytics)
+  campusServices, sync, analytics)
 delete api.TOKEN_KEY   // 内部常量不对外暴露(保持旧版接口集合)
 module.exports = api

@@ -750,8 +750,10 @@ Component({
             // 自动从教务拉取该学期课表(避免无缓存学期显示空白, 需手动下拉)
             const r = await api.refreshSchedule()
             this.setData({ loading: false })
-            if (r && r.success) {
+            if (r && r.success && r.refreshed !== false) {
               wx.showToast({ title: `已获取 ${r.count || 0} 门课程`, icon: 'success' })
+            } else if (r && r.success && r.refreshed === false) {
+              wx.showToast({ title: r.message || '当前显示服务器已同步数据', icon: 'none' })
             } else {
               wx.showToast({ title: (r && r.message) || '获取课表失败', icon: 'none' })
             }
@@ -807,7 +809,7 @@ Component({
           .join('')
         if (ft) font.loadForText(ft, { force: true })
       } catch (e) { /* 字体失败不影响刷新 */ }
-      if (!storage.hasSession()) {
+      if (!storage.isLoggedIn()) {
         wx.showToast({ title: '请先在"我的"页面登录', icon: 'none' })
         return
       }
@@ -815,13 +817,17 @@ Component({
       try {
         const res = await api.refreshSchedule()
         this.setData({ loading: false })
-        if (res.success) {
+        if (res && res.success && res.refreshed !== false) {
           analytics.refreshResult('schedule', true, 'schedule')
           wx.showToast({ title: `已刷新 ${res.count || 0} 门课程`, icon: 'success' })
           this.loadFromServer()
+        } else if (res && res.success && res.refreshed === false) {
+          analytics.refreshResult('schedule', false, 'schedule')
+          wx.showToast({ title: res.message || '当前显示服务器已同步数据', icon: 'none' })
+          this.loadFromServer('', true)
         } else {
           analytics.refreshResult('schedule', false, 'schedule')
-          wx.showToast({ title: res.message || '刷新失败', icon: 'none' })
+          wx.showToast({ title: (res && res.message) || '刷新失败', icon: 'none' })
         }
       } catch (e) {
         this.setData({ loading: false })

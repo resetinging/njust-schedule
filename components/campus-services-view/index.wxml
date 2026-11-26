@@ -1,0 +1,202 @@
+<view class="container {{embedded ? 'is-embedded' : ''}}">
+  <view class="custom-nav">
+    <view class="custom-nav-inner">
+      <view class="custom-back tap" aria-label="返回" bindtap="onBack">
+        <view class="icon-back"><icon name="back" size="28" color="#6B7684" /></view>
+        <text>返回</text>
+      </view>
+      <text class="custom-nav-title">校园服务</text>
+      <view class="refresh-action custom-nav-refresh tap {{loading ? 'is-busy' : ''}}"
+            aria-label="刷新校园服务" bindtap="onRefresh">
+        <icon name="refresh" size="30" color="#6B7684" />
+      </view>
+    </view>
+  </view>
+
+  <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="category-row">
+      <view class="category-chip tap {{activeCategory === item.key ? 'is-active' : ''}}"
+            wx:for="{{categories}}" wx:key="key"
+            data-category="{{item.key}}" bindtap="onCategoryTap"
+            aria-label="{{item.label}}">
+        <icon name="{{item.icon}}" size="26"
+              color="{{activeCategory === item.key ? '#3157D5' : '#6B7684'}}" />
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <scroll-view class="view-scroll" scroll-y enhanced show-scrollbar="{{false}}"
+               bindscrolltolower="onScrollToLower" lower-threshold="120">
+    <view class="page-content">
+      <view class="service-skeleton" wx:if="{{loading && !services.length}}">
+        <view class="skeleton-row" wx:for="{{skeletonRows}}" wx:key="*this">
+          <view class="skeleton-icon"></view>
+          <view class="skeleton-main">
+            <view class="skeleton-line wide"></view>
+            <view class="skeleton-line"></view>
+          </view>
+          <view class="skeleton-price"></view>
+        </view>
+      </view>
+
+      <view class="error-card" wx:elif="{{errorMsg && !services.length}}">
+        <text class="error-text">{{errorMsg}}</text>
+        <text class="retry-link tap" bindtap="onRetry">重试</text>
+      </view>
+
+      <view class="error-inline" wx:if="{{errorMsg && services.length}}">
+        <text>{{errorMsg}}</text>
+        <text class="retry-link tap" bindtap="onRetry">重试</text>
+      </view>
+
+      <view class="service-ledger" wx:if="{{services.length}}">
+        <view class="service-row tap"
+              wx:for="{{services}}" wx:key="id"
+              data-index="{{index}}" bindtap="onOpenService">
+          <view class="category-mark tone-{{item.categoryTone}}">
+            <icon name="{{item.categoryIcon}}" size="30" color="#3157D5" />
+          </view>
+          <view class="service-main">
+            <view class="service-title-row">
+              <text class="service-title">{{item.title}}</text>
+            </view>
+            <text class="service-provider">{{item.provider_name}}</text>
+            <view class="service-meta">
+              <text class="service-category">{{item.categoryLabel}}</text>
+              <text class="meta-separator">/</text>
+              <text>{{item.campusText}}</text>
+            </view>
+          </view>
+          <view class="service-side">
+            <text class="service-price">{{item.price_label}}</text>
+            <view class="service-arrow"><icon name="next" size="22" color="#9AA4B0" /></view>
+          </view>
+        </view>
+        <view class="load-more tap {{loading ? 'is-busy' : ''}}" wx:if="{{hasMore}}" bindtap="onScrollToLower">
+          {{loading ? '加载中…' : '加载更多'}}
+        </view>
+      </view>
+
+      <empty-state wx:elif="{{loaded && !loading && !services.length && !errorMsg}}"
+                   icon="grid" title="暂无服务"
+                   desc="当前分类暂时没有已审核并上架的服务" />
+    </view>
+  </scroll-view>
+
+  <t-popup t-class="campus-service-popup" visible="{{showSheet}}" placement="bottom"
+           duration="{{280}}" close-on-overlay-click bind:visible-change="onSheetVisibleChange">
+    <view class="service-sheet" wx:if="{{selectedService}}">
+      <view class="sheet-handle"></view>
+
+      <block wx:if="{{sheetMode === 'detail'}}">
+        <view class="sheet-head">
+          <view class="sheet-heading">
+            <view class="detail-labels">
+              <text class="detail-category tone-{{selectedService.categoryTone}}">{{selectedService.categoryLabel}}</text>
+              <text class="verified-chip">已核验</text>
+            </view>
+            <text class="detail-title">{{selectedService.title}}</text>
+            <text class="detail-provider">{{selectedService.provider_name}}</text>
+          </view>
+          <view class="detail-close tap" aria-label="关闭" bindtap="onCloseSheet">
+            <icon name="close" size="30" color="#6B7684" />
+          </view>
+        </view>
+
+        <view class="fact-grid">
+          <view class="fact-item">
+            <text class="fact-label">价格</text>
+            <text class="fact-value price">{{selectedService.price_label}}</text>
+          </view>
+          <view class="fact-item">
+            <text class="fact-label">校区</text>
+            <text class="fact-value">{{selectedService.campusText}}</text>
+          </view>
+          <view class="fact-item">
+            <text class="fact-label">有效期</text>
+            <text class="fact-value">{{selectedService.validityText}}</text>
+          </view>
+        </view>
+
+        <scroll-view class="detail-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+          <view class="detail-loading" wx:if="{{detailLoading}}">正在读取服务详情…</view>
+          <view class="detail-error" wx:elif="{{detailError}}">
+            <text>{{detailError}}</text>
+            <text class="retry-link tap" bindtap="onDetailRetry">重试</text>
+          </view>
+          <block wx:else>
+            <view class="detail-section" wx:if="{{selectedService.audience}}">
+              <text class="detail-section-title">适用人群</text>
+              <text class="detail-copy">{{selectedService.audience}}</text>
+            </view>
+            <view class="detail-section" wx:if="{{selectedService.details}}">
+              <text class="detail-section-title">服务内容</text>
+              <text class="detail-copy">{{selectedService.details}}</text>
+            </view>
+            <view class="detail-section" wx:if="{{selectedService.qualification_note}}">
+              <text class="detail-section-title">资质说明</text>
+              <text class="detail-copy">{{selectedService.qualification_note}}</text>
+            </view>
+          </block>
+        </scroll-view>
+
+        <view class="sheet-footer">
+          <button class="lead-action tap" disabled="{{detailLoading || detailError}}"
+                  bindtap="onStartLead">获取咨询方式</button>
+        </view>
+      </block>
+
+      <block wx:elif="{{sheetMode === 'lead'}}">
+        <view class="sheet-head">
+          <view class="sheet-heading">
+            <text class="form-step tap" bindtap="onBackToDetail">返回详情</text>
+            <text class="detail-title">获取咨询方式</text>
+            <text class="detail-provider">{{selectedService.title}} · {{selectedService.provider_name}}</text>
+          </view>
+          <view class="detail-close tap" aria-label="关闭" bindtap="onCloseSheet">
+            <icon name="close" size="30" color="#6B7684" />
+          </view>
+        </view>
+
+        <scroll-view class="lead-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+          <view class="contact-type-row">
+            <view class="contact-type tap {{contactType === 'phone' ? 'is-active' : ''}}"
+                  data-type="phone" bindtap="onContactTypeTap">手机号</view>
+            <view class="contact-type tap {{contactType === 'wechat' ? 'is-active' : ''}}"
+                  data-type="wechat" bindtap="onContactTypeTap">微信号</view>
+          </view>
+          <input class="lead-input" value="{{contact}}" maxlength="40"
+                 type="{{contactType === 'phone' ? 'number' : 'text'}}"
+                 placeholder="{{contactType === 'phone' ? '请输入 11 位手机号' : '请输入微信号'}}"
+                 placeholder-class="lead-placeholder" bindinput="onContactInput" />
+          <textarea class="lead-textarea" value="{{note}}" maxlength="300"
+                    placeholder="补充说明（可选）" placeholder-class="lead-placeholder"
+                    bindinput="onNoteInput" />
+          <view class="consent-row tap" bindtap="onToggleConsent"
+                aria-label="同意提供联系方式">
+            <view class="consent-box {{consent ? 'is-checked' : ''}}">
+              <view class="consent-check" wx:if="{{consent}}"></view>
+            </view>
+            <text class="consent-text">同意将联系方式提供给该服务商，用于本次咨询跟进。</text>
+          </view>
+          <text class="submit-error" wx:if="{{submitError}}">{{submitError}}</text>
+        </scroll-view>
+
+        <view class="sheet-footer">
+          <button class="lead-action tap {{submitting ? 'is-busy' : ''}}"
+                  disabled="{{submitting}}" bindtap="onSubmitLead">
+            {{submitting ? '提交中…' : '提交咨询'}}
+          </button>
+        </view>
+      </block>
+
+      <view class="lead-success" wx:else>
+        <view class="success-mark"><view class="success-check"></view></view>
+        <text class="success-title">咨询已提交</text>
+        <text class="success-copy">服务商将按你授权的联系方式跟进。</text>
+        <button class="success-action tap" bindtap="onCloseSheet">完成</button>
+      </view>
+    </view>
+  </t-popup>
+</view>

@@ -39,6 +39,7 @@ Component({
 
   data: {
     isLoggedIn: false,
+    isPartner: false,
     appVersion: APP_VERSION,   // 与内置更新记录同源
     fontMode: 'pixel',      // 字体档位: pixel | system
     fontSwitching: false,
@@ -216,6 +217,7 @@ Component({
     /** 刷新页面状态 */
     refreshState() {
       const loggedIn = storage.isLoggedIn()
+      const isPartner = storage.isPartner()
       // 成绩数量(本地缓存, 供"信息行"展示)
       const gradesRes = storage.getCached('cached_grades')
       const grades = gradesRes && gradesRes.grades ? gradesRes.grades : []
@@ -236,6 +238,7 @@ Component({
       }
       this.setData({
         isLoggedIn: loggedIn,
+        isPartner,
         studentId: storage.getStudentId(),
         studentName: storage.getStudentName(),
         semester: storage.getSemester(),
@@ -535,7 +538,7 @@ Component({
       let res
       this.setData({ loggingIn: true })
       try {
-        wx.showLoading({ title: '智慧理工登录中…' })
+        wx.showLoading({ title: '登录中…' })
         res = await api.loginWebvpn(studentId, password)
         wx.hideLoading()
         this.setData({ loggingIn: false })
@@ -546,12 +549,16 @@ Component({
           })
           // 默认保存本机密码; 服务端也会始终加密保存。
           storage.set('saved_password', password)
+          storage.setRole(res.role || 'student')
+          if (res.capabilities) storage.set('partner_capabilities', JSON.stringify(res.capabilities))
           storage.setStudentId(studentId)
           storage.setStudentName(res.student_name || '')
           storage.setSemester(res.semester || '')
           // 账号类型(研究生/本科): 决定课表/成绩页走哪套数据
           storage.set('account_type', res.account_type || 'undergraduate')
-          if (res.credential_saved === false) {
+          if (res.partner_mode) {
+            wx.showToast({ title: '验收账号登录成功', icon: 'success' })
+          } else if (res.credential_saved === false) {
             wx.showToast({
               title: '登录成功，但服务端未启用密码保存',
               icon: 'none', duration: 2600
@@ -566,14 +573,21 @@ Component({
             password: ''
           })
           this.loadSettings()
-          // 登录后立即刷新「我的反馈」未读回复(小红点)
-          this._loadMyFeedback(false)
-          // 自动向后端获取全部数据并载入缓存(课表/考试/评教/成绩/CET/校历)
-          dataLoader.fetchAllData().then((ok) => {
-            if (ok > 0) {
-              wx.showToast({ title: '数据已更新', icon: 'success' })
-            }
-          })
+          if (!res.partner_mode) {
+            // 登录后立即刷新「我的反馈」未读回复(小红点)
+            this._loadMyFeedback(false)
+            // 自动向后端获取全部数据并载入缓存(课表/考试/评教/成绩/CET/校历)
+            dataLoader.fetchAllData().then((ok) => {
+              if (ok > 0) {
+                wx.showToast({ title: '数据已更新', icon: 'success' })
+              }
+            })
+          }
+          try {
+            const pages = getCurrentPages()
+            const page = pages[pages.length - 1]
+            if (page && typeof page.syncPartnerMode === 'function') page.syncPartnerMode()
+          } catch (e) { /* onShow 会再次同步 */ }
         } else {
           wx.showToast({ title: res.message || '登录失败', icon: 'none' })
           this._updateCanLogin()
@@ -1101,6 +1115,11 @@ Component({
           }
           wx.hideLoading()
           this.refreshState()
+          try {
+            const pages = getCurrentPages()
+            const page = pages[pages.length - 1]
+            if (page && typeof page.syncPartnerMode === 'function') page.syncPartnerMode()
+          } catch (e) { /* onShow 会再次同步 */ }
           // 登出后立刻回填"上次登录的学号 + 记住的密码"(不用切 Tab 再触发 activate)
           this.setData({
             studentId: storage.get('last_login_sid', '') || storage.getStudentId() || '',

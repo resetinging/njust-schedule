@@ -11,7 +11,7 @@ function getExams(semester) {
 /** 刷新考试安排 */
 
 function refreshExams() {
-  return request('POST', '/api/refresh-exams').then(res => {
+  return request('POST', '/api/refresh-exams', {}, { force: true }).then(res => {
     if (res.success) {
       // 刷新接口不返回考试数据，后续通过 GET /api/exams 获取
     }

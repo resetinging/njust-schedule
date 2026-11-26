@@ -53,8 +53,8 @@ async function check(name, fn) {
 ;(async () => {
   const api = require(path.join(ROOT, 'utils', 'api'))
 
-  await check('导出 63 个接口(含通识大纲、信息中心、同步版本、蹭课收藏、图书馆库存与使用统计)', () => {
-    assert.strictEqual(Object.keys(api).length, 63, Object.keys(api).join(','))
+  await check('导出 66 个接口(含校园服务、通识大纲、信息中心、图书馆库存与使用统计)', () => {
+    assert.strictEqual(Object.keys(api).length, 66, Object.keys(api).join(','))
     assert.strictEqual(typeof api.testConnection, 'function')
     assert.strictEqual(typeof api.searchAuditCourses, 'function')
     assert.strictEqual(typeof api.listAuditOptions, 'function')
@@ -126,6 +126,18 @@ async function check(name, fn) {
     assert.ok(r && r.offline === true, '应返回 offline 标记')
     assert.strictEqual(called, 0, '离线模式不应发起请求')
   })
+  await check('离线模式: 启动状态校验 force 可触发恢复', async () => {
+    storage.setOffline(true)
+    let called = 0
+    stubBoth((o) => {
+      called++
+      o.success({ statusCode: 200, data: { success: true, logged_in: true } })
+    })
+    const r = await api.getStatus({ force: true })
+    assert.ok(r && r.success && r.logged_in === true)
+    assert.strictEqual(called, 1, '状态校验必须绕过离线短路')
+    storage.setOffline(false)
+  })
   await check('离线模式: 登录接口仍可请求(可重新登录)', async () => {
     let called = 0
     stubBoth((o) => {
@@ -142,7 +154,8 @@ async function check(name, fn) {
       return o.success({ statusCode: 200, data: { success: true } })
     })
     await api.refreshGrades()
-    assert.strictEqual(called, 1, '主动刷新应绕过离线短路')
+    await api.refreshExams()
+    assert.strictEqual(called, 2, '成绩和考试主动刷新都应绕过离线短路')
   })
   await check('相同 GET 在途请求复用一次网络调用', async () => {
     storage.setOffline(false)

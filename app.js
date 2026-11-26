@@ -56,7 +56,7 @@ App({
   _prefetchAll() {
     const sid = storage.getStudentId()
     // 有学号但无 token(会话已失效/已退出)时不预取, 否则后端只会返回一串 401
-    if (!sid || !storage.get('token', '')) return
+    if (!sid || !storage.get('token', '') || storage.isPartner()) return Promise.resolve(0)
     const sem = storage.getSemester()
 
     // 空教室默认条件后台预热: 用户进入功能页后通常先看当天/本周,
@@ -78,15 +78,36 @@ App({
 
     // 先比较 /api/sync/versions 再拉取变化域；服务端登录后预抓完成时再复查一次。
     // 这样不会因为本地缓存仍在 30 天 TTL 内而长期显示旧课表/旧成绩。
-    dataLoader.fetchAllData().then(() => {
+    return dataLoader.fetchAllData().then((ok) => {
       const nextSemester = storage.getSemester()
       if (nextSemester) this.globalData.semester = nextSemester
-    }).catch(() => {})
+      return ok
+    }).catch(() => 0)
+  },
+
+  /** 自动恢复会话后重新预取数据并激活当前页面，避免停留在离线空态 */
+  _resumeAfterSessionRecovery() {
+    const activateCurrent = () => {
+      try {
+        const pages = getCurrentPages()
+        const current = pages[pages.length - 1]
+        if (current && typeof current.onShow === 'function') current.onShow()
+      } catch (e) { /* 页面未就绪时由正常 onShow 接管 */ }
+    }
+    setTimeout(activateCurrent, 0)
+    const task = this._prefetchAll()
+    if (task && typeof task.then === 'function') {
+      const activateAfterPrefetch = () => setTimeout(activateCurrent, 0)
+      task.then(activateAfterPrefetch, activateAfterPrefetch)
+    }
   },
 
   /** 静默校验后端会话: 失效时先尝试自动重登(记住密码), 失败才提示 */
   _checkSession() {
-    api.getStatus().then((res) => {
+    const wasOffline = storage.isOffline()
+    const hadToken = !!storage.get('token', '')
+    // force=true 必须绕过离线短路；否则 once offline，启动校验永远无法触发自动重登。
+    api.getStatus({ force: true }).then((res) => {
       // 请求失败(网络超时/5xx)返回 {success:false}, logged_in 为 undefined:
       // 绝不能当作"未登录"清空本地登录态, 静默跳过即可
       if (!res || res.success === false || typeof res.logged_in !== 'boolean') return
@@ -109,13 +130,27 @@ App({
           } catch (e) { /* 拿不到组件时忽略, 下次 show 会自然刷新 */ }
         }
       }
-      if (res.logged_in) return
+      storage.setRole(res.role || 'student')
+      if (res.capabilities) {
+        storage.set('partner_capabilities', JSON.stringify(res.capabilities))
+      }
+      try {
+        const pages = getCurrentPages()
+        const current = pages[pages.length - 1]
+        if (current && typeof current.syncPartnerMode === 'function') current.syncPartnerMode()
+      } catch (e) { /* 页面未就绪时由 onShow 同步 */ }
+      if (res.logged_in) {
+        storage.setOffline(false)
+        if (wasOffline || !hadToken) this._resumeAfterSessionRecovery()
+        return
+      }
       api.autoRelogin().then((newToken) => {
         if (newToken) {
           // 自动恢复登录成功
           this.globalData.isLoggedIn = true
           this.globalData.studentName = storage.getStudentName()
           this.globalData.semester = storage.getSemester()
+          this._resumeAfterSessionRecovery()
         } else {
           // 会话失效: 保留本地缓存数据 → 离线模式继续展示; 仅失效凭证
           storage.remove('token')

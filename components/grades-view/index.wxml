@@ -19,7 +19,7 @@
             <text class="hero-gpa">{{yjsTotal.earned || 0}}</text>
             <text class="hero-label">已修学分 · 要求 {{yjsTotal.required || '-'}} · 培养计划 {{yjsTotal.planned || '-'}}</text>
           </view>
-          <view class="refresh-action tap {{refreshing ? 'is-busy' : ''}}" bindtap="onRefreshYjsGrades" aria-label="刷新成绩">
+          <view class="refresh-action tap {{refreshing ? 'is-busy' : ''}}" bindtap="onRefreshYjsGrades" aria-label="刷新研究生成绩">
             <icon name="refresh" size="34" color="#3157D5" />
           </view>
         </view>
@@ -40,15 +40,15 @@
         </view>
         <view class="yjs-hint" wx:if="{{!yjsRows.length}}">暂无成绩记录</view>
       </view>
-      <view class="yjs-note">研究生成绩不含绩点计算；点右上角刷新</view>
+      <view class="yjs-note">研究生成绩不含绩点计算；数据每日凌晨自动同步</view>
     </block>
 
     <!-- 空状态（卡片式） -->
     <empty-state wx:if="{{!loading && empty && !isGraduate}}"
                  icon="clipboard"
                  title="{{errorMsg || '暂无成绩数据'}}"
-                 desc="{{semester || '当前学期'}} 暂时没有成绩，可从教务系统获取"
-                 action-text="{{refreshing ? '刷新中…' : '从教务获取成绩'}}"
+                 desc="{{semester || '当前学期'}} 暂无成绩数据，服务端每日凌晨自动同步"
+                 action-text="{{refreshing ? '刷新中…' : '刷新成绩'}}"
                  bind:action="onRefreshGrades" />
 
     <block wx:if="{{!loading && !empty && !isGraduate}}">
@@ -91,11 +91,11 @@
       <view id="slot-grades-mid" class="analytics-slot-marker"></view>
 
       <!-- ============ 四六级成绩条(点击刷新) ============ -->
-      <view class="sc-cet tap" wx:if="{{stats.cet}}" bindtap="onRefreshCet">
+      <view class="sc-cet tap {{cetRefreshing ? 'is-busy' : ''}}" wx:if="{{stats.cet}}" bindtap="onRefreshCet" aria-label="刷新四六级成绩">
         <view class="sc-cet-top">
           <text class="sc-cet-title">四六级成绩</text>
           <text class="sc-cet-date">{{stats.cet.date}}</text>
-        <view class="sc-cet-refresh"><icon name="refresh" size="24" color="#3157D5" /></view>
+          <view class="sc-cet-refresh {{cetRefreshing ? 'spin' : ''}}"><icon name="refresh" size="24" color="#3157D5" /></view>
         </view>
         <view class="sc-cet-line">{{stats.cet.line}}</view>
       </view>

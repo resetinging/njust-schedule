@@ -53,8 +53,11 @@ Component({
     navBarHeight: 44,
     navRight: 96,
     fields: FIELDS,
+    // keyword/fieldIndex 是输入草稿；committed* 才是已提交查询快照。
     fieldIndex: 0,
     keyword: '',
+    committedKeyword: '',
+    committedFieldKey: '',
     loading: false,
     searched: false,
     errorMsg: '',
@@ -62,6 +65,8 @@ Component({
     page: 1,
     pageSize: 20,
     hasMore: false,
+    truncated: false,
+    maxPage: 200,
     records: [],
     searchStale: false,
     searchUpdatedText: '',
@@ -85,6 +90,8 @@ Component({
     attached() {
       this._searchSeq = 0
       this._detailSeq = 0
+      this._committedQuery = null
+      this._failedQuery = null
       let statusBarHeight = 20
       let navBarHeight = 44
       let navRight = 96
@@ -117,86 +124,128 @@ Component({
     onFieldTap(e) {
       const index = Number(e.currentTarget.dataset.index)
       if (!(index >= 0) || index >= FIELDS.length || index === this.data.fieldIndex) return
-      // 检索条件变化：页码复位，并使在途搜索失效，避免旧字段结果套在新字段下。
-      // 旧列表保留到新搜索返回（避免闪烁），但不会被视为当前条件结果。
+      // 字段切换只是修改草稿；旧结果属于旧字段，不能冒充新字段结果，直接清空并让在途请求失效。
       this._searchSeq = (this._searchSeq || 0) + 1
-      this.setData({ fieldIndex: index, page: 1, hasMore: false, loading: false, errorMsg: '' })
+      this._committedQuery = null
+      this._failedQuery = null
+      this.setData({
+        fieldIndex: index,
+        loading: false,
+        searched: false,
+        errorMsg: '',
+        total: 0,
+        page: 1,
+        hasMore: false,
+        truncated: false,
+        records: [],
+        searchStale: false,
+        searchUpdatedText: '',
+        committedKeyword: '',
+        committedFieldKey: ''
+      })
     },
 
     onKeywordInput(e) {
+      // 只更新输入草稿，不影响已经提交的列表/翻页条件。
       this.setData({ keyword: (e && e.detail && e.detail.value) || '' })
     },
 
     onKeywordConfirm() {
-      this._runSearch(1)
+      this.onSearch()
     },
 
     onSearch() {
-      this._runSearch(1)
+      this._commitAndSearch()
+    },
+
+    _commitAndSearch() {
+      const keyword = String(this.data.keyword || '').trim()
+      if (!keyword) {
+        this.setData({ errorMsg: '请输入书名、作者、ISBN 或索书号关键词' })
+        return
+      }
+      const field = FIELDS[this.data.fieldIndex] || FIELDS[0]
+      const query = { fieldKey: field.key, keyword: keyword }
+      this._committedQuery = query
+      this._failedQuery = null
+      this.setData({ committedKeyword: keyword, committedFieldKey: field.key })
+      this._fetchPage(1, query, true)
     },
 
     onLoadMore() {
-      if (this.data.loading || !this.data.hasMore) return
-      this._runSearch(this.data.page + 1)
+      if (this.data.loading || !this.data.hasMore || !this._committedQuery) return
+      this._fetchPage(this.data.page + 1, this._committedQuery, false)
     },
 
     onScrollToLower() {
       this.onLoadMore()
     },
 
-    /** 手动刷新：只请求本服务（缓存策略由服务端决定），不构造绕过缓存的参数。 */
+    /** 刷新只重复已提交条件，不使用输入框里的新草稿（草稿需点查询才提交）。 */
     onRefresh() {
       if (this.data.loading) return
-      this._runSearch(1)
+      if (this._committedQuery) {
+        this._fetchPage(1, this._committedQuery, true)
+        return
+      }
+      this._commitAndSearch()
     },
 
     onRetry() {
-      this._runSearch(this.data.searched ? Math.max(1, this.data.page) : 1)
-    },
-
-    _runSearch(page) {
-      const keyword = String(this.data.keyword || '').trim()
-      if (!keyword) {
-        this.setData({ errorMsg: '请输入书名、作者、ISBN 或索书号关键词' })
+      if (this.data.loading) return
+      // 重试必须回到失败的原页/原条件，不能在后续成功页上重复 append。
+      if (this._failedQuery) {
+        this._fetchPage(this._failedQuery.page, this._failedQuery, this._failedQuery.page === 1)
         return
       }
-      // 页码 >1 的加载更多在请求中不重复触发；但新搜索(页码=1)允许覆盖在途请求，
-      // 由请求序号保证旧响应不覆盖新结果。
-      if (this.data.loading && page > 1) return
-      const field = FIELDS[this.data.fieldIndex] || FIELDS[0]
+      if (this._committedQuery) {
+        this._fetchPage(1, this._committedQuery, true)
+        return
+      }
+      this._commitAndSearch()
+    },
+
+    _fetchPage(page, query, reset) {
       const seq = (this._searchSeq || 0) + 1
       this._searchSeq = seq
-      const patch = { loading: true, errorMsg: '', searched: true }
-      if (page === 1) {
+      const patch = { loading: true, errorMsg: '' }
+      if (reset) {
+        patch.searched = true
         patch.page = 1
         patch.total = 0
         patch.hasMore = false
+        patch.truncated = false
         patch.records = []
         patch.searchStale = false
         patch.searchUpdatedText = ''
       }
       this.setData(patch)
-      api.searchLibraryBooks({ field: field.key, q: keyword, page: page }).then((res) => {
+      api.searchLibraryBooks({ field: query.fieldKey, q: query.keyword, page: page }).then((res) => {
         if (seq !== this._searchSeq) return
         if (!res || res.success === false) {
+          this._failedQuery = { fieldKey: query.fieldKey, keyword: query.keyword, page: page }
           this.setData({ loading: false, errorMsg: safeMessage(res, '查询失败，请稍后再试') })
           return
         }
         const incoming = (res.records || []).map((item) => this._decorateRecord(item))
-        const records = page === 1 ? incoming : this.data.records.concat(incoming)
+        const records = reset ? incoming : this.data.records.concat(incoming)
+        this._failedQuery = null
         this.setData({
           loading: false,
           searched: true,
           page: page,
           total: Number(res.total) || 0,
           hasMore: !!res.has_more,
+          truncated: !!res.truncated,
+          maxPage: Number(res.max_page) || this.data.maxPage,
           records: records,
           searchStale: !!res.stale,
           searchUpdatedText: formatUpdatedAt(res.updated_at)
         })
-        analytics.featureAction('library', 'feature', { action: 'search', field: field.key })
+        analytics.featureAction('library', 'feature', { action: 'search', field: query.fieldKey })
       }).catch(() => {
         if (seq !== this._searchSeq) return
+        this._failedQuery = { fieldKey: query.fieldKey, keyword: query.keyword, page: page }
         this.setData({ loading: false, errorMsg: '网络异常，请稍后再试' })
       })
     },

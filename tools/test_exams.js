@@ -483,6 +483,38 @@ function ts(y, mo, d, h, mi, s) {
 
   {
     const i = makeInstance()
+    const dRefresh = deferred()
+    refreshResponses.push(dRefresh)
+    const dLoad = deferred()
+    examResponses.push(dLoad)
+    toasts.length = 0
+    const p = i.onRefresh()
+    dRefresh.resolve({ success: true, refreshed: false, message: '数据每日凌晨自动更新' })
+    await p
+    dLoad.resolve({ success: true, exams: [], semester: '2026-2027-1' })
+    await flush()
+    check('服务器返回 refreshed=false → 显示真实提示并继续读取快照', () => {
+      assert.strictEqual(toasts.length, 1)
+      assert.ok(toasts[0].title.indexOf('每日凌晨') >= 0, JSON.stringify(toasts))
+    })
+  }
+  {
+    const i = makeInstance()
+    const before = calls.length
+    storage.setOffline(true)
+    storage.remove('saved_password')
+    toasts.length = 0
+    await i.onRefresh()
+    check('离线且无记忆密码：不发刷新请求，提示重新登录', () => {
+      assert.strictEqual(calls.length, before)
+      assert.strictEqual(toasts.length, 1)
+      assert.ok(toasts[0].title.indexOf('重新登录') >= 0, JSON.stringify(toasts))
+    })
+    storage.setOffline(false)
+  }
+
+  {
+    const i = makeInstance()
     const dSilent = deferred()
     examResponses.push(dSilent)
     const pSilent = i.loadFromServer(true)
