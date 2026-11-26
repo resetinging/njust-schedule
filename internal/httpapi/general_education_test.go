@@ -33,11 +33,12 @@ func TestMissingToken401LogsAsUnauthenticatedRequest(t *testing.T) {
 	}
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/audit-favorites", nil)
+	request.Header.Set(tokenHeader, "stale-token")
 	testHandler(t, server).ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
-	if !strings.Contains(logs.String(), "未认证请求") || strings.Contains(logs.String(), "请求异常") {
+	if !strings.Contains(logs.String(), "未认证或会话失效") || strings.Contains(logs.String(), "请求异常") {
 		t.Fatalf("unexpected log: %s", logs.String())
 	}
 }
