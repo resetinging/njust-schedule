@@ -31,9 +31,10 @@ func (s *Server) courses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess.IsPartner() {
+		courses := partnerDemoCourses()
 		writeJSON(w, http.StatusOK, map[string]any{
-			"success": true, "semester": currentSemester(), "count": 0,
-			"courses": []store.Course{}, "partner_mode": true,
+			"success": true, "semester": currentSemester(), "count": len(courses),
+			"courses": courses, "partner_mode": true, "demo_mode": true,
 		})
 		return
 	}
@@ -78,9 +79,10 @@ func (s *Server) exams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess.IsPartner() {
+		exams := partnerDemoExams()
 		writeJSON(w, http.StatusOK, map[string]any{
-			"success": true, "semester": currentSemester(), "count": 0,
-			"exams": []store.Exam{}, "partner_mode": true,
+			"success": true, "semester": currentSemester(), "count": len(exams),
+			"exams": exams, "partner_mode": true, "demo_mode": true,
 		})
 		return
 	}
@@ -106,6 +108,10 @@ func (s *Server) exams(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshSchedule(w http.ResponseWriter, r *http.Request) {
+	if sess, ok := s.session(r); ok && sess.IsPartner() {
+		writePartnerDemoRefresh(w, "课程")
+		return
+	}
 	if !s.allowLiveRefresh() {
 		writeNoManualRefresh(w)
 		return
@@ -115,11 +121,7 @@ func (s *Server) refreshSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess.IsPartner() {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"success": true, "refreshed": false, "partner_mode": true,
-			"message": "合作商验收账号无学生课表数据", "count": 0,
-			"semester": currentSemester(),
-		})
+		writePartnerDemoRefresh(w, "课程")
 		return
 	}
 	if isGraduate(sess) {
@@ -165,10 +167,7 @@ func (s *Server) refreshExams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess.IsPartner() {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"success": true, "refreshed": false, "partner_mode": true,
-			"message": "合作商验收账号无学生考试数据", "count": 0,
-		})
+		writePartnerDemoRefresh(w, "考试")
 		return
 	}
 	// 考试刷新是明确的产品能力，独立于全局手动刷新开关；仍按用户限流，避免被当作教务刷数入口。
@@ -214,6 +213,10 @@ func (s *Server) refreshExams(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshAll(w http.ResponseWriter, r *http.Request) {
+	if sess, ok := s.session(r); ok && sess.IsPartner() {
+		writePartnerDemoRefresh(w, "课程与考试")
+		return
+	}
 	if !s.allowLiveRefresh() {
 		writeNoManualRefresh(w)
 		return
@@ -223,12 +226,7 @@ func (s *Server) refreshAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess.IsPartner() {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"success": true, "refreshed": false, "partner_mode": true,
-			"message":  "合作商验收账号无学生数据",
-			"schedule": map[string]any{"ok": false, "success": false, "count": 0},
-			"exams":    map[string]any{"ok": false, "success": false, "count": 0},
-		})
+		writePartnerDemoRefresh(w, "课程与考试")
 		return
 	}
 	if isGraduate(sess) {
@@ -347,9 +345,12 @@ func (s *Server) grades(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess.IsPartner() {
+		grades := partnerDemoGrades()
+		available := partnerDemoAvailableSemesters()
 		writeJSON(w, http.StatusOK, map[string]any{
-			"success": true, "semester": "__all__", "count": 0,
-			"grades": []store.Grade{}, "available_semesters": []string{}, "partner_mode": true,
+			"success": true, "semester": "__all__", "count": len(grades),
+			"grades": grades, "available_semesters": available,
+			"partner_mode": true, "demo_mode": true,
 		})
 		return
 	}
@@ -395,6 +396,10 @@ func (s *Server) grades(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshGrades(w http.ResponseWriter, r *http.Request) {
+	if sess, ok := s.session(r); ok && sess.IsPartner() {
+		writePartnerDemoRefresh(w, "成绩")
+		return
+	}
 	if !s.allowLiveRefresh() {
 		writeNoManualRefresh(w)
 		return
@@ -404,10 +409,7 @@ func (s *Server) refreshGrades(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess.IsPartner() {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"success": true, "refreshed": false, "partner_mode": true,
-			"message": "合作商验收账号无学生成绩数据", "count": 0,
-		})
+		writePartnerDemoRefresh(w, "成绩")
 		return
 	}
 	if isGraduate(sess) {
@@ -449,8 +451,9 @@ func (s *Server) cetScores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess.IsPartner() {
+		scores := partnerDemoCETScores()
 		writeJSON(w, http.StatusOK, map[string]any{
-			"success": true, "scores": []store.CETScore{}, "partner_mode": true,
+			"success": true, "scores": scores, "partner_mode": true, "demo_mode": true,
 		})
 		return
 	}
@@ -466,6 +469,10 @@ func (s *Server) cetScores(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshCET(w http.ResponseWriter, r *http.Request) {
+	if sess, ok := s.session(r); ok && sess.IsPartner() {
+		writePartnerDemoRefresh(w, "四六级成绩")
+		return
+	}
 	if !s.allowLiveRefresh() {
 		writeNoManualRefresh(w)
 		return
@@ -475,10 +482,7 @@ func (s *Server) refreshCET(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess.IsPartner() {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"success": true, "refreshed": false, "partner_mode": true,
-			"message": "合作商验收账号无四六级成绩", "scores": []store.CETScore{},
-		})
+		writePartnerDemoRefresh(w, "四六级成绩")
 		return
 	}
 	values, err := doOnceValue(r.Context(), s, "cet:"+sess.StudentID, func(ctx context.Context) ([]store.CETScore, error) {

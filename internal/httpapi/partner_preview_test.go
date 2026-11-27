@@ -61,7 +61,7 @@ func TestPartnerPreviewUsesSharedLoginEndpoint(t *testing.T) {
 	}
 }
 
-func TestPartnerPreviewReturnsEmptyStudentData(t *testing.T) {
+func TestPartnerPreviewReturnsDemoStudentData(t *testing.T) {
 	server, _ := newPartnerTestServer(t)
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(
@@ -84,13 +84,90 @@ func TestPartnerPreviewReturnsEmptyStudentData(t *testing.T) {
 		"courses": server.courses,
 		"exams":   server.exams,
 		"grades":  server.grades,
+		"cet":     server.cetScores,
 	} {
 		t.Run(name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodGet, "/api/"+name, nil)
 			request.Header.Set(tokenHeader, token)
 			handler(recorder, request)
-			if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"partner_mode":true`) {
+			if recorder.Code != http.StatusOK ||
+				!strings.Contains(recorder.Body.String(), `"partner_mode":true`) ||
+				!strings.Contains(recorder.Body.String(), `"demo_mode":true`) {
+				t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+
+	var courses struct {
+		Courses []map[string]any `json:"courses"`
+	}
+	recorder = httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodGet, "/api/courses", nil)
+	request.Header.Set(tokenHeader, token)
+	server.courses(recorder, request)
+	if err = json.Unmarshal(recorder.Body.Bytes(), &courses); err != nil || len(courses.Courses) == 0 {
+		t.Fatalf("courses=%#v err=%v", courses, err)
+	}
+}
+
+func TestPartnerPreviewReturnsDemoProgramme(t *testing.T) {
+	server, _ := newPartnerTestServer(t)
+	token, err := server.sessions.Add(t.Context(), &session.Session{
+		StudentID: partnerPreviewSubjectID, StudentName: "合作商甲",
+		AccountType: "partner", LoginMethod: "partner-preview", Role: "partner",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/programme", nil)
+	request.Header.Set(tokenHeader, token)
+	server.programme(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var payload struct {
+		Success   bool             `json:"success"`
+		Partner   bool             `json:"partner_mode"`
+		Demo      bool             `json:"demo_mode"`
+		Courses   []map[string]any `json:"courses"`
+		FetchedAt int64            `json:"fetched_at"`
+	}
+	if err = json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if !payload.Success || !payload.Partner || !payload.Demo || len(payload.Courses) == 0 || payload.FetchedAt <= 0 {
+		t.Fatalf("unexpected programme payload: %#v", payload)
+	}
+}
+
+func TestPartnerPreviewRefreshEndpointsAreNoopDemo(t *testing.T) {
+	server, _ := newPartnerTestServer(t)
+	token, err := server.sessions.Add(t.Context(), &session.Session{
+		StudentID: partnerPreviewSubjectID, StudentName: "合作商甲",
+		AccountType: "partner", LoginMethod: "partner-preview", Role: "partner",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handlers := map[string]http.HandlerFunc{
+		"schedule":  server.refreshSchedule,
+		"exams":     server.refreshExams,
+		"all":       server.refreshAll,
+		"grades":    server.refreshGrades,
+		"cet":       server.refreshCET,
+		"programme": server.refreshProgramme,
+	}
+	for name, handler := range handlers {
+		t.Run(name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, "/api/refresh-"+name, nil)
+			request.Header.Set(tokenHeader, token)
+			handler(recorder, request)
+			if recorder.Code != http.StatusOK ||
+				!strings.Contains(recorder.Body.String(), `"demo_mode":true`) ||
+				!strings.Contains(recorder.Body.String(), `"refreshed":false`) {
 				t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 			}
 		})

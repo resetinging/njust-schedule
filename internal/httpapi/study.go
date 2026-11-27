@@ -218,6 +218,10 @@ func (s *Server) programme(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) refreshProgramme(w http.ResponseWriter, r *http.Request) {
+	if sess, ok := s.session(r); ok && sess.IsPartner() {
+		writePartnerDemoRefresh(w, "培养方案")
+		return
+	}
 	if !s.allowLiveRefresh() {
 		writeNoManualRefresh(w)
 		return
@@ -261,14 +265,12 @@ func (s *Server) serveUserStudy(w http.ResponseWriter, r *http.Request, key, lab
 		return
 	}
 	if sess.IsPartner() {
-		empty := map[string]any{"success": true, "partner_mode": true}
 		if key == "programme" {
-			empty["supported"] = true
-			empty["courses"] = []any{}
-			empty["count"] = 0
-		} else {
-			empty["empty"] = true
+			writeJSON(w, http.StatusOK, partnerDemoProgramme())
+			return
 		}
+		empty := map[string]any{"success": true, "partner_mode": true}
+		empty["empty"] = true
 		writeJSON(w, http.StatusOK, empty)
 		return
 	}

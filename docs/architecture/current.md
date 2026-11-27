@@ -95,7 +95,7 @@ internal/httpapi 不直接解析教务 HTML，internal/jwc 不直接写业务数
 
 - 合作商与学生共用 `/api/login-webvpn` 和同一个登录页。
 - 后端先比较 `PARTNER_PREVIEW_USER`；命中时使用 `PARTNER_PREVIEW_PASSWORD` 做恒定时间比较，签发 `role=partner` 会话，不进入学生 SSO。
-- 固定合作商主体没有 Cookie、JWC Client、教务预抓或学生数据；课程、考试、成绩、学业进度、评教和学籍接口返回空数据。
+- 固定合作商主体没有 Cookie、JWC Client、教务预抓或真实学生数据；课程、考试、成绩、四六级和学业进度返回集中维护的只读虚构演示数据，并标记 `demo_mode:true`；刷新接口不写数据库、不触发教务。评教和学籍仍返回空数据。
 - 合作商账号可浏览完整功能导航和共享能力；登录按 IP 限制 5 次/分钟，单账号保留一个会话。
 - 合作商密码只保存在后端环境变量，不进入仓库、日志或前端；关闭 `PARTNER_PREVIEW_ENABLED` 即可撤销入口。
 
