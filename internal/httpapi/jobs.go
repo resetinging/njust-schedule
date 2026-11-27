@@ -52,7 +52,7 @@ func (s *Server) startJobs() {
 		// 与空教室同款：启动先补跑一次，之后每日北京时间 00:20 批量预热用户数据。
 		s.runDaily("user-data-daily-sync", userDataSyncDefaultHour, userDataSyncDefaultMin, s.prewarmUserData)
 	}
-	if envEnabled("EXAM_REMINDER") && s.cfg.MPAppID != "" && s.cfg.MPSecret != "" {
+	if s.remindersEnabled() {
 		s.runLoop("reminder", 10*time.Minute, true, s.runReminderJobs)
 	}
 }

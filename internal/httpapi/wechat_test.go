@@ -128,3 +128,15 @@ func TestWechatSendEnabledInCloudRunWithoutSecret(t *testing.T) {
 		t.Fatal("public mode must require MP_SECRET")
 	}
 }
+
+func TestReminderLoopEnabledInCloudRunWithoutSecret(t *testing.T) {
+	t.Setenv("EXAM_REMINDER", "1")
+	server := &Server{cfg: config.Config{}}
+	if !server.remindersEnabled() {
+		t.Fatal("reminder loop should start in cloudrun mode without MP_SECRET")
+	}
+	server.cfg.WechatOpenAPIMode = "public"
+	if server.remindersEnabled() {
+		t.Fatal("reminder loop must require credentials in public mode")
+	}
+}

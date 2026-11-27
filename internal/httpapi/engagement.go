@@ -71,6 +71,10 @@ func (s *Server) wechatSendEnabled() bool {
 	return s.cfg.MPAppID != "" && s.cfg.MPSecret != ""
 }
 
+func (s *Server) remindersEnabled() bool {
+	return envEnabled("EXAM_REMINDER") && s.wechatSendEnabled()
+}
+
 func decodeWechatResponse(reader io.Reader, target any) error {
 	raw, err := io.ReadAll(io.LimitReader(reader, wechatResponseLimit+1))
 	if err != nil {
