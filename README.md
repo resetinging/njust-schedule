@@ -105,8 +105,9 @@ Go/WebGo 是生产运行时。旧 Flask 代码仅保留用于兼容性测试，�
 
 | 变量 | 说明 |
 |---|---|
+| WECHAT_OPENAPI_MODE | `cloudrun`（默认）走云托管开放接口服务，无 Token、无 Secret；`public` 走公网 HTTPS 并获取 access_token |
 | MP_APPID | 小程序 AppID；仓库内有当前应用默认值 |
-| MP_SECRET | 小程序 AppSecret；未配置时只记录额度，不发送消息 |
+| MP_SECRET | `public` 模式所需的小程序 AppSecret；`cloudrun` 模式不使用 |
 | SUBSCRIBE_TPL_EXAM | 考试提醒模板 ID |
 | SUBSCRIBE_TPL_GRADE | 成绩提醒模板 ID；空值回退考试模板 |
 

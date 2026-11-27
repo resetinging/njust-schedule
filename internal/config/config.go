@@ -35,6 +35,7 @@ type Config struct {
 	StaticDir              string
 	MPAppID                string
 	MPSecret               string
+	WechatOpenAPIMode      string
 	SubscribeExam          string
 	SubscribeGrade         string
 	FreeClassroomSID       string
@@ -67,6 +68,7 @@ func Load() (Config, error) {
 		StaticDir:              env("STATIC_DIR", "wxcloudrun/static"),
 		MPAppID:                env("MP_APPID", "wx1d76c0631bdeebac"),
 		MPSecret:               os.Getenv("MP_SECRET"),
+		WechatOpenAPIMode:      strings.ToLower(env("WECHAT_OPENAPI_MODE", "cloudrun")),
 		SubscribeExam:          env("SUBSCRIBE_TPL_EXAM", "ng8fatzWFGkwY5Q5X2QM-BNktLyMLQPaJl2xFi7Z180"),
 		FreeClassroomSID:       env("FREE_CLASSROOM_SID", "924101960123"),
 		JWCRequestTimeout:      seconds("JW_REQUEST_TIMEOUT", 30*time.Second, 5*time.Second, 2*time.Minute),
@@ -74,6 +76,9 @@ func Load() (Config, error) {
 		CaptchaOCRRuntimePath:  strings.TrimSpace(os.Getenv("ONNXRUNTIME_SHARED_LIBRARY_PATH")),
 	}
 	cfg.SubscribeGrade = env("SUBSCRIBE_TPL_GRADE", cfg.SubscribeExam)
+	if cfg.WechatOpenAPIMode != "cloudrun" && cfg.WechatOpenAPIMode != "public" {
+		return Config{}, errors.New("WECHAT_OPENAPI_MODE 仅支持 cloudrun 或 public")
+	}
 
 	if raw := strings.TrimSpace(os.Getenv("SESSION_KEY")); raw != "" {
 		key, err := base64.StdEncoding.DecodeString(raw)

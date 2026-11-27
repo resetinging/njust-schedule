@@ -27,6 +27,7 @@ func run(logger *slog.Logger) int {
 		logger.Error("配置无效", "error", err)
 		return 1
 	}
+	logger.Info("微信订阅发送模式", "mode", cfg.WechatOpenAPIMode)
 
 	application, err := app.New(cfg, logger)
 	if err != nil {

@@ -29,6 +29,9 @@ func TestLoadRequiresProductionSecrets(t *testing.T) {
 	if cfg.CaptchaOCRModelPath != "common.onnx" || cfg.CaptchaOCRRuntimePath != "" {
 		t.Fatalf("unexpected captcha OCR config: %+v", cfg)
 	}
+	if cfg.WechatOpenAPIMode != "cloudrun" {
+		t.Fatalf("WechatOpenAPIMode = %q", cfg.WechatOpenAPIMode)
+	}
 }
 
 func TestLoadCredentialTTLOverrides(t *testing.T) {
@@ -42,6 +45,7 @@ func TestLoadCredentialTTLOverrides(t *testing.T) {
 	t.Setenv("TRUSTED_PROXY_HOPS", "2")
 	t.Setenv("CAPTCHA_OCR_MODEL_PATH", "/models/common.onnx")
 	t.Setenv("ONNXRUNTIME_SHARED_LIBRARY_PATH", "/opt/libonnxruntime.so")
+	t.Setenv("WECHAT_OPENAPI_MODE", "public")
 
 	cfg, err := Load()
 	if err != nil {
@@ -55,6 +59,22 @@ func TestLoadCredentialTTLOverrides(t *testing.T) {
 	}
 	if cfg.CaptchaOCRModelPath != "/models/common.onnx" || cfg.CaptchaOCRRuntimePath != "/opt/libonnxruntime.so" {
 		t.Fatalf("unexpected captcha OCR config: %+v", cfg)
+	}
+	if cfg.WechatOpenAPIMode != "public" {
+		t.Fatalf("WechatOpenAPIMode = %q", cfg.WechatOpenAPIMode)
+	}
+}
+
+func TestLoadRejectsInvalidWechatOpenAPIMode(t *testing.T) {
+	t.Setenv("MYSQL_ADDRESS", "127.0.0.1:3306")
+	t.Setenv("MYSQL_USERNAME", "root")
+	t.Setenv("MYSQL_PASSWORD", "secret")
+	t.Setenv("ADMIN_PASSWORD", "admin-secret")
+	t.Setenv("SESSION_KEY", base64.StdEncoding.EncodeToString(make([]byte, 32)))
+	t.Setenv("WECHAT_OPENAPI_MODE", "invalid")
+
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() should reject invalid WECHAT_OPENAPI_MODE")
 	}
 }
 

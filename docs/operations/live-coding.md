@@ -90,7 +90,7 @@ compose 中保留 wxPort、hostPort、wxcloud 和服务名标签，供插件识�
     $env:AUDIT_CATALOG_SYNC = "0"
     $env:EXAM_REMINDER = "0"
 
-REMINDER_LIFECYCLE 只在 EXAM_REMINDER 已启用且 MP_APPID、MP_SECRET 可用时生效。
+REMINDER_LIFECYCLE 只在 EXAM_REMINDER 已启用时生效。微信订阅发送默认使用云托管开放接口服务（`WECHAT_OPENAPI_MODE=cloudrun`），无需 `MP_SECRET`，但必须在云托管控制台开启服务、配置 `/cgi-bin/message/subscribe/send` 白名单并创建新版本；本地或非云托管环境可显式设为 `public`，此时需要 `MP_APPID` 和 `MP_SECRET`。
 
 ## 常见问题
 

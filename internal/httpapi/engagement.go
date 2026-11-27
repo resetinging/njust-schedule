@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,7 +24,52 @@ var subscriptionKinds = map[string]bool{"exam": true, "grade": true}
 
 const wechatResponseLimit = 1 << 20
 
-var wechatHTTPClient = &http.Client{Timeout: 10 * time.Second}
+const wechatSubscribeSendPath = "/cgi-bin/message/subscribe/send"
+
+var (
+	wechatPublicBaseURL = "https://api.weixin.qq.com"
+	wechatCloudBaseURL  = "http://api.weixin.qq.com"
+	wechatHTTPClient    = &http.Client{Timeout: 10 * time.Second}
+	wechatCloudClient   = &http.Client{
+		Timeout:   10 * time.Second,
+		Transport: wechatCloudTransport(),
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+)
+
+func wechatCloudTransport() *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	transport.TLSHandshakeTimeout = 5 * time.Second
+	transport.ResponseHeaderTimeout = 8 * time.Second
+	transport.IdleConnTimeout = 90 * time.Second
+	return transport
+}
+
+func sanitizeWechatError(err error) error {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Err != nil {
+		return urlErr.Err
+	}
+	return err
+}
+
+func (s *Server) wechatOpenAPIMode() string {
+	mode := strings.ToLower(strings.TrimSpace(s.cfg.WechatOpenAPIMode))
+	if mode == "" {
+		return "cloudrun"
+	}
+	return mode
+}
+
+func (s *Server) wechatSendEnabled() bool {
+	if s.wechatOpenAPIMode() == "cloudrun" {
+		return true
+	}
+	return s.cfg.MPAppID != "" && s.cfg.MPSecret != ""
+}
 
 func decodeWechatResponse(reader io.Reader, target any) error {
 	raw, err := io.ReadAll(io.LimitReader(reader, wechatResponseLimit+1))
@@ -81,7 +127,7 @@ func (s *Server) subscribeStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		kinds[kind] = map[string]any{"template_id": tpl, "enabled": tpl != "", "quota": values[kind].Count}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"success": true, "kinds": kinds, "openid_bound": openid != "", "send_enabled": s.cfg.MPAppID != "" && s.cfg.MPSecret != ""})
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "kinds": kinds, "openid_bound": openid != "", "send_enabled": s.wechatSendEnabled()})
 }
 
 func (s *Server) subscribeGrant(w http.ResponseWriter, r *http.Request) {
@@ -123,14 +169,14 @@ func (s *Server) wechatAccessToken(ctx context.Context) (string, error) {
 			return token, nil
 		}
 	}
-	endpoint := "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=" + url.QueryEscape(s.cfg.MPAppID) + "&secret=" + url.QueryEscape(s.cfg.MPSecret)
+	endpoint := wechatPublicBaseURL + "/cgi-bin/token?grant_type=client_credential&appid=" + url.QueryEscape(s.cfg.MPAppID) + "&secret=" + url.QueryEscape(s.cfg.MPSecret)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", err
 	}
 	resp, err := wechatHTTPClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("请求微信 access_token 失败: %w", sanitizeWechatError(err))
 	}
 	defer resp.Body.Close()
 	var body struct {
@@ -155,25 +201,45 @@ func (s *Server) sendSubscribe(ctx context.Context, openid, templateID string, d
 }
 
 func (s *Server) sendSubscribePage(ctx context.Context, openid, templateID, page string, data map[string]any) map[string]any {
+	raw, err := json.Marshal(map[string]any{
+		"touser":            openid,
+		"template_id":       templateID,
+		"page":              page,
+		"miniprogram_state": "formal",
+		"lang":              "zh_CN",
+		"data":              data,
+	})
+	if err != nil {
+		return map[string]any{"ok": false, "errcode": -1, "errmsg": "订阅消息编码失败: " + err.Error()}
+	}
+	if s.wechatOpenAPIMode() == "cloudrun" {
+		return s.postWechatSubscribe(ctx, wechatCloudClient, wechatCloudBaseURL+wechatSubscribeSendPath, raw, true)
+	}
 	token, err := s.wechatAccessToken(ctx)
 	if err != nil {
 		return map[string]any{"ok": false, "errcode": -1, "errmsg": err.Error()}
 	}
-	raw, err := json.Marshal(map[string]any{"touser": openid, "template_id": templateID, "page": page, "miniprogram_state": "formal", "data": data})
-	if err != nil {
-		return map[string]any{"ok": false, "errcode": -1, "errmsg": "订阅消息编码失败: " + err.Error()}
-	}
-	endpoint := "https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=" + url.QueryEscape(token)
+	endpoint := wechatPublicBaseURL + wechatSubscribeSendPath + "?access_token=" + url.QueryEscape(token)
+	return s.postWechatSubscribe(ctx, wechatHTTPClient, endpoint, raw, false)
+}
+
+func (s *Server) postWechatSubscribe(ctx context.Context, client *http.Client, endpoint string, raw []byte, requireCloudRun bool) map[string]any {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
 	if err != nil {
-		return map[string]any{"ok": false, "errcode": -1, "errmsg": err.Error()}
+		return map[string]any{"ok": false, "errcode": -1, "errmsg": "创建微信订阅消息请求失败"}
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := wechatHTTPClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		return map[string]any{"ok": false, "errcode": -1, "errmsg": err.Error()}
+		return map[string]any{"ok": false, "errcode": -1, "errmsg": "请求微信订阅消息失败: " + sanitizeWechatError(err).Error()}
 	}
 	defer resp.Body.Close()
+	if requireCloudRun && strings.TrimSpace(resp.Header.Get("x-openapi-seqid")) == "" {
+		if s.logger != nil {
+			s.logger.Warn("云调用链路未生效", "status", resp.StatusCode, "openapi_seq_id", "")
+		}
+		return map[string]any{"ok": false, "errcode": -1, "errmsg": "云调用链路未生效(x-openapi-seqid 缺失)"}
+	}
 	var result map[string]any
 	if decodeWechatResponse(resp.Body, &result) != nil {
 		return map[string]any{"ok": false, "errcode": -1, "errmsg": "微信返回格式错误"}
@@ -211,8 +277,8 @@ func (s *Server) subscribeTestSend(w http.ResponseWriter, r *http.Request) {
 	if kind == "grade" {
 		template = s.cfg.SubscribeGrade
 	}
-	if template == "" || s.cfg.MPSecret == "" {
-		writeError(w, http.StatusBadRequest, "订阅消息未配置(缺模板 ID 或 MP_SECRET)")
+	if template == "" || !s.wechatSendEnabled() {
+		writeError(w, http.StatusBadRequest, "订阅消息未配置(缺模板 ID 或发送凭据)")
 		return
 	}
 	openid := callerOpenID(r)
