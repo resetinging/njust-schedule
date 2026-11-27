@@ -124,37 +124,7 @@ func TestRefreshCETEmptyResultReturnsNotFoundWithoutReplacingSnapshot(t *testing
 	}
 }
 
-func TestRunPrefetchStepsStopsAfterSessionExpiry(t *testing.T) {
-	thirdRan := false
-	ok, failed := runPrefetchSteps([]prefetchStep{
-		{name: "courses", fn: func() error { return nil }},
-		{name: "exams", fn: func() error { return jwc.ErrSessionExpired }},
-		{name: "grades", fn: func() error { thirdRan = true; return nil }},
-	})
-	if thirdRan {
-		t.Fatal("prefetch continued after session expiry")
-	}
-	if len(ok) != 1 || ok[0] != "courses" || len(failed) != 1 || failed[0] != "session_expired" {
-		t.Fatalf("ok=%#v failed=%#v", ok, failed)
-	}
-}
-
-func TestRunPrefetchStepsStopsAfterContextCancellation(t *testing.T) {
-	thirdRan := false
-	ok, failed := runPrefetchSteps([]prefetchStep{
-		{name: "courses", fn: func() error { return nil }},
-		{name: "exams", fn: func() error { return context.Canceled }},
-		{name: "grades", fn: func() error { thirdRan = true; return nil }},
-	})
-	if thirdRan {
-		t.Fatal("prefetch continued after context cancellation")
-	}
-	if len(ok) != 1 || ok[0] != "courses" || len(failed) != 1 || failed[0] != "exams" {
-		t.Fatalf("ok=%#v failed=%#v", ok, failed)
-	}
-}
-
-func TestSessionTimeoutContextCancelledWhenSessionDeleted(t *testing.T) {
+func TestSessionContextCancelledWhenSessionDeleted(t *testing.T) {
 	manager, err := session.NewManager(time.Hour, 10, "", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +135,7 @@ func TestSessionTimeoutContextCancelledWhenSessionDeleted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := contextWithSessionTimeout(context.Background(), value, time.Hour)
+	ctx, cancel := contextWithSession(context.Background(), value)
 	defer cancel()
 	if err = manager.Delete(t.Context(), token); err != nil {
 		t.Fatal(err)

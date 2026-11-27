@@ -437,6 +437,21 @@ def _schedule_next_grade(task, now: datetime.datetime):
         task.status = "expired"
 
 
+def _schedule_next_exam(task, now: datetime.datetime):
+    from wxcloudrun.core.reminder_lifecycle import (
+        exam_fallback_expired, grade_next_check)
+    started = task.exam_wait_started_at or task.course_end_at or now
+    if exam_fallback_expired(now, started):
+        task.stage = "expired"
+        task.status = "expired"
+        task.next_check_at = None
+        return
+    task.next_check_at = grade_next_check(now, started)
+    if task.next_check_at is None:
+        task.stage = "expired"
+        task.status = "expired"
+
+
 def run_reminder_pool(dry_run: bool = False,
                       now: datetime.datetime = None,
                       limit: int = 200) -> dict:
@@ -481,7 +496,9 @@ def run_reminder_pool(dry_run: bool = False,
             for task in tasks:
                 task.last_check_at = now
                 task.fail_count = int(task.fail_count or 0) + 1
-                if task.kind == "grade" and task.stage == "wait_grade":
+                if task.kind == "exam":
+                    _schedule_next_exam(task, now)
+                elif task.kind == "grade" and task.stage == "wait_grade":
                     _schedule_next_grade(task, now)
                 else:
                     task.next_check_at = now + datetime.timedelta(hours=6)
@@ -525,7 +542,10 @@ def run_reminder_pool(dry_run: bool = False,
                 details.append({"sid": sid, "error": str(exc)[:120]})
                 for task in pending + exam_tasks:
                     task.fail_count = int(task.fail_count or 0) + 1
-                    task.next_check_at = now + datetime.timedelta(hours=6)
+                    if task.kind == "exam":
+                        _schedule_next_exam(task, now)
+                    else:
+                        task.next_check_at = now + datetime.timedelta(hours=6)
 
         for task in exam_tasks:
             if exam_failed:
@@ -550,15 +570,7 @@ def run_reminder_pool(dry_run: bool = False,
                         min(task.exam_finished_at, daily)
                         if task.exam_finished_at else daily)
                 continue
-            from wxcloudrun.core.reminder_lifecycle import (
-                exam_fallback_expired)
-            started = task.exam_wait_started_at or task.course_end_at or now
-            if exam_fallback_expired(now, started):
-                task.stage = "expired"
-                task.status = "expired"
-                task.next_check_at = None
-            else:
-                task.next_check_at = now + datetime.timedelta(days=1)
+            _schedule_next_exam(task, now)
 
         if pending:
             for task in pending:

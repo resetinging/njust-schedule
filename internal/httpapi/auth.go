@@ -120,18 +120,13 @@ func (s *Server) issueSession(ctx context.Context, client *jwc.Client, newRemote
 		s.logger.Warn("保存教务 Cookie 失败", "sid_prefix", maskedSID(sid), "error", err)
 	}
 	semester := currentSemester()
-	oldSemester, _ := s.store.UserSetting(ctx, sid, "semester")
-	marker, _ := s.store.UserSetting(ctx, sid, userDataSyncMarker)
 	if err := s.store.SetUserSettings(ctx, sid, map[string]string{"semester": semester, "name": client.StudentName}); err != nil {
 		return nil, fmt.Errorf("保存登录用户信息: %w", err)
 	}
-	// 夜间批量同步成功后，登录不再触发教务预抓（缓存命中）；首次登录/换学期等
-	// 服务端缓存未命中场景才兜底预抓一次，与空教室的缓存未命中回源一致。
-	dataFresh := loginDataFresh(oldSemester, semester, marker, time.Now())
-	refreshState := map[string]any{"state": "pending", "started_at": time.Now().Unix(), "updated_at": time.Now().Unix()}
-	if dataFresh {
-		now := time.Now().Unix()
-		refreshState = map[string]any{"state": "done", "started_at": now, "fetched_at": now, "updated_at": now, "skipped": true, "ok": []string{}, "failed": []string{}}
+	now := time.Now().Unix()
+	refreshState := map[string]any{
+		"state": "done", "started_at": now, "fetched_at": now, "updated_at": now,
+		"skipped": true, "ok": []string{}, "failed": []string{},
 	}
 	value := &session.Session{
 		StudentID: sid, StudentName: client.StudentName, AccountType: client.AccountType,
@@ -141,13 +136,6 @@ func (s *Server) issueSession(ctx context.Context, client *jwc.Client, newRemote
 	token, err := s.sessions.Add(ctx, value)
 	if err != nil {
 		return nil, err
-	}
-	if !dataFresh {
-		mode := "full"
-		if !newRemoteSession {
-			mode = "if_stale"
-		}
-		s.startPrefetch(value, semester, mode)
 	}
 	return map[string]any{
 		"success": true, "message": "登录成功！欢迎 " + client.StudentName,

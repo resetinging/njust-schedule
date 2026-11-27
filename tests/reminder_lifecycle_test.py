@@ -21,7 +21,7 @@ from wxcloudrun.core.reminder_lifecycle import (  # noqa: E402
     normalize_course_name, normalize_teacher_key, parse_week_numbers,
     sync_user_reminder_tasks)
 from wxcloudrun.core.reminder import (  # noqa: E402
-    _ambiguous_course_names, _exam_end_datetime)
+    _ambiguous_course_names, _exam_end_datetime, _schedule_next_exam)
 from wxcloudrun.model import ReminderTask  # noqa: E402
 
 _APP_CTX = app.app_context()
@@ -82,6 +82,24 @@ check("第 28 天后停止",
 check("第 28 天判定过期",
       grade_expired(datetime.datetime(2026, 10, 29, 10, 0), start) is True)
 
+class _ExamTask:
+    stage = "wait_exam"
+    status = "active"
+    course_end_at = datetime.datetime(2026, 10, 1, 0, 0)
+    exam_wait_started_at = datetime.datetime(2026, 10, 1, 0, 0)
+    next_check_at = None
+
+exam_task = _ExamTask()
+_schedule_next_exam(exam_task, datetime.datetime(2026, 10, 1, 10, 0))
+check("考试提醒与成绩提醒共用阶段排期",
+      exam_task.next_check_at == datetime.datetime(2026, 10, 1, 14, 0),
+      exam_task.next_check_at)
+exam_task = _ExamTask()
+_schedule_next_exam(exam_task, datetime.datetime(2026, 10, 8, 5, 30))
+check("考试提醒第二阶段每小时检查",
+      exam_task.next_check_at == datetime.datetime(2026, 10, 8, 6, 0),
+      exam_task.next_check_at)
+
 week_calendar = {"weeks": [
     {"week": 1, "days": ["2026-09-07"] * 7},
     {"week": 2, "days": ["2026-09-14"] * 7},
@@ -111,6 +129,9 @@ check("同名不同教师标记为歧义",
       ]) == {"高等数学"})
 
 print("== 额度和任务生成 ==")
+import wxcloudrun.core.reminder_lifecycle as reminder_lifecycle  # noqa: E402
+_real_beijing_datetime = reminder_lifecycle._beijing_datetime
+reminder_lifecycle._beijing_datetime = lambda: datetime.datetime(2026, 10, 2, 9, 0)
 calendar = {
     "semester": SEM,
     "weeks": [{
@@ -223,6 +244,7 @@ check("超过 28 天直接标记过期",
 print()
 print("结果: %d 通过, %d 失败" % (PASS, FAIL))
 try:
+    reminder_lifecycle._beijing_datetime = _real_beijing_datetime
     db.session.remove()
     _APP_CTX.pop()
     os.remove(_db_path)

@@ -310,9 +310,6 @@ func (s *Server) clearData(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "清除数据失败")
 		return
 	}
-	if err := s.store.DeleteUserSetting(r.Context(), sess.StudentID, "data_cache_at"); err != nil {
-		s.logger.Warn("清除数据后删除缓存标记失败", "sid_prefix", maskedSID(sess.StudentID), "semester", semester, "error", err)
-	}
 	s.cacheDeletePrefix(sess.StudentID + ":")
 	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "数据已清除"})
 }

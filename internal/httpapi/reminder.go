@@ -243,7 +243,7 @@ func calendarCourseEnd(courses []store.Course, calendar map[string]any) *time.Ti
 	return &value
 }
 
-func gradeNextCheck(now, started time.Time) *time.Time {
+func reminderPhaseNextCheck(now, started time.Time) *time.Time {
 	if now.IsZero() || started.IsZero() {
 		return nil
 	}
@@ -436,7 +436,7 @@ func (s *Server) syncUserReminderTasks(ctx context.Context, sid, semester string
 					if reminderExpired(now, started) {
 						stage, status, next = "expired", "expired", nil
 					} else {
-						next = gradeNextCheck(now.Add(-time.Second), started)
+						next = reminderPhaseNextCheck(now.Add(-time.Second), started)
 					}
 				}
 			}
@@ -734,7 +734,24 @@ func (s *Server) scheduleNextGrade(task *store.ReminderTask, now time.Time) {
 		task.Stage, task.Status, task.NextCheckAt = "expired", "expired", nil
 		return
 	}
-	task.NextCheckAt = gradeNextCheck(now.Add(-time.Second), started)
+	task.NextCheckAt = reminderPhaseNextCheck(now.Add(-time.Second), started)
+	if task.NextCheckAt == nil {
+		task.Stage, task.Status = "expired", "expired"
+	}
+}
+
+func (s *Server) scheduleNextExam(task *store.ReminderTask, now time.Time) {
+	started := now
+	if task.ExamWaitStartedAt != nil {
+		started = *task.ExamWaitStartedAt
+	} else if task.CourseEndAt != nil {
+		started = *task.CourseEndAt
+	}
+	if reminderExpired(now, started) {
+		task.Stage, task.Status, task.NextCheckAt = "expired", "expired", nil
+		return
+	}
+	task.NextCheckAt = reminderPhaseNextCheck(now, started)
 	if task.NextCheckAt == nil {
 		task.Stage, task.Status = "expired", "expired"
 	}
@@ -843,8 +860,7 @@ func (s *Server) runReminderPool(ctx context.Context, limit int) error {
 					task := &examTasks[index]
 					if examErr != nil {
 						task.FailCount++
-						next := now.Add(6 * time.Hour)
-						task.NextCheckAt = &next
+						s.scheduleNextExam(task, now)
 					} else if exam, found := findExamForTask(*task, exams, ambiguous); found {
 						if value, valid := examStart(exam); valid {
 							task.ExamAt = &value
@@ -861,13 +877,7 @@ func (s *Server) runReminderPool(ctx context.Context, limit int) error {
 							task.NextCheckAt = &next
 						}
 					} else {
-						started := derefTime(task.ExamWaitStartedAt, derefTime(task.CourseEndAt, now))
-						if reminderExpired(now, started) {
-							task.Stage, task.Status, task.NextCheckAt = "expired", "expired", nil
-						} else {
-							next := now.AddDate(0, 0, 1)
-							task.NextCheckAt = &next
-						}
+						s.scheduleNextExam(task, now)
 					}
 					task.LastCheckAt = &now
 					if err := s.store.SaveReminderTask(ctx, *task); err != nil {

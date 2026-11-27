@@ -11,7 +11,7 @@ func bjTime(day, hour, minute int) time.Time {
 	return time.Date(2026, time.October, day, hour, minute, 0, 0, beijing)
 }
 
-func TestGradeNextCheckPhases(t *testing.T) {
+func TestReminderPhaseNextCheck(t *testing.T) {
 	started := bjTime(1, 0, 0)
 	tests := []struct {
 		name string
@@ -28,7 +28,7 @@ func TestGradeNextCheckPhases(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := gradeNextCheck(test.now, started)
+			got := reminderPhaseNextCheck(test.now, started)
 			if test.want == nil {
 				if got != nil {
 					t.Fatalf("got %s, want nil", got)
@@ -39,6 +39,50 @@ func TestGradeNextCheckPhases(t *testing.T) {
 				t.Fatalf("got %v, want %s", got, test.want)
 			}
 		})
+	}
+}
+
+func TestExamReminderUsesSharedPhaseSchedule(t *testing.T) {
+	started := bjTime(1, 0, 0)
+	tests := []struct {
+		name string
+		now  time.Time
+		want *time.Time
+	}{
+		{"first-phase", bjTime(1, 9, 0), timePtr(bjTime(1, 10, 0))},
+		{"first-phase-after-ten", bjTime(1, 10, 0), timePtr(bjTime(1, 14, 0))},
+		{"middle-phase", bjTime(8, 5, 30), timePtr(bjTime(8, 6, 0))},
+		{"last-phase", bjTime(22, 9, 0), timePtr(bjTime(22, 10, 0))},
+		{"last-slot", bjTime(28, 17, 0), timePtr(bjTime(28, 18, 0))},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			task := &store.ReminderTask{
+				Kind: "exam", Stage: "wait_exam", Status: "active",
+				CourseEndAt: &started, ExamWaitStartedAt: &started,
+			}
+			server := &Server{}
+			server.scheduleNextExam(task, test.now)
+			if task.NextCheckAt == nil || !task.NextCheckAt.Equal(*test.want) {
+				t.Fatalf("next=%v want=%v", task.NextCheckAt, test.want)
+			}
+			if task.Stage != "wait_exam" || task.Status != "active" {
+				t.Fatalf("unexpected state: stage=%s status=%s", task.Stage, task.Status)
+			}
+		})
+	}
+}
+
+func TestExamReminderExpiresAfterPhaseWindow(t *testing.T) {
+	started := bjTime(1, 0, 0)
+	task := &store.ReminderTask{
+		Kind: "exam", Stage: "wait_exam", Status: "active",
+		CourseEndAt: &started, ExamWaitStartedAt: &started,
+	}
+	server := &Server{}
+	server.scheduleNextExam(task, bjTime(29, 0, 0))
+	if task.Stage != "expired" || task.Status != "expired" || task.NextCheckAt != nil {
+		t.Fatalf("unexpected expired task: %#v", task)
 	}
 }
 

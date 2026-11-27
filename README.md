@@ -89,7 +89,7 @@ Go/WebGo 是生产运行时。旧 Flask 代码仅保留用于兼容性测试，�
 | REDIS_URL | 空 | Redis URL；空值使用单实例内存会话 |
 | SESSION_TTL | 43200 | 登录 token 无活动有效期，秒 |
 | MAX_SESSIONS | 200 | 内存会话上限 |
-| DATA_CACHE_TTL | 2592000 | 用户数据缓存时间，秒 |
+| DATA_CACHE_TTL | 2592000 | 研究生、培养方案等页面级服务端缓存时间，秒 |
 | CREDENTIAL_TRUST_TTL | 86400 | 保存密码的本地信任期，秒 |
 | SSO_SESSION_MAX_AGE | 2592000 | 持久教务 Cookie 最长复用时间，秒 |
 | JW_MAX_CONCURRENT | 4 | 同时访问教务的请求上限 |

@@ -48,10 +48,6 @@ func (s *Server) startJobs() {
 	if envEnabled("FREE_CLASSROOM_PREWARM") {
 		s.runDaily("freeclass-prewarm", 0, 2, s.prewarmFreeClassrooms)
 	}
-	if envBool("USER_DATA_DAILY_SYNC", true) {
-		// 与空教室同款：启动先补跑一次，之后每日北京时间 00:20 批量预热用户数据。
-		s.runDaily("user-data-daily-sync", userDataSyncDefaultHour, userDataSyncDefaultMin, s.prewarmUserData)
-	}
 	if s.remindersEnabled() {
 		s.runLoop("reminder", 10*time.Minute, true, s.runReminderJobs)
 	}
