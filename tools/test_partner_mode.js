@@ -48,6 +48,7 @@ const mainWxml = fs.readFileSync(path.join(ROOT, 'pages', 'main', 'main.wxml'), 
 const mainJs = fs.readFileSync(path.join(ROOT, 'pages', 'main', 'main.js'), 'utf8')
 const tabbar = fs.readFileSync(path.join(ROOT, 'custom-tab-bar', 'index.js'), 'utf8')
 const settingsWxml = fs.readFileSync(path.join(ROOT, 'components', 'settings-view', 'index.wxml'), 'utf8')
+const creditView = fs.readFileSync(path.join(ROOT, 'components', 'credit-view', 'index.js'), 'utf8')
 
 assert(mainWxml.includes('feature-partner-tag') && mainWxml.includes('>验收<'))
 assert(!mainWxml.includes('feature-section-head" wx:if="{{!isPartner}}'), '合作商应保留完整功能导航')
@@ -58,6 +59,10 @@ assert(mainJs.includes('syncPartnerMode()'))
 assert(settingsWxml.includes('学号 / 合作商账号'))
 assert(settingsWxml.includes('合作商验收账号'))
 assert(settingsWxml.includes('按数据可用性显示'))
+assert(
+  creditView.includes('programmeRes.partner_mode && !programmeRes.demo_mode'),
+  '合作商演示培养方案不应显示“无学生数据”提示'
+)
 
 ;(async () => {
   const result = await auth.loginWebvpn('partner-preview', 'preview-password')

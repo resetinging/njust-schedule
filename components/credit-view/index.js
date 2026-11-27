@@ -124,7 +124,7 @@ Component({
       const notices = []
       try {
         const programmeRes = await api.refreshProgramme()
-        if (programmeRes && programmeRes.partner_mode) {
+        if (programmeRes && programmeRes.partner_mode && !programmeRes.demo_mode) {
           notices.push('合作商验收账号无学生培养方案数据')
         } else if (programmeRes && programmeRes.success === false) {
           notices.push(programmeRes.message || '培养方案刷新失败')
