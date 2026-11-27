@@ -11,7 +11,7 @@
 ### Server
 
 - 当前分支：`server`
-- 当前 HEAD：`6aad689 fix: 动态适配订阅模板字段`（已推送 `origin/server`）
+- 当前 HEAD：以 `origin/server` 为准；最近功能提交为 `6aad689 fix: 动态适配订阅模板字段`
 - 当前已跟踪工作区无未提交改动；本机仅有 `.tmp/`、`.video-tools/`、`poster/`、`video/`、`audit-no-classroom.csv` 等未跟踪本地产物，不入库
 - 2026-11-24 新增校园服务前后端（`internal/campus`、服务/线索表和接口、管理后台页签、`1002_campus_services` 安全迁移，以及小程序入口/服务簿/详情/咨询表单）
 - 2026-10-29 新增图书馆公共馆藏只读网关与两个 API（已随 v1.10.0 提交）：`internal/library` + `internal/httpapi/library.go`，无数据库迁移；匿名访问 OPAC，登录用户共享有界内存缓存
