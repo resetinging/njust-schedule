@@ -9,7 +9,7 @@
 
 ## v1.11.0（校园服务、合作商验收账号、刷新入口恢复与用户数据按需刷新，2026-11-27）
 
-> 本地已整合的版本记录，尚未提交/发布。
+> 代码已推送，尚未部署/发布。
 
 ### 后端
 - 新增固定合作商验收账号：与学生共用 `/api/login-webvpn`，后端先按 `PARTNER_PREVIEW_USER` 识别并从 `PARTNER_PREVIEW_PASSWORD` 校验，签发 `role=partner` 会话；登录 5 次/分钟限流，不进入学生 SSO、不创建 JWC Client、不预抓教务

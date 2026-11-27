@@ -2,7 +2,7 @@
 
 > 状态：现行
 >
-> 最后核对：2026-11-27
+> 最后核对：2026-11-28
 >
 > 本文不记录密码、Token、Cookie、管理员口令或真实教务凭证。
 
@@ -11,7 +11,7 @@
 ### Server
 
 - 当前分支：`server`
-- 当前 HEAD：`17b23af feat: 明确数据刷新边界`（随本次同步推送 `origin/server`）
+- 当前 HEAD：`6aad689 fix: 动态适配订阅模板字段`（已推送 `origin/server`）
 - 当前已跟踪工作区无未提交改动；本机仅有 `.tmp/`、`.video-tools/`、`poster/`、`video/`、`audit-no-classroom.csv` 等未跟踪本地产物，不入库
 - 2026-11-24 新增校园服务前后端（`internal/campus`、服务/线索表和接口、管理后台页签、`1002_campus_services` 安全迁移，以及小程序入口/服务簿/详情/咨询表单）
 - 2026-10-29 新增图书馆公共馆藏只读网关与两个 API（已随 v1.10.0 提交）：`internal/library` + `internal/httpapi/library.go`，无数据库迁移；匿名访问 OPAC，登录用户共享有界内存缓存
@@ -22,11 +22,11 @@
 - 工作区：`C:\Users\a\Documents\local\njust-schedule\.miniapp`
 - 当前分支：`miniapp`
 - 基线提交：`118635a`
-- 当前 HEAD：`21046df feat: 优化数据刷新与空教室体验`（随本次同步推送 `origin/miniapp`）
+- 当前 HEAD：`b056c21 chore: 更新订阅模板修复构建标识`（已推送 `origin/miniapp`）
 - 当前本地构建标识：`2026.11.27.21`
 - 小程序实际预览包：`1,454,399` 字节，低于 1.5 MiB 阈值；验证方式见 `docs/product/miniapp-package-budget.md`
 - 当前版本：`v1.11.0`（校园服务、合作商验收账号、刷新入口恢复、用户数据按需刷新、合作商演示数据与图书馆修复）；代码已提交并推送，是否发布小程序版本仍以微信平台上传记录为准
-- 当前工作区包含 v1.11.0 主包精简、WXSS 警告修复、考试/空教室界面优化与个人数据按需刷新改造的未提交改动；本机另有 `.tmp/` 未跟踪目录
+- v1.11.0 主包精简、WXSS 警告修复、考试/空教室界面优化、个人数据按需刷新和订阅模板动态字段兼容已完成提交并推送，尚未部署/发布；本机另有 `.tmp/` 未跟踪目录
 - `C:\Users\a\Documents\local\miniprogram` 是微信开发者工具使用的独立克隆
 - 修改 Miniapp 后必须按 `AGENTS.md` 同步并核对哈希：默认可按同步脚本排除 `.git`/`node_modules`/`.tmp`，但**最终复验要使用完整口径**（只排除这三个目录）并报告源/目标文件数与 missing/diff/extra；`project.config.json`、`project.private.config.json` 参与比对（本地配置一致时 diff=0，差异需显式说明）；目标独有 `minitest/test.config.json` 保留不删，作为 extra 单列，不得通过额外排除项声称“全量一致”。
 
@@ -98,7 +98,7 @@ exec ./server
 - 局部组件注册修复（2026-11-27，未提交）：主包精简移除 `app.json` 全局 `ui-picker` 后，为空教室和蹭课组件补回局部注册；新增 `tools/test_component_registrations.js` 扫描全部 WXML，防止同类按需注入缺失
 - 考试场次统计（2026-11-27，未提交）：顶部摘要只统计未结束考试，已结束考试不计入；时间待定但未确认结束的考试仍计入未考场次
 - 微信订阅发送（2026-11-27，未提交）：默认 `WECHAT_OPENAPI_MODE=cloudrun`，容器内通过 `http://api.weixin.qq.com` 调用开放接口服务，不获取 Token、不要求 MP_SECRET，并校验 `x-openapi-seqid`；`public` 仅显式覆盖本地/非云托管环境，发送体补 `lang=zh_CN`，网络错误清洗 URL
-- 订阅模板动态字段（2026-11-27，未提交）：按 `template_id` 获取并缓存模板字段定义，按字段名称/类型映射数据，兼容模板新增 `thing8` 等字段；模板接口需将 `/wxaapi/newtmpl/gettemplate` 加入云托管开放接口白名单，字段 Key 可用 `SUBSCRIBE_TPL_*_FIELDS` 环境变量兜底
+- 订阅模板动态字段（2026-11-28，已推送待部署）：按 `template_id` 获取并缓存模板字段定义，按字段名称/类型映射数据，兼容模板新增 `thing8` 等字段；模板接口需将 `/wxaapi/newtmpl/gettemplate` 加入云托管开放接口白名单，字段 Key 可用 `SUBSCRIBE_TPL_*_FIELDS` 环境变量兜底
 - 合作商验收账号（2026-11-24，未提交）：与学生共用登录页，后端通过 `PARTNER_PREVIEW_USER/PASSWORD` 识别固定账号并签发 `role=partner` 会话；完整功能导航可用，课程/考试/成绩/四六级/学业进度返回只读虚构演示数据并标记 `demo_mode:true`，不读取真实学生数据、不写数据库且不触发教务；评教和学籍仍为空；详见 `docs/product/partner-preview-account-2026-11-24.md`
 - v1.10.0 图书馆库存（2026-10-29，已随 `45a2f77` 本地提交、未 push）：功能页第 8 个入口，支持书名/作者/ISBN/索书号检索与服务器分页；书目列表不 N+1，点开书目后才请求逐册馆藏并按南京/江阴/全部筛选，统计只认明确“可借”；后端匿名 OPAC 客户端固定上游 host/path、校验书目 ID、限制响应体/超时/页码/关键词，HTTP 200 业务错误与空结果区分；共享缓存（检索 30 分钟、单本 5 分钟、失败可回退新鲜期结束后 24h 内旧缓存并标记 stale）、同 key 并发合并、限流与上游并发上限；说明见 `docs/product/library-inventory-2026-10-29.md`
 
@@ -112,8 +112,8 @@ exec ./server
 - 个人业务数据没有后台统一同步；登录后读取已有快照，首次使用或缓存为空时需用户主动刷新。考试页 30 分钟静默刷新和考试/成绩提醒检测仍会按各自策略访问教务
 - 考试刷新按用户 3 次/分钟限流；其他个人数据刷新复用各页面的防重复点击与后端同请求合并，不读取共享功能的缓存
 - 空教室用户查询只读服务端快照；未命中时返回准备中并后台补缓存，不在用户请求线程访问教务。蹭课只读 MySQL 目录，图书馆只访问匿名公共 OPAC，不携带任何教务凭据
-- 微信订阅发送默认依赖云托管“开放接口服务”：控制台必须开启服务、配置 `/cgi-bin/message/subscribe/send` 白名单，并在开启后创建新版本；若缺少 `x-openapi-seqid`，后端按云调用链路未生效处理，不自动回退公网 HTTPS
-- Miniapp 当前包含 v1.11.0 未提交改动；交接前必须保留现状，不要用 reset/checkout 覆盖
+- 微信订阅发送默认依赖云托管“开放接口服务”：控制台必须开启服务、配置 `/cgi-bin/message/subscribe/send` 与 `/wxaapi/newtmpl/gettemplate` 白名单，并在开启后创建新版本；若缺少 `x-openapi-seqid`，后端按云调用链路未生效处理，不自动回退公网 HTTPS
+- Miniapp v1.11.0 代码已推送但尚未部署/发布；交接前仍不得用 reset/checkout 覆盖工作区
 - 考试安排状态（2026-10-28 修复，已包含在 miniapp HEAD `9737245`，未 push）：逐场按「日期 + 开始/结束时间」按 Asia/Shanghai 判定，开考瞬间 ongoing、结束瞬间 done；日期组有进行中优先、全部结束才 done 且可折叠；缺/异常时间保守显示「时间待定/已开始（结束待定）」；开始==结束按结束待定处理（不臆造 24 小时），仅结束早于开始才跨午夜，单开始时日界为次日 00:00。空数组/缓存缺失/切学期/退出统一清空与复位；请求绑定「身份+学期+序号」，迟到旧请求不覆盖视图/缓存、不改新操作忙态；研究生只读 cached_yjs_exams 且只走研究生接口；页面重新显示本地重算不发请求。说明见 `docs/product/exam-status-fix-2026-10-28.md`，回归 `tools/test_exams.js`（46 项）。
 - 界面样式统一（含 2026-10-25 Island 悬浮岛式改造）已包含在 miniapp HEAD `9737245`，未 push、未发布；现行方案为 `docs/product/island-ui-redesign-2026-10-25.md`，`docs/product/frontend-style-refresh-2026-10-24.md` 为交接前基线记录（其“跨满整行/180ms”等描述已被 Island 方案替代，不得据此恢复）
 - 渲染验收只有 **390 宽开发者工具模拟器**：320/430 与真机均未实测，不能当作已验收（Island 轮同样只实测 390）
