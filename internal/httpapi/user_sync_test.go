@@ -10,20 +10,20 @@ import (
 	"time"
 )
 
-func TestAllowLiveRefreshDefaultsToDisabled(t *testing.T) {
-	t.Setenv("ALLOW_LIVE_REFRESH", "0")
+func TestAllowLiveRefreshDefaultsToEnabled(t *testing.T) {
+	t.Setenv("ALLOW_LIVE_REFRESH", "")
 	server := &Server{}
-	if server.allowLiveRefresh() {
-		t.Fatal("默认必须关闭手动刷新")
-	}
-	t.Setenv("ALLOW_LIVE_REFRESH", "1")
 	if !server.allowLiveRefresh() {
-		t.Fatal("显式 ALLOW_LIVE_REFRESH=1 才允许回源")
+		t.Fatal("默认必须允许用户主动刷新访问教务")
+	}
+	t.Setenv("ALLOW_LIVE_REFRESH", "0")
+	if server.allowLiveRefresh() {
+		t.Fatal("显式 ALLOW_LIVE_REFRESH=0 应允许运维临时关闭实时刷新")
 	}
 }
 
-// 默认关闭时，刷新接口即使未登录也不能访问教务，只返回夜间同步提示。
-func TestRefreshEndpointsReturnNightlyNoticeByDefault(t *testing.T) {
+// 运维显式关闭时，刷新接口只返回维护提示，不访问教务。
+func TestRefreshEndpointsReturnMaintenanceNoticeWhenDisabled(t *testing.T) {
 	t.Setenv("ALLOW_LIVE_REFRESH", "0")
 	server := &Server{cache: map[string]cacheEntry{}}
 	recorder := httptest.NewRecorder()

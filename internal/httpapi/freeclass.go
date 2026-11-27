@@ -52,6 +52,18 @@ func freeClassResponse(campus string, weekday, jc1, jc2, week int, semester stri
 	}
 }
 
+func freeClassPendingResponse(campus string, weekday, jc1, jc2, week int, semester, building string) map[string]any {
+	timeText := fmt.Sprintf("第%d-%d节", jc1, jc2)
+	return map[string]any{
+		"success": true, "pending": true, "campus": campus, "weekday": weekday,
+		"week": week, "semester": semester, "jc1": jc1, "jc2": jc2,
+		"slot": "", "slot_name": timeText, "time_text": timeText,
+		"weekday_name": weekdayNames[weekday], "building": building,
+		"buildings": []string{}, "count": 0, "rooms": []string{},
+		"message": "服务端正在准备该时段数据，请稍后刷新",
+	}
+}
+
 type sharedJWCCandidate struct {
 	sid    string
 	client *jwc.Client
@@ -236,6 +248,35 @@ func (s *Server) loadFreeClassrooms(ctx context.Context, campus string, weekday,
 	return value, nil
 }
 
+func (s *Server) cachedFreeClassrooms(campus string, weekday, jc1, jc2, week int, semester, building string) (map[string]any, bool) {
+	value, ok := s.cacheGet(freeClassCacheKey(campus, weekday, jc1, jc2, week, semester, building))
+	if !ok {
+		return nil, false
+	}
+	payload, valid := value.(map[string]any)
+	return payload, valid
+}
+
+func (s *Server) scheduleFreeClassroomRefresh(campus string, weekday, jc1, jc2, week int, semester, building string) {
+	if s.ctx == nil {
+		return
+	}
+	key := freeClassCacheKey(campus, weekday, jc1, jc2, week, semester, building)
+	s.dedupeMu.Lock()
+	exists := s.dedupe[key] != nil
+	s.dedupeMu.Unlock()
+	if exists {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(s.ctx, max(2*time.Minute, 3*s.cfg.JWCRequestTimeout))
+		defer cancel()
+		if _, err := s.loadFreeClassrooms(ctx, campus, weekday, jc1, jc2, week, semester, building); err != nil && s.logger != nil {
+			s.logger.Warn("空教室后台准备失败", "campus", campus, "weekday", weekday, "jc1", jc1, "jc2", jc2, "week", week, "error", err)
+		}
+	}()
+}
+
 func (s *Server) freeClassrooms(w http.ResponseWriter, r *http.Request) {
 	sess, ok := s.requireSession(w, r)
 	if !ok {
@@ -283,13 +324,12 @@ func (s *Server) freeClassrooms(w http.ResponseWriter, r *http.Request) {
 	if len([]rune(building)) > 50 {
 		building = string([]rune(building)[:50])
 	}
-	payload, err := s.loadFreeClassrooms(r.Context(), campus, weekday, jc1, jc2, week, semester, building)
-	if err != nil {
-		s.logger.Warn("空教室查询失败", "error", err)
-		mapJWCError(w, err, "教室数据暂时获取失败，请稍后重试")
+	if payload, ok := s.cachedFreeClassrooms(campus, weekday, jc1, jc2, week, semester, building); ok {
+		writeJSON(w, http.StatusOK, payload)
 		return
 	}
-	writeJSON(w, http.StatusOK, payload)
+	s.scheduleFreeClassroomRefresh(campus, weekday, jc1, jc2, week, semester, building)
+	writeJSON(w, http.StatusOK, freeClassPendingResponse(campus, weekday, jc1, jc2, week, semester, building))
 }
 
 func parseUnix(raw string) int64 {

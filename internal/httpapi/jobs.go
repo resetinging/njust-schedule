@@ -149,18 +149,16 @@ func (s *Server) prewarmFreeClassrooms(ctx context.Context) {
 		return
 	}
 	now := time.Now().In(beijing)
-	weekday := int(now.Weekday())
-	if weekday == 0 {
-		weekday = 7
-	}
 	week := teachingWeek(firstMonday, now)
-	for _, campus := range []string{"孝陵卫", "江阴"} {
-		for _, slot := range [][2]int{{1, 3}, {4, 5}, {6, 7}, {8, 10}, {11, 13}} {
-			if ctx.Err() != nil {
-				return
-			}
-			if _, err := s.loadFreeClassrooms(ctx, campus, weekday, slot[0], slot[1], week, semester, ""); err != nil {
-				s.logger.Warn("空教室预热失败", "campus", campus, "jc1", slot[0], "jc2", slot[1], "error", err)
+	for weekday := 1; weekday <= 7; weekday++ {
+		for _, campus := range []string{"孝陵卫", "江阴"} {
+			for _, slot := range [][2]int{{1, 3}, {4, 5}, {6, 7}, {8, 10}, {11, 13}} {
+				if ctx.Err() != nil {
+					return
+				}
+				if _, err := s.loadFreeClassrooms(ctx, campus, weekday, slot[0], slot[1], week, semester, ""); err != nil {
+					s.logger.Warn("空教室预热失败", "campus", campus, "weekday", weekday, "jc1", slot[0], "jc2", slot[1], "error", err)
+				}
 			}
 		}
 	}

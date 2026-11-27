@@ -19,7 +19,7 @@ import (
 // 用户数据刷新策略（与空教室一致）：
 //   - 服务端每天凌晨批量预热用户数据（登录/刷新不再作为常规教务访问路径）；
 //   - 服务端缓存未命中时（如首次登录、新用户、换学期）允许一次兜底预抓；
-//   - 手动刷新接口默认关闭，只返回服务器已同步的数据提示，不访问教务。
+//   - 用户主动刷新默认实时访问教务；后台凌晨预热只负责改善首次打开速度。
 const (
 	userDataSyncMarker      = "data_cache_at" // 与登录预抓共用同一时间标记
 	userDataSyncDefaultHour = 0
@@ -50,9 +50,10 @@ func envInt(name string, fallback, minValue, maxValue int) int {
 	return value
 }
 
-// allowLiveRefresh 默认关闭：刷新接口不再访问教务，避免用户侧绕过夜间批量同步。
+// allowLiveRefresh 默认开启：用户主动刷新应实时获取教务数据。
+// 仅在运维需要临时止损时显式设置 ALLOW_LIVE_REFRESH=0。
 func (s *Server) allowLiveRefresh() bool {
-	return envBool("ALLOW_LIVE_REFRESH", false)
+	return envBool("ALLOW_LIVE_REFRESH", true)
 }
 
 // writeNoManualRefresh 是刷新接口的默认响应：不访问教务，只告知数据由夜间同步维护。
