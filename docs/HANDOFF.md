@@ -11,7 +11,7 @@
 ### Server
 
 - 当前分支：`server`
-- 当前 HEAD：`132fa4d feat: 增加合作商验收演示数据`（已推送 `origin/server`）
+- 当前 HEAD：`17b23af feat: 明确数据刷新边界`（随本次同步推送 `origin/server`）
 - 当前已跟踪工作区无未提交改动；本机仅有 `.tmp/`、`.video-tools/`、`poster/`、`video/`、`audit-no-classroom.csv` 等未跟踪本地产物，不入库
 - 2026-11-24 新增校园服务前后端（`internal/campus`、服务/线索表和接口、管理后台页签、`1002_campus_services` 安全迁移，以及小程序入口/服务簿/详情/咨询表单）
 - 2026-10-29 新增图书馆公共馆藏只读网关与两个 API（已随 v1.10.0 提交）：`internal/library` + `internal/httpapi/library.go`，无数据库迁移；匿名访问 OPAC，登录用户共享有界内存缓存
@@ -22,10 +22,10 @@
 - 工作区：`C:\Users\a\Documents\local\njust-schedule\.miniapp`
 - 当前分支：`miniapp`
 - 基线提交：`118635a`
-- 当前 HEAD：`aa93804 feat: 更新合作商验收与回归测试`（已推送 `origin/miniapp`）
+- 当前 HEAD：`21046df feat: 优化数据刷新与空教室体验`（随本次同步推送 `origin/miniapp`）
 - 当前本地构建标识：`2026.11.27.7`
 - 当前版本：`v1.11.0`（校园服务、合作商验收账号、刷新入口恢复、用户数据同步、合作商演示数据与图书馆修复）；代码已提交并推送，是否发布小程序版本仍以微信平台上传记录为准
-- 当前已跟踪工作区有登录页说明文字清理未提交；本机另有 `.tmp/` 未跟踪目录
+- 当前已跟踪工作区无未提交改动；本机仅有 `.tmp/` 未跟踪目录
 - `C:\Users\a\Documents\local\miniprogram` 是微信开发者工具使用的独立克隆
 - 修改 Miniapp 后必须按 `AGENTS.md` 同步并核对哈希：默认可按同步脚本排除 `.git`/`node_modules`/`.tmp`，但**最终复验要使用完整口径**（只排除这三个目录）并报告源/目标文件数与 missing/diff/extra；`project.config.json`、`project.private.config.json` 参与比对（本地配置一致时 diff=0，差异需显式说明）；目标独有 `minitest/test.config.json` 保留不删，作为 extra 单列，不得通过额外排除项声称“全量一致”。
 
