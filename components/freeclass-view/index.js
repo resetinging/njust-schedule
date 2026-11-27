@@ -61,6 +61,7 @@ Component({
     loading: false,
     errorMsg: '',
     searched: false,       // 是否完成过查询(区分首屏空状态)
+    pending: false,        // 服务端尚未准备好该时段快照
     cacheNote: '',         // 数据来源提示(缓存/更新中/离线)
 
     // 筛选状态(picker 索引)
@@ -173,6 +174,7 @@ Component({
     const count = groups.reduce((n, g) => n + g.rooms.length, 0)
     this.setData({
       searched: true,
+      pending: false,
       errorMsg: '',
       groups,
       result: {
@@ -259,7 +261,7 @@ Component({
         cacheNote: '服务端 ' + srvTime + ' 更新 · 刷新中…'
       })
     } else {
-      this.setData({ loading: true, errorMsg: '', cacheNote: '' })
+      this.setData({ loading: true, errorMsg: '', cacheNote: '', pending: false })
     }
 
     // ── 2) 请求最新数据(成功后覆盖缓存与界面) ──
@@ -283,6 +285,30 @@ Component({
             searched: true,
             groups: [],
             errorMsg: (res && res.message) || '查询失败，请稍后再试'
+          })
+          return
+        }
+        if (res.pending) {
+          if (fromCache) {
+            const srvTime = (hit.data && hit.data.updated_at)
+              ? fmtTime(hit.data.updated_at * 1000) : fmtTime(hit.t)
+            this.setData({
+              loading: false,
+              searched: true,
+              pending: false,
+              errorMsg: '',
+              cacheNote: '继续显示缓存数据 · 服务端准备最新快照中（' + srvTime + '）'
+            })
+            return
+          }
+          this.setData({
+            loading: false,
+            searched: true,
+            pending: true,
+            groups: [],
+            result: null,
+            errorMsg: '',
+            cacheNote: res.message || '服务端正在准备该时段数据，请稍后刷新'
           })
           return
         }

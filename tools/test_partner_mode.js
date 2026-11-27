@@ -56,9 +56,11 @@ assert(mainWxml.includes('data-page="freeclass" bindtap="onOpenNavPage"'))
 assert(!/isPartner.*ALL_TABS\.filter/.test(tabbar), '合作商应保留三个一级 Tab')
 assert(tabbar.includes('const list = ALL_TABS'))
 assert(mainJs.includes('syncPartnerMode()'))
-assert(settingsWxml.includes('学号 / 合作商账号'))
+assert(settingsWxml.includes('>学号</text>'))
+assert(!settingsWxml.includes('合作商账号'), '登录账号栏不应显示合作商字样')
 assert(settingsWxml.includes('合作商验收账号'))
-assert(settingsWxml.includes('按数据可用性显示'))
+assert(!settingsWxml.includes('mode-desc'), '登录标题下不应显示认证说明')
+assert(!settingsWxml.includes('login-tip'), '登录页底部不应显示账号说明')
 assert(
   creditView.includes('programmeRes.partner_mode && !programmeRes.demo_mode'),
   '合作商演示培养方案不应显示“无学生数据”提示'

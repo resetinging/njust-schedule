@@ -442,14 +442,6 @@
   text-align: center;
 }
 
-.mode-desc,
-.login-tip {
-  margin-top: var(--space-xs);
-  color: var(--text-muted);
-  font-size: var(--fs-cap);
-  text-align: center;
-}
-
 .form-group { margin-top: 20rpx; }
 
 .form-label {

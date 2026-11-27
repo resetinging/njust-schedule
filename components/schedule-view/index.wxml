@@ -136,7 +136,7 @@
     <empty-state wx:if="{{!loading && courses.length === 0}}"
                  icon="calendar"
                  title="暂无课表数据"
-                 desc="{{semester || '当前学期'}} 暂无课表数据，服务端每日凌晨自动同步"
+                 desc="{{semester || '当前学期'}} 暂无课表数据，点击刷新获取最新课表"
                  action-text="{{loading ? '刷新中…' : '刷新课表'}}"
                  bind:action="onRefresh" />
 

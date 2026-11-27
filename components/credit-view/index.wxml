@@ -6,7 +6,7 @@
     <empty-state wx:if="{{!loading && empty}}"
                  icon="📊"
                  title="{{errorMsg || '暂无培养方案数据'}}"
-                 desc="登录后自动获取，数据每日凌晨自动同步"
+                 desc="登录后自动获取，也可点击刷新最新数据"
                  action-text="{{refreshing ? '刷新中…' : '刷新培养方案'}}"
                  bind:action="onRefresh" />
 

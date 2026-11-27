@@ -167,13 +167,10 @@
     <view class="login-card card">
       <view class="login-title">登录</view>
 
-      <!-- 教务改版后仅保留智慧理工统一认证登录（教务直连已下线） -->
-      <view class="mode-desc">学生使用智慧理工账号，合作商使用验收账号</view>
-
       <!-- 学号 -->
       <view class="form-group">
-        <text class="form-label">学号 / 合作商账号</text>
-        <t-input t-class="form-input" placeholder="请输入学号或合作商账号" clearable
+        <text class="form-label">学号</text>
+        <t-input t-class="form-input" placeholder="请输入学号" clearable
                  value="{{studentId}}" bind:change="onStudentIdInput" />
       </view>
 
@@ -215,10 +212,6 @@
       </view>
     </view>
 
-    <!-- 提示 -->
-    <view class="login-tip">
-      <text>学生使用智慧理工统一认证；合作商使用管理员提供的验收账号</text>
-    </view>
   </view>
 
   <!-- 版本标识: 版本号来自内置更新记录, build 来自 config.BUILD -->

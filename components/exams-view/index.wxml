@@ -16,7 +16,7 @@
         <view class="yjs-tr" wx:for="{{examRows}}" wx:key="i">
           <text class="yjs-td" wx:for="{{item.cells}}" wx:for-item="cell" wx:key="*this">{{cell}}</text>
         </view>
-        <view class="yjs-hint" wx:if="{{!examRows.length}}">暂无考试安排，每日凌晨自动同步</view>
+      <view class="yjs-hint" wx:if="{{!examRows.length}}">暂无考试安排，点击刷新获取最新安排</view>
       </view>
       <view class="yjs-refresh tap {{refreshing ? 'is-busy' : ''}}" bindtap="onRefreshYjsExams" aria-label="刷新研究生考试安排">
         <icon class="{{refreshing ? 'spin' : ''}}" name="refresh" size="28" color="#FFFFFF" />
@@ -33,7 +33,7 @@
     <empty-state wx:if="{{!loading && exams.length === 0 && !isGraduate}}"
                  icon="doc"
                  title="{{errorMsg || '暂无考试安排'}}"
-                 desc="{{semester || '当前学期'}} 暂无考试安排，服务端每日凌晨自动同步"
+                 desc="{{semester || '当前学期'}} 暂无考试安排，点击刷新获取最新安排"
                  action-text="刷新考试安排"
                  bind:action="onRefresh" />
 

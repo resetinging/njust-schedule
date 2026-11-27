@@ -12,7 +12,7 @@
   <empty-state wx:if="{{!loading && batches.length === 0 && !batchCourses.length}}"
                icon="clipboard"
                title="{{errorMsg || '暂无待评价课程'}}"
-               desc="{{semester || '当前学期'}} 没有需要评价的课程（数据每日凌晨自动同步）"
+               desc="{{semester || '当前学期'}} 没有需要评价的课程（点击刷新获取最新数据）"
                action-text="{{loading ? '刷新中…' : '刷新评教数据'}}"
                bind:action="onRefresh" />
 

@@ -100,6 +100,9 @@
       </block>
     </view>
 
+    <!-- 服务端准备中 -->
+    <empty-state wx:elif="{{pending && !loading && !errorMsg}}" icon="refresh" title="服务端正在准备数据"
+                 desc="该时段尚未完成同步，请稍后点击刷新" />
     <!-- 无空闲 -->
     <empty-state wx:elif="{{searched && !loading && !errorMsg}}" icon="building" title="该时段没有空闲教室"
                  desc="试试放宽时段范围、换个星期或校区" />

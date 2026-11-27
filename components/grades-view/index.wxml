@@ -40,14 +40,14 @@
         </view>
         <view class="yjs-hint" wx:if="{{!yjsRows.length}}">暂无成绩记录</view>
       </view>
-      <view class="yjs-note">研究生成绩不含绩点计算；数据每日凌晨自动同步</view>
+      <view class="yjs-note">研究生成绩不含绩点计算；点击刷新获取最新成绩</view>
     </block>
 
     <!-- 空状态（卡片式） -->
     <empty-state wx:if="{{!loading && empty && !isGraduate}}"
                  icon="clipboard"
                  title="{{errorMsg || '暂无成绩数据'}}"
-                 desc="{{semester || '当前学期'}} 暂无成绩数据，服务端每日凌晨自动同步"
+                 desc="{{semester || '当前学期'}} 暂无成绩数据，点击刷新获取最新成绩"
                  action-text="{{refreshing ? '刷新中…' : '刷新成绩'}}"
                  bind:action="onRefreshGrades" />
 

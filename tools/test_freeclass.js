@@ -104,6 +104,12 @@ function deferred() {
     assert.strictEqual(inst2.data.endIndex, expect)
     assert.ok(inst2._searched, '应触发默认查询')
   })
+  check('服务端快照未命中时显示准备中，不把空数组当成查询结果', () => {
+    assert.ok(
+      componentCfg.methods.search.toString().includes('res.pending'),
+      '空教室查询缺少 pending 分支'
+    )
+  })
   check('周次列表覆盖教务借用页 1-30 周', () => {
     assert.strictEqual(inst.data.weekList.length, 31, JSON.stringify(inst.data.weekList.length))
     assert.ok(inst.data.weekList.indexOf('第30周') >= 0)
