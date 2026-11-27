@@ -39,60 +39,105 @@
 
     <!-- 有数据 -->
     <block wx:if="{{exams.length > 0 && !isGraduate}}">
-      <!-- 顶部卡片头(浅蓝软底) -->
-      <view class="page-hero">
-        <view class="ph-main">
-          <text class="ph-title">考试安排</text>
-          <text class="ph-sub">共 {{exams.length}} 场考试</text>
+      <!-- 顶部摘要 -->
+      <view class="exam-summary">
+        <view class="summary-main">
+          <view class="summary-title-line">
+            <text class="summary-title">考试安排</text>
+            <text class="summary-count">{{pendingExamCount}} 场</text>
+          </view>
+          <text class="summary-semester">{{semester || '当前学期'}}</text>
         </view>
-        <view class="ph-refresh refresh-action tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新考试安排">
-          <icon name="refresh" size="32" color="#6B7684" />
+        <view class="summary-refresh refresh-action tap {{loading ? 'is-busy' : ''}}" bindtap="onRefresh" aria-label="刷新考试安排">
+          <icon name="refresh" size="30" color="#6B7684" />
         </view>
       </view>
 
-      <!-- 倒计时卡片 -->
-      <scroll-view scroll-x class="countdown-scroll" wx:if="{{countdowns.length > 0}}">
-        <view class="countdown-row">
-          <view class="countdown-card {{item.cardClass}}" wx:for="{{countdowns}}" wx:key="index">
-            <view class="cd-bignum">{{item.bigNum}}</view>
-            <view class="cd-label">{{item.bigLabel}}</view>
-            <view class="cd-course">{{item.course_name}}</view>
-            <view class="cd-date">{{item.date}} {{item.time || ''}}</view>
+      <!-- 最近考试主卡 -->
+      <view class="featured-exam {{featuredExam.cardClass}}" wx:if="{{featuredExam}}">
+        <view class="featured-head">
+          <text class="featured-course">{{featuredExam.course_name}}</text>
+          <text class="featured-state">{{featuredExam.info.shortText}}</text>
+          <view class="featured-seat" aria-label="座位 {{featuredExam.seat || '待定'}}">
+            <view class="featured-seat-icon">
+              <icon name="seat" size="28" color="#3157D5" />
+            </view>
+            <text class="featured-seat-value">{{featuredExam.seat || '待定'}}</text>
           </view>
         </view>
-      </scroll-view>
+        <view class="featured-meta">
+          <view class="featured-detail">
+            <view class="featured-detail-icon">
+              <icon name="clock" size="24" color="#6B7684" />
+            </view>
+            <text class="featured-detail-value">{{featuredExam.time || '时间待定'}}</text>
+          </view>
+          <view class="featured-detail">
+            <view class="featured-detail-icon">
+              <icon name="building" size="24" color="#6B7684" />
+            </view>
+            <text class="featured-detail-value">{{featuredExam.location || '地点待定'}}</text>
+          </view>
+        </view>
+      </view>
 
-      <!-- 按日期分组的考试列表(普通容器, 避免嵌套纵向滚动冲突) -->
-      <view class="exam-scroll">
+      <!-- 日期时间轴 -->
+      <view class="exam-timeline">
         <block wx:for="{{dayGroups}}" wx:key="date" wx:for-item="group">
-          <!-- 日期头部（已结束可折叠） -->
-          <view class="date-header tap" data-date="{{group.date}}" data-done="{{group.urgency === 'done'}}" bindtap="onToggleGroup">
-            <text class="date-title">{{group.date}} {{group.weekday}}</text>
-            <view class="date-right">
-              <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>
-              <view wx:if="{{group.urgency === 'done'}}" class="collapse-arrow">
-                <text>{{collapsedDates[group.date] ? '展开' : '折叠'}}</text>
-                <icon name="{{collapsedDates[group.date] ? 'next' : 'prev'}}" size="18" color="#6B7684" />
+          <view class="timeline-group {{group.urgency === 'done' ? 'is-done' : ''}}">
+            <view class="timeline-rail">
+              <view class="timeline-dot {{group.urgency}}"></view>
+              <view class="timeline-line" wx:if="{{index < dayGroups.length - 1}}"></view>
+            </view>
+            <view class="timeline-body">
+              <!-- 日期头部（已结束可折叠） -->
+              <view class="date-header {{group.urgency === 'done' ? 'tap' : ''}}" data-date="{{group.date}}" data-done="{{group.urgency === 'done'}}" bindtap="onToggleGroup">
+                <view class="date-main">
+                  <text class="date-title">{{group.date}}</text>
+                  <text class="date-weekday">{{group.weekday || '日期待定'}}</text>
+                </view>
+                <view class="date-right">
+                  <text class="date-urgency {{group.urgency}}">{{group.urgencyText}}</text>
+                  <view wx:if="{{group.urgency === 'done'}}" class="collapse-arrow">
+                    <text>{{collapsedDates[group.date] ? '展开' : '收起'}}</text>
+                    <icon name="{{collapsedDates[group.date] ? 'next' : 'prev'}}" size="18" color="#6B7684" />
+                  </view>
+                </view>
               </view>
+
+              <!-- 考试卡片（已结束且折叠时隐藏） -->
+              <block wx:if="{{!(group.urgency === 'done' && collapsedDates[group.date])}}">
+                <view class="exam-card {{exam.cardClass}}"
+                      wx:for="{{group.exams}}" wx:key="index" wx:for-item="exam">
+                  <view class="exam-head">
+                    <text class="exam-course">{{exam.course_name}}</text>
+                    <text class="exam-state {{exam.statusClass}}">{{exam.shortStatusText}}</text>
+                    <view class="exam-seat" aria-label="座位 {{exam.seat || '待定'}}">
+                      <view class="exam-seat-icon">
+                        <icon name="seat" size="24" color="{{exam.cardClass === 'exam-done' ? '#9AA4B0' : '#3157D5'}}" />
+                      </view>
+                      <text class="exam-seat-value">{{exam.seat || '待定'}}</text>
+                    </view>
+                  </view>
+                  <view class="exam-details">
+                    <view class="exam-detail">
+                      <view class="exam-detail-icon">
+                        <icon name="clock" size="22" color="{{exam.cardClass === 'exam-done' ? '#9AA4B0' : '#6B7684'}}" />
+                      </view>
+                      <text class="exam-detail-value">{{exam.time || '时间待定'}}</text>
+                    </view>
+                    <view class="exam-detail">
+                      <view class="exam-detail-icon">
+                        <icon name="building" size="22" color="{{exam.cardClass === 'exam-done' ? '#9AA4B0' : '#6B7684'}}" />
+                      </view>
+                      <text class="exam-detail-value">{{exam.location || '地点待定'}}</text>
+                    </view>
+                  </view>
+                  <text class="exam-type" wx:if="{{exam.type && exam.type !== '期末考试'}}">{{exam.type}}</text>
+                </view>
+              </block>
             </view>
           </view>
-
-          <!-- 考试卡片（已结束且折叠时隐藏） -->
-          <block wx:if="{{!(group.urgency === 'done' && collapsedDates[group.date])}}">
-            <view class="exam-card {{exam.cardClass}}"
-                  wx:for="{{group.exams}}" wx:key="index" wx:for-item="exam">
-              <view class="exam-head">
-                <view class="exam-course">{{exam.course_name}}</view>
-                <text class="exam-state {{exam.statusClass}}">{{exam.statusText}}</text>
-              </view>
-              <view class="exam-meta">
-                <text class="meta-item">{{exam.time || '待定'}}</text>
-                <text class="meta-item">{{exam.location || '待定'}}</text>
-                <text class="meta-item" wx:if="{{exam.seat}}">{{exam.seat}}</text>
-                <text class="meta-item">{{exam.type || '期末考试'}}</text>
-              </view>
-            </view>
-          </block>
         </block>
       </view>
     </block>

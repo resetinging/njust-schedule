@@ -32,8 +32,9 @@ const SLOT_LIST = [
   { key: '11-13', label: '第11-13节', j1: 11, j2: 13 }
 ]
 const CAMPUS_LIST = ['孝陵卫', '江阴']
-const COLLAPSED_HEIGHT_RPX = 156
+const COLLAPSED_HEIGHT_RPX = 144
 const COLLAPSE_FALLBACK_MIN = 30
+const FLOOR_NAV_MIN_ROOMS = 13
 const WEEK_LIST = (() => {
   const arr = ['本周']
   for (let i = 1; i <= 30; i++) arr.push('第' + i + '周')   // 教务借用页周次 1-30
@@ -44,6 +45,44 @@ function fmtTime(ts) {
   const d = new Date(ts || Date.now())
   const p = n => (n < 10 ? '0' : '') + n
   return p(d.getHours()) + ':' + p(d.getMinutes())
+}
+
+function floorMeta(chip) {
+  const m = String(chip || '').match(/\d+/)
+  if (!m || m[0].length < 3) return { key: 'other', label: '其他', rank: 99 }
+  const floor = parseInt(m[0][0], 10)
+  return { key: 'floor-' + floor, label: floor + '层', rank: floor }
+}
+
+function decorateGroup(group) {
+  const byKey = {}
+  const floors = []
+  ;(group.chips || []).forEach(chip => {
+    const meta = floorMeta(chip)
+    if (!byKey[meta.key]) {
+      const floor = {
+        key: meta.key,
+        label: meta.label,
+        rank: meta.rank,
+        count: 0,
+        chips: []
+      }
+      byKey[meta.key] = floor
+      floors.push(floor)
+    }
+    byKey[meta.key].count++
+    byKey[meta.key].chips.push(chip)
+  })
+  floors.sort((a, b) => a.rank - b.rank)
+  const showFloorNav = floors.length > 1 && group.rooms.length > FLOOR_NAV_MIN_ROOMS
+  return Object.assign({}, group, {
+    floors,
+    showFloorNav,
+    activeFloorIndex: 0,
+    visibleChips: showFloorNav ? floors[0].chips : group.chips,
+    expanded: showFloorNav,
+    overflow: !showFloorNav && group.rooms.length >= COLLAPSE_FALLBACK_MIN
+  })
 }
 
 Component({
@@ -164,13 +203,8 @@ Component({
     const grouped = groupRooms(res.rooms || [], res.buildings)
     // 孝陵卫保持四大教学楼视图；江阴教学楼名称不固定，不能按同一白名单过滤。
     const visible = res.campus === '江阴' ? grouped : grouped.filter(isMainTeaching)
-    const groups = visible
-      // 默认收起为两行; 展开按钮按实际高度判断, 数量兜底防测量失败。
-      .map(g => Object.assign({}, g, {
-        expanded: false,
-        // 高度测量失败时只兜底超大分组, 避免小分组误显示"收起"。
-        overflow: g.rooms.length >= COLLAPSE_FALLBACK_MIN
-      }))
+    // 多楼层大分组默认只显示第一层; 小分组沿用两行折叠与高度测量。
+    const groups = visible.map(decorateGroup)
     const count = groups.reduce((n, g) => n + g.rooms.length, 0)
     this.setData({
       searched: true,
@@ -200,6 +234,7 @@ Component({
       const collapsedHeight = COLLAPSED_HEIGHT_RPX * windowWidth / 750 + 1
       let changed = false
       const groups = this.data.groups.map((g, i) => {
+        if (g.showFloorNav) return g
         const rect = inner[i]
         // 测量失败时保留数量兜底结果, 不把大分组按钮误删。
         if (!rect || !(rect.height > 0)) return g
@@ -216,9 +251,24 @@ Component({
   onToggleGroup(e) {
     const i = Number(e.currentTarget.dataset.index)
     const g = this.data.groups[i]
-    if (!g || !g.overflow) return
+    if (!g || g.showFloorNav || !g.overflow) return
     const groups = this.data.groups.slice()
     groups[i] = Object.assign({}, g, { expanded: !g.expanded })
+    this.setData({ groups })
+  },
+
+  /** 切换教学楼内楼层; 默认展示排序后的第一层 */
+  onFloorTap(e) {
+    const gi = Number(e.currentTarget.dataset.groupIndex)
+    const fi = Number(e.currentTarget.dataset.floorIndex)
+    const groups = this.data.groups.slice()
+    const g = groups[gi]
+    const floor = g && g.floors && g.floors[fi]
+    if (!g || !floor) return
+    groups[gi] = Object.assign({}, g, {
+      activeFloorIndex: fi,
+      visibleChips: floor.chips
+    })
     this.setData({ groups })
   },
 

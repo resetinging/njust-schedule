@@ -37,6 +37,134 @@
       {
         "value": "project.private.config.json",
         "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/.wechatide.ib.json",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/index.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/index.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/miniprogram_npm/dayjs/locale/ar.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/miniprogram_npm/dayjs/locale/en.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/miniprogram_npm/dayjs/locale/it.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/miniprogram_npm/dayjs/locale/ja.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/miniprogram_npm/dayjs/locale/ko.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/miniprogram_npm/dayjs/locale/ru.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/miniprogram_npm/dayjs/locale/zh-tw.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/ar_KW.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/en_US.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/it_IT.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/ja_JP.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/ko_KR.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/ru_RU.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/zh_TW.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/ar_KW.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/en_US.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/it_IT.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/ja_JP.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/ko_KR.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/ru_RU.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/zh_CN.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/locale/zh_TW.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/input/type.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/config-provider/type.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/button/type.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/textarea/type.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/common/utils.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/search",
+        "type": "folder"
+      },
+      {
+        "value": "/miniprogram_npm/tdesign-miniprogram/tag",
+        "type": "folder"
       }
     ],
     "include": []

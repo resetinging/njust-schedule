@@ -475,7 +475,7 @@
 .success-action::after { border: none; }
 .lead-action:active,
 .success-action:active { background: var(--primary-strong); }
-.lead-action[disabled] { opacity: .45; }
+.lead-action.is-disabled { opacity: .45; }
 
 .form-step {
   display: inline-block;

@@ -24,6 +24,8 @@ assert(
   /activate\(\)[\s\S]*?loadCached\(\)[\s\S]*?storage\.hasSession\(\)[\s\S]*?this\.loadGrades\(true\)/.test(grades),
   '成绩页激活时必须在缓存为空且会话有效的情况下补拉'
 )
+assert(grades.includes('onRefreshGrades()'), '成绩页必须保留用户主动刷新入口')
+assert(grades.includes('api.refreshGrades()'), '成绩主动刷新必须访问实时刷新接口')
 
 const exams = read('components/exams-view/index.js')
 assert(exams.includes('EXAM_AUTO_REFRESH_MS'), '考试页缺少自动刷新时间窗')
@@ -33,5 +35,10 @@ assert(exams.includes('quiet === true'), '仅内部自动刷新应静默，不�
 
 const settings = read('components/settings-view/index.js')
 assert(settings.includes('this._loadMyFeedback(false)'), '会话恢复回到我的页时必须刷新反馈未读状态')
+
+const loader = read('utils/data-loader.js')
+assert(!loader.includes('_waitForDataRefresh'), '登录后不应再轮询服务端数据同步状态')
+assert(!loader.includes('getDataRefreshStatus'), '普通进入不应请求后台预抓状态')
+assert(loader.includes('if (!force) return ok'), '非主动刷新只读取已有缓存')
 
 console.log('Session recovery flow test passed [OK]')

@@ -197,7 +197,7 @@ function ts(y, mo, d, h, mi, s) {
   console.log('\n2) 同日混合状态与分组')
   const mixed = [
     mkExam({ course_name: '上午课', time: '09:00~11:00' }),     // done
-    mkExam({ course_name: '下午课', time: '15:50~17:50' }),     // ongoing @16:00
+    mkExam({ course_name: '下午课', time: '15:50~17:50', seat: '12号座位' }),     // ongoing @16:00
     mkExam({ course_name: '晚上课', time: '19:00~21:00' }),     // upcoming
     mkExam({ course_name: '时间待定课', time: '' })             // unknown
   ]
@@ -236,6 +236,12 @@ function ts(y, mo, d, h, mi, s) {
     const cd = inst.data.countdowns
     assert.ok(cd.length <= 3, String(cd.length))
     assert.strictEqual(cd[0].course_name, '下午课', JSON.stringify(cd.map(x => x.course_name)))
+    assert.strictEqual(inst.data.featuredExam.course_name, '下午课')
+    assert.strictEqual(inst.data.featuredExam.location, 'A101')
+    assert.strictEqual(inst.data.featuredExam.seat, '12号座位')
+    assert.strictEqual(inst.data.featuredExam.info.shortText, '进行中')
+    assert.strictEqual(inst.data.dayGroups[0].exams.find(x => x.course_name === '晚上课').shortStatusText, '3小时')
+    assert.strictEqual(inst.data.pendingExamCount, 3)
     assert.ok(!cd.some(x => x.course_name === '上午课'), '倒计时不应出现已结束')
     assert.ok(!cd.some(x => x.course_name === '时间待定课'), '倒计时不含时间待定')
   })
@@ -243,6 +249,7 @@ function ts(y, mo, d, h, mi, s) {
     const inst2 = makeInstance()
     inst2._processExams([mkExam({ time: '09:00~11:00' }), mkExam({ course_name: '另一场', time: '13:00~15:00' })], NOW)
     assert.strictEqual(inst2.data.dayGroups[0].urgency, 'done')
+    assert.strictEqual(inst2.data.pendingExamCount, 0)
     inst2.onToggleGroup({ currentTarget: { dataset: { date: '2026-10-28', done: true } } })
     assert.strictEqual(inst2.data.collapsedDates['2026-10-28'], true)
   })
@@ -255,6 +262,16 @@ function ts(y, mo, d, h, mi, s) {
     const inst4 = makeInstance()
     inst4._processExams([mkExam({ course_name: '晚', time: '19:00~21:00' }), mkExam({ course_name: '待定', time: '' }), mkExam({ course_name: '早', time: '09:00~11:00' })], NOW)
     assert.deepStrictEqual(inst4.data.dayGroups[0].exams.map(x => x.course_name), ['早', '晚', '待定'])
+  })
+  check('未来考试日期组优先，已结束日期组排到后面', () => {
+    const inst5 = makeInstance()
+    inst5._processExams([
+      mkExam({ course_name: '已结束考试', date: '2026-10-25', time: '09:00~11:00' }),
+      mkExam({ course_name: '下一场考试', date: '2026-10-29', time: '09:00~11:00' })
+    ], NOW)
+    assert.deepStrictEqual(inst5.data.dayGroups.map(g => g.date), ['2026-10-29', '2026-10-25'])
+    assert.strictEqual(inst5.data.dayGroups[0].urgency, 'upcoming')
+    assert.strictEqual(inst5.data.dayGroups[1].urgency, 'done')
   })
 
   // ================= 3. 缓存应用 / 清空 / 切学期 / 退出 =================
@@ -489,13 +506,13 @@ function ts(y, mo, d, h, mi, s) {
     examResponses.push(dLoad)
     toasts.length = 0
     const p = i.onRefresh()
-    dRefresh.resolve({ success: true, refreshed: false, message: '数据每日凌晨自动更新' })
+    dRefresh.resolve({ success: true, refreshed: false, message: '实时刷新已由管理员暂时关闭' })
     await p
     dLoad.resolve({ success: true, exams: [], semester: '2026-2027-1' })
     await flush()
     check('服务器返回 refreshed=false → 显示真实提示并继续读取快照', () => {
       assert.strictEqual(toasts.length, 1)
-      assert.ok(toasts[0].title.indexOf('每日凌晨') >= 0, JSON.stringify(toasts))
+      assert.ok(toasts[0].title.indexOf('暂时关闭') >= 0, JSON.stringify(toasts))
     })
   }
   {

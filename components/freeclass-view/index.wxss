@@ -97,7 +97,7 @@
 
 .filter-card {
   margin-top: var(--space-md);
-  padding: var(--space-xs) var(--space-xs) 0;
+  padding: 0 var(--space-lg);
   background: var(--bg-card);
   border: none;
   border-radius: var(--radius-island);
@@ -109,10 +109,14 @@
   align-items: center;
   gap: var(--space-sm);
   min-height: 88rpx;
-  margin-bottom: var(--space-xs);
-  padding: 0 var(--space-md);
-  border-radius: var(--radius-control);
-  background: var(--bg-sunken);
+  padding: 0;
+  border-bottom: var(--bw-card) solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+.filter-row-last {
+  border-bottom: none;
 }
 
 .filter-icon {
@@ -260,23 +264,61 @@
   font-weight: 600;
 }
 
+.floor-nav {
+  margin-bottom: var(--space-xs);
+}
+
+.floor-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.floor-tabs {
+  display: flex;
+  width: 100%;
+  min-width: 100%;
+  gap: 0;
+  border-bottom: var(--bw-card) solid var(--line-soft);
+}
+
+.floor-tab {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex: 1 0 112rpx;
+  min-height: 76rpx;
+  padding: 0 2rpx 10rpx;
+  border-bottom: 4rpx solid transparent;
+  color: var(--text-muted);
+}
+
+.floor-tab.is-active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+}
+
+.floor-tab-label {
+  font-size: var(--fs-sub);
+  font-weight: 600;
+}
+
 /* 折叠裁剪容器：仅负责裁掉两行以外的教室；展开后由外层 scroll-view 连续滚动 */
 .group-chips {
   overflow: hidden;
 }
 
-/* 两行教室：行高 72rpx + 行距 12rpx → 72 * 2 + 12 = 156rpx。
-   156rpx 是 components/freeclass-view/index.js 中 COLLAPSED_HEIGHT_RPX 的
-   溢出实测基准，改动网格行高/行距时必须同步该常量（本次未改 JS）。 */
+/* 两行教室：单元格高度 72rpx，无缝细线网格 → 72 * 2 = 144rpx。
+   144rpx 是 components/freeclass-view/index.js 中 COLLAPSED_HEIGHT_RPX 的
+   溢出实测基准，改动网格行高或行距时必须同步该常量。 */
 .group-chips.is-collapsed {
-  max-height: 156rpx;
+  max-height: 144rpx;
 }
 
-/* 稳定网格：固定 4 列等宽、按 DOM 顺序换行，数量多时不会被压缩变形 */
+/* 稳定网格：固定 4 列等宽，用细线建立行列辨识度，不使用灰色底块 */
 .chips-inner {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-sm);
+  gap: 0;
 }
 
 .room-chip {
@@ -287,14 +329,20 @@
   height: 72rpx;
   padding: 0 var(--space-xs);
   overflow: hidden;
-  border: var(--bw-card) solid var(--line-soft);
-  border-radius: var(--radius-chip);
-  background: var(--bg-sunken);
-  color: var(--text-secondary);
+  border-right: var(--bw-card) solid var(--line);
+  border-bottom: var(--bw-card) solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
   font-size: var(--fs-sub);
+  font-weight: 600;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.room-chip-end {
+  border-right: none;
 }
 
 .group-toggle {

@@ -187,40 +187,8 @@ async function _queryAllSmart() {
 }
 
 /**
- * 等待服务端在新会话建立后完成一次全量教务同步。
- * 旧后端没有 data_refresh 字段时立即返回, 保持兼容。
- */
-async function _waitForDataRefresh(maxMs = 45000) {
-  const startedAt = Date.now()
-  let delay = 500
-  while (Date.now() - startedAt < maxMs) {
-    let state = ''
-    try {
-      if (typeof api.getDataRefreshStatus === 'function') {
-        const light = await api.getDataRefreshStatus()
-        state = light && light.data_refresh && light.data_refresh.state
-      }
-      // 兼容旧后端: 轻量接口不存在时回退到 /api/status。
-      if (!state) {
-        const res = await api.getStatus()
-        state = res && res.data_refresh && res.data_refresh.state
-      }
-    } catch (e) {
-      return false
-    }
-    if (!state || state === 'idle' || state === 'done' ||
-        state === 'partial' || state === 'failed') {
-      return state !== 'failed'
-    }
-    await new Promise(resolve => setTimeout(resolve, delay))
-    delay = Math.min(3000, Math.round(delay * 1.6))
-  }
-  return false
-}
-
-/**
  * 读取全部数据到本地缓存。
- * - 新会话: 等服务端后台同步完成后读取, 不重复刷新教务
+ * - 普通进入/登录: 只读取服务器已有缓存, 不访问教务
  * - 用户主动刷新(force=true): 立刻刷新教务并重新读取
  *
  * @returns {Promise<number>} 最终成功载入的数据项数
@@ -239,22 +207,12 @@ async function fetchAllData(options) {
   if (storage.get('account_type', '') === 'graduate') {
     let ok = 0
     try { ok = await _queryAll() } catch (e) { /* 静默 */ }
-    if (!force) {
-      await _waitForDataRefresh()
-      try { ok = await _queryAll() } catch (e) { /* 静默 */ }
-    }
     return ok
   }
   // 1) 立即载入现有数据
-  try { await _queryAllSmart() } catch (e) { /* 静默 */ }
-
-  if (!force) {
-    // 登录/自动重登由服务端统一刷新一次; 前端只等待并读取结果。
-    await _waitForDataRefresh()
-    let ok = 0
-    try { ok = await _queryAllSmart() } catch (e) { /* 静默 */ }
-    return ok
-  }
+  let ok = 0
+  try { ok = await _queryAllSmart() } catch (e) { /* 静默 */ }
+  if (!force) return ok
 
   // 2) 刷新教务获取最新数据(4 并发, 后端教务限流 4)
   await Promise.all([
@@ -265,7 +223,7 @@ async function fetchAllData(options) {
   ])
 
   // 3) 重新查询写入最新缓存
-  let ok = 0
+  ok = 0
   try { ok = await _queryAllSmart() } catch (e) { /* 静默 */ }
   return ok
 }

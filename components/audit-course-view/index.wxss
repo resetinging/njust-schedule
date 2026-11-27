@@ -285,7 +285,7 @@
   font-weight: 600;
 }
 
-.time-value text {
+.time-value-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -331,7 +331,7 @@
   font-size: var(--fs-cap);
 }
 
-.active-chip text {
+.active-chip-label {
   max-width: 320rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -491,7 +491,7 @@
   font-size: var(--fs-sub);
 }
 
-.meta-row text {
+.meta-row-text {
   flex: 1;
   min-width: 0;
   line-height: 1.5;
@@ -653,7 +653,7 @@
   font-weight: 600;
 }
 
-.explorer-time-cell > text:last-child {
+.explorer-time-value {
   display: block;
   margin-top: var(--space-xxs);
   overflow: hidden;
@@ -715,7 +715,7 @@
   font-size: var(--fs-cap);
 }
 
-.selected-chip text {
+.selected-chip-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -800,7 +800,7 @@
   min-width: 0;
 }
 
-.explorer-item-main > text:first-child {
+.explorer-item-value {
   flex: 1;
   min-width: 0;
   overflow: hidden;

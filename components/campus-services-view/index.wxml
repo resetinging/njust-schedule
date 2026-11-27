@@ -142,7 +142,8 @@
         </scroll-view>
 
         <view class="sheet-footer">
-          <button class="lead-action tap" disabled="{{detailLoading || detailError}}"
+          <button class="lead-action tap {{detailLoading || detailError ? 'is-disabled' : ''}}"
+                  disabled="{{detailLoading || detailError}}"
                   bindtap="onStartLead">获取咨询方式</button>
         </view>
       </block>

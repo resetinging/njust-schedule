@@ -3,6 +3,7 @@
   "usingComponents": {
     "ad-slot": "/components/ad-slot/index",
     "loading-modal": "/components/loading-modal/loading-modal",
-    "empty-state": "/components/empty-state/index"
+    "empty-state": "/components/empty-state/index",
+    "t-loading": "/miniprogram_npm/tdesign-miniprogram/loading/loading"
   }
 }

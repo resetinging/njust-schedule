@@ -25,6 +25,12 @@ const {
 const WEEKDAY = ['日', '一', '二', '三', '四', '五', '六']
 const EXAM_AUTO_REFRESH_MS = 30 * 60 * 1000
 
+function shortExamStatus(text) {
+  return String(text || '')
+    .replace(/^还有\s*/, '')
+    .replace(/\s+/g, '')
+}
+
 Component({
   options: {
     styleIsolation: 'apply-shared'
@@ -32,7 +38,9 @@ Component({
 
   data: {
     exams: [],
-    countdowns: [],    // 顶部倒计时卡片（进行中优先 + 最近未开始，最多 3 场）
+    countdowns: [],    // 最近考试候选（进行中优先 + 最近未开始，最多 3 场）
+    featuredExam: null, // 首屏最近/进行中的考试
+    pendingExamCount: 0, // 未结束考试数量（不含已结束）
     dayGroups: [],     // 按日期分组 [{date, weekday, urgency, urgencyText, exams}]
     loading: false,
     refreshing: false,
@@ -132,6 +140,8 @@ Component({
       this.setData({
         exams: [],
         countdowns: [],
+        featuredExam: null,
+        pendingExamCount: 0,
         dayGroups: [],
         collapsedDates: {},
         examRows: [],
@@ -167,7 +177,7 @@ Component({
       const semester = storage.getSemester() || ''
       if (isGrad) {
         this.setData({
-          semester, exams: [], countdowns: [], dayGroups: [],
+          semester, exams: [], countdowns: [], pendingExamCount: 0, dayGroups: [],
           collapsedDates: this.data.collapsedDates,
           loading: false, refreshing: false, errorMsg: ''
         })
@@ -308,7 +318,7 @@ Component({
       const list = Array.isArray(exams) ? exams : []
       if (semesterChanged) this.setData({ collapsedDates: {} })
       if (!list.length) {
-        this.setData({ semester: sem, exams: [], countdowns: [], dayGroups: [], collapsedDates: {} })
+        this.setData({ semester: sem, exams: [], countdowns: [], pendingExamCount: 0, dayGroups: [], collapsedDates: {} })
         return
       }
       this.setData({ semester: sem, exams: list })
@@ -355,10 +365,11 @@ Component({
       const now = Number.isFinite(nowMs) ? nowMs : Date.now()
       if (!list.length) {
         // 服务器刷新返回空数组同样要复位折叠状态
-        this.setData({ countdowns: [], dayGroups: [], collapsedDates: {} })
+        this.setData({ countdowns: [], featuredExam: null, pendingExamCount: 0, dayGroups: [], collapsedDates: {} })
         return
       }
       const items = list.map(exam => ({ exam, timing: getExamTiming(exam, now) }))
+      const pendingExamCount = items.filter(x => x.timing.status !== 'done').length
 
       // --- 倒计时卡片：进行中优先，其次最近未开始；最多 3 场；不含已结束/时间待定 ---
       const countdowns = items
@@ -375,7 +386,10 @@ Component({
             course_name: x.exam.course_name,
             date: x.exam.date,
             time: x.exam.time,
-            info: { text: cd.statusText, cls: cd.cls },
+            location: x.exam.location,
+            seat: x.exam.seat,
+            type: x.exam.type,
+            info: { text: cd.statusText, shortText: shortExamStatus(cd.statusText), cls: cd.cls },
             bigNum: cd.bigNum,
             bigLabel: cd.bigLabel,
             cardClass: cd.cls
@@ -424,6 +438,7 @@ Component({
           return Object.assign({}, exam, {
             status: timing.status,
             statusText: cd.statusText,
+            shortStatusText: shortExamStatus(cd.statusText),
             statusClass: 'is-' + timing.status,
             cardClass
           })
@@ -437,7 +452,16 @@ Component({
         }
       })
 
-      this.setData({ countdowns, dayGroups })
+      const activeGroups = dayGroups.filter(group => group.urgency !== 'done')
+      const doneGroups = dayGroups
+        .filter(group => group.urgency === 'done')
+        .sort((a, b) => dateSortKey(b.date) - dateSortKey(a.date))
+      this.setData({
+        countdowns,
+        featuredExam: countdowns[0] || null,
+        pendingExamCount,
+        dayGroups: activeGroups.concat(doneGroups)
+      })
     },
 
     /** 折叠/展开已结束的日期组（仅全部结束的组可折叠） */

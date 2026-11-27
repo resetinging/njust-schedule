@@ -45,12 +45,12 @@
   box-shadow: var(--shadow-island);
 }
 
-.topbar picker,
-.weekbar picker {
+.sem-picker,
+.week-picker {
   min-width: 0;
 }
 
-.topbar picker { flex-shrink: 1; }
+.sem-picker { flex-shrink: 1; }
 
 .tb-sem {
   display: flex;
@@ -107,7 +107,7 @@
   border-radius: var(--radius-island);
 }
 
-.weekbar picker {
+.week-picker {
   flex: 1;
 }
 

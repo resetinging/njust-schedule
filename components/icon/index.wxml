@@ -46,7 +46,7 @@ module.exports.file = function (name, c) {
   if (name === 'close') return tone === 'indigo' ? 'close-indigo' : 'close-slate'
   if (name === 'calendar') return tone === 'grey' ? 'calendar-grey' : (tone === 'indigo' ? 'calendar-indigo' : 'calendar-slate')
   if (name === 'megaphone') return tone === 'indigo' ? 'megaphone-indigo' : 'megaphone-grey'
-  if (name === 'grid') return tone === 'grey' ? 'grid-grey' : (tone === 'indigo' ? 'grid-indigo' : 'grid-slate')
+  if (name === 'grid' || name === 'seat') return tone === 'grey' ? 'grid-grey' : (tone === 'indigo' ? 'grid-indigo' : 'grid-slate')
   if (name === 'user') return tone === 'grey' ? 'user-grey' : (tone === 'indigo' ? 'user-indigo' : 'user-slate')
   // 未知图标名兜底到真实存在的资源
   return 'grid-slate'

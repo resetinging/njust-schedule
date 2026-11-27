@@ -75,117 +75,238 @@
 }
 
 /* ==========================================================================
-   倒计时卡片（横向滚动）
+   顶部摘要 + 最近考试主卡
    ========================================================================== */
 
-.countdown-scroll {
-  padding: 0 var(--space-page) var(--space-sm);
-  white-space: nowrap;
-}
-
-.countdown-row {
-  display: inline-flex;
-  gap: var(--space-sm);
-  padding: var(--space-xxs) 0;
-}
-
-/* 白底细边框卡片由基座 .countdown-card 提供，这里只补布局与状态色 */
-.countdown-card {
-  display: inline-flex;
-  flex-direction: column;
+.exam-summary {
+  display: flex;
   align-items: center;
-  min-width: 176rpx;
-  padding: var(--space-md) var(--space-sm);
-  white-space: normal;
-  border: none;
+  gap: var(--space-md);
+  margin: var(--space-md) var(--space-page) 0;
+  padding: var(--space-md) 0;
+}
+
+.summary-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.summary-title-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.summary-title {
+  color: var(--text-primary);
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.summary-count {
+  flex: none;
+  padding: 3rpx var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: var(--fs-cap);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.summary-semester {
+  display: block;
+  margin-top: var(--space-xxs);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  line-height: 1.45;
+}
+
+.summary-refresh {
+  flex: none;
+}
+
+.featured-exam {
+  margin: 0 var(--space-page) var(--space-lg);
+  padding: var(--space-lg);
+  border: var(--bw-card) solid var(--line);
   border-radius: var(--radius-island);
   background: var(--bg-card);
   box-shadow: var(--shadow-island);
 }
 
-.cd-bignum {
-  font-size: 48rpx;
-  line-height: 1.1;
-  color: var(--text-primary);
-}
-
-.cd-label {
-  margin-top: var(--space-xxs);
-  color: var(--text-muted);
-  font-size: var(--fs-cap);
-  line-height: 1.4;
-}
-
-.cd-course {
-  max-width: 200rpx;
-  margin-top: var(--space-sm);
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: var(--fs-sub);
-  font-weight: 600;
-  line-height: 1.4;
-  text-align: center;
-  text-overflow: ellipsis;
-}
-
-.cd-date {
-  margin-top: var(--space-xxs);
-  color: var(--text-hint);
-  font-size: var(--fs-cap);
-  line-height: 1.4;
-}
-
-/* ≤3 天：提醒色淡底；≤7 天：白底提醒色数字。状态同时有文字标签，不只靠颜色 */
-.countdown-card.urgent {
+.featured-exam.urgent {
   border-color: var(--warning-line);
   background: var(--warning-soft);
 }
 
-.countdown-card.urgent .cd-bignum,
-.countdown-card.urgent .cd-label {
-  color: var(--warning);
-}
-
-.countdown-card.warning {
+.featured-exam.warning {
   border-color: var(--warning-line);
-  background: var(--bg-card);
 }
 
-.countdown-card.warning .cd-bignum {
-  color: var(--warning);
-}
-
-/* 已结束：中性下沉面 + 提示色文字，不用整体透明度压暗可读性 */
-.countdown-card.done {
-  border-color: var(--line);
-  background: var(--bg-sunken);
-}
-
-.countdown-card.done .cd-bignum,
-.countdown-card.done .cd-label,
-.countdown-card.done .cd-course,
-.countdown-card.done .cd-date {
-  color: var(--text-hint);
-}
-
-/* 进行中：品牌淡底 + 品牌数字，与“已结束/未开始”形成区分 */
-.countdown-card.ongoing {
+.featured-exam.ongoing {
   border-color: var(--primary-line);
   background: var(--primary-soft);
 }
 
-.countdown-card.ongoing .cd-bignum,
-.countdown-card.ongoing .cd-label {
+.featured-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.featured-state {
+  max-width: 190rpx;
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: right;
+  word-break: break-word;
+}
+
+.featured-exam.urgent .featured-state {
+  color: var(--warning);
+}
+
+.featured-exam.warning .featured-state {
+  color: var(--warning);
+}
+
+.featured-exam.ongoing .featured-state {
   color: var(--primary);
 }
 
+.featured-course {
+  display: block;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.featured-seat {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  max-width: 190rpx;
+  min-width: 0;
+  gap: 6rpx;
+  color: var(--primary);
+}
+
+.featured-seat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28rpx;
+  height: 40rpx;
+  flex: none;
+}
+
+.featured-seat-value {
+  min-width: 0;
+  color: var(--primary);
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: right;
+  word-break: break-word;
+}
+
+.featured-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+.featured-detail {
+  display: inline-flex;
+  align-items: flex-start;
+  flex: 1 1 240rpx;
+  min-width: 0;
+  gap: 6rpx;
+  color: var(--text-secondary);
+}
+
+.featured-detail-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24rpx;
+  height: 36rpx;
+  flex: none;
+}
+
+.featured-detail-value {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sub);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
 /* ==========================================================================
-   考试列表：日期分组头 + 考试卡片
-   课程名 28rpx/主文字色 → 时间/地点/状态 24rpx/次级文字色，层级统一
+   日期时间轴 + 考试卡片
    ========================================================================== */
 
-.exam-scroll {
+.exam-timeline {
   padding: 0 var(--space-page) var(--space-lg);
+}
+
+.timeline-group {
+  display: grid;
+  grid-template-columns: 24rpx minmax(0, 1fr);
+  gap: var(--space-sm);
+}
+
+.timeline-rail {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding-top: 31rpx;
+}
+
+.timeline-dot {
+  width: 16rpx;
+  height: 16rpx;
+  flex: none;
+  border: 3rpx solid var(--bg-page);
+  border-radius: 50%;
+  background: var(--text-hint);
+  box-sizing: content-box;
+}
+
+.timeline-dot.urgent,
+.timeline-dot.warning,
+.timeline-dot.unknown {
+  background: var(--warning);
+}
+
+.timeline-dot.ongoing {
+  background: var(--primary);
+}
+
+.timeline-dot.done {
+  background: var(--line-strong);
+}
+
+.timeline-line {
+  width: 2rpx;
+  flex: 1;
+  min-height: 24rpx;
+  margin-top: var(--space-xs);
+  background: var(--line);
+}
+
+.timeline-body {
+  min-width: 0;
 }
 
 /* 已结束分组可点折叠：整行热区 ≥ 88rpx，按压反馈交给基座 .tap */
@@ -198,12 +319,30 @@
   padding: var(--space-sm) 0 var(--space-xs);
 }
 
-.date-title {
+.date-main {
+  display: flex;
+  align-items: baseline;
   min-width: 0;
+  gap: var(--space-sm);
+}
+
+.date-title {
+  flex: none;
   color: var(--text-primary);
+  font-family: var(--font-num);
   font-size: var(--fs-section);
   font-weight: 700;
   line-height: 1.4;
+}
+
+.date-weekday {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .date-right {
@@ -260,7 +399,7 @@
 }
 
 .exam-card {
-  padding: var(--space-md) var(--space-lg);
+  padding: 18rpx var(--space-lg);
   margin-bottom: var(--space-sm);
 }
 
@@ -272,15 +411,13 @@
   border-left: 4rpx solid var(--warning-light);
 }
 
-.exam-card.exam-done {
-  background: var(--bg-sunken);
-}
-
 .exam-card.exam-done .exam-course {
   color: var(--text-secondary);
 }
 
-.exam-card.exam-done .meta-item {
+.exam-card.exam-done .exam-detail-value,
+.exam-card.exam-done .exam-seat-value,
+.exam-card.exam-done .exam-type {
   color: var(--text-hint);
 }
 
@@ -296,19 +433,15 @@
 
 /* 卡片头：课程名 + 自身状态徽章（不继承同日第一场的状态） */
 .exam-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: flex-start;
-  justify-content: space-between;
   gap: var(--space-sm);
-  margin-bottom: var(--space-xs);
+  margin-bottom: var(--space-sm);
 }
 
 .exam-state {
-  flex: 0 0 auto;
-  max-width: 52%;
-  padding: 2rpx var(--space-sm);
-  border-radius: var(--radius-pill);
-  background: var(--bg-sunken);
+  max-width: 190rpx;
   color: var(--text-muted);
   font-size: var(--fs-cap);
   font-weight: 600;
@@ -319,27 +452,22 @@
 }
 
 .exam-state.is-upcoming {
-  background: var(--success-soft);
   color: var(--success);
 }
 
 .exam-state.is-ongoing {
-  background: var(--primary-soft);
   color: var(--primary);
 }
 
 .exam-state.is-done {
-  background: var(--bg-sunken);
   color: var(--text-hint);
 }
 
 .exam-state.is-unknown {
-  background: var(--warning-soft);
   color: var(--warning);
 }
 
 .exam-course {
-  flex: 1 1 auto;
   min-width: 0;
   margin-bottom: 0;
   color: var(--text-primary);
@@ -349,16 +477,70 @@
   word-break: break-word;
 }
 
-.exam-meta {
+.exam-seat {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  max-width: 190rpx;
+  min-width: 0;
+  gap: 6rpx;
+}
+
+.exam-seat-icon {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  width: 24rpx;
+  height: 34rpx;
+  flex: none;
+}
+
+.exam-seat-value {
+  min-width: 0;
+  color: var(--primary);
+  font-size: var(--fs-sub);
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: right;
+  word-break: break-word;
+}
+
+.exam-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-xs) var(--space-lg);
 }
 
-.meta-item {
+.exam-detail {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 6rpx;
+}
+
+.exam-detail-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22rpx;
+  height: 36rpx;
+  flex: none;
+}
+
+.exam-detail-value {
+  min-width: 0;
   color: var(--text-secondary);
   font-size: var(--fs-sub);
-  line-height: 1.4;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.exam-type {
+  display: block;
+  margin-top: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--fs-cap);
+  line-height: 1.45;
 }
 
 /* ==========================================================================

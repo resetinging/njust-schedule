@@ -10,7 +10,7 @@
 
     <!-- 顶栏第一行: 学期(可点切换) + 今天日期 -->
     <view class="topbar">
-      <ui-picker range="{{semesters}}" title="选择学期" bind:change="onSemesterChange" bind:visiblechange="onPickerVisibleChange">
+      <ui-picker class="sem-picker" range="{{semesters}}" title="选择学期" bind:change="onSemesterChange" bind:visiblechange="onPickerVisibleChange">
         <view class="tb-sem">{{semester || '选择学期'}}<text class="tb-caret">▾</text></view>
       </ui-picker>
       <view class="tb-fav tap" aria-label="查询蹭课收藏" bindtap="onOpenAuditFavorites">
@@ -26,7 +26,7 @@
         <icon class="ctrl-icon prev-icon" name="prev" size="26" color="#6B7684" />
       </view>
       <!-- 点周次可快速跳周 -->
-      <ui-picker range="{{weekPickerRange}}" value="{{currentWeek - 1}}" title="跳转周次" bind:change="onJumpWeek" bind:visiblechange="onPickerVisibleChange">
+      <ui-picker class="week-picker" range="{{weekPickerRange}}" value="{{currentWeek - 1}}" title="跳转周次" bind:change="onJumpWeek" bind:visiblechange="onPickerVisibleChange">
         <view class="week-label">
           <text class="week-main">{{currentWeek === actualWeek ? '第 ' + (currentWeek || 1) + ' 周 · 本周' : '第 ' + (currentWeek || 1) + ' 周'}}</text>
           <text class="week-range" wx:if="{{weekRange}}">{{weekRange}}</text>

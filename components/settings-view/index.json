@@ -1,6 +1,11 @@
 {
   "component": true,
   "usingComponents": {
-    "icon": "/components/icon/index"
+    "icon": "/components/icon/index",
+    "t-button": "/miniprogram_npm/tdesign-miniprogram/button/button",
+    "t-input": "/miniprogram_npm/tdesign-miniprogram/input/input",
+    "t-loading": "/miniprogram_npm/tdesign-miniprogram/loading/loading",
+    "t-popup": "/miniprogram_npm/tdesign-miniprogram/popup/popup",
+    "t-textarea": "/miniprogram_npm/tdesign-miniprogram/textarea/textarea"
   }
 }

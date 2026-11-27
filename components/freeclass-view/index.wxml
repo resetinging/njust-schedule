@@ -54,7 +54,7 @@
         </view>
       </ui-picker>
       <ui-picker range="{{slotList}}" range-key="label" value="{{endIndex}}" title="选择结束时段" bind:change="onEndChange">
-        <view class="filter-row tap">
+        <view class="filter-row filter-row-last tap">
           <view class="filter-icon"><icon name="hourglass" size="30" color="#6B7684" /></view>
           <text class="filter-label">结束时段</text>
           <text class="filter-value">{{slotList[endIndex].label}}</text>
@@ -78,7 +78,7 @@
 
     <!-- 按教学楼分组的教室(纯展示) -->
     <view class="group-list" wx:if="{{groups.length}}">
-      <block wx:for="{{groups}}" wx:key="prefix" wx:for-item="grp">
+      <block wx:for="{{groups}}" wx:key="prefix" wx:for-item="grp" wx:for-index="groupIndex">
         <view class="group-card">
           <view class="group-head">
             <view class="group-name-wrap">
@@ -87,12 +87,25 @@
             </view>
             <view class="group-badge">{{grp.rooms.length}} 间</view>
           </view>
+          <view class="floor-nav" wx:if="{{grp.showFloorNav}}">
+            <scroll-view class="floor-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+              <view class="floor-tabs">
+                <view class="floor-tab tap {{grp.activeFloorIndex === floorIndex ? 'is-active' : ''}}"
+                      wx:for="{{grp.floors}}" wx:for-item="floor" wx:for-index="floorIndex" wx:key="key"
+                      data-group-index="{{groupIndex}}" data-floor-index="{{floorIndex}}" bindtap="onFloorTap"
+                      aria-label="{{floor.label}}">
+                  <text class="floor-tab-label">{{floor.label}}</text>
+                </view>
+              </view>
+            </scroll-view>
+          </view>
           <view class="group-chips {{grp.expanded ? '' : 'is-collapsed'}}">
             <view class="chips-inner">
-              <view class="room-chip" wx:for="{{grp.chips}}" wx:key="*this">{{item}}</view>
+              <view class="room-chip {{roomIndex % 4 === 3 ? 'room-chip-end' : ''}}"
+                    wx:for="{{grp.visibleChips}}" wx:for-index="roomIndex" wx:key="*this">{{item}}</view>
             </view>
           </view>
-          <view class="group-toggle tap" wx:if="{{grp.overflow}}" data-index="{{index}}" bindtap="onToggleGroup">
+          <view class="group-toggle tap" wx:if="{{!grp.showFloorNav && grp.overflow}}" data-index="{{groupIndex}}" bindtap="onToggleGroup">
             <text>{{grp.expanded ? '收起' : '展开全部 ' + grp.rooms.length + ' 间'}}</text>
             <view class="toggle-arrow"><icon name="{{grp.expanded ? 'prev' : 'next'}}" size="24" color="#3157D5" /></view>
           </view>

@@ -4,6 +4,10 @@
     "ad-slot": "/components/ad-slot/index",
     "loading-modal": "/components/loading-modal/loading-modal",
     "empty-state": "/components/empty-state/index",
-    "icon": "/components/icon/index"
+    "icon": "/components/icon/index",
+    "t-button": "/miniprogram_npm/tdesign-miniprogram/button/button",
+    "t-dialog": "/miniprogram_npm/tdesign-miniprogram/dialog/dialog",
+    "t-input": "/miniprogram_npm/tdesign-miniprogram/input/input",
+    "t-slider": "/miniprogram_npm/tdesign-miniprogram/slider/slider"
   }
 }

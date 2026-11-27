@@ -3,6 +3,8 @@
   "usingComponents": {
     "ad-slot": "/components/ad-slot/index",
     "empty-state": "/components/empty-state/index",
-    "icon": "/components/icon/index"
+    "icon": "/components/icon/index",
+    "ui-picker": "/components/ui-picker/index",
+    "t-loading": "/miniprogram_npm/tdesign-miniprogram/loading/loading"
   }
 }

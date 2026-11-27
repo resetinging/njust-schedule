@@ -3,6 +3,10 @@
   "usingComponents": {
     "week-grid": "/components/week-grid/week-grid",
     "empty-state": "/components/empty-state/index",
-    "icon": "/components/icon/index"
+    "icon": "/components/icon/index",
+    "ui-picker": "/components/ui-picker/index",
+    "t-button": "/miniprogram_npm/tdesign-miniprogram/button/button",
+    "t-input": "/miniprogram_npm/tdesign-miniprogram/input/input",
+    "t-popup": "/miniprogram_npm/tdesign-miniprogram/popup/popup"
   }
 }

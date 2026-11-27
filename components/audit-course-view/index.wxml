@@ -130,7 +130,7 @@
             <view class="time-cell tap">
               <text class="time-label">星期</text>
               <view class="time-value">
-                <text>{{weekdayOptions[weekdayIndex]}}</text>
+                <text class="time-value-text">{{weekdayOptions[weekdayIndex]}}</text>
                 <icon name="next" size="20" color="#6B7684" />
               </view>
             </view>
@@ -140,7 +140,7 @@
             <view class="time-cell tap">
               <text class="time-label">开始</text>
               <view class="time-value">
-                <text>{{periodOptions[startPeriodIndex]}}</text>
+                <text class="time-value-text">{{periodOptions[startPeriodIndex]}}</text>
                 <icon name="next" size="20" color="#6B7684" />
               </view>
             </view>
@@ -150,7 +150,7 @@
             <view class="time-cell tap">
               <text class="time-label">结束</text>
               <view class="time-value">
-                <text>{{periodOptions[endPeriodIndex]}}</text>
+                <text class="time-value-text">{{periodOptions[endPeriodIndex]}}</text>
                 <icon name="next" size="20" color="#6B7684" />
               </view>
             </view>
@@ -167,7 +167,7 @@
         <view class="active-chip" wx:for="{{activeChips}}" wx:key="key"
               data-field="{{item.field}}" data-value="{{item.value}}"
               bindtap="clearWorkbenchChip">
-          <text>{{item.label}} · {{item.value}}</text>
+          <text class="active-chip-label">{{item.label}} · {{item.value}}</text>
           <icon name="close" size="18" color="#3157D5" />
         </view>
         <view class="active-edit tap" bindtap="openQueryExplorer">编辑</view>
@@ -205,27 +205,27 @@
           </view>
           <view class="meta-row">
             <icon name="clipboard" size="26" color="#6B7684" />
-            <text>{{item.class_info || '班级信息未注明'}}</text>
+            <text class="meta-row-text">{{item.class_info || '班级信息未注明'}}</text>
           </view>
           <view class="meta-row" wx:if="{{item.teacher}}">
             <icon name="user" size="26" color="#6B7684" />
-            <text>{{item.teacher}}</text>
+            <text class="meta-row-text">{{item.teacher}}</text>
           </view>
           <view class="meta-row">
             <icon name="calendar" size="26" color="#6B7684" />
-            <text>{{item.daySummary || '星期未注明'}}</text>
+            <text class="meta-row-text">{{item.daySummary || '星期未注明'}}</text>
           </view>
           <view class="meta-row">
             <icon name="clock" size="26" color="#6B7684" />
-            <text>{{item.timeSummary}}</text>
+            <text class="meta-row-text">{{item.timeSummary}}</text>
           </view>
           <view class="meta-row">
             <icon name="calendar" size="26" color="#6B7684" />
-            <text>{{item.weeksSummary}}</text>
+            <text class="meta-row-text">{{item.weeksSummary}}</text>
           </view>
           <view class="meta-row">
             <icon name="building" size="26" color="#6B7684" />
-            <text>{{item.classroom || '教室未注明'}}</text>
+            <text class="meta-row-text">{{item.classroom || '教室未注明'}}</text>
           </view>
         </view>
       </view>
@@ -297,21 +297,21 @@
                    value="{{weekdayIndex}}" title="选择星期" bind:change="onWeekdayChange">
           <view class="explorer-time-cell tap">
             <text class="explorer-time-label">星期</text>
-            <text>{{weekdayOptions[weekdayIndex]}}</text>
+            <text class="explorer-time-value">{{weekdayOptions[weekdayIndex]}}</text>
           </view>
         </ui-picker>
         <ui-picker range="{{periodOptions}}"
                    value="{{startPeriodIndex}}" title="选择开始节次" bind:change="onStartPeriodChange">
           <view class="explorer-time-cell tap">
             <text class="explorer-time-label">开始</text>
-            <text>{{periodOptions[startPeriodIndex]}}</text>
+            <text class="explorer-time-value">{{periodOptions[startPeriodIndex]}}</text>
           </view>
         </ui-picker>
         <ui-picker range="{{periodOptions}}"
                    value="{{endPeriodIndex}}" title="选择结束节次" bind:change="onEndPeriodChange">
           <view class="explorer-time-cell tap">
             <text class="explorer-time-label">结束</text>
-            <text>{{periodOptions[endPeriodIndex]}}</text>
+            <text class="explorer-time-value">{{periodOptions[endPeriodIndex]}}</text>
           </view>
         </ui-picker>
       </view>
@@ -320,7 +320,7 @@
         <view class="selected-chip" wx:for="{{activeChips}}" wx:key="key"
               data-field="{{item.field}}" data-value="{{item.value}}"
               bindtap="clearWorkbenchChip">
-          <text>{{item.label}}：{{item.value}}</text>
+          <text class="selected-chip-label">{{item.label}}：{{item.value}}</text>
           <icon name="close" size="18" color="#3157D5" />
         </view>
       </view>
@@ -349,7 +349,7 @@
                 wx:for="{{explorerItems}}" wx:key="value"
                 data-value="{{item.value}}" bindtap="onExplorerSelect">
             <view class="explorer-item-main">
-              <text>{{item.value}}</text>
+              <text class="explorer-item-value">{{item.value}}</text>
               <text class="explorer-item-count">{{item.count}} 个时段</text>
             </view>
             <text class="explorer-check" wx:if="{{item.selected}}">✓</text>

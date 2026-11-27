@@ -4,6 +4,10 @@
     "ad-slot": "/components/ad-slot/index",
     "icon": "/components/icon/index",
     "empty-state": "/components/empty-state/index",
-    "week-grid": "/components/week-grid/week-grid"
+    "ui-picker": "/components/ui-picker/index",
+    "week-grid": "/components/week-grid/week-grid",
+    "t-input": "/miniprogram_npm/tdesign-miniprogram/input/input",
+    "t-loading": "/miniprogram_npm/tdesign-miniprogram/loading/loading",
+    "t-popup": "/miniprogram_npm/tdesign-miniprogram/popup/popup"
   }
 }

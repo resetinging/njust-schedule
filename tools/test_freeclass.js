@@ -242,6 +242,44 @@ function deferred() {
     assert.ok(inst.data.result.summary.indexOf('江阴') >= 0, inst.data.result.summary)
   })
 
+  console.log('\n2f) 大教学楼按楼层分段')
+  const floorRooms = []
+  for (let floor = 1; floor <= 4; floor++) {
+    for (let room = 1; room <= 4; room++) {
+      floorRooms.push('Ⅳ教学楼-A' + floor + '0' + room)
+    }
+  }
+  inst._applyResult({
+    success: true, campus: '孝陵卫', weekday: 3, week: 5, jc1: 1, jc2: 3,
+    weekday_name: '星期三', time_text: '第1-3节', count: floorRooms.length,
+    rooms: floorRooms, buildings: [], semester: '2026-2027-1', updated_at: 556
+  })
+  const floorGroup = inst.data.groups.find(x => x.prefix === 'Ⅳ教学楼')
+  check('多楼层大分组默认只显示第一层', () => {
+    assert.ok(floorGroup && floorGroup.showFloorNav, JSON.stringify(floorGroup))
+    assert.deepStrictEqual(floorGroup.floors.map(x => x.label), ['1层', '2层', '3层', '4层'])
+    assert.deepStrictEqual(floorGroup.floors.map(x => x.count), [4, 4, 4, 4])
+    assert.strictEqual(floorGroup.activeFloorIndex, 0)
+    assert.deepStrictEqual(floorGroup.visibleChips, ['A101', 'A102', 'A103', 'A104'])
+  })
+  check('切换楼层后只更新该楼可见教室', () => {
+    const groupIndex = inst.data.groups.indexOf(floorGroup)
+    inst.onFloorTap({ currentTarget: { dataset: { groupIndex, floorIndex: 2 } } })
+    const changed = inst.data.groups[groupIndex]
+    assert.strictEqual(changed.activeFloorIndex, 2)
+    assert.deepStrictEqual(changed.visibleChips, ['A301', 'A302', 'A303', 'A304'])
+  })
+  check('重新查询后楼层选择回到第一层', () => {
+    inst._applyResult({
+      success: true, campus: '孝陵卫', weekday: 3, week: 5, jc1: 1, jc2: 3,
+      weekday_name: '星期三', time_text: '第1-3节', count: floorRooms.length,
+      rooms: floorRooms, buildings: [], semester: '2026-2027-1', updated_at: 557
+    })
+    const reset = inst.data.groups.find(x => x.prefix === 'Ⅳ教学楼')
+    assert.strictEqual(reset.activeFloorIndex, 0)
+    assert.deepStrictEqual(reset.visibleChips, ['A101', 'A102', 'A103', 'A104'])
+  })
+
   console.log('\n3) 等价查询命中缓存(不再重复请求)')
   inst.setData({ campusIndex: 0, weekdayIndex: 3, weekIndex: 5, startIndex: 0, endIndex: 0 })
   let before = calls.length
