@@ -2,10 +2,12 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -15,6 +17,8 @@ const (
 	wechatTemplateCacheTTL = 6 * time.Hour
 	wechatTemplateRetryTTL = 5 * time.Minute
 )
+
+var wechatTemplatePlaceholder = regexp.MustCompile(`\{\{\s*([A-Za-z0-9_]+)\.DATA\s*\}\}`)
 
 type wechatTemplateField struct {
 	Key  string `json:"key"`
@@ -94,8 +98,8 @@ func (s *Server) fetchTemplateFields(ctx context.Context, templateID string) ([]
 		ErrCode int    `json:"errcode"`
 		ErrMsg  string `json:"errmsg"`
 		Data    []struct {
-			PriTmplID string                `json:"priTmplId"`
-			Content   []wechatTemplateField `json:"content"`
+			PriTmplID string          `json:"priTmplId"`
+			Content   json.RawMessage `json:"content"`
 		} `json:"data"`
 	}
 	if err := decodeWechatResponse(resp.Body, &payload); err != nil {
@@ -105,11 +109,78 @@ func (s *Server) fetchTemplateFields(ctx context.Context, templateID string) ([]
 		return nil, fmt.Errorf("读取模板字段失败: %d %s", payload.ErrCode, payload.ErrMsg)
 	}
 	for _, item := range payload.Data {
-		if item.PriTmplID == templateID && len(item.Content) > 0 {
-			return item.Content, nil
+		if item.PriTmplID != templateID {
+			continue
+		}
+		if fields := parseTemplateContent(item.Content); len(fields) > 0 {
+			return fields, nil
 		}
 	}
 	return nil, fmt.Errorf("未找到模板 %s 的字段定义", templateID)
+}
+
+func parseTemplateContent(raw json.RawMessage) []wechatTemplateField {
+	value := strings.TrimSpace(string(raw))
+	if value == "" || value == "null" {
+		return nil
+	}
+	switch value[0] {
+	case '[':
+		var fields []wechatTemplateField
+		if json.Unmarshal([]byte(value), &fields) != nil {
+			return nil
+		}
+		out := make([]wechatTemplateField, 0, len(fields))
+		for _, field := range fields {
+			field.Key = strings.TrimSpace(field.Key)
+			field.Name = strings.TrimSpace(field.Name)
+			if field.Key != "" {
+				out = append(out, field)
+			}
+		}
+		return out
+	case '"':
+		var content string
+		if json.Unmarshal([]byte(value), &content) != nil {
+			return nil
+		}
+		return parseTemplateText(content)
+	default:
+		return nil
+	}
+}
+
+func parseTemplateText(content string) []wechatTemplateField {
+	matches := wechatTemplatePlaceholder.FindAllStringSubmatchIndex(content, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	fields := make([]wechatTemplateField, 0, len(matches))
+	seen := make(map[string]bool, len(matches))
+	previousEnd := 0
+	for _, match := range matches {
+		key := strings.TrimSpace(content[match[2]:match[3]])
+		if key == "" || seen[key] {
+			previousEnd = match[1]
+			continue
+		}
+		name := templateFieldName(content[previousEnd:match[0]])
+		fields = append(fields, wechatTemplateField{Key: key, Name: name})
+		seen[key] = true
+		previousEnd = match[1]
+	}
+	return fields
+}
+
+func templateFieldName(prefix string) string {
+	if index := strings.LastIndexAny(prefix, "\r\n"); index >= 0 {
+		prefix = prefix[index+1:]
+	}
+	name := strings.Trim(prefix, " \t\r\n:：,，;；|、-—_")
+	if len([]rune(name)) > 40 {
+		return ""
+	}
+	return name
 }
 
 func fallbackTemplateFields(kind string) []wechatTemplateField {

@@ -15,7 +15,7 @@
 - 新增固定合作商验收账号：与学生共用 `/api/login-webvpn`，后端先按 `PARTNER_PREVIEW_USER` 识别并从 `PARTNER_PREVIEW_PASSWORD` 校验，签发 `role=partner` 会话；登录 5 次/分钟限流，不进入学生 SSO、不创建 JWC Client、不预抓教务
 - 微信订阅消息默认切换云托管开放接口服务：容器内使用 `http://api.weixin.qq.com`，不获取 `access_token`、不要求 `MP_SECRET`，并校验 `x-openapi-seqid` 确认走内网云调用；`WECHAT_OPENAPI_MODE=public` 仅作为本地或非云托管环境的显式覆盖
 - 订阅发送补充 `lang=zh_CN`，网络错误不再回显含 Secret/Token 的完整 URL；新增默认云调用、缺失 `x-openapi-seqid`、public Token 路径与错误清洗测试
-- 修复订阅模板新增字段后发送失败：按 `template_id` 获取并缓存模板字段定义，按字段语义自动生成 `thing8` 等新增字段值，避免固定五字段映射导致 `47003 argument invalid`；支持 `SUBSCRIBE_TPL_*_FIELDS` 字段 Key 兜底
+- 修复订阅模板新增字段后发送失败：按 `template_id` 获取并缓存模板字段定义，兼容 `content` 对象数组和模板字符串两种响应，按字段语义自动生成 `thing8` 等新增字段值，避免固定五字段映射导致 `47003 argument invalid`；支持 `SUBSCRIBE_TPL_*_FIELDS` 字段 Key 兜底
 - 合作商访问课程/考试/成绩/四六级/学业进度接口时返回集中维护的只读虚构演示数据，并标记 `demo_mode:true`；刷新接口返回 `refreshed=false`，不读取学生业务数据、不写数据库且不触发教务。评教和学籍仍返回空数据
 - 用户个人数据改为完全按需刷新：取消每日 00:20 全量用户批量同步和登录后的自动预抓；登录只建立会话并读取 MySQL 已有快照，课表、考试、成绩、四六级、评教、校历、培养方案、学籍和全量刷新均由用户主动操作回源
 - 保留考试页 30 分钟静默刷新、成绩页手动刷新和有提醒额度用户的考试/成绩生命周期检测。考试与成绩提醒共用三阶段检测频率：第 1–7 天每天 `10/14/18` 点，第 8–21 天每天 `06–23` 点每小时，第 22–28 天恢复 `10/14/18` 点，第 29 天起过期；找到考试后考试提醒锁定到考试结束

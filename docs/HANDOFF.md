@@ -11,7 +11,7 @@
 ### Server
 
 - 当前分支：`server`
-- 当前 HEAD：以 `origin/server` 为准；最近功能提交为 `6aad689 fix: 动态适配订阅模板字段`
+- 当前 HEAD：以 `origin/server` 为准；最近功能提交见 `git log --oneline`
 - 当前已跟踪工作区无未提交改动；本机仅有 `.tmp/`、`.video-tools/`、`poster/`、`video/`、`audit-no-classroom.csv` 等未跟踪本地产物，不入库
 - 2026-11-24 新增校园服务前后端（`internal/campus`、服务/线索表和接口、管理后台页签、`1002_campus_services` 安全迁移，以及小程序入口/服务簿/详情/咨询表单）
 - 2026-10-29 新增图书馆公共馆藏只读网关与两个 API（已随 v1.10.0 提交）：`internal/library` + `internal/httpapi/library.go`，无数据库迁移；匿名访问 OPAC，登录用户共享有界内存缓存
@@ -98,7 +98,7 @@ exec ./server
 - 局部组件注册修复（2026-11-27，未提交）：主包精简移除 `app.json` 全局 `ui-picker` 后，为空教室和蹭课组件补回局部注册；新增 `tools/test_component_registrations.js` 扫描全部 WXML，防止同类按需注入缺失
 - 考试场次统计（2026-11-27，未提交）：顶部摘要只统计未结束考试，已结束考试不计入；时间待定但未确认结束的考试仍计入未考场次
 - 微信订阅发送（2026-11-27，未提交）：默认 `WECHAT_OPENAPI_MODE=cloudrun`，容器内通过 `http://api.weixin.qq.com` 调用开放接口服务，不获取 Token、不要求 MP_SECRET，并校验 `x-openapi-seqid`；`public` 仅显式覆盖本地/非云托管环境，发送体补 `lang=zh_CN`，网络错误清洗 URL
-- 订阅模板动态字段（2026-11-28，已推送待部署）：按 `template_id` 获取并缓存模板字段定义，按字段名称/类型映射数据，兼容模板新增 `thing8` 等字段；模板接口需将 `/wxaapi/newtmpl/gettemplate` 加入云托管开放接口白名单，字段 Key 可用 `SUBSCRIBE_TPL_*_FIELDS` 环境变量兜底
+- 订阅模板动态字段（2026-11-28，待部署）：按 `template_id` 获取并缓存模板字段定义，兼容 `content` 对象数组和 `{{thing8.DATA}}` 模板字符串两种响应，从占位符及前置标签提取字段，按字段名称/类型映射数据；模板接口需将 `/wxaapi/newtmpl/gettemplate` 加入云托管开放接口白名单，字段 Key 可用 `SUBSCRIBE_TPL_*_FIELDS` 环境变量兜底
 - 合作商验收账号（2026-11-24，未提交）：与学生共用登录页，后端通过 `PARTNER_PREVIEW_USER/PASSWORD` 识别固定账号并签发 `role=partner` 会话；完整功能导航可用，课程/考试/成绩/四六级/学业进度返回只读虚构演示数据并标记 `demo_mode:true`，不读取真实学生数据、不写数据库且不触发教务；评教和学籍仍为空；详见 `docs/product/partner-preview-account-2026-11-24.md`
 - v1.10.0 图书馆库存（2026-10-29，已随 `45a2f77` 本地提交、未 push）：功能页第 8 个入口，支持书名/作者/ISBN/索书号检索与服务器分页；书目列表不 N+1，点开书目后才请求逐册馆藏并按南京/江阴/全部筛选，统计只认明确“可借”；后端匿名 OPAC 客户端固定上游 host/path、校验书目 ID、限制响应体/超时/页码/关键词，HTTP 200 业务错误与空结果区分；共享缓存（检索 30 分钟、单本 5 分钟、失败可回退新鲜期结束后 24h 内旧缓存并标记 stale）、同 key 并发合并、限流与上游并发上限；说明见 `docs/product/library-inventory-2026-10-29.md`
 
