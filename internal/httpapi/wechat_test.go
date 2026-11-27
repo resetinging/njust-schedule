@@ -140,3 +140,48 @@ func TestReminderLoopEnabledInCloudRunWithoutSecret(t *testing.T) {
 		t.Fatal("reminder loop must require credentials in public mode")
 	}
 }
+
+func TestTemplateFieldsIncludeDynamicThing8(t *testing.T) {
+	oldBase, oldClient := wechatCloudBaseURL, wechatCloudClient
+	t.Cleanup(func() {
+		wechatCloudBaseURL = oldBase
+		wechatCloudClient = oldClient
+	})
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != wechatTemplateListPath {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		w.Header().Set("x-openapi-seqid", "seq-template-1")
+		_, _ = w.Write([]byte(`{"errcode":0,"errmsg":"ok","data":[{"priTmplId":"tpl-1","content":[{"key":"thing1","name":"日程主题"},{"key":"thing8","name":"课程名称"},{"key":"time3","name":"时间"}]}]}`))
+	}))
+	defer upstream.Close()
+	wechatCloudBaseURL = upstream.URL
+	wechatCloudClient = upstream.Client()
+
+	server := &Server{cfg: config.Config{}, cache: map[string]cacheEntry{}}
+	fields := server.templateFields(t.Context(), "exam", "tpl-1")
+	data := buildWechatTemplateData(fields, wechatTemplateValues{
+		Topic: "考试提醒", Course: "信号与系统分析",
+		Date: "2026-11-28", Time: "09:00", Detail: "座位12号",
+	})
+	value, ok := data["thing8"].(map[string]string)
+	if !ok || value["value"] != "信号与系统分析" {
+		t.Fatalf("thing8 = %#v, fields=%#v", data["thing8"], fields)
+	}
+}
+
+func TestFallbackTemplateFieldsCanIncludeThing8(t *testing.T) {
+	t.Setenv("SUBSCRIBE_TPL_EXAM_FIELDS", "thing1,thing8")
+	fields := fallbackTemplateFields("exam")
+	if len(fields) != 2 || fields[1].Key != "thing8" {
+		t.Fatalf("unexpected fallback fields: %#v", fields)
+	}
+	data := buildWechatTemplateData(fields, wechatTemplateValues{
+		Topic: "考试提醒", Course: "信号与系统分析", Detail: "座位12号",
+	})
+	value, ok := data["thing8"].(map[string]string)
+	if !ok || strings.TrimSpace(value["value"]) == "" {
+		t.Fatalf("thing8 must not be empty: %#v", data)
+	}
+}

@@ -298,12 +298,16 @@ func (s *Server) subscribeTestSend(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "未获取到 openid(需在小程序内触发)")
 		return
 	}
-	now := time.Now().In(beijing).Format("2006-01-02 15:04")
-	data := map[string]any{
-		"thing1": map[string]string{"value": map[string]string{"exam": "考试提醒", "grade": "成绩发布"}[kind]},
-		"thing2": map[string]string{"value": "样例课程"}, "time3": map[string]string{"value": now},
-		"thing4": map[string]string{"value": "Ⅰ-301"}, "thing5": map[string]string{"value": "这是一条样例提醒"},
-	}
+	now := time.Now().In(beijing)
+	data := buildWechatTemplateData(s.templateFields(r.Context(), kind, template), wechatTemplateValues{
+		Topic:    map[string]string{"exam": "考试提醒", "grade": "成绩发布"}[kind],
+		Course:   "样例课程",
+		Date:     now.Format("2006-01-02"),
+		Time:     now.Format("15:04"),
+		Location: "Ⅰ-301",
+		Duration: "1小时",
+		Detail:   "这是一条样例提醒",
+	})
 	reserved, err := s.store.ReserveSubscription(r.Context(), sess.StudentID, kind)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "预留订阅额度失败")

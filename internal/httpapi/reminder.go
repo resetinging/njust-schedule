@@ -523,30 +523,33 @@ func examDuration(value string) string {
 	return fmt.Sprintf("%d分钟", minutes)
 }
 
-func examTemplateData(exam store.Exam) map[string]any {
-	when := strings.TrimSpace(exam.Date + " " + firstHHMM(exam.Time))
+func (s *Server) examTemplateData(ctx context.Context, exam store.Exam) map[string]any {
 	detail := strings.Trim(strings.TrimSpace("座位"+exam.Seat+" · "+exam.Type), " ·")
-	return map[string]any{
-		"thing1": map[string]string{"value": clipRunes("考试提醒", 20)},
-		"thing2": map[string]string{"value": clipRunes(examDuration(exam.Time), 20)},
-		"time3":  map[string]string{"value": clipRunes(when, 20)},
-		"thing4": map[string]string{"value": clipRunes(defaultText(exam.Location, "以教务为准"), 20)},
-		"thing5": map[string]string{"value": clipRunes(detail, 20)},
-	}
+	return buildWechatTemplateData(s.templateFields(ctx, "exam", s.cfg.SubscribeExam), wechatTemplateValues{
+		Topic:    "考试提醒",
+		Course:   exam.CourseName,
+		Date:     exam.Date,
+		Time:     firstHHMM(exam.Time),
+		Location: defaultText(exam.Location, "以教务为准"),
+		Duration: examDuration(exam.Time),
+		Detail:   detail,
+	})
 }
 
-func gradeTemplateData(grade store.Grade, now time.Time) map[string]any {
+func (s *Server) gradeTemplateData(ctx context.Context, grade store.Grade, now time.Time) map[string]any {
 	detail := grade.Score
 	if grade.GradePoint != 0 {
 		detail = fmt.Sprintf("%s · %.2g绩点", detail, grade.GradePoint)
 	}
-	return map[string]any{
-		"thing1": map[string]string{"value": "成绩发布"},
-		"thing2": map[string]string{"value": clipRunes(grade.CourseName, 20)},
-		"time3":  map[string]string{"value": now.Format("2006-01-02 15:04")},
-		"thing4": map[string]string{"value": "教务成绩查询"},
-		"thing5": map[string]string{"value": clipRunes(defaultText(detail, "已出成绩"), 20)},
-	}
+	return buildWechatTemplateData(s.templateFields(ctx, "grade", s.cfg.SubscribeGrade), wechatTemplateValues{
+		Topic:    "成绩发布",
+		Course:   grade.CourseName,
+		Date:     now.Format("2006-01-02"),
+		Time:     now.Format("15:04"),
+		Location: "教务成绩查询",
+		Duration: "成绩提醒",
+		Detail:   defaultText(detail, "已出成绩"),
+	})
 }
 
 func defaultText(value, fallback string) string {
@@ -683,7 +686,7 @@ func (s *Server) sendDueExamReminders(ctx context.Context) error {
 		if !claimed {
 			continue
 		}
-		if err = s.sendReminder(ctx, item.StudentID, "exam", s.cfg.SubscribeExam, "pages/main/main?feature=exams", examTemplateData(exam)); err != nil {
+		if err = s.sendReminder(ctx, item.StudentID, "exam", s.cfg.SubscribeExam, "pages/main/main?feature=exams", s.examTemplateData(ctx, exam)); err != nil {
 			if releaseErr := s.store.DeleteClaim(ctx, item.StudentID, claim); releaseErr != nil {
 				err = errors.Join(err, fmt.Errorf("释放考试提醒发送占用: %w", releaseErr))
 			}
@@ -995,7 +998,7 @@ func (s *Server) runReminderPool(ctx context.Context, limit int) error {
 					}
 					continue
 				}
-				if sendErr := s.sendReminder(ctx, sid, "grade", s.cfg.SubscribeGrade, "pages/main/main?feature=grades", gradeTemplateData(matches[0], now)); sendErr != nil {
+				if sendErr := s.sendReminder(ctx, sid, "grade", s.cfg.SubscribeGrade, "pages/main/main?feature=grades", s.gradeTemplateData(ctx, matches[0], now)); sendErr != nil {
 					if releaseErr := s.store.DeleteClaim(ctx, sid, claim); releaseErr != nil {
 						return errors.Join(sendErr, fmt.Errorf("释放成绩提醒发送占用: %w", releaseErr))
 					}

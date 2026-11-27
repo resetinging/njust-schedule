@@ -110,6 +110,8 @@ Go/WebGo 是生产运行时。旧 Flask 代码仅保留用于兼容性测试，�
 | MP_SECRET | `public` 模式所需的小程序 AppSecret；`cloudrun` 模式不使用 |
 | SUBSCRIBE_TPL_EXAM | 考试提醒模板 ID |
 | SUBSCRIBE_TPL_GRADE | 成绩提醒模板 ID；空值回退考试模板 |
+| SUBSCRIBE_TPL_EXAM_FIELDS | 可选兜底字段 Key，如 `thing1,thing2,time3,thing4,thing5,thing8` |
+| SUBSCRIBE_TPL_GRADE_FIELDS | 可选成绩提醒兜底字段 Key；空值使用考试模板兜底 |
 
 ### 后台任务
 
